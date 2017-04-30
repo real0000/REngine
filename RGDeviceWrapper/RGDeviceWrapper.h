@@ -1,0 +1,316 @@
+// RGDeviceWrapper.h
+//
+// 2015/11/12 Ian Wu/Real0000
+//
+
+#ifndef _R_GDEVICE_WRAPPER_H_
+#define _R_GDEVICE_WRAPPER_H_
+
+#include "CommonUtil.h"
+
+namespace R
+{
+
+#define NUM_BACKBUFFER 2
+
+enum
+{
+	VTXSLOT_POSITION = 0,//in vec3 a_Position;
+	VTXSLOT_TEXCOORD,//in vec4 a_UVs;
+	VTXSLOT_NORMAL,//in vec3 a_Normal;
+	VTXSLOT_TANGENT,//in vec3 a_Tangent;
+	VTXSLOT_BINORMAL,//in vec3 a_Binormal;
+	VTXSLOT_BONE,//in vec4 a_BoneID;
+	VTXSLOT_WEIGHT,//in vec4 a_BoneWeight; 
+	VTXSLOT_COLOR,//in vec4 a_Color;
+
+	VTXSLOT_COUNT
+};
+
+enum
+{
+	VTXFLAG_POSITION	= 1 << VTXSLOT_POSITION,
+	VTXFLAG_TEXCOORD	= 1 << VTXSLOT_TEXCOORD,
+	VTXFLAG_NORMAL		= 1 << VTXSLOT_NORMAL,
+	VTXFLAG_TANGENT		= 1 << VTXSLOT_TANGENT,
+	VTXFLAG_BINORMAL	= 1 << VTXSLOT_BINORMAL,
+	VTXFLAG_BONE		= 1 << VTXSLOT_BONE,
+	VTXFLAG_WEIGHT		= 1 << VTXSLOT_WEIGHT,
+	VTXFLAG_COLOR		= 1 << VTXSLOT_COLOR,
+
+	VTXFLAG_USE_WORLD_MAT	= 0x100,
+	VTXFLAG_USE_SKIN		= 0x200,
+	VTXFLAG_USE_NORMAL_TEXTURE = 0x400,
+	VTXFLAG_WITHOUT_VP_MAT	= 0x800,
+};
+
+STRING_ENUM_CLASS(ShaderParamType,
+	int1,
+	int2,
+	int3,
+	int4,
+	float1,
+	float2,
+	float3,
+	float4,
+	float3x3,
+	float4x4)
+
+STRING_ENUM_CLASS(BlendKey,
+	zero,
+	one,
+	src_color,
+	inv_src_color,
+	src_alpha,
+	inv_src_alpha,
+	dst_alpha,
+	inv_dst_alpha,
+	dst_color,
+	inv_dst_color,
+	src_alpha_saturate,
+	blend_factor,
+	inv_blend_factor,
+	src1_color,
+	inv_src1_color,
+	src1_alpha,
+	inv_src1_alpha) 
+	
+	
+STRING_ENUM_CLASS(BlendOP, add, sub, rev_sub, min, max)
+
+STRING_ENUM_CLASS(BlendLogic,//add '_' to prevent keyword
+	clear_,
+	set_,
+	copy_,
+	copy_inv_,
+	none_,
+	inv_,
+	and_,
+	nand_,
+	or_,
+	nor_,
+	xor_,
+	eq_,
+	and_rev_,
+	and_inv_,
+	or_rev_,
+	or_inv_)
+
+STRING_ENUM_CLASS(CullMode,
+	none,
+	front,
+	back)
+
+STRING_ENUM_CLASS(CompareFunc,
+	never,
+	less,
+	equal,
+	less_equal,
+	greater,
+	not_equal,
+	greater_equal,
+	always)
+
+STRING_ENUM_CLASS(StencilOP,
+	keep,
+	zero,
+	replace,
+	inc_saturate,
+	dec_saturate,
+	invert,
+	inc,
+	dec)
+
+STRING_ENUM_CLASS(TopologyType, point, line, triangle, patch)
+
+STRING_ENUM_CLASS(Topology,
+	undefined,
+	point_list,
+	line_list,
+	line_strip,
+	triangle_list,
+	triangle_strip,
+	line_list_adj,
+	line_strip_adj,
+	triangle_list_adj,
+	triangle_strip_adj,
+	point_patch_list_1,
+	point_patch_list_2,
+	point_patch_list_3,
+	point_patch_list_4,
+	point_patch_list_5,
+	point_patch_list_6,
+	point_patch_list_7,
+	point_patch_list_8,
+	point_patch_list_9,
+	point_patch_list_10,
+	point_patch_list_11,
+	point_patch_list_12,
+	point_patch_list_13,
+	point_patch_list_14,
+	point_patch_list_15,
+	point_patch_list_16,
+	point_patch_list_17,
+	point_patch_list_18,
+	point_patch_list_19,
+	point_patch_list_20,
+	point_patch_list_21,
+	point_patch_list_22,
+	point_patch_list_23,
+	point_patch_list_24,
+	point_patch_list_25,
+	point_patch_list_26,
+	point_patch_list_27,
+	point_patch_list_28,
+	point_patch_list_29,
+	point_patch_list_30,
+	point_patch_list_31,
+	point_patch_list_32)
+
+STRING_ENUM_CLASS(PixelFormat,
+	unknown,
+    rgba32_typeless,
+    rgba32_float,
+    rgba32_uint,
+    rgba32_sint,
+    rgb32_typeless,
+    rgb32_float,
+    rgb32_uint,
+    rgb32_sint,
+    rgba16_typeless,
+    rgba16_float,
+    rgba16_unorm,
+    rgba16_uint,
+    rgba16_snorm,
+    rgba16_sint,
+    rg32_typeless,
+    rg32_float,
+    rg32_uint,
+    rg32_sint,
+    r32g8x24_typeless,
+    d32_float_s8x24_uint,
+    r32_float_x8x24_typeless,
+    x32_typeless_g8x24_uint,
+    rgb10a2_typeless,
+    rgb10a2_unorm,
+    rgb10a2_uint,
+    r11g11b10_float,
+    rgba8_typeless,
+    rgba8_unorm,
+    rgba8_unorm_srgb,
+    rgba8_uint,
+    rgba8_snorm,
+    rgba8_sint,
+    rg16_typeless,
+    rg16_float,
+    rg16_unorm,
+    rg16_uint,
+    rg16_snorm,
+    rg16_sint,
+    r32_typeless,
+    d32_float,
+    r32_float,
+    r32_uint,
+    r32_sint,
+    r24g8_typeless,
+    d24_unorm_s8_uint,
+    r24_unorm_x8_typeless,
+    x24_typeless_g8_uint,
+    rg8_typeless,
+    rg8_unorm,
+    rg8_uint,
+    rg8_snorm,
+    rg8_sint,
+    r16_typeless,
+    r16_float,
+    d16_unorm,
+    r16_unorm,
+    r16_uint,
+    r16_snorm,
+    r16_sint,
+    r8_typeless,
+    r8_unorm,
+    r8_uint,
+    r8_snorm,
+    r8_sint,
+    a8_unorm,
+    r1_unorm,
+    rgb9e5,
+    rgbg8_unorm,
+    grgb8_unorm,
+    bc1_typeless,
+    bc1_unorm,
+    bc1_unorm_srgb,
+    bc2_typeless,
+    bc2_unorm,
+    bc2_unorm_srgb,
+    bc3_typeless,
+    bc3_unorm,
+    bc3_unorm_srgb,
+    bc4_typeless,
+    bc4_unorm,
+    bc4_snorm,
+    bc5_typeless,
+    bc5_unorm,
+    bc5_snorm,
+    b5g6r5_unorm,
+    bgr5a1_unorm,
+    bgra8_unorm,
+    bgrx8_unorm,
+    rgb10_xr_bias_a2_unorm,
+    bgra8_typeless,
+    bgra8_unorm_srgb,
+    bgrx8_typeless,
+    bgrx8_unorm_srgb,
+    bc6h_typeless,
+    bc6h_uf16,
+    bc6h_sf16,
+    bc7_typeless,
+    bc7_unorm,
+    bc7_unorm_srgb,
+    ayuv,
+    y410,
+    y416,
+    nv12,
+    p010,
+    p016,
+    opaque420,
+    yuy2,
+    y210,
+    y216,
+    nv11,
+    ai44,
+    ia44,
+    p8,
+    ap8,
+    bgra4_unorm,
+    p208,
+    v208,
+    v408,
+    uint)
+
+#define SHADER_PATH "Shaders/"
+STRING_ENUM_CLASS(DefaultPrograms,
+	z_disable_line,
+	z_enable_line,
+	z_disable_image,
+	z_enable_image,
+	num_default_program)
+
+}
+
+#define TEXTURE_ARRAY_SIZE 16
+
+#include "DeviceWrapper.h"
+#include "ShaderBase.h"
+
+#ifdef WIN32
+#	include "D3D/D3DDevice.h"
+#	include "D3D/HLSLShader.h"
+#endif
+
+#if (defined MAC_OSX || defined IOS)
+	// include metal lib
+#endif
+
+#endif

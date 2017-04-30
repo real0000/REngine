@@ -1,0 +1,49 @@
+<root isCompute="false" isIndexed="true">
+  <ParamList>
+    <ConstBuffer name="CameraBuffer" reserved="true"/>
+    <ConstBuffer name="VertexTransition">
+      <Param name="m_World" desc="" type="float4x4" isArray="true" size="100"/>
+    </ConstBuffer>
+    <Constant name="m_VtxFlag" type="int" reserved="false"/>
+    <!--StorageBuffer/-->
+    <Srv2D name="m_DiffTex" desc="" reserved="false"/>
+    <Srv2D name="m_NormalTex" desc="" reserved="false"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Vertex file="VertexTransfer.vertex">
+        m_VtxFlag, CameraBuffer, VertexTransition
+      </Vertex>
+      <!--Geometry file="">
+      </Geometry>
+      <TessCtrl file="">  
+      </TessCtrl>
+      <TessEval file="">
+      </TessEval>
+      <Compute>
+      </Compute>-->
+      <Fragment file="TextureOnly.pixel">
+        m_DiffTex, m_NormalTex
+      </Fragment>
+    </Model_5_1>
+  </Shaders>
+  <ShaderSetting sampleMask="ffffffff" topology="triangle_list" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
+    <BlendState/>
+    <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="true" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
+    <DepthStencil>
+      <Depth enable="true" write="true" func="less"/>
+      <Stencil enable="false" readMask="ff" writeMask="ff">
+        <Front func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+        <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+      </Stencil>
+    </DepthStencil>
+    <RenderTarget depthStencil="d24_unorm_s8_uint">
+      <rgb10a2_unorm/>
+      <rgba8_unorm/>
+      <rgba8_unorm/>
+      <rgba8_unorm/>
+      <rgba8_unorm/>
+      <rg16_float/>
+    </RenderTarget>
+  </ShaderSetting>
+</root>

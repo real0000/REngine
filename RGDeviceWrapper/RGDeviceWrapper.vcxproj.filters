@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{6f3be941-8e37-4c9d-af61-bd61531a7fae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vulkan">
+      <UniqueIdentifier>{2481fd5b-6b2b-41a2-a568-4d073d4f591b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="D3D">
+      <UniqueIdentifier>{df3309db-5e44-4200-a3b2-4196271dfc29}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DeviceWrapper.cpp" />
+    <ClCompile Include="ShaderBase.cpp" />
+    <ClCompile Include="D3D\HLSLShader.cpp">
+      <Filter>D3D</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D\D3DDevice.cpp">
+      <Filter>D3D</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DeviceWrapper.h" />
+    <ClInclude Include="RGDeviceWrapper.h" />
+    <ClInclude Include="ShaderBase.h" />
+    <ClInclude Include="Shaders\StdInclude.h">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D\HLSLShader.h">
+      <Filter>D3D</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D\D3DDevice.h">
+      <Filter>D3D</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="Shaders\TextureOnly.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+  </ItemGroup>
+</Project>

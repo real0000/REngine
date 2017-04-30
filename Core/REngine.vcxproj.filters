@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Module">
+      <UniqueIdentifier>{4b1b49ac-73ed-43bb-852a-cc721df82d62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Texture">
+      <UniqueIdentifier>{bccc469d-4a75-48e6-b97c-69b189115de7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Model">
+      <UniqueIdentifier>{728f0eee-1043-4e20-873f-b22410781e41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Module\Scene">
+      <UniqueIdentifier>{e1c3e040-e351-4189-968d-732e644a0772}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Module\StateMachine.h">
+      <Filter>Module</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\CoreMachine.h">
+      <Filter>Module</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Texture\TextureAtlas.h">
+      <Filter>Module\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Model\Entity.h">
+      <Filter>Module\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Texture\Texture.h">
+      <Filter>Module\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Core.h" />
+    <ClInclude Include="CommonConst.h" />
+    <ClInclude Include="REngine.h" />
+    <ClInclude Include="wxCanvas.h" />
+    <ClInclude Include="Module\Scene\Camera.h">
+      <Filter>Module\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Scene\SceneNode.h">
+      <Filter>Module\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\PhysicalModule.h">
+      <Filter>Module</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Scene\Scene.h">
+      <Filter>Module\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Texture\FrameTexture.h">
+      <Filter>Module\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Model\DrawBuffer.h">
+      <Filter>Module\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Model\SimpleObject.h">
+      <Filter>Module\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Module\Material.h">
+      <Filter>Module</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Module\StateMachine.cpp">
+      <Filter>Module</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\CoreMachine.cpp">
+      <Filter>Module</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Texture\TextureAtlas.cpp">
+      <Filter>Module\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Model\Entity.cpp">
+      <Filter>Module\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Texture\Texture.cpp">
+      <Filter>Module\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="REngine.cpp" />
+    <ClCompile Include="wxCanvas.cpp" />
+    <ClCompile Include="Module\Scene\Camera.cpp">
+      <Filter>Module\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Scene\SceneNode.cpp">
+      <Filter>Module\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\PhysicalModule.cpp">
+      <Filter>Module</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Scene\Scene.cpp">
+      <Filter>Module\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Texture\FrameTexture.cpp">
+      <Filter>Module\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Model\DrawBuffer.cpp">
+      <Filter>Module\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Model\SimpleObject.cpp">
+      <Filter>Module\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Module\Material.cpp">
+      <Filter>Module</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
