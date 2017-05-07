@@ -66,7 +66,7 @@ public:
 	ShaderProgram();
 	virtual ~ShaderProgram();
 
-	virtual void init(boost::property_tree::ptree &a_Root);
+	void setup(boost::property_tree::ptree &a_Root);
 	bool isCompute(){ return m_bCompute; }
 	bool isIndexedDraw(){ return m_bIndexedDraw; }
 	std::pair<int, int> shaderInUse(){ return m_ShaderInUse; }
@@ -84,9 +84,11 @@ protected:
 		m_StorageDesc.push_back(new ProgramBlockDesc());
 		return m_StorageDesc.back();
 	}
+	virtual void init(boost::property_tree::ptree &a_Root) = 0;
 	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 
 private:
+	void parseStructureDefineRoot(boost::property_tree::ptree &a_Root);
 	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
 
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
@@ -94,7 +96,6 @@ private:
 	std::vector<ProgramBlockDesc *> m_ConstBlockDesc, m_StorageDesc;
 	bool m_bCompute;
 	bool m_bIndexedDraw;
-
 	std::pair<int, int> m_ShaderInUse;
 };
 
@@ -104,23 +105,22 @@ private:
 class ProgramManagerComponent
 {
 public:
-	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::string &a_ParamDefine) = 0;
+	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine) = 0;
 	virtual ShaderProgram* newProgram() = 0;
 };
 
-class ProgramManager
+class ProgramManager : public SearchPathSystem
 {
 public:
 	static void init(ProgramManagerComponent *a_pComponent);
 	static ProgramManager& singleton();
 
-	// file name only, must under SHADER_PATH, DO NOT use absolute path
 	ShaderProgram* getProgram(wxString a_Filename);
 	ShaderProgram* getProgram(int a_ProgramID);
 	int getProgramKey(wxString a_Filename);
-
+	
 	// call for program initial, DO NOT use this method directly
-	void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::string &a_ParamDefine);
+	void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 
 private:
 	ProgramManager();

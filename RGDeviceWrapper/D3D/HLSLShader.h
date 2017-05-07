@@ -29,7 +29,8 @@ protected:
 class HLSLProgram12 : public HLSLProgram
 {
 	friend class HLSLComponent;
-public:
+
+protected:
 	virtual void init(boost::property_tree::ptree &a_Root);
 
 private:
@@ -46,9 +47,9 @@ private:
 		bool m_bReserved;
 	};
 	
-	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<ShaderStages::Key, std::string> &a_ParamOutput);
-	void initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<ShaderStages::Key, std::string> &a_ParamDefine);
-	void initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::string &a_ParamDefine);
+	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput);
+	void initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
+	void initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
 	void assignCmd(unsigned int &a_Offset, unsigned int a_Size);
 
 	ID3D12PipelineState *m_pPipeline;
@@ -70,13 +71,12 @@ public:
 	HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes);
 	HRESULT __stdcall Close(LPCVOID a_pData);
 	
-	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::string &a_ParamDefine);
+	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 	virtual ShaderProgram* newProgram();
 
 private:
 	std::string getCompileTarget(ShaderStages::Key a_Stage, std::pair<int, int> a_Module);
 
-	wxString m_LocalPath;//include use
 	std::map<wxString, ID3DBlob*> m_ShaderMap;
 };
 

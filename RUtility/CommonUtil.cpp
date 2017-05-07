@@ -8,17 +8,6 @@
 namespace R
 {
 
-__int64 getFileLength(FILE *a_pFile)
-{
-	__int64 l_Pos = ftell(a_pFile); 
-	__int64 l_Length = 0; 
-	fseek(a_pFile, 0, SEEK_END); 
-	l_Length = ftell(a_pFile); 
-	fseek(a_pFile, l_Pos, SEEK_SET); 
-
-	return l_Length; 
-}
-
 void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Output)
 {
 	a_Output.clear();
@@ -175,5 +164,45 @@ void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_Sc
 
 	a_RotOut = glm::quat_cast(glm::mat3x3(l_Col1, l_Col2, l_Col3));
 }
+
+#pragma region SearchPathSystem
+//
+// SearchPathSystem
+//
+SearchPathSystem::SearchPathSystem()
+{
+}
+
+SearchPathSystem::~SearchPathSystem()
+{
+	m_SearchPath.clear();
+	m_FileCache.clear();
+}
+
+wxString SearchPathSystem::findFile(wxString a_Filename)
+{
+	auto it = m_FileCache.find(a_Filename);
+	if( m_FileCache.end() == it ) return it->second;
+
+	for( unsigned int i=0 ; i<m_SearchPath.size() ; ++i )
+	{
+		wxString l_FilePath(m_SearchPath + a_Filename);
+		if( wxFileExists(l_FilePath) )
+		{
+			m_FileCache.insert(std::make_pair(a_Filename, l_FilePath));
+			return l_FilePath;
+		}
+	}
+	return wxT("");
+}
+
+void SearchPathSystem::addSearchPath(wxString a_Path)
+{
+	a_Path.Replace(wxT("\\"), wxT("/"));
+	if( !a_Path.EndsWith("/") ) a_Path += wxT("/");
+	assert(std::find(m_SearchPath.begin(), m_SearchPath.end(), a_Path) == m_SearchPath.end());
+	m_SearchPath.push_back(a_Path);
+}
+#pragma endregion
 
 }

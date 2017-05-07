@@ -48,7 +48,6 @@
 namespace R
 {
 
-__int64 getFileLength(FILE *a_pFile);
 void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Output);
 wxString getFileName(wxString a_File);
 wxString getFileExt(wxString a_File);
@@ -149,6 +148,21 @@ private:									\
 #define STRING_ENUM_CLASS_INST(classname) \
 std::vector<wxString> classname::m_Strings;\
 std::map<wxString, classname::Key> classname::m_StringMap;
+
+class SearchPathSystem
+{ 
+public:
+	SearchPathSystem();
+	virtual ~SearchPathSystem();
+
+	wxString findFile(wxString a_Filename);
+	void addSearchPath(wxString a_Path);
+	void clearFileCache(){ m_FileCache.clear(); }
+
+private:
+	std::map<wxString, wxString> m_FileCache;
+	std::vector<wxString> m_SearchPath;
+};
 
 }
 

@@ -5,6 +5,8 @@
 
 #include "RGDeviceWrapper.h"
 
+#include "wx/file.h"
+
 namespace R
 {
 
@@ -121,14 +123,21 @@ void HLSLProgram12::init(boost::property_tree::ptree &a_Root)
 	snprintf(l_Buff, 256, "root.Shaders.Model_%d_%d", shaderInUse().first, shaderInUse().second);
 	boost::property_tree::ptree &l_Shaders = a_Root.get_child(l_Buff);
 	
-	std::map<ShaderStages::Key, std::string> l_ParamDef;
+	std::map<std::string, std::string> l_ParamDef;
 	initRegister(l_Shaders, a_Root.get_child("root.ParamList"), l_ParamDef);
 	if( !isCompute() ) initDrawShader(l_ShaderSetting, l_Shaders, l_ParamDef);
-	else initComputeShader(l_ShaderSetting, l_Shaders, l_ParamDef[ShaderStages::Compute]);
+	else initComputeShader(l_ShaderSetting, l_Shaders, l_ParamDef);
 }
 
-void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<ShaderStages::Key, std::string> &a_ParamOutput)
+void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput)
 {
+	char l_DefName[256], l_Def[1024];
+	for( unsigned int i=0 ; i<ShaderStages::NumStage ; ++i )
+	{
+		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", i);
+		a_ParamOutput.insert(std::make_pair(l_DefName, ""));
+	}
+
 	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
 	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::StorageBuffer+1][ShaderStages::NumStage];
 	{
@@ -159,7 +168,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			std::map<std::string, RegisterInfo *> &l_TargetMap = l_ParamMap[l_RegType][l_RegVisibleMaps[l_Name]];
 
 			RegisterInfo *l_pNewInfo = new RegisterInfo();
-			l_pNewInfo->m_bReserved = it->second.get("<xmlattr>.reserved", "false") == "true";
+			l_pNewInfo->m_bReserved = (it->second.get("<xmlattr>.reserved", "false") == "true") || l_RegType == ShaderRegType::StorageBuffer;
 			l_pNewInfo->m_Type = l_RegType;
 			l_TargetMap.insert(std::make_pair(l_Name, l_pNewInfo));
 
@@ -209,13 +218,17 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 					l_RegCollect.push_back(l_TempReg);
 
+					snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
+					snprintf(l_DefName, 256, ":register(t%d)", l_Slot);
+					a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
+
 					++l_Slot;
 				}
 			}
 		}
 	}
 
-	// uav(storage), const buffer
+	// uav(storage)
 	l_Slot = 0;
 	for( unsigned int l_Visibility = 0 ; l_Visibility < ShaderStages::NumStage ; ++l_Visibility )
 	{
@@ -238,6 +251,10 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 			ProgramBlockDesc *l_pNewBlock = newStorageBlockDesc();
 			l_pNewBlock->m_pRefRegInfo = it->second;
+			
+			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
+			snprintf(l_Def, 1024, ":register(u%d)", l_Slot);
+			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 
 			++l_Slot;
 		}
@@ -264,6 +281,10 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 			l_RegCollect.push_back(l_TempReg);
 
+			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
+			snprintf(l_Def, 1024, ":register(b%d)", l_Slot);
+			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
+
 			++l_Slot;
 		}
 	}
@@ -273,7 +294,12 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	{
 		std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[ShaderRegType::Constant][l_Visibility];
 		if( l_ParamList.empty() ) continue;
+		char l_Temp[256];
 
+		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", l_Visibility);
+		snprintf(l_Temp, 256, "cbuffer Const32Block%d : register(b%d)\\\n{\\\n", l_Visibility, l_Slot);
+		strcat(l_Def, l_Temp);
+			 
 		ProgramBlockDesc *l_pNewConstBlock = newConstBlockDesc();
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
@@ -291,7 +317,14 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			it->second->m_Offset = l_pNewParam->m_Offset;
 			it->second->m_Size = l_ParamSize;
 			m_RegMap[ShaderRegType::Constant][it->first] = it->second;
+
+			std::string l_TypeStr(ShaderParamType::toString(l_pNewParam->m_Type).c_str());
+			if( l_TypeStr.back() == '1' ) l_TypeStr.pop_back();
+			snprintf(l_Temp, 256, "\t%s %s;\\\n", l_TypeStr.c_str(), it->first.c_str());
+			strcat(l_Def, l_Temp);
 		}
+
+		strcat(l_Def, "}");
 
 		D3D12_ROOT_PARAMETER l_TempReg;
 		l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -363,7 +396,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	SAFE_RELEASE(l_BinSignature)
 }
 
-void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<ShaderStages::Key, std::string> &a_ParamDefine)
+void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine)
 {
 	D3D12Device *l_pRefDevice = GraphicDeviceManager::singleton().getTypedDevice<D3D12Device>();
 	ID3D12Device *l_pDeviceInst = l_pRefDevice->getDeviceInst();
@@ -470,7 +503,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
 				
 				if( l_Filename.IsEmpty() ) l_ShaderUsage[i] = nullptr;
-				else l_ShaderUsage[i] = (ID3DBlob *)ProgramManager::singleton().getShader(l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine[(ShaderStages::Key)i]);
+				else l_ShaderUsage[i] = (ID3DBlob *)ProgramManager::singleton().getShader(l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine);
 			}
 
 			ID3DBlob *l_pShader = l_ShaderUsage[ShaderStages::Vertex];
@@ -693,7 +726,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 	}
 }
 
-void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::string &a_ParamDefine)
+void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine)
 {
 
 }
@@ -721,24 +754,22 @@ HLSLComponent::~HLSLComponent()
 	
 HRESULT __stdcall HLSLComponent::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
 {
-	wxString l_Filepath;
-	if( D3D_INCLUDE_SYSTEM == IncludeType ) l_Filepath = wxString(SHADER_PATH) + pFileName;
-	else l_Filepath = m_LocalPath + pFileName;
+	wxString l_Filepath(ProgramManager::singleton().findFile(pFileName));
 
-	FILE *fp = fopen(l_Filepath.c_str(), "rb");
-	if( nullptr == fp ) return E_FAIL;
+	wxFile l_File;
+	if( !l_File.Open(l_Filepath) ) return E_FAIL;
 
-	int64 l_FileLength = getFileLength(fp);
+	wxFileOffset l_FileLength = l_File.Length();
 	if( 0 == l_FileLength )
 	{
-		fclose(fp);
+		l_File.Close();
 		return E_FAIL;
 	}
 
 	char *l_pFileBuff = new char[l_FileLength + 1];
-	fread(l_pFileBuff, sizeof(char), l_FileLength, fp);
+	l_File.Read(l_pFileBuff, l_FileLength);
 	l_pFileBuff[l_FileLength] = '\0';
-	fclose(fp);
+	l_File.Close();
 
 	*ppData = l_pFileBuff;
 	*pBytes = l_FileLength;
@@ -753,42 +784,33 @@ HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
     return S_OK;
 }
 
-void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::string &a_ParamDefine)
+void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
-	wxString l_ShaderName(getFileName(a_Filename));
+	wxString l_ShaderName(ProgramManager::singleton().findFile(a_Filename));
 	auto it = m_ShaderMap.find(l_ShaderName);
 	if( m_ShaderMap.end() != it ) return it->second;
 
-	m_LocalPath = getRelativePath(wxGetCwd(), a_Filename);
-	m_LocalPath = getFilePath(m_LocalPath);
-	if( !m_LocalPath.EndsWith("/") ) m_LocalPath += wxT('/');
-
-	ID3DBlob *l_pShader = nullptr, *l_pErrorMsg = nullptr;
-	FILE *fp = fopen(a_Filename.c_str(), "rb");
-	if( nullptr == fp ) return nullptr;
-
-	int64 l_FileLength = getFileLength(fp);
-	if( 0 == l_FileLength )
+	D3D_SHADER_MACRO *l_Macros = nullptr;
+	if( !a_ParamDefine.empty() )
 	{
-		fclose(fp);
-		return nullptr;
+		new D3D_SHADER_MACRO[a_ParamDefine.size()];
+		unsigned int l_Idx = 0;
+		for( auto it = a_ParamDefine.begin() ; it != a_ParamDefine.end() ; ++it, ++l_Idx )
+		{
+			l_Macros[l_Idx].Name = it->first.c_str();
+			l_Macros[l_Idx].Definition = it->second.c_str();
+		}
 	}
-
-	a_ParamDefine += "\n";
-	char *l_pFileBuff = new char[l_FileLength + 1];
-	fread(l_pFileBuff, sizeof(char), l_FileLength, fp);
-	l_pFileBuff[l_FileLength] = '\0';
-	a_ParamDefine += l_pFileBuff;
-	fclose(fp);
-	delete[] l_pFileBuff;
-
-	D3DCompile(a_ParamDefine.c_str(), a_ParamDefine.size(), nullptr, nullptr, this, "main", getCompileTarget(a_Stage, a_Module).c_str()
+	
+	ID3DBlob *l_pShader = nullptr, *l_pErrorMsg = nullptr;
+	D3DCompileFromFile(l_ShaderName.c_str(), l_Macros, this, "main", getCompileTarget(a_Stage, a_Module).c_str()
 #ifdef _DEBUG
 		, D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
 #else
 		, D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
 #endif
 		, 0, &l_pShader, &l_pErrorMsg);
+	if( nullptr != l_Macros ) delete [] l_Macros;
 
 	if( nullptr != l_pErrorMsg )
 	{

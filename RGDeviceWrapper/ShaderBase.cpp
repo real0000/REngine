@@ -82,7 +82,7 @@ ShaderProgram::~ShaderProgram()
 	m_StorageDesc.clear();
 }
 
-void ShaderProgram::init(boost::property_tree::ptree &a_Root)
+void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 {
 	const std::pair<int, int> c_ShaderModelList[] = {
 		std::make_pair(6, 0),
@@ -151,9 +151,9 @@ void ShaderProgram::init(boost::property_tree::ptree &a_Root)
 			auto l_ParamAttr = l_ParamIt->second.get_child("<xmlattr>");
 			ShaderParamType::Key l_ParamType = ShaderParamType::fromString(l_ParamAttr.get<std::string>("type"));
 			unsigned int l_ParamSize = GDEVICE()->getParamAlignmentSize(l_ParamType);
-			if( l_ParamAttr.get<bool>("isArray", false) )
+			unsigned int l_ArraySize = l_ParamAttr.get<unsigned int>("size", 1);
+			if( l_ArraySize > 1 )
 			{
-				unsigned int l_ArraySize = l_ParamAttr.get<unsigned int>("size", 1);
 				for( unsigned int i=0 ; i<l_ArraySize ; ++i )
 				{	
 					std::string l_ArrayParam(wxString::Format(wxT("%s[%d]"), l_ParamName.c_str(), i).c_str());
@@ -185,6 +185,8 @@ void ShaderProgram::init(boost::property_tree::ptree &a_Root)
 		if( 0 != (l_ParamOffset % (sizeof(float) * 4)) ) l_ParamOffset += sizeof(float) * 4 - (l_ParamOffset % (sizeof(float) * 4));
 		l_pNewBlock->m_BlockSize = l_ParamOffset;
 	}
+
+	init(a_Root);
 }
 
 void ShaderProgram::parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst)
@@ -275,7 +277,13 @@ ProgramManager& ProgramManager::singleton()
 }
 
 ProgramManager::ProgramManager()
-{
+	: SearchPathSystem()
+{	
+	wxString l_Path(wxGetCwd());
+	l_Path.Replace("\\", "/");
+	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
+	addSearchPath(l_Path + SHADER_PATH);
+
 	initDefaultProgram();
 }
 
@@ -290,8 +298,6 @@ ProgramManager::~ProgramManager()
 
 ShaderProgram* ProgramManager::getProgram(wxString a_Filename)
 {
-	assert(nullptr != m_pShaderComponent);
-
 	int l_ProgramID = getProgramKey(a_Filename);
 	if( -1 != l_ProgramID ) return m_Programs[l_ProgramID];
 
@@ -303,7 +309,7 @@ ShaderProgram* ProgramManager::getProgram(wxString a_Filename)
 	if( l_XMLTree.empty() ) return nullptr;
 
 	ShaderProgram *l_pNewProgram = m_pShaderComponent->newProgram();
-	l_pNewProgram->init(l_XMLTree);
+	l_pNewProgram->setup(l_XMLTree);
 
 	m_ProgramMap[a_Filename] = m_Programs.size();
 	m_Programs.push_back(l_pNewProgram);
@@ -324,7 +330,7 @@ int ProgramManager::getProgramKey(wxString a_Filename)
 	return it->second;
 }
 
-void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::string &a_ParamDefine)
+void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
 	assert(nullptr != m_pShaderComponent);
 	return m_pShaderComponent->getShader(a_Filename, a_Stage, a_Module, a_ParamDefine);
@@ -332,11 +338,9 @@ void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, 
 
 void ProgramManager::initDefaultProgram()
 {
-	wxString l_ProjPath = wxGetCwd();
-	if( !l_ProjPath.EndsWith("/") ) l_ProjPath += "/";
 	for( unsigned int i=0 ; i<DefaultPrograms::num_default_program ; ++i )
 	{
-		wxString l_FileToCompile(l_ProjPath + SHADER_PATH + DefaultPrograms::toString((DefaultPrograms::Key)i) + wxT(".xml"));
+		wxString l_FileToCompile(DefaultPrograms::toString((DefaultPrograms::Key)i) + wxT(".xml"));
 		getProgram(l_FileToCompile);
 	}
 }

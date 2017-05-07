@@ -16,11 +16,7 @@
 #define WITHOUT_VP_MAT		0x800
 
 #ifdef GLSL
-	#define float2 vec2
-	#define float3 vec3
-	#define float4 vec4
-	#define vout_Position gl_Position 
-
+	#define TAG(p)
 	#define vs_main()			\
 		in float3 vin_Position;	\
 		in float3 vin_Texcoord0;\
@@ -54,6 +50,7 @@
 
 
 #else
+	#define TAG(p) :p
 	#define vs_main()									\
 		void main(in float3 vin_Position	: POSITION0	\
 				, in float3 vin_Texcoord0	: TEXCOORD0	\
@@ -87,29 +84,32 @@
 
 struct PS_CommonInput
 {
-	float4 m_UV : TEXCOORD0;
-	float4 m_Normal : NORMAL0;
-	float4 m_Tangent : TANGENT0;
-	float4 m_Binormal : BINORMAL0;
-	float4 m_Color : COLOR0;
+	float4 m_UV TAG(TEXCOORD0);
+	float4 m_Normal TAG(NORMAL0);
+	float4 m_Tangent TAG(TANGENT0);
+	float4 m_Binormal TAG(BINORMAL0);
+	float4 m_Color TAG(COLOR0);
 };
 
 struct PS_CommonOutput
 {
-	float4 m_Target0 : SV_TARGET0;// rgb : world normal, a : distance/height map flag
-	float4 m_Target1 : SV_TARGET1;// r : metallic, g : specular, b : roughness, a : shaing mode id(7 bit), decal mask(1 bit)
-	float4 m_Target2 : SV_TARGET2;// rgb : diffuse, (a : ao?)
-	float4 m_Target3 : SV_TARGET3;// r : opacity, gba : mask g-buffer(ssao, subsurface scattering, wet surface mask, skylight mask ...)
-	float4 m_Target4 : SV_TARGET4;// pre compute shader factor
-	float2 m_Target5 : SV_TARGET5;// motion blur
+	float4 m_Target0 TAG(SV_TARGET0);// rgb : world normal, a : distance/height map flag
+	float4 m_Target1 TAG(SV_TARGET1);// r : metallic, g : specular, b : roughness, a : shaing mode id(7 bit), decal mask(1 bit)
+	float4 m_Target2 TAG(SV_TARGET2);// rgb : diffuse, (a : ao?)
+	float4 m_Target3 TAG(SV_TARGET3);// r : opacity, gba : mask g-buffer(ssao, subsurface scattering, wet surface mask, skylight mask ...)
+	float4 m_Target4 TAG(SV_TARGET4);// pre compute shader factor
+	float2 m_Target5 TAG(SV_TARGET5);// motion blur
 };
 
-/*cbuffer VtxFlag : register(b1)
-{
-	uint m_VtxFlag;
-};
+// for 32-bit constant block
+auto_bind_constant32_block0;
+auto_bind_constant32_block1;
+auto_bind_constant32_block2;
+auto_bind_constant32_block3;
+auto_bind_constant32_block4;
+auto_bind_constant32_block5;
 
-cbuffer CameraBuffer : register(b2)
+cbuffer CameraBuffer auto_bind_CameraBuffer
 {
 	float4x4 m_View;
 	float4x4 m_Projection;
@@ -121,7 +121,7 @@ cbuffer CameraBuffer : register(b2)
 	float3 m_Time;//time, sin(Time), cos(Time), 
 	float m_Random;// 0 ~ 1.0
 };
-
+/*
 cbuffer VertexTransition : register(b3)
 {
 	float4x4 m_World;
