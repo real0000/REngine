@@ -131,6 +131,7 @@
     <ClCompile Include="DeviceWrapper.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DrawBuffer.cpp" />
     <ClCompile Include="ShaderBase.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/wd4477</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/wd4477</AdditionalOptions>
@@ -142,6 +143,7 @@
     <ClInclude Include="D3D\D3DDevice.h" />
     <ClInclude Include="D3D\HLSLShader.h" />
     <ClInclude Include="DeviceWrapper.h" />
+    <ClInclude Include="DrawBuffer.h" />
     <ClInclude Include="RGDeviceWrapper.h" />
     <ClInclude Include="ShaderBase.h" />
     <ClInclude Include="Shaders\StdInclude.h" />

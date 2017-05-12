@@ -391,14 +391,14 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		return ;
 	}
 
-	ID3D12Device *l_pRefDevice = GraphicDeviceManager::singleton().getTypedDevice<D3D12Device>()->getDeviceInst();
+	ID3D12Device *l_pRefDevice = TYPED_GDEVICE(D3D12Device)->getDeviceInst();
 	l_pRefDevice->CreateRootSignature(0, l_BinSignature->GetBufferPointer(), l_BinSignature->GetBufferSize(), IID_PPV_ARGS(&m_pRegisterDesc));
 	SAFE_RELEASE(l_BinSignature)
 }
 
 void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine)
 {
-	D3D12Device *l_pRefDevice = GraphicDeviceManager::singleton().getTypedDevice<D3D12Device>();
+	D3D12Device *l_pRefDevice = TYPED_GDEVICE(D3D12Device);
 	ID3D12Device *l_pDeviceInst = l_pRefDevice->getDeviceInst();
 
 	{// shader setting part
@@ -475,7 +475,10 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		
 		const D3D12_INPUT_ELEMENT_DESC c_InputLayout[] = {
 			{"POSITION"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_POSITION	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_TEXCOORD	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD0"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD01, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD1"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD23, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD2"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD45, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD3"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD67, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"NORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_NORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"TANGENT"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TANGENT	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"BINORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_BINORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -830,7 +833,7 @@ void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, s
 
 ShaderProgram* HLSLComponent::newProgram()
 {
-	if( nullptr != GraphicDeviceManager::singleton().getTypedDevice<D3D12Device>() ) return new HLSLProgram12();
+	if( nullptr != TYPED_GDEVICE(D3D12Device) ) return new HLSLProgram12();
 	else ;
 
 	return nullptr;

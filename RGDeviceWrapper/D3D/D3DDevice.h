@@ -18,8 +18,8 @@ public:
 	virtual ~Dircet3DDevice();
 	
 	// converter part( *::Key -> d3d, vulkan var )
-	virtual unsigned int getPixelFormat(PixelFormat::Key l_Key);
-	virtual unsigned int getParamAlignment(ShaderParamType::Key l_Key);
+	virtual unsigned int getPixelFormat(PixelFormat::Key a_Key);
+	virtual unsigned int getParamAlignment(ShaderParamType::Key a_Key);
 };
 
 class D3D12Device : public Dircet3DDevice
@@ -35,8 +35,6 @@ public:
 	virtual void setupCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo = false);
 	virtual void resetCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo = false);
 	virtual void destroyCanvas(wxWindow *a_pCanvas);
-	virtual void waitGpuSync(wxWindow *a_pCanvas);
-	virtual void waitFrameSync(wxWindow *a_pCanvas);
 	virtual std::pair<int, int> maxShaderModel();
 
 	// converter part( *::Key -> d3d, vulkan var )
@@ -53,6 +51,9 @@ public:
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
 
 private:
+	typedef std::pair<ID3D12CommandAllocator *, ID3D12GraphicsCommandList *> GpuThread;
+	GpuThread newThread(D3D12_COMMAND_LIST_TYPE a_Type);
+	
 	class HeapManager
 	{
 	public:
@@ -81,11 +82,11 @@ private:
 		CanvasItem(HeapManager *l_pHeapOwner);
 		virtual ~CanvasItem();
 
-		void init(HWND a_Wnd, glm::ivec2 a_Size, bool a_bFullScr, IDXGIFactory4 *a_pFactory, ID3D12Device *a_pDevice, ID3D12CommandQueue *a_pCmdQueue);
-		void resize(HWND a_Wnd, glm::ivec2 a_Size, bool a_bFullScr, IDXGIFactory4 *a_pFactory, ID3D12Device *a_pDevice, ID3D12CommandQueue *a_pCmdQueue);
+		void init(HWND a_Wnd, glm::ivec2 a_Size, bool a_bFullScr, IDXGIFactory4 *a_pFactory, ID3D12Device *a_pDevice);
+		void resize(HWND a_Wnd, glm::ivec2 a_Size, bool a_bFullScr, IDXGIFactory4 *a_pFactory, ID3D12Device *a_pDevice);
 
-		void waitGpuSync(ID3D12CommandQueue *a_pQueue);
-		void waitFrameSync(ID3D12CommandQueue *a_pQueue);
+		void waitGpuSync();
+		void waitFrameSync();
 		bool isFullScreen(){ return m_bFullScreen; }
 		bool isStereo(){ return m_bStereo; }
 
@@ -101,6 +102,8 @@ private:
 		unsigned int m_BackBuffer[NUM_BACKBUFFER];
 		ID3D12Resource *m_pBackbufferRes[NUM_BACKBUFFER];
 		IDXGISwapChain *m_pSwapChain;
+		ID3D12CommandQueue *m_pDrawCmdQueue, *m_pBundleCmdQueue;
+		std::vector<GpuThread> m_Thread;
 
 		HeapManager *m_pRefHeapOwner;
 	};
@@ -110,9 +113,14 @@ private:
 	
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
-	ID3D12CommandQueue *m_pCmdQueue;
-	ID3D12CommandAllocator *m_pResCmdAllocator;
-	ID3D12GraphicsCommandList *m_pResCmdList;
+	ID3D12CommandQueue *m_pResCmdQueue, *m_pCompute;
+	GpuThread m_ResThread[2];
+	std::deque<GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
+};
+
+class D3D11Device : public Dircet3DDevice
+{
+
 };
 
 }

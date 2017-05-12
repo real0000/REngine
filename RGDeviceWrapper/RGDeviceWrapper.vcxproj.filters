@@ -20,6 +20,7 @@
     <ClCompile Include="D3D\D3DDevice.cpp">
       <Filter>D3D</Filter>
     </ClCompile>
+    <ClCompile Include="DrawBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DeviceWrapper.h" />
@@ -34,6 +35,7 @@
     <ClInclude Include="D3D\D3DDevice.h">
       <Filter>D3D</Filter>
     </ClInclude>
+    <ClInclude Include="DrawBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\TextureOnly.xml">

@@ -4,6 +4,7 @@
 //
 
 #include "RGDeviceWrapper.h"
+#include <thread>
 
 namespace R
 {
@@ -346,11 +347,9 @@ D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
-	, m_pCmdQueue(nullptr)
-	, m_pResCmdAllocator(nullptr), m_pResCmdList(nullptr)
+	, m_ResThread(nullptr, nullptr)
 {
-	// init program
-	//ProgramManager::init(new HLSLComponent);
+	memset(m_pCmdQueue, 0, sizeof(ID3D12CommandQueue *) * (D3D12_COMMAND_LIST_TYPE_COPY + 1));
 }
 
 D3D12Device::~D3D12Device()
@@ -361,9 +360,28 @@ D3D12Device::~D3D12Device()
 	SAFE_DELETE(m_pDepthHeap);
 
 	SAFE_RELEASE(m_pGraphicInterface)
-	SAFE_RELEASE(m_pCmdQueue)
-	SAFE_RELEASE(m_pResCmdAllocator)
-	SAFE_RELEASE(m_pResCmdList)
+	for( unsigned int i=0 ; i<D3D12_COMMAND_LIST_TYPE_COPY + 1 ; ++i )
+	{
+		SAFE_RELEASE(m_pCmdQueue[i])
+	}
+	SAFE_RELEASE(m_ResThread.first)
+	SAFE_RELEASE(m_ResThread.second)
+
+	// all thread should be idle
+	while( !m_GraphicThread[THREAD_STATE_IDLE].empty() )
+	{
+		GpuThread l_Thread = m_GraphicThread[THREAD_STATE_IDLE].front();
+		SAFE_RELEASE(l_Thread.first)
+		SAFE_RELEASE(l_Thread.second)
+		m_GraphicThread[THREAD_STATE_IDLE].pop_front();
+	}
+	while( !m_ComputeThread[THREAD_STATE_IDLE].empty() )
+	{
+		GpuThread l_Thread = m_ComputeThread[THREAD_STATE_IDLE].front();
+		SAFE_RELEASE(l_Thread.first)
+		SAFE_RELEASE(l_Thread.second)
+		m_ComputeThread[THREAD_STATE_IDLE].pop_front();
+	}
 	SAFE_RELEASE(m_pDevice)
 }
 
@@ -426,7 +444,7 @@ void D3D12Device::initDevice(unsigned int a_DeviceID)
 	}
 	assert(S_OK == l_Res);// means adapter not found
 
-	l_Res = D3D12CreateDevice(l_pTargetAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_pDevice));
+	l_Res = D3D12CreateDevice(l_pTargetAdapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_pDevice));
 	
 	if(S_OK != l_Res) wxMessageBox(wxT("device init failed"), wxT("D3D12Device::initDevice"));
 }
@@ -462,13 +480,23 @@ void D3D12Device::init()
 	l_QueueDesc.NodeMask = 0;
 	l_QueueDesc.Priority = 0;
 	l_QueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	HRESULT l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pCmdQueue));
-	assert(S_OK == l_Res);
-	l_Res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_pResCmdAllocator));
-	assert(S_OK == l_Res);
-	l_Res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_pResCmdAllocator, nullptr, IID_PPV_ARGS(&m_pResCmdList));
+	HRESULT l_Res = S_OK;
+	for( unsigned int i=0 ; i<D3D12_COMMAND_LIST_TYPE_COPY+1 ; ++i )
+	{
+		l_QueueDesc.Type = (D3D12_COMMAND_LIST_TYPE)i;
+		l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pCmdQueue[i]));
+		assert(S_OK == l_Res);
+	}
+	
+	m_ResThread = newThread(D3D12_COMMAND_LIST_TYPE_COPY);
+	unsigned int l_NumCore = std::thread::hardware_concurrency();
+	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
+	l_NumCore *= 2;
+	for( unsigned int i=0 ; i<l_NumCore ; ++i )
+	{
+		m_GraphicThread[THREAD_STATE_IDLE].push_back(newThread(D3D12_COMMAND_LIST_TYPE_DIRECT));
+		m_ComputeThread[THREAD_STATE_IDLE].push_back(newThread(D3D12_COMMAND_LIST_TYPE_COMPUTE));
+	}
 
 	// Create descriptor heaps.
 	{
@@ -485,7 +513,7 @@ void D3D12Device::setupCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFu
 	assert(m_CanvasContainer.end() == m_CanvasContainer.find(a_pCanvas));
 	CanvasItem *l_pItem = new CanvasItem(m_pRenderTargetHeap);
 	m_CanvasContainer[a_pCanvas] = l_pItem;
-	l_pItem->init((HWND)a_pCanvas->GetHandle(), a_Size, a_bFullScr, m_pGraphicInterface, m_pDevice, m_pCmdQueue);
+	l_pItem->init((HWND)a_pCanvas->GetHandle(), a_Size, a_bFullScr, m_pGraphicInterface, m_pDevice, m_pCmdQueue[D3D12_COMMAND_LIST_TYPE_DIRECT]);
 	l_pItem->setStereo(a_bStereo);
 
 #ifdef WIN32
@@ -511,7 +539,7 @@ void D3D12Device::resetCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFu
 	assert(m_CanvasContainer.end() == l_CanvasIt);
 
 	bool l_bResetMode = a_bFullScr != l_CanvasIt->second->isFullScreen() || a_bStereo != l_CanvasIt->second->isStereo();
-	l_CanvasIt->second->init((HWND)a_pCanvas->GetHandle(), a_Size, a_bFullScr, m_pGraphicInterface, m_pDevice, m_pCmdQueue);
+	l_CanvasIt->second->init((HWND)a_pCanvas->GetHandle(), a_Size, a_bFullScr, m_pGraphicInterface, m_pDevice, m_pCmdQueue[D3D12_COMMAND_LIST_TYPE_DIRECT]);
 	l_CanvasIt->second->setStereo(a_bStereo);
 
 	if( l_bResetMode )
@@ -540,7 +568,7 @@ void D3D12Device::destroyCanvas(wxWindow *a_pCanvas)
 	delete it->second;
 	m_CanvasContainer.erase(it);
 }
-
+/*
 void D3D12Device::waitGpuSync(wxWindow *a_pCanvas)
 {
 	auto it = m_CanvasContainer.find(a_pCanvas);
@@ -555,11 +583,11 @@ void D3D12Device::waitFrameSync(wxWindow *a_pCanvas)
 	if( m_CanvasContainer.end() == it ) return;
 	
 	it->second->waitFrameSync(m_pCmdQueue);
-}
+}*/
 
 std::pair<int, int> D3D12Device::maxShaderModel()
 {
-	return std::make_pair(5, 1);//no version check for now
+	return std::make_pair(5, 1);//no version check for dx12
 }
 
 unsigned int D3D12Device::getBlendKey(BlendKey::Key a_Key)
@@ -743,6 +771,16 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 	}
 	assert(false && "invalid Topology type");
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+}
+
+D3D12Device::GpuThread D3D12Device::newThread(D3D12_COMMAND_LIST_TYPE a_Type)
+{
+	GpuThread l_ThreadRes(nullptr, nullptr);
+	HRESULT l_Res = m_pDevice->CreateCommandAllocator(a_Type, IID_PPV_ARGS(&l_ThreadRes.first));
+	assert(S_OK == l_Res);
+	l_Res = m_pDevice->CreateCommandList(0, a_Type, l_ThreadRes.first, nullptr, IID_PPV_ARGS(&l_ThreadRes.second));
+	assert(S_OK == l_Res);
+	return l_ThreadRes;
 }
 
 #pragma endregion

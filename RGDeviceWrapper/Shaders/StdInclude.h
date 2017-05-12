@@ -2,31 +2,30 @@
 #define MATH_PI 3.1415926535898
 
 #define VTXFLAG_POSITION	0x01
-#define VTXFLAG_TEXCOORD	0x02
-#define VTXFLAG_NORMAL		0x04
-#define VTXFLAG_TANGENT		0x08
-#define VTXFLAG_BINORMAL	0x10
-#define VTXFLAG_BONE		0x20
-#define VTXFLAG_WEIGHT		0x40
-#define VTXFLAG_COLOR		0x80
+#define VTXFLAG_TEXCOORD01	0x02
+#define VTXFLAG_TEXCOORD23	0x04
+#define VTXFLAG_TEXCOORD45	0x08
+#define VTXFLAG_TEXCOORD67	0x10
+#define VTXFLAG_NORMAL		0x20
+#define VTXFLAG_TANGENT		0x40
+#define VTXFLAG_BINORMAL	0x80
+#define VTXFLAG_BONE		0x100
+#define VTXFLAG_WEIGHT		0x200
+#define VTXFLAG_COLOR		0x400
 
-#define USE_WORLD_MAT		0x100
-#define USE_SKIN			0x200
-#define USE_NORMAL_TEXTURE	0x400
-#define WITHOUT_VP_MAT		0x800
+#define USE_WORLD_MAT		0x10000
+#define USE_SKIN			0x20000
+#define USE_NORMAL_TEXTURE	0x40000
+#define WITHOUT_VP_MAT		0x80000
 
 #ifdef GLSL
 	#define TAG(p)
 	#define vs_main()			\
 		in float3 vin_Position;	\
-		in float3 vin_Texcoord0;\
-		in float3 vin_Texcoord1;\
-		in float3 vin_Texcoord2;\
-		in float3 vin_Texcoord3;\
-		in float3 vin_Texcoord4;\
-		in float3 vin_Texcoord5;\
-		in float3 vin_Texcoord6;\
-		in float3 vin_Texcoord7;\
+		in float4 vin_Texcoord01;\
+		in float4 vin_Texcoord23;\
+		in float4 vin_Texcoord45;\
+		in float4 vin_Texcoord67;\
 		in float3 vin_Normal;	\
 		in float3 vin_Tangent;	\
 		in float3 vin_Binormal;	\
@@ -34,14 +33,10 @@
 		in float4 vin_Weight;	\
 		in float4 vin_Color;	\
 								\
-		out float3 vout_Texcoord0;	\
-		out float3 vout_Texcoord1;	\
-		out float3 vout_Texcoord2;	\
-		out float3 vout_Texcoord3;	\
-		out float3 vout_Texcoord4;	\
-		out float3 vout_Texcoord5;	\
-		out float3 vout_Texcoord6;	\
-		out float3 vout_Texcoord7;	\
+		out float4 vout_Texcoord01;	\
+		out float4 vout_Texcoord23;	\
+		out float4 vout_Texcoord45;	\
+		out float4 vout_Texcoord67;	\
 		out float4 vout_Normal;		\
 		out float4 vout_Tangent;	\
 		out float4 vout_Binormal;	\
@@ -53,28 +48,20 @@
 	#define TAG(p) :p
 	#define vs_main()									\
 		void main(in float3 vin_Position	: POSITION0	\
-				, in float3 vin_Texcoord0	: TEXCOORD0	\
-				, in float3 vin_Texcoord1	: TEXCOORD1	\
-				, in float3 vin_Texcoord2	: TEXCOORD2	\
-				, in float3 vin_Texcoord3	: TEXCOORD3	\
-				, in float3 vin_Texcoord4	: TEXCOORD4	\
-				, in float3 vin_Texcoord5	: TEXCOORD5	\
-				, in float3 vin_Texcoord6	: TEXCOORD6	\
-				, in float3 vin_Texcoord7	: TEXCOORD7	\
+				, in float4 vin_Texcoord01	: TEXCOORD0	\
+				, in float4 vin_Texcoord23	: TEXCOORD1	\
+				, in float4 vin_Texcoord45	: TEXCOORD2	\
+				, in float4 vin_Texcoord67	: TEXCOORD3	\
 				, in float3 vin_Normal		: NORMAL0	\
 				, in float3 vin_Tangent		: TANGENT0	\
 				, in float3 vin_Binormal	: BINORMAL0	\
 				, in int4 vin_BoneID		: BLENDINDICES0	\
 				, in float4 vin_Weight		: BLENDWEIGHT0	\
 				, in float4 vin_Color		: COLOR0	\
-				, out float3 vout_Texcoord0	: TEXCOORD0	\
-				, out float3 vout_Texcoord1	: TEXCOORD1	\
-				, out float3 vout_Texcoord2	: TEXCOORD2	\
-				, out float3 vout_Texcoord3	: TEXCOORD3	\
-				, out float3 vout_Texcoord4	: TEXCOORD4	\
-				, out float3 vout_Texcoord5	: TEXCOORD5	\
-				, out float3 vout_Texcoord6	: TEXCOORD6	\
-				, out float3 vout_Texcoord7	: TEXCOORD7	\
+				, out float3 vout_Texcoord01: TEXCOORD0	\
+				, out float3 vout_Texcoord23: TEXCOORD1	\
+				, out float3 vout_Texcoord45: TEXCOORD2	\
+				, out float3 vout_Texcoord67: TEXCOORD3	\
 				, out float4 vout_Normal	: NORMAL0	\
 				, out float4 vout_Tangent	: TANGENT0	\
 				, out float4 vout_Binormal	: BINORMAL0	\

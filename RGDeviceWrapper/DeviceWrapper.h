@@ -8,11 +8,47 @@
 namespace R
 {
 
-class GraphicThread
+class IndexBuffer;
+class ShaderProgram;
+class VertexBuffer;
+
+class GraphicCommander
+{
+
+public:
+	GraphicCommander();
+	virtual ~GraphicCommander();
+
+	virtual void useProgram(unsigned int a_Key);
+	virtual void useProgram(ShaderProgram *a_pProgram) = 0;
+	virtual void bindVertex(int a_ID) = 0;
+	virtual void bindIndex(int a_ID) = 0;
+	virtual void bindTexture(int a_TextureID, int a_Stage) = 0;
+	virtual void bindVtxFlag(unsigned int a_VtxFlag) = 0;
+	virtual void bindUniformBlock(int a_HeapID, int a_BlockStage) = 0;
+	virtual void bindUavBlock(int a_HeapID, int a_BlockStage) = 0;
+	virtual void clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color) = 0;
+	virtual void clearBackBuffer(int a_Idx, glm::vec4 a_Color) = 0;
+	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil) = 0;
+	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
+	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
+	virtual void drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
+};
+
+class GraphicCanvas
 {
 public:
-	virtual void init() = 0;
+	GraphicCanvas(GraphicCommander *a_pCommander);
+	virtual ~GraphicCanvas();
 
+	void update(float a_Delta){ if( m_RenderFunc ) m_RenderFunc(a_Delta); }
+
+	GraphicCommander* getCommander(){ return m_pRefCammander; }
+	void setRenderFunction(std::function<void(float)> a_Func){ m_RenderFunc = a_Func; }
+
+private:
+	GraphicCommander *m_pRefCammander;
+	std::function<void(float)> m_RenderFunc;
 };
 
 class GraphicDevice
@@ -24,8 +60,6 @@ public:
 	virtual void setupCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo) = 0;
 	virtual void resetCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo) = 0;
 	virtual void destroyCanvas(wxWindow *a_pCanvas) = 0;
-	virtual void waitGpuSync(wxWindow *a_pCanvas) = 0;
-	virtual void waitFrameSync(wxWindow *a_pCanvas) = 0;
 	virtual std::pair<int, int> maxShaderModel() = 0;
 
 	// converter part( *::Key -> d3d, vulkan var )
@@ -43,27 +77,57 @@ public:
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
 
 	// texture part
-	virtual unsigned int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
-	virtual unsigned int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
-	virtual unsigned int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
-	virtual void updateTexture1D(unsigned int a_TextureID, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
-	virtual void updateTexture2D(unsigned int a_TextureID, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
-	virtual void updateTexture3D(unsigned int a_TextureID, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
-	virtual void freeTexture(unsigned int l_TextureID) = 0;
+	virtual int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
+	virtual int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
+	virtual int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
+	virtual void updateTexture1D(int a_TextureID, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
+	virtual void updateTexture2D(int a_TextureID, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
+	virtual void updateTexture3D(int a_TextureID, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
+	virtual void generateMipmap(int a_ID) = 0;
+	virtual int createRenderTargetView(int a_TextureID) = 0;
+	virtual int createDepthStencilView(int a_TextureID) = 0;
+	virtual int getTextureHeapID(int a_TextureID) = 0;
+	virtual PixelFormat::Key getTextureFormat(int a_ID) = 0;
+	virtual void* getTextureResource(int a_ID) = 0;
+	virtual void freeTexture(int a_ID) = 0;
 
-	virtual PixelFormat::Key getTexturePixelFormat(unsigned int a_TextureID) = 0;
-	virtual unsigned int getTexturePixelSize(unsigned int a_TextureID) = 0; 
-	virtual glm::ivec3 getTextureDimension(unsigned int a_TextureID) = 0;
+	virtual PixelFormat::Key getTexturePixelFormat(int a_TextureID) = 0;
+	virtual int getTexturePixelSize(int a_TextureID) = 0; 
+	virtual glm::ivec3 getTextureDimension(int a_TextureID) = 0;
 	
+	// vertex, index buffer
+	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Count, std::string a_Name = "") = 0;//a_Slot < VTXSLOT_COUNT
+	virtual void updateVertexBuffer(unsigned int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void* getVertexResource(unsigned int a_ID) = 0;
+	virtual void freeVertexBuffer(unsigned int a_ID) = 0;
+	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, std::string a_Name = "") = 0;
+	virtual void updateIndexBuffer(unsigned int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void* getIndexResource(unsigned int a_ID) = 0;
+	virtual void freeIndexBuffer(unsigned int a_ID) = 0;
+
+	// cbv buffer
+	virtual int requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size) = 0;//return buffer id
+	virtual char* getConstBufferContainer(int a_ID) = 0;
+	virtual void* getConstBufferResource(int a_ID) = 0;
+	virtual void freeConstBuffer(int a_ID) = 0;
+
+	// uav buffer
+	virtual unsigned int requestUavBuffer(char* &a_pOutputBuff, unsigned int a_UnitSize, unsigned int a_ElementCount) = 0;
+	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount) = 0;
+	virtual char* getUavBufferContainer(int a_BuffID) = 0;
+	virtual void* getUavBufferResource(int a_BuffID) = 0;
+	virtual void syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...);
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end
+	virtual void freeUavBuffer(unsigned int a_BuffID) = 0;
+
 	// render target part
-	virtual unsigned int createRenderTarget(unsigned int a_TextureID) = 0;
-	virtual unsigned int createDepthStencilTarget(unsigned int a_TextureID) = 0;
+	virtual int createRenderTarget(int a_TextureID) = 0;
+	virtual int createDepthStencilTarget(int a_TextureID) = 0;
 
-	// const buffers part
-
-	// get resource pointer
-	virtual void* getTextureResource() = 0;
-
+	// misc
+	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;
+	
 protected:
 	std::map<unsigned int, wxString> m_DeviceMap;// id : device name
 
@@ -92,7 +156,7 @@ private:
 
 	GraphicDevice *m_pDeviceInst;
 };
-#define GET_GDEVICE(type) GraphicDeviceManager::singleton().getTypedDevice<type>()
+#define TYPED_GDEVICE(type) GraphicDeviceManager::singleton().getTypedDevice<type>()
 #define GDEVICE() GraphicDeviceManager::singleton().getDevice()
 
 }
