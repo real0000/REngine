@@ -40,10 +40,12 @@ void IndexBuffer::setName(std::string a_Name)
 	m_pInitVal->m_Name = a_Name;
 }
 
-void IndexBuffer::bind()
+void IndexBuffer::bind(GraphicCanvas *a_pCanvas)
 {
 	assert(-1 != m_ID);
-	GDEVICE()->bindIndex(m_ID);
+	GraphicCommander *l_pCommander = a_pCanvas->getCommander();
+	if( nullptr == l_pCommander ) return ;
+	l_pCommander->bindIndex(m_ID);
 }
 
 void IndexBuffer::init()
@@ -117,12 +119,15 @@ void VertexBuffer::init()
 	SAFE_DELETE(m_pInitVal);
 }
 
-void VertexBuffer::bind()
+void VertexBuffer::bind(GraphicCanvas *a_pCanvas)
 {
 	assert(nullptr == m_pInitVal);
+	GraphicCommander *l_pCommander = a_pCanvas->getCommander();
+	if( nullptr == l_pCommander ) return ;
+
 	for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
 	{
-		if( -1 != m_ID[i] ) GDEVICE()->bindVertex(m_ID[i]);
+		if( -1 != m_ID[i] ) l_pCommander->bindVertex(m_ID[i]);
 	}
 }
 

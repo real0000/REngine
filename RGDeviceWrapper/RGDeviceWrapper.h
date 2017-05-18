@@ -314,6 +314,8 @@ STRING_ENUM_CLASS(DefaultPrograms,
 
 #ifdef WIN32
 #	include "D3D/D3DDevice.h"
+#	include "D3D/D3D11Device.h"
+#	include "D3D/D3D12Device.h"
 #	include "D3D/HLSLShader.h"
 #endif
 

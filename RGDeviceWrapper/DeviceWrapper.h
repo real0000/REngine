@@ -14,11 +14,15 @@ class VertexBuffer;
 
 class GraphicCommander
 {
-
 public:
 	GraphicCommander();
 	virtual ~GraphicCommander();
 
+	// canvas reference
+	virtual void init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr) = 0;
+	virtual void resize(glm::ivec2 a_Size, bool a_bFullScr) = 0;
+
+	// draw command
 	virtual void useProgram(unsigned int a_Key);
 	virtual void useProgram(ShaderProgram *a_pProgram) = 0;
 	virtual void bindVertex(int a_ID) = 0;
@@ -38,16 +42,19 @@ public:
 class GraphicCanvas
 {
 public:
-	GraphicCanvas(GraphicCommander *a_pCommander);
+	GraphicCanvas();
 	virtual ~GraphicCanvas();
 
-	void update(float a_Delta){ if( m_RenderFunc ) m_RenderFunc(a_Delta); }
+	void update(float a_Delta);
+	void init(WXWidget a_Wnd, glm::ivec2 a_Size, bool a_bFullScr);
+	void resize(glm::ivec2 a_Size, bool a_bFullScr);
 
-	GraphicCommander* getCommander(){ return m_pRefCammander; }
-	void setRenderFunction(std::function<void(float)> a_Func){ m_RenderFunc = a_Func; }
+	GraphicCommander* getCommander();
+	void setCommander(GraphicCommander *a_pCommander);
+	void setRenderFunction(std::function<void(float)> a_Func);
 
 private:
-	GraphicCommander *m_pRefCammander;
+	GraphicCommander *m_pRefCommander;
 	std::function<void(float)> m_RenderFunc;
 };
 
@@ -57,8 +64,8 @@ public:
 	virtual void initDeviceMap() = 0;
 	virtual void initDevice(unsigned int a_DeviceID) = 0;
 	virtual void init() = 0;
-	virtual void setupCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo) = 0;
-	virtual void resetCanvas(wxWindow *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr, bool a_bStereo) = 0;
+	virtual void setupCanvas(wxWindow *a_pWnd, GraphicCanvas *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr) = 0;
+	virtual void resetCanvas(wxWindow *a_pWnd, glm::ivec2 a_Size, bool a_bFullScr) = 0;
 	virtual void destroyCanvas(wxWindow *a_pCanvas) = 0;
 	virtual std::pair<int, int> maxShaderModel() = 0;
 

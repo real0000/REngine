@@ -19,6 +19,67 @@ STRING_ENUM_CLASS_INST(Topology)
 STRING_ENUM_CLASS_INST(PixelFormat)
 STRING_ENUM_CLASS_INST(DefaultPrograms)
 
+#pragma region GraphicCommander
+//
+// GraphicCommander
+//
+GraphicCommander::GraphicCommander()
+{
+}
+
+GraphicCommander::~GraphicCommander()
+{
+}
+
+void GraphicCommander::useProgram(unsigned int a_Key)
+{
+	ShaderProgram *l_pProgram = ProgramManager::singleton().getProgram(a_Key);
+	useProgram(l_pProgram);
+}
+#pragma endregion
+
+#pragma region GraphicCanvas
+//
+// GraphicCanvas
+//
+GraphicCanvas::GraphicCanvas()
+	: m_pRefCommander(nullptr)
+	, m_RenderFunc(nullptr)
+{
+}
+
+GraphicCanvas::~GraphicCanvas()
+{
+}
+
+void GraphicCanvas::update(float a_Delta)
+{
+	if( m_RenderFunc ) m_RenderFunc(a_Delta);
+}
+
+void GraphicCanvas::init(WXWidget a_Wnd, glm::ivec2 a_Size, bool a_bFullScr)
+{
+	if( nullptr == m_pRefCommander ) return ;
+	m_pRefCommander->init(a_Wnd, a_Size, a_bFullScr);
+}
+
+void GraphicCanvas::resize(glm::ivec2 a_Size, bool a_bFullScr)
+{
+	if( nullptr == m_pRefCommander ) return ;
+	m_pRefCommander->resize(a_Size, a_bFullScr);
+}
+
+void GraphicCanvas::setCommander(GraphicCommander *a_pCommander)
+{
+	if( nullptr == m_pRefCommander ) m_pRefCommander = a_pCommander;
+}
+
+void GraphicCanvas::setRenderFunction(std::function<void(float)> a_Func)
+{
+	m_RenderFunc = a_Func;
+}
+#pragma endregion
+
 #pragma region GraphicDevice
 //
 // GraphicDevice

@@ -126,6 +126,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="D3D\D3D11Device.cpp" />
+    <ClCompile Include="D3D\D3D12Device.cpp" />
     <ClCompile Include="D3D\D3DDevice.cpp" />
     <ClCompile Include="D3D\HLSLShader.cpp" />
     <ClCompile Include="DeviceWrapper.cpp">
@@ -140,6 +142,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="D3D\D3D11Device.h" />
+    <ClInclude Include="D3D\D3D12Device.h" />
     <ClInclude Include="D3D\D3DDevice.h" />
     <ClInclude Include="D3D\HLSLShader.h" />
     <ClInclude Include="DeviceWrapper.h" />
