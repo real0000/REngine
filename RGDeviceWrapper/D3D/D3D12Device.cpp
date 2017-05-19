@@ -4,7 +4,6 @@
 //
 
 #include "RGDeviceWrapper.h"
-#include <thread>
 
 namespace R
 {
@@ -82,12 +81,15 @@ void D3D12HeapManager::extend()
 //
 // D3D12Commander
 //
+thread_local D3D12GpuThread g_CurrThread = std::make_pair(nullptr, nullptr);
+thread_local HLSLProgram12 *g_pCurrProgram = nullptr;
 D3D12Commander::D3D12Commander(D3D12HeapManager *a_pHeapOwner)
 	: m_bFullScreen(false)
 	, m_pSwapChain(nullptr)
 	, m_pDrawCmdQueue(nullptr), m_pBundleCmdQueue(nullptr)
 	, m_Handle(0)
 	, m_FenceEvent(0), m_SyncVal(0), m_pSynchronizer(nullptr)
+	, m_pRefDevice(TYPED_GDEVICE(D3D12Device))
 	, m_pRefHeapOwner(a_pHeapOwner)
 {
 	memset(m_BackBuffer, 0, sizeof(unsigned int) * NUM_BACKBUFFER);
@@ -168,6 +170,115 @@ void D3D12Commander::resize(glm::ivec2 a_Size, bool a_bFullScr)
 	init(m_Handle, a_Size, a_bFullScr);
 }
 
+void D3D12Commander::useProgram(ShaderProgram *a_pProgram)
+{
+	D3D12GpuThread l_Thread = getThisThread();
+	g_pCurrProgram = dynamic_cast<HLSLProgram12 *>(a_pProgram);
+	if( g_pCurrProgram->isCompute() ) l_Thread.second->SetComputeRootSignature(g_pCurrProgram->getRegDesc());
+	else l_Thread.second->SetGraphicsRootSignature(g_pCurrProgram->getRegDesc());
+	l_Thread.second->SetPipelineState(g_pCurrProgram->getPipeline());
+}
+
+void D3D12Commander::bindVertex(VertexBuffer *a_pBuffer)
+{
+	assert(nullptr != a_pBuffer);
+	D3D12GpuThread l_Thread = getThisThread();
+
+	D3D12_VERTEX_BUFFER_VIEW l_Buffers[VTXSLOT_COUNT] = {};
+	for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
+	{
+		int l_BuffID = a_pBuffer->getBufferID(i);
+		if( -1 != l_BuffID ) l_Buffers[i] = m_pRefDevice->getVertexBufferView(l_BuffID);
+	}
+	l_Thread.second->IASetVertexBuffers(0, VTXSLOT_COUNT, l_Buffers);
+}
+
+void D3D12Commander::bindIndex(IndexBuffer *a_pBuffer)
+{
+	assert(nullptr != a_pBuffer);
+	D3D12GpuThread l_Thread = getThisThread();
+	l_Thread.second->IASetIndexBuffer(&(m_pRefDevice->getIndexBufferView(a_pBuffer->getBufferID())));
+}
+
+void D3D12Commander::bindTexture(int a_TextureID, unsigned int a_Stage)
+{/*
+	assert(nullptr != g_pCurrProgram);
+	int l_RootSlot = g_pCurrProgram->getTextureRootSlot(a_Stage);
+	if( -1 == l_RootSlot ) return;
+
+	D3D12GpuThread l_Thread = getThisThread();
+
+	l_Thread.second->SetComputeRootDescriptorTable(l_RootSlot, );*/
+}
+
+void D3D12Commander::bindVtxFlag(unsigned int a_VtxFlag)
+{
+}
+
+void D3D12Commander::bindUniformBlock(int a_HeapID, int a_BlockStage)
+{
+}
+
+void D3D12Commander::bindUavBlock(int a_HeapID, int a_BlockStage)
+{
+}
+
+void D3D12Commander::clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color)
+{
+}
+
+void D3D12Commander::clearBackBuffer(int a_Idx, glm::vec4 a_Color)
+{
+}
+
+void D3D12Commander::clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil)
+{
+}
+
+void D3D12Commander::drawVertex(int a_NumVtx, int a_BaseVtx)
+{
+}
+
+void D3D12Commander::drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx)
+{
+}
+
+void D3D12Commander::drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset)
+{
+}
+	
+void D3D12Commander::setTopology(Topology::Key a_Key)
+{
+}
+
+void D3D12Commander::setRenderTarget(int a_DSVHandle, std::vector<int> &a_RTVHandle)
+{
+}
+
+void D3D12Commander::setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx)
+{
+}
+
+void D3D12Commander::setViewPort(int a_NumViewport, ...)
+{
+}
+
+void D3D12Commander::setScissor(int a_NumScissor, ...)
+{
+}
+
+D3D12GpuThread D3D12Commander::getThisThread()
+{
+	if( nullptr != g_CurrThread.first ) return g_CurrThread;
+
+	g_CurrThread = m_pRefDevice->requestThread();
+	g_CurrThread.first->Reset();
+	g_CurrThread.second->Reset(g_CurrThread.first, nullptr);
+	ID3D12DescriptorHeap *l_ppHeaps[] = {m_pRefDevice->getShaderBindingHeap()};
+	g_CurrThread.second->SetDescriptorHeaps(1, l_ppHeaps);
+
+	return g_CurrThread;
+}
 /*void D3D12Commander::waitGpuSync(ID3D12CommandQueue *a_pQueue)
 {
 	a_pQueue->Signal(m_pSynchronizer, m_SyncVal);
@@ -632,6 +743,31 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 	}
 	assert(false && "invalid Topology type");
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+}
+
+D3D12GpuThread D3D12Device::requestThread()
+{
+	if( m_GraphicThread.empty() ) return newThread(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	std::lock_guard<std::mutex> l_Guard(m_ThreadMutex);
+	D3D12GpuThread l_Res = m_GraphicThread.front();
+	m_GraphicThread.pop_front();
+	return l_Res;
+}
+
+void D3D12Device::recycleThread(D3D12GpuThread a_Thread)
+{
+	m_GraphicThread.push_back(a_Thread);
+}
+
+D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
+{
+	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
+}
+
+D3D12_INDEX_BUFFER_VIEW D3D12Device::getIndexBufferView(int a_ID)
+{
+	return m_ManagedIndexBuffer[a_ID]->m_IndexView;
 }
 
 D3D12GpuThread D3D12Device::newThread(D3D12_COMMAND_LIST_TYPE a_Type)

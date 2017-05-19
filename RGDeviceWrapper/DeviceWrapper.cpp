@@ -36,6 +36,19 @@ void GraphicCommander::useProgram(unsigned int a_Key)
 	ShaderProgram *l_pProgram = ProgramManager::singleton().getProgram(a_Key);
 	useProgram(l_pProgram);
 }
+
+void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ...)
+{
+	std::vector<int> l_RtvHandleList;
+	l_RtvHandleList.resize(a_NumRT);
+	{
+		va_list l_Arglist;
+		va_start(l_Arglist, a_NumRT);
+		for( unsigned int i=0 ; i<a_NumRT ; ++i ) l_RtvHandleList[i] = va_arg(l_Arglist, int);
+		va_end(l_Arglist);
+	}
+	setRenderTarget(a_DSVHandle, l_RtvHandleList);
+}
 #pragma endregion
 
 #pragma region GraphicCanvas

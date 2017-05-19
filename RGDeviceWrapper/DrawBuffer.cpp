@@ -40,14 +40,6 @@ void IndexBuffer::setName(std::string a_Name)
 	m_pInitVal->m_Name = a_Name;
 }
 
-void IndexBuffer::bind(GraphicCanvas *a_pCanvas)
-{
-	assert(-1 != m_ID);
-	GraphicCommander *l_pCommander = a_pCanvas->getCommander();
-	if( nullptr == l_pCommander ) return ;
-	l_pCommander->bindIndex(m_ID);
-}
-
 void IndexBuffer::init()
 {
 	assert(nullptr != m_pInitVal);
@@ -119,18 +111,6 @@ void VertexBuffer::init()
 	SAFE_DELETE(m_pInitVal);
 }
 
-void VertexBuffer::bind(GraphicCanvas *a_pCanvas)
-{
-	assert(nullptr == m_pInitVal);
-	GraphicCommander *l_pCommander = a_pCanvas->getCommander();
-	if( nullptr == l_pCommander ) return ;
-
-	for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
-	{
-		if( -1 != m_ID[i] ) l_pCommander->bindVertex(m_ID[i]);
-	}
-}
-
 void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count)
 {
 	assert(nullptr == m_pInitVal);
@@ -152,7 +132,6 @@ void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned
 	}
 	assert(0 != l_VtxSize);
 	if( -1 != m_ID[a_Slot] ) GDEVICE()->updateVertexBuffer(m_ID[a_Slot], a_pData, a_Count * l_VtxSize);
-	
 }
 #pragma endregion
 

@@ -221,6 +221,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
 					snprintf(l_DefName, 256, ":register(t%d)", l_Slot);
 					a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
+					m_TextureStageMap.push_back(l_Slot);
 
 					++l_Slot;
 				}

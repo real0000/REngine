@@ -25,9 +25,9 @@ public:
 	// draw command
 	virtual void useProgram(unsigned int a_Key);
 	virtual void useProgram(ShaderProgram *a_pProgram) = 0;
-	virtual void bindVertex(int a_ID) = 0;
-	virtual void bindIndex(int a_ID) = 0;
-	virtual void bindTexture(int a_TextureID, int a_Stage) = 0;
+	virtual void bindVertex(VertexBuffer *a_pBuffer) = 0;
+	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
+	virtual void bindTexture(int a_TextureID, unsigned int a_Stage) = 0;
 	virtual void bindVtxFlag(unsigned int a_VtxFlag) = 0;
 	virtual void bindUniformBlock(int a_HeapID, int a_BlockStage) = 0;
 	virtual void bindUavBlock(int a_HeapID, int a_BlockStage) = 0;
@@ -37,6 +37,13 @@ public:
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
 	virtual void drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
+
+	virtual void setTopology(Topology::Key a_Key) = 0;
+	virtual void setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ...);
+	virtual void setRenderTarget(int a_DSVHandle, std::vector<int> &a_RTVHandle) = 0;
+	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx) = 0;
+	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
+	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
 };
 
 class GraphicCanvas

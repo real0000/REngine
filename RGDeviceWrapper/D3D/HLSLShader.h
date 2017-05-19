@@ -29,6 +29,10 @@ protected:
 class HLSLProgram12 : public HLSLProgram
 {
 	friend class HLSLComponent;
+public:
+	ID3D12PipelineState* getPipeline(){ return m_pPipeline; }
+	ID3D12RootSignature* getRegDesc(){ return m_pRegisterDesc; }
+	int getTextureRootSlot(unsigned int a_Stage){ return a_Stage >= m_TextureStageMap.size() ? -1 : m_TextureStageMap[a_Stage]; }
 
 protected:
 	virtual void init(boost::property_tree::ptree &a_Root);
@@ -57,6 +61,7 @@ private:
 	ID3D12CommandSignature *m_pIndirectFmt;
 	D3D_PRIMITIVE_TOPOLOGY m_Topology;
 	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::StorageBuffer+1];
+	std::vector<unsigned int> m_TextureStageMap;// stage(t#) : root slot
 
 	unsigned int m_IndirectCmdSize;
 	std::vector<unsigned int> m_CmdAlignmentOffset;

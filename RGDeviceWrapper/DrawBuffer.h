@@ -19,7 +19,6 @@ public:
 	void setName(std::string a_Name);
 	void init();
 
-	void bind(GraphicCanvas *a_pCanvas);
 	bool valid(){ return nullptr == m_pInitVal; }
 
 	int getBufferID(){ return m_ID; }
@@ -48,7 +47,6 @@ public:
 	void setName(std::string a_Name);
 	void init();
 	
-	void bind(GraphicCanvas *a_pCanvas);
 	void updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count);
 	bool valid(){ return nullptr == m_pInitVal; }
 

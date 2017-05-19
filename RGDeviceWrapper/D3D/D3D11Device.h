@@ -6,6 +6,8 @@
 #ifndef _D3D11DEVICE_H_
 #define _D3D11DEVICE_H_
 
+#include "D3DDevice.h"
+
 namespace R
 {
 

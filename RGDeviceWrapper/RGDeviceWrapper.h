@@ -6,6 +6,8 @@
 #ifndef _R_GDEVICE_WRAPPER_H_
 #define _R_GDEVICE_WRAPPER_H_
 
+#include <thread>
+#include <mutex>
 #include "CommonUtil.h"
 
 namespace R

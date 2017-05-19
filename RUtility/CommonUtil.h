@@ -106,6 +106,11 @@ public:
 	{
 		return m_ObjectPool[a_ID];
 	}
+	
+	virtual T* operator[](unsigned int a_ID)
+	{
+		return m_ObjectPool[a_ID];
+	}
 
 private:
 	std::vector<T *> m_ObjectPool;
