@@ -14,7 +14,7 @@ namespace R
 //
 D3D12HeapManager::D3D12HeapManager(ID3D12Device *a_pDevice, unsigned int a_ExtendSize, D3D12_DESCRIPTOR_HEAP_TYPE a_Type, D3D12_DESCRIPTOR_HEAP_FLAGS a_Flag)
 	: m_CurrHeapSize(0), m_ExtendSize(a_ExtendSize)
-	, m_pHeap(nullptr)
+	, m_pHeap(nullptr), m_pHeapCache(nullptr)
 	, m_pRefDevice(a_pDevice)
 	, m_Type(a_Type)
 	, m_Flag(a_Flag)
@@ -26,13 +26,46 @@ D3D12HeapManager::D3D12HeapManager(ID3D12Device *a_pDevice, unsigned int a_Exten
 D3D12HeapManager::~D3D12HeapManager()
 {
 	SAFE_RELEASE(m_pHeap)
+	SAFE_RELEASE(m_pHeapCache)
 }
 
-unsigned int D3D12HeapManager::newHeap()
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc)
 {
-	if( m_FreeSlot.empty() ) extend();
-	unsigned int l_Res = m_FreeSlot.front();
-	m_FreeSlot.pop_front();
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateRenderTargetView(a_pResource, a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateRenderTargetView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc)
+{
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *a_pDesc)
+{
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateDepthStencilView(a_pResource, a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateDepthStencilView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc)
+{
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateConstantBufferView(a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateConstantBufferView(a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc)
+{
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateUnorderedAccessView(a_pResource, a_pCounterResource, a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateUnorderedAccessView(a_pResource, a_pCounterResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
 }
 
@@ -42,17 +75,25 @@ void D3D12HeapManager::recycle(unsigned int a_HeapID)
 	m_FreeSlot.push_back(a_HeapID);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HeapManager::getCpuHandle(unsigned int a_HeapID)
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HeapManager::getCpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap)
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE l_Res(m_pHeap->GetCPUDescriptorHandleForHeapStart());
+	D3D12_CPU_DESCRIPTOR_HANDLE l_Res((nullptr == a_pTargetHeap ? m_pHeap : a_pTargetHeap)->GetCPUDescriptorHandleForHeapStart());
 	l_Res.ptr += a_HeapID * m_HeapUnitSize;
 	return l_Res;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE D3D12HeapManager::getGpuHandle(unsigned int a_HeapID)
+D3D12_GPU_DESCRIPTOR_HANDLE D3D12HeapManager::getGpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap)
 {
-	D3D12_GPU_DESCRIPTOR_HANDLE l_Res(m_pHeap->GetGPUDescriptorHandleForHeapStart());
+	D3D12_GPU_DESCRIPTOR_HANDLE l_Res((nullptr == a_pTargetHeap ? m_pHeap : a_pTargetHeap)->GetGPUDescriptorHandleForHeapStart());
 	l_Res.ptr += a_HeapID * m_HeapUnitSize;
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap()
+{
+	if( m_FreeSlot.empty() ) extend();
+	unsigned int l_Res = m_FreeSlot.front();
+	m_FreeSlot.pop_front();
 	return l_Res;
 }
 
@@ -68,10 +109,34 @@ void D3D12HeapManager::extend()
 
 	HRESULT l_Res = m_pRefDevice->CreateDescriptorHeap(&l_HeapDesc, IID_PPV_ARGS(&l_pNewHeap));
 	assert(S_OK == l_Res);
+	
+	if( 0 == (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) )
+	{
+		if( nullptr != m_pHeap )
+		{
+			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeap->GetCPUDescriptorHandleForHeapStart(), m_pHeap->GetCPUDescriptorHandleForHeapStart(), m_Type);
+			m_pHeap->Release();
+		}
+		m_pHeap = l_pNewHeap;
+	}
+	else
+	{
+		ID3D12DescriptorHeap *l_pNewHeapCache = nullptr;
+		l_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		l_Res = m_pRefDevice->CreateDescriptorHeap(&l_HeapDesc, IID_PPV_ARGS(&l_pNewHeapCache));
+		assert(S_OK == l_Res);
 
-	if( nullptr != m_pHeap ) m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeap->GetCPUDescriptorHandleForHeapStart(), m_pHeap->GetCPUDescriptorHandleForHeapStart(), m_Type);
-	m_pHeap = l_pNewHeap;
-
+		if( nullptr != m_pHeap )
+		{
+			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeapCache->GetCPUDescriptorHandleForHeapStart(), m_pHeapCache->GetCPUDescriptorHandleForHeapStart(), m_Type);
+			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeap->GetCPUDescriptorHandleForHeapStart(), m_pHeapCache->GetCPUDescriptorHandleForHeapStart(), m_Type);
+			m_pHeap->Release();
+			m_pHeapCache->Release();
+		}
+		m_pHeap = l_pNewHeap;
+		m_pHeapCache = l_pNewHeapCache;
+	}
+	
 	for( unsigned int i=0 ; i<m_ExtendSize ; ++i ) m_FreeSlot.push_back(m_CurrHeapSize + i);
 	m_CurrHeapSize += m_ExtendSize;
 }
@@ -147,14 +212,13 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
-		m_BackBuffer[i] = m_pRefHeapOwner->newHeap();
 		if( S_OK != m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pBackbufferRes[i])) )
 		{
 			wxMessageBox(wxString::Format(wxT("can't get rtv[%d]"), i), wxT("D3D12Device::CanvasItem::init"));
 			return;
 		}
 
-		l_pDevInst->CreateRenderTargetView(m_pBackbufferRes[i], nullptr, m_pRefHeapOwner->getCpuHandle(m_BackBuffer[i]));
+		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], (D3D12_RENDER_TARGET_VIEW_DESC *)nullptr);
 	}
 }
 
@@ -276,7 +340,7 @@ D3D12GpuThread D3D12Commander::getThisThread()
 	g_CurrThread.second->Reset(g_CurrThread.first, nullptr);
 	ID3D12DescriptorHeap *l_ppHeaps[] = {m_pRefDevice->getShaderBindingHeap()};
 	g_CurrThread.second->SetDescriptorHeaps(1, l_ppHeaps);
-	ThreadEventCallback::getThreadLocal().addEndEvent(std::bind(this, &D3D12Commander::threadEnd));
+	ThreadEventCallback::getThreadLocal().addEndEvent(std::bind(&D3D12Commander::threadEnd, this));
 
 	return g_CurrThread;
 }

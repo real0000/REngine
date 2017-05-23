@@ -24,17 +24,22 @@ public:
 	D3D12HeapManager(ID3D12Device *a_pDevice, unsigned int a_ExtendSize, D3D12_DESCRIPTOR_HEAP_TYPE a_Type, D3D12_DESCRIPTOR_HEAP_FLAGS a_Flag = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 	~D3D12HeapManager();
 
-	unsigned int newHeap();
+	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc);
 	void recycle(unsigned int a_HeapID);
-	D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(unsigned int a_HeapID);
-	D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(unsigned int a_HeapID);
+	D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap = nullptr);
+	D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap = nullptr);
 	ID3D12DescriptorHeap* getHeapInst(){ return m_pHeap; }
 
 private:
+	unsigned int newHeap();
 	void extend();
 
 	unsigned int m_CurrHeapSize, m_ExtendSize;
-	ID3D12DescriptorHeap *m_pHeap;
+	ID3D12DescriptorHeap *m_pHeap, *m_pHeapCache;
 	std::list<unsigned int> m_FreeSlot;
 	ID3D12Device *m_pRefDevice;
 	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
