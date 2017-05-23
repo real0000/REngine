@@ -276,21 +276,34 @@ D3D12GpuThread D3D12Commander::getThisThread()
 	g_CurrThread.second->Reset(g_CurrThread.first, nullptr);
 	ID3D12DescriptorHeap *l_ppHeaps[] = {m_pRefDevice->getShaderBindingHeap()};
 	g_CurrThread.second->SetDescriptorHeaps(1, l_ppHeaps);
+	ThreadEventCallback::getThreadLocal().addEndEvent(std::bind(this, &D3D12Commander::threadEnd));
 
 	return g_CurrThread;
 }
-/*void D3D12Commander::waitGpuSync(ID3D12CommandQueue *a_pQueue)
+
+void D3D12Commander::flush()
 {
-	a_pQueue->Signal(m_pSynchronizer, m_SyncVal);
-	m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
 	WaitForSingleObject(m_FenceEvent, INFINITE);
 	++m_SyncVal;
+	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) m_pRefDevice->recycleThread(m_BusyThread[i]);
+
+	m_BusyThread.resize(m_ReadyThread.size());
+	std::copy(m_ReadyThread.begin(), m_ReadyThread.end(), m_BusyThread.begin());
+	m_ReadyThread.clear();
+
+	std::vector<ID3D12CommandList *> l_CmdArray(m_BusyThread.size());
+	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) l_CmdArray[i] = m_BusyThread[i].second;
+
+	m_pDrawCmdQueue->ExecuteCommandLists(l_CmdArray.size(), l_CmdArray.data());
+
+	m_pDrawCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
+	m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
 }
 
-void D3D12Commander::waitFrameSync(ID3D12CommandQueue *a_pQueue)
+void D3D12Commander::present()
 {
 	uint64 l_SyncVal = m_SyncVal;
-	if( S_OK != a_pQueue->Signal(m_pSynchronizer, l_SyncVal) )
+	if( S_OK != m_pDrawCmdQueue->Signal(m_pSynchronizer, l_SyncVal) )
 	{
 		wxMessageBox(wxT("command signal error"), wxT("error"));
 		return;
@@ -307,7 +320,16 @@ void D3D12Commander::waitFrameSync(ID3D12CommandQueue *a_pQueue)
 		}
 		WaitForSingleObject(m_FenceEvent, INFINITE);
 	}
-}*/
+}
+
+void D3D12Commander::threadEnd()
+{
+	g_CurrThread.second->Close();
+	m_ReadyThread.push_back(g_CurrThread);
+	g_CurrThread.first = nullptr;
+	g_CurrThread.second = nullptr;
+	g_pCurrProgram = nullptr;
+}
 #pragma endregion
 
 #pragma region D3D12Device
@@ -540,22 +562,6 @@ void D3D12Device::destroyCanvas(wxWindow *a_pCanvas)
 	delete it->second;
 	m_CanvasContainer.erase(it);
 }
-/*
-void D3D12Device::waitGpuSync(wxWindow *a_pCanvas)
-{
-	auto it = m_CanvasContainer.find(a_pCanvas);
-	if( m_CanvasContainer.end() == it ) return;
-
-	it->second->waitGpuSync(m_pCmdQueue);
-}
-
-void D3D12Device::waitFrameSync(wxWindow *a_pCanvas)
-{
-	auto it = m_CanvasContainer.find(a_pCanvas);
-	if( m_CanvasContainer.end() == it ) return;
-	
-	it->second->waitFrameSync(m_pCmdQueue);
-}*/
 
 std::pair<int, int> D3D12Device::maxShaderModel()
 {

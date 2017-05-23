@@ -169,6 +169,20 @@ private:
 	std::vector<wxString> m_SearchPath;
 };
 
+class ThreadEventCallback
+{
+public:
+	// don't use this constructor 
+	ThreadEventCallback();
+	virtual ~ThreadEventCallback();
+
+	static ThreadEventCallback& getThreadLocal();
+	void addEndEvent(std::function<void()> a_Func);
+
+private:
+	std::vector<std::function<void()> > m_EndEvents;
+};
+
 }
 
 #endif

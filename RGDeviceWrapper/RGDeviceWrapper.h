@@ -52,6 +52,13 @@ enum
 	VTXFLAG_WITHOUT_VP_MAT	= 0x80000,
 };
 
+enum TextureFlag
+{
+	TEXFLAG_SIMPLE,//1d, 2d, 3d, etc...
+	TEXFLAG_DEPTH_STENCIL_VIEW,
+	TEXFLAG_RENDER_TARGET_VIEW,
+};
+
 STRING_ENUM_CLASS(ShaderParamType,
 	int1,
 	int2,
@@ -86,7 +93,7 @@ STRING_ENUM_CLASS(BlendKey,
 	
 STRING_ENUM_CLASS(BlendOP, add, sub, rev_sub, min, max)
 
-STRING_ENUM_CLASS(BlendLogic,//add '_' to prevent keyword
+STRING_ENUM_CLASS(BlendLogic,//add '_' to avoid keyword
 	clear_,
 	set_,
 	copy_,

@@ -186,7 +186,7 @@ wxString SearchPathSystem::findFile(wxString a_Filename)
 
 	for( unsigned int i=0 ; i<m_SearchPath.size() ; ++i )
 	{
-		wxString l_FilePath(m_SearchPath + a_Filename);
+		wxString l_FilePath(m_SearchPath[i] + a_Filename);
 		if( wxFileExists(l_FilePath) )
 		{
 			m_FileCache.insert(std::make_pair(a_Filename, l_FilePath));
@@ -202,6 +202,31 @@ void SearchPathSystem::addSearchPath(wxString a_Path)
 	if( !a_Path.EndsWith("/") ) a_Path += wxT("/");
 	assert(std::find(m_SearchPath.begin(), m_SearchPath.end(), a_Path) == m_SearchPath.end());
 	m_SearchPath.push_back(a_Path);
+}
+#pragma endregion
+
+#pragma region ThreadEventCallback
+//
+// ThreadEventCallback
+//
+thread_local ThreadEventCallback g_ThreadCallback;
+ThreadEventCallback::ThreadEventCallback()
+{
+}
+
+ThreadEventCallback::~ThreadEventCallback()
+{
+	for( unsigned int i=0 ; i<m_EndEvents.size() ; ++i ) m_EndEvents[i]();
+}
+
+ThreadEventCallback& ThreadEventCallback::getThreadLocal()
+{
+	return g_ThreadCallback;
+}
+
+void ThreadEventCallback::addEndEvent(std::function<void()> a_Func)
+{
+	m_EndEvents.push_back(a_Func);
 }
 #pragma endregion
 

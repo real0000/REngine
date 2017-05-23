@@ -44,6 +44,9 @@ public:
 	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx) = 0;
 	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
+
+	virtual void flush() = 0;
+	virtual void present() = 0;
 };
 
 class GraphicCanvas

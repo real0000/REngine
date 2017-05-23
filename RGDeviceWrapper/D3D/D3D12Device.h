@@ -73,10 +73,14 @@ public:
 	virtual void setViewPort(int a_NumViewport, ...);// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
 
+	virtual void flush();
+	virtual void present();
+
 	bool isFullScreen(){ return m_bFullScreen; }
 
 private:
 	D3D12GpuThread getThisThread();
+	void threadEnd();
 
 	bool m_bFullScreen;
 	unsigned int m_BackBuffer[NUM_BACKBUFFER];
@@ -91,6 +95,7 @@ private:
 
 	D3D12Device *m_pRefDevice;
 	D3D12HeapManager *m_pRefHeapOwner;
+	std::vector<D3D12GpuThread> m_ReadyThread, m_BusyThread;
 };
 
 class D3D12Device : public Dircet3DDevice
@@ -128,6 +133,28 @@ public:
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 
 private:
+	struct TextureBinder
+	{
+		TextureBinder()
+			: m_pTexture(nullptr)
+			, m_Size(8.0f, 8.0f, 1.0f)
+			, m_Format(PixelFormat::rgba8_unorm)
+			, m_HeapID(0)
+			, m_Flag(TEXFLAG_SIMPLE)
+			, m_SampleCount(1)
+			, m_Quality(0)
+			, m_MipmapLevels(1){}
+		~TextureBinder(){ SAFE_RELEASE(m_pTexture) }
+
+		ID3D12Resource *m_pTexture;
+		glm::ivec3 m_Size;
+		PixelFormat::Key m_Format;
+		unsigned int m_HeapID;
+		TextureFlag m_Flag;
+		int m_SampleCount;
+		int m_Quality;
+		unsigned int m_MipmapLevels;
+	};
 	struct VertexBinder
 	{
 		VertexBinder() : m_pVtxRes(nullptr){}
@@ -157,6 +184,7 @@ private:
 	ID3D12Device *m_pDevice;
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
+	
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
 	std::mutex m_ThreadMutex;
 };
