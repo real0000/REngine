@@ -52,11 +52,13 @@ enum
 	VTXFLAG_WITHOUT_VP_MAT	= 0x80000,
 };
 
-enum TextureFlag
+enum TextureType
 {
-	TEXFLAG_SIMPLE,//1d, 2d, 3d, etc...
-	TEXFLAG_DEPTH_STENCIL_VIEW,
-	TEXFLAG_RENDER_TARGET_VIEW,
+	TEXTYPE_SIMPLE_1D = 0,
+	TEXTYPE_SIMPLE_2D,
+	TEXTYPE_SIMPLE_3D,//1d, 2d, 3d, etc...
+	TEXTYPE_DEPTH_STENCIL_VIEW,
+	TEXTYPE_RENDER_TARGET_VIEW,
 };
 
 STRING_ENUM_CLASS(ShaderParamType,
@@ -316,6 +318,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 
 #define TEXTURE_ARRAY_SIZE 16
 #define DEFAULT_D3D_THREAD_COUNT 4
+#define MIN_TEXTURE_SIZE 8
 
 #include "DeviceWrapper.h"
 #include "DrawBuffer.h"

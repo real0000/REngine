@@ -128,16 +128,35 @@ public:
 	virtual unsigned int getTopologyType(TopologyType::Key a_Key);
 	virtual unsigned int getTopology(Topology::Key a_Key);
 
+	// texture part
+	virtual int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format);
+	virtual int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1);
+	virtual int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format);
+	virtual void updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData);
+	virtual void updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
+	virtual void updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
+	virtual void generateMipmap(int a_ID);
+	virtual int getTextureHeapID(int a_ID);
+	virtual PixelFormat::Key getTextureFormat(int a_ID);
+	virtual glm::ivec3 getTextureSize(int a_ID);
+	virtual void* getTextureResource(int a_ID);
+	virtual void freeTexture(int a_ID);
+
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
-	D3D12GpuThread requestThread();
-	void recycleThread(D3D12GpuThread a_Thread);
 	D3D12_VERTEX_BUFFER_VIEW getVertexBufferView(int a_ID);
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 
+	// thread part
+	D3D12GpuThread requestThread();
+	void recycleThread(D3D12GpuThread a_Thread);
+	void waitForResourceUpdate();
+
 private:
+	void checkResourceQueueState();
+
 	struct TextureBinder
 	{
 		TextureBinder()
@@ -145,9 +164,7 @@ private:
 			, m_Size(8.0f, 8.0f, 1.0f)
 			, m_Format(PixelFormat::rgba8_unorm)
 			, m_HeapID(0)
-			, m_Flag(TEXFLAG_SIMPLE)
-			, m_SampleCount(1)
-			, m_Quality(0)
+			, m_Type(TEXTYPE_SIMPLE_2D)
 			, m_MipmapLevels(1){}
 		~TextureBinder(){ SAFE_RELEASE(m_pTexture) }
 
@@ -155,11 +172,12 @@ private:
 		glm::ivec3 m_Size;
 		PixelFormat::Key m_Format;
 		unsigned int m_HeapID;
-		TextureFlag m_Flag;
-		int m_SampleCount;
-		int m_Quality;
+		TextureType m_Type;
 		unsigned int m_MipmapLevels;
 	};
+	int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag);
+	void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
+
 	struct VertexBinder
 	{
 		VertexBinder() : m_pVtxRes(nullptr){}
@@ -182,14 +200,21 @@ private:
 	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap;
 	std::map<wxWindow *, GraphicCanvas *> m_CanvasContainer;
 	
+	SerializedObjectPool<TextureBinder> m_ManagedTexture;
 	SerializedObjectPool<VertexBinder> m_ManagedVertexBuffer;
 	SerializedObjectPool<IndexBinder> m_ManagedIndexBuffer;
 
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
+	DXGI_SAMPLE_DESC m_MsaaSetting;
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
-	
+	unsigned int m_IdleResThread;
+	HANDLE m_FenceEvent;
+	uint64 m_SyncVal;
+	ID3D12Fence *m_pSynchronizer;
+	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
+
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
 	std::mutex m_ThreadMutex;
 };

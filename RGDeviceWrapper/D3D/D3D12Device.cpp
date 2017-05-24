@@ -177,9 +177,8 @@ D3D12Commander::~D3D12Commander()
 void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 {
 	m_Handle = a_Handle;
-	D3D12Device *l_pDevClass = TYPED_GDEVICE(D3D12Device);
-	ID3D12Device *l_pDevInst = l_pDevClass->getDeviceInst();
-	IDXGIFactory4 *l_pDevFactory = l_pDevClass->getDeviceFactory();
+	ID3D12Device *l_pDevInst = m_pRefDevice->getDeviceInst();
+	IDXGIFactory4 *l_pDevFactory = m_pRefDevice->getDeviceFactory();
 
 	D3D12_COMMAND_QUEUE_DESC l_QueueDesc;
 	l_QueueDesc.NodeMask = 0;
@@ -206,7 +205,7 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 
 	if( S_OK != l_pDevFactory->CreateSwapChain(m_pDrawCmdQueue, &l_SwapChainDesc, &m_pSwapChain) )
 	{
-		wxMessageBox(wxT("swap chain create failed"), wxT("D3D12Device::CanvasItem::init"));
+		wxMessageBox(wxT("swap chain create failed"), wxT("D3D12Commander::init"));
 		return;
 	}
 
@@ -214,11 +213,17 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 	{
 		if( S_OK != m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pBackbufferRes[i])) )
 		{
-			wxMessageBox(wxString::Format(wxT("can't get rtv[%d]"), i), wxT("D3D12Device::CanvasItem::init"));
+			wxMessageBox(wxString::Format(wxT("can't get rtv[%d]"), i), wxT("D3D12Commander::init"));
 			return;
 		}
 
 		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], (D3D12_RENDER_TARGET_VIEW_DESC *)nullptr);
+	}
+
+	if( S_OK != l_pDevInst->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pSynchronizer)) )
+	{
+		wxMessageBox("can't create synchronizer", wxT("D3D12Commander::init"));
+		return;
 	}
 }
 
@@ -348,7 +353,7 @@ D3D12GpuThread D3D12Commander::getThisThread()
 void D3D12Commander::flush()
 {
 	WaitForSingleObject(m_FenceEvent, INFINITE);
-	++m_SyncVal;
+	m_pRefDevice->waitForResourceUpdate();
 	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) m_pRefDevice->recycleThread(m_BusyThread[i]);
 
 	m_BusyThread.resize(m_ReadyThread.size());
@@ -362,10 +367,12 @@ void D3D12Commander::flush()
 
 	m_pDrawCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
 	m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
+	++m_SyncVal;
 }
 
 void D3D12Commander::present()
 {
+	m_pRefDevice->waitForResourceUpdate();
 	uint64 l_SyncVal = m_SyncVal;
 	if( S_OK != m_pDrawCmdQueue->Signal(m_pSynchronizer, l_SyncVal) )
 	{
@@ -404,17 +411,32 @@ D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
+	, m_MsaaSetting({1, 0})
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr)
+	, m_IdleResThread(0)
+	, m_FenceEvent(0), m_SyncVal(0), m_pSynchronizer(nullptr)
+	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer()
 {
+	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
+	BIND_DEFAULT_ALLOCATOR(VertexBinder, m_ManagedVertexBuffer);
+	BIND_DEFAULT_ALLOCATOR(IndexBinder, m_ManagedIndexBuffer);
+
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = std::make_pair(nullptr, nullptr);
 }
 
 D3D12Device::~D3D12Device()
 {
+	waitForResourceUpdate();
+	SAFE_RELEASE(m_pSynchronizer)
+
 	SAFE_DELETE(m_pShaderResourceHeap);
 	SAFE_DELETE(m_pSamplerHeap);
 	SAFE_DELETE(m_pRenderTargetHeap);
 	SAFE_DELETE(m_pDepthHeap);
+	
+	m_ManagedTexture.clear();
+	m_ManagedVertexBuffer.clear();
+	m_ManagedIndexBuffer.clear();
 
 	SAFE_RELEASE(m_pGraphicInterface)
 	SAFE_RELEASE(m_pResCmdQueue)
@@ -548,6 +570,11 @@ void D3D12Device::init()
 	assert(S_OK == l_Res);
 	
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread(D3D12_COMMAND_LIST_TYPE_COPY);
+	m_ResThread[m_IdleResThread].first->Reset();
+	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
+	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+
 	unsigned int l_NumCore = std::thread::hardware_concurrency();
 	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
 	l_NumCore *= 2;
@@ -555,6 +582,12 @@ void D3D12Device::init()
 	{
 		m_GraphicThread.push_back(newThread(D3D12_COMMAND_LIST_TYPE_DIRECT));
 		m_ComputeThread.push_back(newThread(D3D12_COMMAND_LIST_TYPE_COMPUTE));
+	}
+	
+	if( S_OK != m_pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pSynchronizer)) )
+	{
+		wxMessageBox("failed to create synchronizer", wxT("D3D12Device::init"));
+		return;
 	}
 
 	// Create descriptor heaps.
@@ -815,6 +848,109 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
+int D3D12Device::allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format)
+{
+	assert(a_Size >= MIN_TEXTURE_SIZE);
+	unsigned int l_MipmapLevel = std::log2(a_Size) + 1;
+	return allocateTexture(glm::ivec3(a_Size, 1, 1), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE1D, l_MipmapLevel, 0);
+}
+
+int D3D12Device::allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize)
+{
+	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE);
+	unsigned int l_MipmapLevel = std::log2(std::max(a_Size.x, a_Size.y)) + 1;
+	return allocateTexture(glm::ivec3(a_Size.x, a_Size.y, std::max<int>(a_ArraySize, 1)), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE2D, l_MipmapLevel, 0);
+}
+
+int D3D12Device::allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format)
+{
+	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE && a_Size.z >= MIN_TEXTURE_SIZE);
+	unsigned int l_MipmapLevel = std::log2(std::max(std::max(a_Size.x, a_Size.y), a_Size.z)) + 1;
+	return allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, l_MipmapLevel, 0);
+}
+
+void D3D12Device::updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData)
+{
+#ifdef _DEBUG
+	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
+	assert(nullptr != l_pTargetTexture);
+	assert(TEXTYPE_SIMPLE_1D == l_pTargetTexture->m_Type);
+	assert(a_Size >= 1);
+	assert(a_Offset < (l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset + a_Size <= (l_pTargetTexture->m_Size.x >> a_MipmapLevel));
+#endif
+	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size, 1, 1), glm::ivec3(a_Offset, 0, 0), a_pSrcData);
+}
+
+void D3D12Device::updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
+{
+#ifdef _DEBUG
+	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
+	assert(nullptr != l_pTargetTexture);
+	assert(TEXTYPE_SIMPLE_2D == l_pTargetTexture->m_Type);
+	assert(a_Size.x >= 1 && a_Size.y >= 1);
+	assert(a_Offset.x < (l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset.x + a_Size.x <= (l_pTargetTexture->m_Size.x >> a_MipmapLevel) &&
+		   a_Offset.y < (l_pTargetTexture->m_Size.y >> a_MipmapLevel) && a_Offset.y + a_Size.y <= (l_pTargetTexture->m_Size.y >> a_MipmapLevel) &&
+		   a_Idx < l_pTargetTexture->m_Size.z);
+#endif
+	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size.x, a_Size.y, 1), glm::ivec3(a_Offset.x, a_Offset.y, a_Idx), a_pSrcData);
+}
+
+void D3D12Device::updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
+{
+#ifdef _DEBUG
+	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
+	assert(nullptr != l_pTargetTexture);
+	assert(TEXTYPE_SIMPLE_3D == l_pTargetTexture->m_Type);
+	assert(a_Size.x >= 1 && a_Size.y >= 1 && a_Size.z >= 1);
+	assert(a_Offset.x < (l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset.x + a_Size.x <= (l_pTargetTexture->m_Size.x >> a_MipmapLevel) &&
+		   a_Offset.y < (l_pTargetTexture->m_Size.y >> a_MipmapLevel) && a_Offset.y + a_Size.y <= (l_pTargetTexture->m_Size.y >> a_MipmapLevel) &&
+		   a_Offset.z < (l_pTargetTexture->m_Size.z >> a_MipmapLevel) && a_Offset.z + a_Size.z <= (l_pTargetTexture->m_Size.z >> a_MipmapLevel));
+#endif
+	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData);
+}
+
+/*void D3D12Device::generateMipmap(int a_ID)
+{
+	// need complete hlsl 12 compute part
+}*/
+
+int D3D12Device::getTextureHeapID(int a_ID)
+{
+	return m_ManagedTexture[a_ID]->m_HeapID;
+}
+
+PixelFormat::Key D3D12Device::getTextureFormat(int a_ID)
+{
+	return m_ManagedTexture[a_ID]->m_Format;
+}
+
+glm::ivec3 D3D12Device::getTextureSize(int a_ID)
+{
+	return m_ManagedTexture[a_ID]->m_Size;
+}
+
+void* D3D12Device::getTextureResource(int a_ID)
+{
+	return m_ManagedTexture[a_ID]->m_pTexture;
+}
+
+void D3D12Device::freeTexture(int a_ID)
+{	
+	TextureBinder *l_pTargetBinder = m_ManagedTexture[a_ID];
+	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
+	m_ManagedTexture.release(a_ID);
+}
+
+D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
+{
+	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
+}
+
+D3D12_INDEX_BUFFER_VIEW D3D12Device::getIndexBufferView(int a_ID)
+{
+	return m_ManagedIndexBuffer[a_ID]->m_IndexView;
+}
+
 D3D12GpuThread D3D12Device::requestThread()
 {
 	if( m_GraphicThread.empty() ) return newThread(D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -830,14 +966,291 @@ void D3D12Device::recycleThread(D3D12GpuThread a_Thread)
 	m_GraphicThread.push_back(a_Thread);
 }
 
-D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
+void D3D12Device::waitForResourceUpdate()
 {
-	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
+	bool l_bNeedExec = false;
+	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
+	{
+		if( !m_TempResources[i].empty() )
+		{
+			l_bNeedExec = true;
+			break;
+		}
+	}
+	if( !l_bNeedExec ) return;
+
+	WaitForSingleObject(m_FenceEvent, INFINITE);
+
+	if( !m_TempResources[m_IdleResThread].empty() )
+	{
+		m_ResThread[m_IdleResThread].second->Close();
+		ID3D12CommandList* l_CmdArray[] = {m_ResThread[m_IdleResThread].second};
+		m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
+
+		m_pResCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
+		m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
+		++m_SyncVal;
+		WaitForSingleObject(m_FenceEvent, INFINITE);
+	}
+
+	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
+	{
+		for( unsigned int j=0 ; j<m_TempResources[i].size() ; ++j ) m_TempResources[i][j]->Release();
+		m_TempResources[i].clear();
+	}
+	m_IdleResThread = 0;
+	m_ResThread[m_IdleResThread].first->Reset();
+	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
+	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
 }
 
-D3D12_INDEX_BUFFER_VIEW D3D12Device::getIndexBufferView(int a_ID)
+void D3D12Device::checkResourceQueueState()
 {
-	return m_ManagedIndexBuffer[a_ID]->m_IndexView;
+	if( m_pSynchronizer->GetCompletedValue() <= m_SyncVal ) return;
+	if( m_TempResources[m_IdleResThread].empty() ) return;
+	
+	unsigned int l_TargetList = 1 - m_IdleResThread;
+	for( unsigned int i=0 ; i<m_TempResources[l_TargetList].size() ; ++i ) m_TempResources[l_TargetList][i]->Release();
+	m_TempResources[l_TargetList].clear();
+
+	m_ResThread[l_TargetList].first->Reset();
+	m_ResThread[l_TargetList].second->Reset(m_ResThread[l_TargetList].first, nullptr);
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
+	m_ResThread[l_TargetList].second->SetDescriptorHeaps(1, l_ppHeaps);
+
+	m_ResThread[m_IdleResThread].second->Close();
+	ID3D12CommandList* l_CmdArray[] = {m_ResThread[m_IdleResThread].second};
+	m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
+		
+	m_pResCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
+	m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
+	++m_SyncVal;
+
+	m_IdleResThread = l_TargetList;
+}
+
+int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag)
+{
+	TextureBinder *l_pNewBinder = nullptr;
+	unsigned int l_TextureID = m_ManagedTexture.retain(&l_pNewBinder);
+
+	l_pNewBinder->m_Size = a_Size;
+	l_pNewBinder->m_Format = a_Format;
+	switch( a_Dim )
+	{
+		case D3D12_RESOURCE_DIMENSION_TEXTURE1D: l_pNewBinder->m_Type = TEXTYPE_SIMPLE_1D; break;
+		case D3D12_RESOURCE_DIMENSION_TEXTURE2D: l_pNewBinder->m_Type = TEXTYPE_SIMPLE_2D; break;
+		case D3D12_RESOURCE_DIMENSION_TEXTURE3D: l_pNewBinder->m_Type = TEXTYPE_SIMPLE_3D; break;
+		default:break;
+	}
+	l_pNewBinder->m_MipmapLevels = a_MipmapLevel;
+
+	D3D12_HEAP_PROPERTIES l_HeapProp;
+	l_HeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	l_HeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	l_HeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	l_HeapProp.CreationNodeMask = 0;
+	l_HeapProp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC l_TexResDesc;
+	l_TexResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	l_TexResDesc.Alignment = 0;
+	l_TexResDesc.Width = a_Size.x;
+	l_TexResDesc.Height = a_Size.y;
+	l_TexResDesc.DepthOrArraySize = a_Size.z;
+	l_TexResDesc.MipLevels = a_MipmapLevel;
+	
+	if( PixelFormat::d32_float == a_Format ) l_TexResDesc.Format = (DXGI_FORMAT)getPixelFormat(PixelFormat::r32_typeless);
+	else l_TexResDesc.Format = (DXGI_FORMAT)getPixelFormat(a_Format);
+
+	l_TexResDesc.SampleDesc = m_MsaaSetting;
+	l_TexResDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	l_TexResDesc.Flags = (D3D12_RESOURCE_FLAGS)a_Flag;
+
+	bool l_bRenderTarget = 0 != (a_Flag & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ||
+							0 != (a_Flag & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_CLEAR_VALUE l_ClearVal;
+	D3D12_RESOURCE_STATES l_State = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	if( l_bRenderTarget )
+	{
+		assert(a_Dim == D3D12_RESOURCE_DIMENSION_TEXTURE2D);
+		l_ClearVal.Format = (DXGI_FORMAT)getPixelFormat(a_Format);
+		if( PixelFormat::d16_unorm == a_Format ||
+			PixelFormat::d24_unorm_s8_uint == a_Format ||
+			PixelFormat::d32_float == a_Format ||
+			PixelFormat::d32_float_s8x24_uint == a_Format )
+		{
+			l_ClearVal.DepthStencil.Depth = 1.0f;
+			l_ClearVal.DepthStencil.Stencil = 0;
+			l_State = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			l_pNewBinder->m_Type = TEXTYPE_DEPTH_STENCIL_VIEW;
+		}
+		else
+		{
+			l_ClearVal.Color[0] = l_ClearVal.Color[1] = l_ClearVal.Color[2] = l_ClearVal.Color[3] = 0.0f;
+			l_State = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			l_pNewBinder->m_Type = TEXTYPE_RENDER_TARGET_VIEW;
+		}
+	}
+
+	HRESULT l_Res = m_pDevice->CreateCommittedResource(&l_HeapProp, D3D12_HEAP_FLAG_NONE, &l_TexResDesc, l_State, l_bRenderTarget ? &l_ClearVal : nullptr, IID_PPV_ARGS(&l_pNewBinder->m_pTexture));
+	if( S_OK != l_Res )
+	{
+		wxMessageBox(wxT("Failed to create texture buffer"), wxT("D3D12DeviceInstance::allocateTexture"));
+		return 0;
+	}
+	
+	if( 0 == (a_Flag & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) )
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC l_SrvDesc = {};
+		l_SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		l_SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		// switch format if is depth texture
+		switch( a_Format )
+		{
+			case PixelFormat::d32_float_s8x24_uint:	l_SrvDesc.Format = (DXGI_FORMAT)getPixelFormat(PixelFormat::r32_float_x8x24_typeless);	break;
+			case PixelFormat::d32_float:		l_SrvDesc.Format = (DXGI_FORMAT)getPixelFormat(PixelFormat::r32_float);				break;
+			case PixelFormat::d24_unorm_s8_uint:l_SrvDesc.Format = (DXGI_FORMAT)getPixelFormat(PixelFormat::r24_unorm_x8_typeless);	break;
+			case PixelFormat::d16_unorm:		l_SrvDesc.Format = (DXGI_FORMAT)getPixelFormat(PixelFormat::r16_unorm);				break;
+			default:							l_SrvDesc.Format = l_TexResDesc.Format;												break;
+		}
+
+		l_SrvDesc.Texture2D.MipLevels = a_MipmapLevel;
+		l_SrvDesc.Texture2D.MostDetailedMip = 0;
+		l_SrvDesc.Texture2D.PlaneSlice = 0;
+		l_SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		l_pNewBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, &l_SrvDesc);
+	}
+
+	return l_TextureID;
+}
+
+void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
+{
+	checkResourceQueueState();
+	
+	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
+	
+	unsigned int l_PixelSize = getPixelSize(l_pTargetTexture->m_Format);
+	std::vector<char> l_EmptyBuff;
+	if( nullptr == a_pSrcData )
+	{
+		l_EmptyBuff.resize(l_PixelSize * a_Size.x * a_Size.y * a_Size.z, 0xff);
+		a_pSrcData = (void*)&(l_EmptyBuff.front());
+	}
+	
+	unsigned int l_SubResIdx = a_MipmapLevel;
+	if( l_pTargetTexture->m_Type == TEXTYPE_SIMPLE_2D ) l_SubResIdx += (a_Offset.z * l_pTargetTexture->m_MipmapLevels);
+
+	unsigned int l_RowPitch = 0;
+	unsigned int l_SlicePitch = 0;
+	glm::ivec3 l_MippedSize(std::max(1, l_pTargetTexture->m_Size.x >> a_MipmapLevel),
+							std::max(1, l_pTargetTexture->m_Size.y >> a_MipmapLevel),
+							std::max(1, l_pTargetTexture->m_Size.z >> a_MipmapLevel));
+	{
+		uint64 l_RequiredSize = 0;
+		m_pDevice->GetCopyableFootprints(&l_pTargetTexture->m_pTexture->GetDesc(), l_SubResIdx, 1, 0, nullptr, nullptr, nullptr, &l_RequiredSize);
+		l_RowPitch = l_RequiredSize / (l_MippedSize.z * l_MippedSize.y);
+		l_RowPitch = (l_RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+		l_SlicePitch = l_RowPitch * l_MippedSize.y;
+	}
+	
+	ID3D12Resource *l_pUploader = nullptr;
+	{
+		D3D12_HEAP_PROPERTIES l_HeapProp;
+		l_HeapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+		l_HeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		l_HeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		l_HeapProp.CreationNodeMask = 0;
+		l_HeapProp.VisibleNodeMask = 0;
+
+		D3D12_RESOURCE_DESC l_TexResDesc;
+		l_TexResDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		l_TexResDesc.Alignment = 0;
+		l_TexResDesc.Width = l_pTargetTexture->m_Type == TEXTYPE_SIMPLE_3D ? l_SlicePitch * a_Size.z : l_RowPitch * a_Size.y;
+		l_TexResDesc.Height = 1;
+		l_TexResDesc.DepthOrArraySize = 1;
+		l_TexResDesc.MipLevels = 1;
+		l_TexResDesc.Format = DXGI_FORMAT_UNKNOWN;
+		l_TexResDesc.SampleDesc = m_MsaaSetting;
+		l_TexResDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		l_TexResDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		HRESULT l_Res = m_pDevice->CreateCommittedResource(&l_HeapProp, D3D12_HEAP_FLAG_NONE, &l_TexResDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&l_pUploader));
+		if( S_OK != l_Res )
+		{
+			wxMessageBox(wxT("CreateCommittedResource failed"), wxT("D3D12Device::updateTexture"));
+			return;
+		}
+		m_TempResources[m_IdleResThread].push_back(l_pUploader);
+
+		unsigned char *l_pDataBegin = nullptr;
+		l_Res = l_pUploader->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
+		switch( l_pTargetTexture->m_Type )
+		{
+			case TEXTYPE_SIMPLE_1D:{
+				memcpy(l_pDataBegin + a_Offset.x, a_pSrcData, a_Size.x * l_PixelSize);
+				}break;
+
+			case TEXTYPE_SIMPLE_2D:{
+				#pragma	omp parallel for
+				for( int y=0 ; y<a_Size.y ; ++y )
+				{
+					unsigned char *l_pDstStart = l_pDataBegin + ((a_Offset.x + y) * l_RowPitch + a_Offset.x * l_PixelSize);
+					unsigned char *l_pSrcStart = (unsigned char *)a_pSrcData + (y * a_Size.x * l_PixelSize);
+					memcpy(l_pDstStart, l_pSrcStart, a_Size.x * l_PixelSize);
+				}
+				}break;
+
+			case TEXTYPE_SIMPLE_3D:{
+				for( int z=0 ; z<a_Size.z ; ++z )
+				{
+					unsigned int l_DstSliceOffset = (a_Offset.z + z) * l_SlicePitch;
+					unsigned int l_SrcSliceOffset = z * a_Size.x * a_Size.y * l_PixelSize;
+					#pragma	omp parallel for
+					for( int y=0 ; y<a_Size.y ; ++y )
+					{
+						unsigned char *l_pDstStart = l_pDataBegin + (l_DstSliceOffset + (a_Offset.x + y) * l_RowPitch + a_Offset.x * l_PixelSize);
+						unsigned char *l_pSrcStart = (unsigned char *)a_pSrcData + l_SrcSliceOffset + (y * a_Size.x * l_PixelSize);
+						memcpy(l_pDstStart, l_pSrcStart, a_Size.x * l_PixelSize);
+					}
+				}
+				}break;
+
+			default:break;
+		}
+		l_pUploader->Unmap(0, nullptr);
+	}
+
+	D3D12_RESOURCE_BARRIER l_TransSetting;
+	l_TransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	l_TransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	l_TransSetting.Transition.pResource = l_pTargetTexture->m_pTexture;
+	l_TransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+
+	// copy data
+	D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
+	l_Dst.pResource = l_pTargetTexture->m_pTexture;
+	l_Dst.SubresourceIndex = l_SubResIdx;
+	l_Dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	l_Src.PlacedFootprint.Offset = 0;
+	l_Src.PlacedFootprint.Footprint.Width = a_Size.x;
+	l_Src.PlacedFootprint.Footprint.Height = a_Size.y;
+	l_Src.PlacedFootprint.Footprint.Depth = a_Size.z;
+	l_Src.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
+	l_Src.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetTexture->m_Format);
+	l_Src.pResource = l_pUploader;
+	l_Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	
+	m_ResThread[m_IdleResThread].second->CopyTextureRegion(&l_Dst, a_Offset.x, a_Offset.y, a_Offset.z, &l_Src, nullptr);
+	
+	l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
 }
 
 D3D12GpuThread D3D12Device::newThread(D3D12_COMMAND_LIST_TYPE a_Type)

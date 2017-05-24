@@ -68,6 +68,7 @@ private:
 	std::function<void(float)> m_RenderFunc;
 };
 
+// member function with source data must call on main thread
 class GraphicDevice
 {
 public:
@@ -97,30 +98,25 @@ public:
 	virtual int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
 	virtual int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
 	virtual int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
-	virtual void updateTexture1D(int a_TextureID, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
-	virtual void updateTexture2D(int a_TextureID, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
-	virtual void updateTexture3D(int a_TextureID, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
+	virtual void updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
+	virtual void updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
+	virtual void updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
 	virtual void generateMipmap(int a_ID) = 0;
-	virtual int createRenderTargetView(int a_TextureID) = 0;
-	virtual int createDepthStencilView(int a_TextureID) = 0;
-	virtual int getTextureHeapID(int a_TextureID) = 0;
+	virtual int getTextureHeapID(int a_ID) = 0;
 	virtual PixelFormat::Key getTextureFormat(int a_ID) = 0;
+	virtual glm::ivec3 getTextureSize(int a_ID) = 0;
 	virtual void* getTextureResource(int a_ID) = 0;
 	virtual void freeTexture(int a_ID) = 0;
 
-	virtual PixelFormat::Key getTexturePixelFormat(int a_TextureID) = 0;
-	virtual int getTexturePixelSize(int a_TextureID) = 0; 
-	virtual glm::ivec3 getTextureDimension(int a_TextureID) = 0;
-	
 	// vertex, index buffer
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Count, std::string a_Name = "") = 0;//a_Slot < VTXSLOT_COUNT
-	virtual void updateVertexBuffer(unsigned int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
-	virtual void* getVertexResource(unsigned int a_ID) = 0;
-	virtual void freeVertexBuffer(unsigned int a_ID) = 0;
+	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void* getVertexResource(int a_ID) = 0;
+	virtual void freeVertexBuffer(int a_ID) = 0;
 	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, std::string a_Name = "") = 0;
-	virtual void updateIndexBuffer(unsigned int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
-	virtual void* getIndexResource(unsigned int a_ID) = 0;
-	virtual void freeIndexBuffer(unsigned int a_ID) = 0;
+	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void* getIndexResource(int a_ID) = 0;
+	virtual void freeIndexBuffer(int a_ID) = 0;
 
 	// cbv buffer
 	virtual int requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size) = 0;//return buffer id
@@ -139,8 +135,8 @@ public:
 	virtual void freeUavBuffer(unsigned int a_BuffID) = 0;
 
 	// render target part
-	virtual int createRenderTarget(int a_TextureID) = 0;
-	virtual int createDepthStencilTarget(int a_TextureID) = 0;
+	//virtual int createRenderTarget(int a_TextureID) = 0;
+	//virtual int createDepthStencilTarget(int a_TextureID) = 0;
 
 	// misc
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;
