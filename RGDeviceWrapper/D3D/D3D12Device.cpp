@@ -409,7 +409,7 @@ void D3D12Commander::threadEnd()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
-	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer()
+	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
@@ -421,6 +421,8 @@ D3D12Device::D3D12Device()
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
 	BIND_DEFAULT_ALLOCATOR(VertexBinder, m_ManagedVertexBuffer);
 	BIND_DEFAULT_ALLOCATOR(IndexBinder, m_ManagedIndexBuffer);
+	BIND_DEFAULT_ALLOCATOR(ConstBufferBinder, m_ManagedConstBuffer);
+	BIND_DEFAULT_ALLOCATOR(UnorderAccessBufferBinder, m_ManagedUavBuffer);
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = std::make_pair(nullptr, nullptr);
 }
@@ -441,6 +443,8 @@ D3D12Device::~D3D12Device()
 	m_ManagedTexture.clear();
 	m_ManagedVertexBuffer.clear();
 	m_ManagedIndexBuffer.clear();
+	m_ManagedConstBuffer.clear();
+	m_ManagedUavBuffer.clear();
 
 	SAFE_RELEASE(m_pGraphicInterface)
 	SAFE_RELEASE(m_pResCmdQueue)
@@ -1029,6 +1033,245 @@ D3D12_INDEX_BUFFER_VIEW D3D12Device::getIndexBufferView(int a_ID)
 	return m_ManagedIndexBuffer[a_ID]->m_IndexView;
 }
 
+// cbv part
+int D3D12Device::requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size)
+{
+	a_Size = (a_Size + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1);// const buffer alignment
+
+	ID3D12Resource *l_pNewResource = initSizedResource(a_Size, D3D12_HEAP_TYPE_UPLOAD);
+
+	ConstBufferBinder *l_pTargetBinder = nullptr;
+	unsigned int l_BuffID = m_ManagedConstBuffer.retain(&l_pTargetBinder);
+
+	HRESULT l_Res = l_pNewResource->Map(0, nullptr, reinterpret_cast<void**>(&l_pTargetBinder->m_pCurrBuff));
+	if( S_OK != l_Res )
+	{
+		wxMessageBox(wxT("failed to map shared cbv buff"), wxT("D3D12Device::requestConstBuffer"));
+		return -1;
+	}
+	l_pTargetBinder->m_pResource = l_pNewResource;
+	l_pTargetBinder->m_CurrSize = a_Size;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC l_BuffDesc;
+	l_BuffDesc.SizeInBytes = a_Size;
+	l_BuffDesc.BufferLocation = l_pTargetBinder->m_pResource->GetGPUVirtualAddress();
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(&l_BuffDesc);
+
+	return l_BuffID;
+}
+
+char* D3D12Device::getConstBufferContainer(int a_ID)
+{
+	return m_ManagedConstBuffer[a_ID]->m_pCurrBuff;
+}
+
+void* D3D12Device::getConstBufferResource(int a_ID)
+{
+	return m_ManagedConstBuffer[a_ID]->m_pResource;
+}
+
+void D3D12Device::freeConstBuffer(int a_ID)
+{
+	ConstBufferBinder *l_pTargetBinder = m_ManagedConstBuffer[a_ID];
+	l_pTargetBinder->m_pResource->Unmap(0, nullptr);
+	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
+	SAFE_RELEASE(l_pTargetBinder->m_pResource)
+
+	m_ManagedConstBuffer.release(a_ID);
+}
+
+// uav part
+unsigned int D3D12Device::requestUavBuffer(char* &a_pOutputBuff, unsigned int a_UnitSize, unsigned int a_ElementCount)
+{
+	unsigned int l_TotalSize = a_UnitSize * a_ElementCount;
+
+	ID3D12Resource *l_pNewResource = initSizedResource(l_TotalSize, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		
+	UnorderAccessBufferBinder *l_pTargetBinder = nullptr;
+	unsigned int l_BuffID = m_ManagedUavBuffer.retain(&l_pTargetBinder);
+
+	a_pOutputBuff = new char[l_TotalSize];
+	memset(a_pOutputBuff, 0, sizeof(char) * l_TotalSize);
+
+	l_pTargetBinder->m_pResource = l_pNewResource;
+	l_pTargetBinder->m_CurrSize = l_TotalSize;
+	l_pTargetBinder->m_ElementSize = a_UnitSize;
+	l_pTargetBinder->m_ElementCount = a_ElementCount;
+	l_pTargetBinder->m_pCurrBuff = a_pOutputBuff;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc;
+	l_UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	l_UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    l_UAVDesc.Buffer.FirstElement = 0;
+	l_UAVDesc.Buffer.NumElements = a_ElementCount;
+	l_UAVDesc.Buffer.StructureByteStride = a_UnitSize;
+	l_UAVDesc.Buffer.CounterOffsetInBytes = 0;
+	l_UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, nullptr, &l_UAVDesc);
+
+	return l_BuffID;
+}
+
+void D3D12Device::resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount)
+{
+	UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[a_ID];
+	unsigned int l_TotalSize = a_ElementCount * l_pTargetBinder->m_ElementSize;
+
+	ID3D12Resource *l_pNewResource = initSizedResource(l_TotalSize, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	unsigned int l_NewSize = std::min(l_pTargetBinder->m_CurrSize, a_ElementCount * l_pTargetBinder->m_ElementSize);
+	char *l_pNewBuffPtr = new char[l_NewSize];
+	memcpy(l_pNewBuffPtr, l_pTargetBinder->m_pCurrBuff, l_NewSize);
+	a_pOutputBuff = l_pNewBuffPtr;
+
+	SAFE_RELEASE(l_pTargetBinder->m_pResource)
+	l_pTargetBinder->m_pResource = l_pNewResource;
+	SAFE_DELETE_ARRAY(l_pTargetBinder->m_pCurrBuff)
+	l_pTargetBinder->m_pCurrBuff = l_pNewBuffPtr;
+	l_pTargetBinder->m_ElementCount = a_ElementCount;
+	l_pTargetBinder->m_CurrSize = a_ElementCount * l_pTargetBinder->m_ElementSize;
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc;
+	l_UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
+	l_UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    l_UAVDesc.Buffer.FirstElement = 0;
+	l_UAVDesc.Buffer.NumElements = a_ElementCount;
+	l_UAVDesc.Buffer.StructureByteStride = l_pTargetBinder->m_ElementSize;
+	l_UAVDesc.Buffer.CounterOffsetInBytes = 0;
+	l_UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	
+	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, nullptr, &l_UAVDesc);
+}
+
+char* D3D12Device::getUavBufferContainer(int a_ID)
+{
+	return m_ManagedUavBuffer[a_ID]->m_pCurrBuff;
+}
+
+void* D3D12Device::getUavBufferResource(int a_ID)
+{
+	return m_ManagedUavBuffer[a_ID]->m_pResource;
+}
+
+void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList)
+{
+	std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > l_BuffIDListWithOffset(a_BuffIDList.size());
+	for( unsigned int i=0 ; i<a_BuffIDList.size() ; ++i )
+	{
+		UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[a_BuffIDList[i]];
+		std::get<0>(l_BuffIDListWithOffset[i]) = a_BuffIDList[i];
+		std::get<1>(l_BuffIDListWithOffset[i]) = 0;
+		std::get<2>(l_BuffIDListWithOffset[i]) = l_pTargetBinder->m_CurrSize;
+	}
+	syncUavBuffer(a_bToGpu, l_BuffIDListWithOffset);
+}
+
+void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList)
+{
+	assert(!a_BuffIDList.empty());
+
+	if( a_bToGpu )
+	{
+		D3D12_RESOURCE_BARRIER l_BaseBarrier;
+		l_BaseBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		l_BaseBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		l_BaseBarrier.Transition.pResource = nullptr;
+		l_BaseBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		l_BaseBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		l_BaseBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransToSetting(a_BuffIDList.size(), l_BaseBarrier);
+
+		l_BaseBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		l_BaseBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransBackSetting(a_BuffIDList.size(), l_BaseBarrier);
+
+		{
+			std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
+			std::vector<ID3D12Resource *> l_ResArray(a_BuffIDList.size(), nullptr);
+		
+			#pragma	omp parallel for
+			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
+			{
+				D3D12_RANGE l_MapRange;
+				l_MapRange.Begin = 0;
+				l_MapRange.End = std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]);
+
+				UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
+				l_ResArray[i] = initSizedResource(l_MapRange.End - l_MapRange.Begin, D3D12_HEAP_TYPE_UPLOAD);
+				updateResourceData(l_ResArray[i], l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]), l_MapRange.End);
+				m_TempResources[m_IdleResThread].push_back(l_ResArray[i]);
+
+				l_TransToSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
+				l_TransBackSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
+			}
+
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSetting.size(), &(l_TransToSetting[0]));
+		
+			#pragma	omp parallel for
+			for( int i=0 ; i<a_BuffIDList.size() ; ++i )
+			{
+				UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
+				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i])
+					, l_ResArray[i], 0, std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]));
+			}
+	
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), &(l_TransBackSetting[0]));
+		}
+	}
+	else
+	{
+		D3D12_RESOURCE_BARRIER l_BaseTransSetting;
+		l_BaseTransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		l_BaseTransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		l_BaseTransSetting.Transition.pResource = nullptr;
+		l_BaseTransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		l_BaseTransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		l_BaseTransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransToSettings(a_BuffIDList.size(), l_BaseTransSetting);
+		
+		l_BaseTransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		l_BaseTransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransBackSettings(a_BuffIDList.size(), l_BaseTransSetting);
+
+		{
+			std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
+
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSettings.size(), &(l_TransToSettings[0]));
+			
+			#pragma	omp parallel for
+			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
+			{
+				UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
+
+				ReadBackBuffer l_ReadBackData;
+				l_ReadBackData.m_pTempResource = initSizedResource(std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]), D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
+				l_ReadBackData.m_pTargetBuffer = (unsigned char *)l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]);
+				l_ReadBackData.m_Size = std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]);
+				m_ReadBackContainer[m_IdleResThread].push_back(l_ReadBackData);
+				m_TempResources[m_IdleResThread].push_back(l_ReadBackData.m_pTempResource);
+		
+				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_ReadBackData.m_pTempResource, 0
+					, l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i]), std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]));
+			}
+
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSettings.size(), &(l_TransBackSettings[0]));
+		}
+	}
+}
+
+void D3D12Device::freeUavBuffer(int a_ID)
+{
+	UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[a_ID];
+	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
+	SAFE_RELEASE(l_pTargetBinder->m_pResource)
+	SAFE_DELETE_ARRAY(l_pTargetBinder->m_pCurrBuff)
+
+	m_ManagedUavBuffer.release(a_ID);
+}
+
+// thread part
 D3D12GpuThread D3D12Device::requestThread()
 {
 	if( m_GraphicThread.empty() ) return newThread(D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -1080,6 +1323,10 @@ void D3D12Device::resourceThread()
 		m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
 		WaitForSingleObject(m_FenceEvent, INFINITE);
 		++m_SyncVal;
+		
+		#pragma	omp parallel for
+		for( int i=0 ; i<(int)m_ReadBackContainer[l_Original].size() ; ++i ) m_ReadBackContainer[l_Original][i].readback();
+		m_ReadBackContainer[l_Original].clear();
 
 		for( unsigned int i=0 ; i<m_TempResources[l_Original].size() ; ++i ) m_TempResources[l_Original][i]->Release();
 		m_TempResources[l_Original].clear();

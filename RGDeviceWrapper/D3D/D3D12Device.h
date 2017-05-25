@@ -142,7 +142,7 @@ public:
 	virtual void* getTextureResource(int a_ID);
 	virtual void freeTexture(int a_ID);
 	
-	// vertex, index buffer
+	// vertex, index buffer part
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT(""));
 	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte);
 	virtual void* getVertexResource(int a_ID);
@@ -152,6 +152,21 @@ public:
 	virtual void* getIndexResource(int a_ID);
 	virtual void freeIndexBuffer(int a_ID);
 
+	// cbv part
+	virtual int requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size);//return buffer id
+	virtual char* getConstBufferContainer(int a_ID);
+	virtual void* getConstBufferResource(int a_ID);
+	virtual void freeConstBuffer(int a_ID);
+
+	// uav part
+	virtual unsigned int requestUavBuffer(char* &a_pOutputBuff, unsigned int a_UnitSize, unsigned int a_ElementCount) ;
+	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount);
+	virtual char* getUavBufferContainer(int a_ID);
+	virtual void* getUavBufferResource(int a_ID);
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList);
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList);
+	virtual void freeUavBuffer(int a_ID);
+	
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
@@ -206,6 +221,42 @@ private:
 		ID3D12Resource *m_pIndexRes;
 		D3D12_INDEX_BUFFER_VIEW m_IndexView;
 	};
+	struct ConstBufferBinder
+	{
+		ConstBufferBinder() : m_pResource(nullptr), m_HeapID(0), m_CurrSize(0), m_pCurrBuff(nullptr){}
+		~ConstBufferBinder(){ SAFE_RELEASE(m_pResource) }
+
+		ID3D12Resource *m_pResource;
+		unsigned int m_HeapID;
+		unsigned int m_CurrSize;
+		char *m_pCurrBuff;
+	};
+	struct UnorderAccessBufferBinder : ConstBufferBinder
+	{
+		UnorderAccessBufferBinder() : ConstBufferBinder(), m_ElementSize(0), m_ElementCount(0){}
+
+		unsigned int m_ElementSize;
+		unsigned int m_ElementCount;
+	};
+	struct ReadBackBuffer
+	{
+		ReadBackBuffer() : m_pTempResource(nullptr), m_pTargetBuffer(nullptr), m_Size(0){}
+		void readback()
+		{
+			D3D12_RANGE l_MapRange;
+			l_MapRange.Begin = 0;
+			l_MapRange.End = m_Size;
+
+			unsigned char* l_pDataBegin = nullptr;
+			m_pTempResource->Map(0, &l_MapRange, reinterpret_cast<void**>(&l_pDataBegin));
+			memcpy(m_pTargetBuffer, l_pDataBegin, m_Size);
+			m_pTempResource->Unmap(0, nullptr);
+		}
+
+		ID3D12Resource *m_pTempResource;
+		unsigned char *m_pTargetBuffer;
+		unsigned int m_Size;
+	};
 
 	D3D12GpuThread newThread(D3D12_COMMAND_LIST_TYPE a_Type);
 
@@ -215,6 +266,8 @@ private:
 	SerializedObjectPool<TextureBinder> m_ManagedTexture;
 	SerializedObjectPool<VertexBinder> m_ManagedVertexBuffer;
 	SerializedObjectPool<IndexBinder> m_ManagedIndexBuffer;
+	SerializedObjectPool<ConstBufferBinder> m_ManagedConstBuffer;
+	SerializedObjectPool<UnorderAccessBufferBinder> m_ManagedUavBuffer;
 
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
@@ -226,6 +279,7 @@ private:
 	uint64 m_SyncVal;
 	ID3D12Fence *m_pSynchronizer;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
+	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
 	std::thread *m_pResourceLoop;
 	bool m_bResLoop;
 

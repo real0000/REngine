@@ -37,7 +37,7 @@ unsigned int HLSLProgram::initParamOffset(unsigned int &a_Offset, ShaderParamTyp
 		case ShaderParamType::int2:
 		case ShaderParamType::float2:{
 			int l_Size = sizeof(float) * 2;
-			if( l_Size > l_LineSize - (a_Offset % l_LineSize) )
+			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
 			{
 				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
 				a_Offset = l_Res + l_Size;
@@ -52,7 +52,7 @@ unsigned int HLSLProgram::initParamOffset(unsigned int &a_Offset, ShaderParamTyp
 		case ShaderParamType::int3:
 		case ShaderParamType::float3:{
 			int l_Size = sizeof(float) * 3;
-			if( l_Size > l_LineSize - (a_Offset % l_LineSize) )
+			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
 			{
 				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
 				a_Offset = l_Res + l_Size;

@@ -119,13 +119,13 @@ public:
 	virtual void* getIndexResource(int a_ID) = 0;
 	virtual void freeIndexBuffer(int a_ID) = 0;
 
-	// cbv buffer
+	// cbv part
 	virtual int requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size) = 0;//return buffer id
 	virtual char* getConstBufferContainer(int a_ID) = 0;
 	virtual void* getConstBufferResource(int a_ID) = 0;
 	virtual void freeConstBuffer(int a_ID) = 0;
 
-	// uav buffer
+	// uav part
 	virtual unsigned int requestUavBuffer(char* &a_pOutputBuff, unsigned int a_UnitSize, unsigned int a_ElementCount) = 0;
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount) = 0;
 	virtual char* getUavBufferContainer(int a_BuffID) = 0;
@@ -133,7 +133,7 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end
-	virtual void freeUavBuffer(unsigned int a_BuffID) = 0;
+	virtual void freeUavBuffer(int a_BuffID) = 0;
 
 	// render target part
 	//virtual int createRenderTarget(int a_TextureID) = 0;
