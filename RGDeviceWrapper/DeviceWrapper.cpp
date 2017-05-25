@@ -228,6 +228,28 @@ unsigned int GraphicDevice::getPixelSize(PixelFormat::Key a_Key)
 	return 0;
 }
 
+unsigned int GraphicDevice::getVertexSlotStride(unsigned int a_Type)
+{
+	unsigned int l_Res = 0;
+	switch( a_Type )
+	{
+		case VTXSLOT_POSITION:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_TEXCOORD01:
+		case VTXSLOT_TEXCOORD23:
+		case VTXSLOT_TEXCOORD45:
+		case VTXSLOT_TEXCOORD67:l_Res = sizeof(glm::vec4); break;
+		case VTXSLOT_NORMAL:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_TANGENT:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_BINORMAL:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_BONE:		l_Res = sizeof(glm::ivec4); break;
+		case VTXSLOT_WEIGHT:	l_Res = sizeof(glm::vec4); break;
+		case VTXSLOT_COLOR:		l_Res = sizeof(unsigned int); break;
+		default:break;
+	}
+	assert(0 != l_Res);
+	return l_Res;
+}
+
 unsigned int GraphicDevice::getParamAlignmentSize(ShaderParamType::Key a_Key)
 {
 	switch( a_Key )

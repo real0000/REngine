@@ -409,13 +409,14 @@ void D3D12Commander::threadEnd()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
+	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr)
 	, m_IdleResThread(0)
 	, m_FenceEvent(0), m_SyncVal(0), m_pSynchronizer(nullptr)
-	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer()
+	, m_pResourceLoop(nullptr), m_bResLoop(true)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
 	BIND_DEFAULT_ALLOCATOR(VertexBinder, m_ManagedVertexBuffer);
@@ -426,7 +427,10 @@ D3D12Device::D3D12Device()
 
 D3D12Device::~D3D12Device()
 {
-	waitForResourceUpdate();
+	m_bResLoop = false;
+	if( nullptr != m_pResourceLoop ) m_pResourceLoop->join();
+	delete m_pResourceLoop;
+
 	SAFE_RELEASE(m_pSynchronizer)
 
 	SAFE_DELETE(m_pShaderResourceHeap);
@@ -574,6 +578,7 @@ void D3D12Device::init()
 	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
 	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
 	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+	m_pResourceLoop = new std::thread(&D3D12Device::resourceThread, this);
 
 	unsigned int l_NumCore = std::thread::hardware_concurrency();
 	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
@@ -665,6 +670,7 @@ std::pair<int, int> D3D12Device::maxShaderModel()
 	return std::make_pair(5, 1);//no version check for dx12
 }
 
+// convert part
 unsigned int D3D12Device::getBlendKey(BlendKey::Key a_Key)
 {
 	switch( a_Key )
@@ -848,6 +854,7 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
+// texture part
 int D3D12Device::allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format)
 {
 	assert(a_Size >= MIN_TEXTURE_SIZE);
@@ -876,7 +883,7 @@ void D3D12Device::updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned
 	assert(nullptr != l_pTargetTexture);
 	assert(TEXTYPE_SIMPLE_1D == l_pTargetTexture->m_Type);
 	assert(a_Size >= 1);
-	assert(a_Offset < (l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset + a_Size <= (l_pTargetTexture->m_Size.x >> a_MipmapLevel));
+	assert(a_Offset < ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset + a_Size <= ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel));
 #endif
 	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size, 1, 1), glm::ivec3(a_Offset, 0, 0), a_pSrcData);
 }
@@ -890,7 +897,7 @@ void D3D12Device::updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ive
 	assert(a_Size.x >= 1 && a_Size.y >= 1);
 	assert(a_Offset.x < (l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset.x + a_Size.x <= (l_pTargetTexture->m_Size.x >> a_MipmapLevel) &&
 		   a_Offset.y < (l_pTargetTexture->m_Size.y >> a_MipmapLevel) && a_Offset.y + a_Size.y <= (l_pTargetTexture->m_Size.y >> a_MipmapLevel) &&
-		   a_Idx < l_pTargetTexture->m_Size.z);
+		   a_Idx < (unsigned int)l_pTargetTexture->m_Size.z);
 #endif
 	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size.x, a_Size.y, 1), glm::ivec3(a_Offset.x, a_Offset.y, a_Idx), a_pSrcData);
 }
@@ -911,7 +918,7 @@ void D3D12Device::updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ive
 
 /*void D3D12Device::generateMipmap(int a_ID)
 {
-	// need complete hlsl 12 compute part
+	// require : hlsl 12 compute part
 }*/
 
 int D3D12Device::getTextureHeapID(int a_ID)
@@ -941,6 +948,77 @@ void D3D12Device::freeTexture(int a_ID)
 	m_ManagedTexture.release(a_ID);
 }
 
+// vertex, index buffer part
+int D3D12Device::requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name)
+{
+	unsigned int l_Stride = getVertexSlotStride(a_Slot);
+	VertexBinder *l_pNewVtxBuffer = nullptr;
+	unsigned int l_VtxID = m_ManagedVertexBuffer.retain(&l_pNewVtxBuffer);
+	l_pNewVtxBuffer->m_pVtxRes = initSizedResource(l_Stride * a_Count, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	
+	if( !a_Name.empty() ) l_pNewVtxBuffer->m_pVtxRes->SetName(a_Name.wc_str());
+	if( nullptr != a_pInitData ) updateResourceData(l_pNewVtxBuffer->m_pVtxRes, a_pInitData, l_Stride * a_Count);
+
+	l_pNewVtxBuffer->m_VtxView.BufferLocation = l_pNewVtxBuffer->m_pVtxRes->GetGPUVirtualAddress();
+	l_pNewVtxBuffer->m_VtxView.SizeInBytes = l_Stride * a_Count;
+	l_pNewVtxBuffer->m_VtxView.StrideInBytes = l_Stride;
+
+	return l_VtxID;
+}
+
+void D3D12Device::updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte)
+{
+	assert(nullptr != a_pData);
+	VertexBinder *l_pVtxBuffer = m_ManagedVertexBuffer[a_ID];
+	updateResourceData(l_pVtxBuffer->m_pVtxRes, a_pData, a_SizeInByte);
+}
+
+void* D3D12Device::getVertexResource(int a_ID)
+{
+	return m_ManagedVertexBuffer[a_ID]->m_pVtxRes;
+}
+
+void D3D12Device::freeVertexBuffer(int a_ID)
+{
+	m_ManagedVertexBuffer.release(a_ID);
+}
+
+int D3D12Device::requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, wxString a_Name)
+{
+	unsigned int l_Stride = getPixelSize(a_Fmt);
+	assert(PixelFormat::r8_uint == a_Fmt || PixelFormat::r16_uint == a_Fmt || PixelFormat::r32_uint == a_Fmt);
+
+	IndexBinder *l_pNewIndexBuffer = nullptr;
+	unsigned int l_ID = m_ManagedIndexBuffer.retain(&l_pNewIndexBuffer);
+	l_pNewIndexBuffer->m_pIndexRes = initSizedResource(l_Stride * a_Count, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	
+	if( !a_Name.empty() ) l_pNewIndexBuffer->m_pIndexRes->SetName(a_Name.wc_str());
+	if( nullptr != a_pInitData ) updateResourceData(l_pNewIndexBuffer->m_pIndexRes, a_pInitData, l_Stride * a_Count);
+
+	l_pNewIndexBuffer->m_IndexView.BufferLocation = l_pNewIndexBuffer->m_pIndexRes->GetGPUVirtualAddress();
+	l_pNewIndexBuffer->m_IndexView.Format = (DXGI_FORMAT)getPixelFormat(a_Fmt);
+	l_pNewIndexBuffer->m_IndexView.SizeInBytes = l_Stride * a_Count;
+
+	return l_ID;
+}
+
+void D3D12Device::updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte)
+{
+	assert(nullptr != a_pData);
+	IndexBinder *l_pIndexBuffer = m_ManagedIndexBuffer[a_ID];
+	updateResourceData(l_pIndexBuffer->m_pIndexRes, a_pData, a_SizeInByte);	
+}
+
+void* D3D12Device::getIndexResource(int a_ID)
+{
+	return m_ManagedIndexBuffer[a_ID]->m_pIndexRes;
+}
+
+void D3D12Device::freeIndexBuffer(int a_ID)
+{
+	m_ManagedIndexBuffer.release(a_ID);
+}
+
 D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
 {
 	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
@@ -968,66 +1046,85 @@ void D3D12Device::recycleThread(D3D12GpuThread a_Thread)
 
 void D3D12Device::waitForResourceUpdate()
 {
-	bool l_bNeedExec = false;
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
 	{
 		if( !m_TempResources[i].empty() )
 		{
-			l_bNeedExec = true;
-			break;
+			WaitForSingleObject(m_FenceEvent, INFINITE);
 		}
 	}
-	if( !l_bNeedExec ) return;
-
-	WaitForSingleObject(m_FenceEvent, INFINITE);
-
-	if( !m_TempResources[m_IdleResThread].empty() )
-	{
-		m_ResThread[m_IdleResThread].second->Close();
-		ID3D12CommandList* l_CmdArray[] = {m_ResThread[m_IdleResThread].second};
-		m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
-
-		m_pResCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
-		m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
-		++m_SyncVal;
-		WaitForSingleObject(m_FenceEvent, INFINITE);
-	}
-
-	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
-	{
-		for( unsigned int j=0 ; j<m_TempResources[i].size() ; ++j ) m_TempResources[i][j]->Release();
-		m_TempResources[i].clear();
-	}
-	m_IdleResThread = 0;
-	m_ResThread[m_IdleResThread].first->Reset();
-	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
 }
 
-void D3D12Device::checkResourceQueueState()
+void D3D12Device::resourceThread()
 {
-	if( m_pSynchronizer->GetCompletedValue() <= m_SyncVal ) return;
-	if( m_TempResources[m_IdleResThread].empty() ) return;
-	
-	unsigned int l_TargetList = 1 - m_IdleResThread;
-	for( unsigned int i=0 ; i<m_TempResources[l_TargetList].size() ; ++i ) m_TempResources[l_TargetList][i]->Release();
-	m_TempResources[l_TargetList].clear();
-
-	m_ResThread[l_TargetList].first->Reset();
-	m_ResThread[l_TargetList].second->Reset(m_ResThread[l_TargetList].first, nullptr);
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-	m_ResThread[l_TargetList].second->SetDescriptorHeaps(1, l_ppHeaps);
-
-	m_ResThread[m_IdleResThread].second->Close();
-	ID3D12CommandList* l_CmdArray[] = {m_ResThread[m_IdleResThread].second};
-	m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
+	while( m_bResLoop )
+	{
+		while( m_TempResources[m_IdleResThread].empty() ) std::this_thread::yield();
 		
-	m_pResCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
-	m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
-	++m_SyncVal;
+		unsigned int l_Original = m_IdleResThread;
+		{
+			std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
 
-	m_IdleResThread = l_TargetList;
+			m_ResThread[m_IdleResThread].second->Close();
+			ID3D12CommandList* l_CmdArray[] = {m_ResThread[m_IdleResThread].second};
+			m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
+			
+			m_IdleResThread = 1 - m_IdleResThread;
+			m_ResThread[m_IdleResThread].first->Reset();
+			m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
+			ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
+			m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+		}
+		
+		m_pResCmdQueue->Signal(m_pSynchronizer, m_SyncVal);
+		m_pSynchronizer->SetEventOnCompletion(m_SyncVal, m_FenceEvent);
+		WaitForSingleObject(m_FenceEvent, INFINITE);
+		++m_SyncVal;
+
+		for( unsigned int i=0 ; i<m_TempResources[l_Original].size() ; ++i ) m_TempResources[l_Original][i]->Release();
+		m_TempResources[l_Original].clear();
+	}
+}
+
+ID3D12Resource* D3D12Device::initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState, D3D12_RESOURCE_FLAGS a_Flag)
+{
+	D3D12_HEAP_PROPERTIES l_CBVHeapProp;
+	l_CBVHeapProp.Type = a_HeapType;
+	l_CBVHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	l_CBVHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	l_CBVHeapProp.CreationNodeMask = 0;
+	l_CBVHeapProp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC l_CBVResDesc;
+	l_CBVResDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	l_CBVResDesc.Alignment = 0;
+	l_CBVResDesc.Width = a_Size;
+	l_CBVResDesc.Height = 1;
+	l_CBVResDesc.DepthOrArraySize = 1;
+	l_CBVResDesc.MipLevels = 1;
+	l_CBVResDesc.Format = DXGI_FORMAT_UNKNOWN;
+	l_CBVResDesc.SampleDesc.Count = 1;
+	l_CBVResDesc.SampleDesc.Quality = 0;
+	l_CBVResDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	l_CBVResDesc.Flags = a_Flag;
+
+	ID3D12Resource *l_pNewResource = nullptr;
+	HRESULT l_Res = m_pDevice->CreateCommittedResource(&l_CBVHeapProp, D3D12_HEAP_FLAG_NONE, &l_CBVResDesc, a_InitState, nullptr, IID_PPV_ARGS(&l_pNewResource));
+	if( S_OK != l_Res )
+	{
+		wxMessageBox(wxT("failed to create shared constant buffer"), wxT("D3D12Device::initSizedResource"));
+		SAFE_RELEASE(l_pNewResource)
+		return nullptr;
+	}
+	return l_pNewResource;
+}
+
+void D3D12Device::updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte)
+{
+	unsigned char* l_pDataBegin = nullptr;
+	a_pRes->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
+	memcpy(l_pDataBegin, a_pSrcData, a_SizeInByte);
+	a_pRes->Unmap(0, nullptr);
 }
 
 int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag)
@@ -1128,12 +1225,10 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 
 void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
 {
-	checkResourceQueueState();
-	
 	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
 	
 	unsigned int l_PixelSize = getPixelSize(l_pTargetTexture->m_Format);
-	std::vector<char> l_EmptyBuff;
+	std::vector<unsigned char> l_EmptyBuff;
 	if( nullptr == a_pSrcData )
 	{
 		l_EmptyBuff.resize(l_PixelSize * a_Size.x * a_Size.y * a_Size.z, 0xff);
@@ -1183,7 +1278,6 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 			wxMessageBox(wxT("CreateCommittedResource failed"), wxT("D3D12Device::updateTexture"));
 			return;
 		}
-		m_TempResources[m_IdleResThread].push_back(l_pUploader);
 
 		unsigned char *l_pDataBegin = nullptr;
 		l_Res = l_pUploader->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
@@ -1223,34 +1317,39 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 		l_pUploader->Unmap(0, nullptr);
 	}
 
-	D3D12_RESOURCE_BARRIER l_TransSetting;
-	l_TransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	l_TransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	l_TransSetting.Transition.pResource = l_pTargetTexture->m_pTexture;
-	l_TransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-	m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+	{// lock for command assign
+		std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
 
-	// copy data
-	D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
-	l_Dst.pResource = l_pTargetTexture->m_pTexture;
-	l_Dst.SubresourceIndex = l_SubResIdx;
-	l_Dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	l_Src.PlacedFootprint.Offset = 0;
-	l_Src.PlacedFootprint.Footprint.Width = a_Size.x;
-	l_Src.PlacedFootprint.Footprint.Height = a_Size.y;
-	l_Src.PlacedFootprint.Footprint.Depth = a_Size.z;
-	l_Src.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
-	l_Src.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetTexture->m_Format);
-	l_Src.pResource = l_pUploader;
-	l_Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		m_TempResources[m_IdleResThread].push_back(l_pUploader);
+		D3D12_RESOURCE_BARRIER l_TransSetting;
+		l_TransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		l_TransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		l_TransSetting.Transition.pResource = l_pTargetTexture->m_pTexture;
+		l_TransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+		m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+
+		// copy data
+		D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
+		l_Dst.pResource = l_pTargetTexture->m_pTexture;
+		l_Dst.SubresourceIndex = l_SubResIdx;
+		l_Dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		l_Src.PlacedFootprint.Offset = 0;
+		l_Src.PlacedFootprint.Footprint.Width = a_Size.x;
+		l_Src.PlacedFootprint.Footprint.Height = a_Size.y;
+		l_Src.PlacedFootprint.Footprint.Depth = a_Size.z;
+		l_Src.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
+		l_Src.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetTexture->m_Format);
+		l_Src.pResource = l_pUploader;
+		l_Src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	
-	m_ResThread[m_IdleResThread].second->CopyTextureRegion(&l_Dst, a_Offset.x, a_Offset.y, a_Offset.z, &l_Src, nullptr);
+		m_ResThread[m_IdleResThread].second->CopyTextureRegion(&l_Dst, a_Offset.x, a_Offset.y, a_Offset.z, &l_Src, nullptr);
 	
-	l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+		l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+	}
 }
 
 D3D12GpuThread D3D12Device::newThread(D3D12_COMMAND_LIST_TYPE a_Type)

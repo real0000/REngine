@@ -34,7 +34,7 @@ void IndexBuffer::setIndicies(bool a_b32Bit, void *a_pSrc, unsigned int a_NumInd
 	m_NumIndicies = a_NumIndicies;
 }
 
-void IndexBuffer::setName(std::string a_Name)
+void IndexBuffer::setName(wxString a_Name)
 {
 	assert(nullptr != m_pInitVal);
 	m_pInitVal->m_Name = a_Name;
@@ -83,7 +83,7 @@ void VertexBuffer::setNumVertex(unsigned int a_NumVtx)
 	m_pInitVal->m_NumVtx = a_NumVtx;
 }
 
-void VertexBuffer::setName(std::string a_Name)
+void VertexBuffer::setName(wxString a_Name)
 {
 	assert(nullptr != m_pInitVal);
 	m_pInitVal->m_Name = a_Name;
@@ -96,7 +96,7 @@ void VertexBuffer::init()
 	{
 		if( nullptr != m_pInitVal->m_pRefVtx[i] )
 		{
-			m_ID[i] = GDEVICE()->requestVertexBuffer(m_pInitVal->m_pRefVtx[i], m_pInitVal->m_NumVtx, m_pInitVal->m_Name);
+			m_ID[i] = GDEVICE()->requestVertexBuffer(m_pInitVal->m_pRefVtx[i], i, m_pInitVal->m_NumVtx, m_pInitVal->m_Name);
 			if( -1 == m_ID[i] )
 			{
 				for( unsigned int j=0 ; j<i ; ++j )
@@ -114,24 +114,7 @@ void VertexBuffer::init()
 void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count)
 {
 	assert(nullptr == m_pInitVal);
-	unsigned int l_VtxSize = 0;
-	switch( a_Slot )
-	{
-		case VTXSLOT_POSITION:	l_VtxSize = sizeof(glm::vec3); break;
-		case VTXSLOT_TEXCOORD01:
-		case VTXSLOT_TEXCOORD23:
-		case VTXSLOT_TEXCOORD45:
-		case VTXSLOT_TEXCOORD67:l_VtxSize = sizeof(glm::vec4); break;
-		case VTXSLOT_NORMAL:	l_VtxSize = sizeof(glm::vec3); break;
-		case VTXSLOT_TANGENT:	l_VtxSize = sizeof(glm::vec3); break;
-		case VTXSLOT_BINORMAL:	l_VtxSize = sizeof(glm::vec3); break;
-		case VTXSLOT_BONE:		l_VtxSize = sizeof(glm::ivec4); break;
-		case VTXSLOT_WEIGHT:	l_VtxSize = sizeof(glm::vec4); break;
-		case VTXSLOT_COLOR:		l_VtxSize = sizeof(unsigned int); break;
-		default:break;
-	}
-	assert(0 != l_VtxSize);
-	if( -1 != m_ID[a_Slot] ) GDEVICE()->updateVertexBuffer(m_ID[a_Slot], a_pData, a_Count * l_VtxSize);
+	if( -1 != m_ID[a_Slot] ) GDEVICE()->updateVertexBuffer(m_ID[a_Slot], a_pData, a_Count * GDEVICE()->getVertexSlotStride(a_Slot));
 }
 #pragma endregion
 

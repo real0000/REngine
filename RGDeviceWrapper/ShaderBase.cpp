@@ -319,7 +319,7 @@ ShaderProgram* ProgramManager::getProgram(wxString a_Filename)
 
 ShaderProgram* ProgramManager::getProgram(int a_ProgramID)
 {
-	if( m_Programs.size() <= a_ProgramID ) return nullptr;
+	if( (int)m_Programs.size() <= a_ProgramID ) return nullptr;
 	return m_Programs[a_ProgramID];
 }
 

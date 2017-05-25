@@ -91,6 +91,7 @@ public:
 	virtual unsigned int getTopology(Topology::Key a_Key) = 0;
 	virtual unsigned int getPixelFormat(PixelFormat::Key a_Key) = 0;
 	virtual unsigned int getPixelSize(PixelFormat::Key a_Key);
+	virtual unsigned int getVertexSlotStride(unsigned int a_Type);//VTXSLOT_*
 	virtual unsigned int getParamAlignment(ShaderParamType::Key a_Key) = 0;
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
 
@@ -109,11 +110,11 @@ public:
 	virtual void freeTexture(int a_ID) = 0;
 
 	// vertex, index buffer
-	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Count, std::string a_Name = "") = 0;//a_Slot < VTXSLOT_COUNT
+	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT("")) = 0;//a_Slot < VTXSLOT_COUNT
 	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
 	virtual void* getVertexResource(int a_ID) = 0;
 	virtual void freeVertexBuffer(int a_ID) = 0;
-	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, std::string a_Name = "") = 0;
+	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, wxString a_Name = wxT("")) = 0;
 	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
 	virtual void* getIndexResource(int a_ID) = 0;
 	virtual void freeIndexBuffer(int a_ID) = 0;

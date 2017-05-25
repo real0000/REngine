@@ -16,7 +16,7 @@ public:
 	virtual ~IndexBuffer();
 
 	void setIndicies(bool a_b32Bit, void *a_pSrc, unsigned int a_NumIndicies);
-	void setName(std::string a_Name);
+	void setName(wxString a_Name);
 	void init();
 
 	bool valid(){ return nullptr == m_pInitVal; }
@@ -28,7 +28,7 @@ private:
 	struct InitInfo
 	{
 		void *m_pRefIndicies;
-		std::string m_Name;
+		wxString m_Name;
 	} *m_pInitVal;
 
 	int m_ID;
@@ -44,7 +44,7 @@ public:
 
 	void setVertex(unsigned int a_Slot, void *a_pSrc);
 	void setNumVertex(unsigned int a_NumVtx);
-	void setName(std::string a_Name);
+	void setName(wxString a_Name);
 	void init();
 	
 	void updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count);
@@ -56,7 +56,7 @@ private:
 	struct InitInfo
 	{
 		void *m_pRefVtx[VTXSLOT_COUNT];
-		std::string m_Name;
+		wxString m_Name;
 		unsigned int m_NumVtx;
 	} *m_pInitVal;
 
