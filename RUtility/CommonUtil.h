@@ -42,6 +42,8 @@
 
 #include "wx/wx.h"
 
+#include "MathExtend.h"
+
 #define SAFE_DELETE(p) { if( nullptr !=  p ) delete p; p = nullptr; }
 #define SAFE_DELETE_ARRAY(p) { if( nullptr != p ) delete[] p; p = nullptr; }
 #define SAFE_RELEASE(p) { if( nullptr != p ) p->Release(); p = nullptr; }

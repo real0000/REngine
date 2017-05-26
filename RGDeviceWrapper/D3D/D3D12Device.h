@@ -22,7 +22,7 @@ class D3D12HeapManager
 {
 public:
 	D3D12HeapManager(ID3D12Device *a_pDevice, unsigned int a_ExtendSize, D3D12_DESCRIPTOR_HEAP_TYPE a_Type, D3D12_DESCRIPTOR_HEAP_FLAGS a_Flag = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-	~D3D12HeapManager();
+	virtual ~D3D12HeapManager();
 
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc);
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc);
@@ -47,8 +47,57 @@ private:
 	unsigned int m_HeapUnitSize;
 };
 
+class D3D12Fence
+{
+public:
+	D3D12Fence(ID3D12Device *a_pDevice, ID3D12CommandQueue *a_pQueue);
+	virtual ~D3D12Fence();
+
+	void signal();
+	void wait();
+
+private:
+	ID3D12CommandQueue *m_pRefQueue;
+	HANDLE m_FenceEvent;
+	uint64 m_SyncVal;
+	ID3D12Fence *m_pSynchronizer;
+};
+
 class D3D12Commander : public GraphicCommander
 {
+public:
+	// for SetComputeRoot* and SetGraphicRoot*
+	struct CmdComponent
+	{
+		virtual void setRoot32BitConstant(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_SrcData, unsigned int a_DestOffsetIn32BitValues) = 0;
+		virtual void setRoot32BitConstants(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_Num32BitValuesToSet, const void *a_pSrcData, unsigned int a_DestOffsetIn32BitValues) = 0;
+		virtual void setRootConstantBufferView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation) = 0;
+		virtual void setRootDescriptorTable(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE a_BaseDescriptor) = 0;
+		virtual void setRootShaderResourceView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation) = 0;
+		virtual void setRootSignature(ID3D12GraphicsCommandList* a_pTarget, ID3D12RootSignature *a_pSignature) = 0;
+		virtual void setRootUnorderedAccessView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation) = 0;
+	};
+	struct ComputeCmdComponent : public CmdComponent
+	{
+		virtual void setRoot32BitConstant(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_SrcData, unsigned int a_DestOffsetIn32BitValues)										{ a_pTarget->SetComputeRoot32BitConstant(a_RootParameterIndex, a_SrcData, a_DestOffsetIn32BitValues); }
+		virtual void setRoot32BitConstants(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_Num32BitValuesToSet, const void *a_pSrcData, unsigned int a_DestOffsetIn32BitValues)	{ a_pTarget->SetComputeRoot32BitConstants(a_RootParameterIndex, a_Num32BitValuesToSet, a_pSrcData, a_DestOffsetIn32BitValues); }
+		virtual void setRootConstantBufferView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)														{ a_pTarget->SetComputeRootConstantBufferView(a_RootParameterIndex, a_BufferLocation); }
+		virtual void setRootDescriptorTable(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE a_BaseDescriptor)														{ a_pTarget->SetComputeRootDescriptorTable(a_RootParameterIndex, a_BaseDescriptor); }
+		virtual void setRootShaderResourceView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)														{ a_pTarget->SetComputeRootShaderResourceView(a_RootParameterIndex, a_BufferLocation); }
+		virtual void setRootSignature(ID3D12GraphicsCommandList* a_pTarget, ID3D12RootSignature *a_pSignature)																											{ a_pTarget->SetComputeRootSignature(a_pSignature); }
+		virtual void setRootUnorderedAccessView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)													{ a_pTarget->SetComputeRootUnorderedAccessView(a_RootParameterIndex, a_BufferLocation); }
+	};
+	struct GraphicCmdComponent : public CmdComponent
+	{
+		virtual void setRoot32BitConstant(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_SrcData, unsigned int a_DestOffsetIn32BitValues)										{ a_pTarget->SetGraphicsRoot32BitConstant(a_RootParameterIndex, a_SrcData, a_DestOffsetIn32BitValues); }
+		virtual void setRoot32BitConstants(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, unsigned int a_Num32BitValuesToSet, const void *a_pSrcData, unsigned int a_DestOffsetIn32BitValues)	{ a_pTarget->SetGraphicsRoot32BitConstants(a_RootParameterIndex, a_Num32BitValuesToSet, a_pSrcData, a_DestOffsetIn32BitValues); }
+		virtual void setRootConstantBufferView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)														{ a_pTarget->SetGraphicsRootConstantBufferView(a_RootParameterIndex, a_BufferLocation); }
+		virtual void setRootDescriptorTable(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE a_BaseDescriptor)														{ a_pTarget->SetGraphicsRootDescriptorTable(a_RootParameterIndex, a_BaseDescriptor); }
+		virtual void setRootShaderResourceView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)														{ a_pTarget->SetGraphicsRootShaderResourceView(a_RootParameterIndex, a_BufferLocation); }
+		virtual void setRootSignature(ID3D12GraphicsCommandList* a_pTarget, ID3D12RootSignature *a_pSignature)																											{ a_pTarget->SetGraphicsRootSignature(a_pSignature); }
+		virtual void setRootUnorderedAccessView(ID3D12GraphicsCommandList* a_pTarget, unsigned int a_RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS a_BufferLocation)													{ a_pTarget->SetGraphicsRootUnorderedAccessView(a_RootParameterIndex, a_BufferLocation); }
+	};
+
 public:
 	D3D12Commander(D3D12HeapManager *a_pHeapOwner);
 	virtual ~D3D12Commander();
@@ -61,19 +110,20 @@ public:
 	virtual void useProgram(ShaderProgram *a_pProgram);
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
-	virtual void bindTexture(int a_TextureID, unsigned int a_Stage);
+	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
 	virtual void bindVtxFlag(unsigned int a_VtxFlag);
 	virtual void bindUniformBlock(int a_HeapID, int a_BlockStage);
 	virtual void bindUavBlock(int a_HeapID, int a_BlockStage);
-	virtual void clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color);
+	virtual void clearRenderTarget(int a_ID, glm::vec4 a_Color);
 	virtual void clearBackBuffer(int a_Idx, glm::vec4 a_Color);
-	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
+	virtual void clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx);
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx);
 	virtual void drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
+	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1);
 	
 	virtual void setTopology(Topology::Key a_Key);
-	virtual void setRenderTarget(int a_DSVHandle, std::vector<int> &a_RTVHandle);
+	virtual void setRenderTarget(int a_DepthID, std::vector<int> &a_RederTargetIDList);
 	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx);
 	virtual void setViewPort(int a_NumViewport, ...);// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
@@ -84,7 +134,7 @@ public:
 	bool isFullScreen(){ return m_bFullScreen; }
 
 private:
-	D3D12GpuThread getThisThread();
+	D3D12GpuThread validateThisThread();
 	void threadEnd();
 
 	bool m_bFullScreen;
@@ -94,13 +144,14 @@ private:
 	ID3D12CommandQueue *m_pDrawCmdQueue, *m_pBundleCmdQueue;// to do : add bundle support
 
 	WXWidget m_Handle;
-	HANDLE m_FenceEvent;
-	uint64 m_SyncVal;
-	ID3D12Fence *m_pSynchronizer;
+	D3D12Fence *m_pFence;
 
 	D3D12Device *m_pRefDevice;
 	D3D12HeapManager *m_pRefHeapOwner;
 	std::vector<D3D12GpuThread> m_ReadyThread, m_BusyThread;
+	
+	static ComputeCmdComponent m_ComputeComponent;
+	static GraphicCmdComponent m_GraphicComponent;
 };
 
 class D3D12Device : public Dircet3DDevice
@@ -119,14 +170,14 @@ public:
 	virtual std::pair<int, int> maxShaderModel();
 
 	// converter part( *::Key -> d3d, vulkan var )
-	virtual unsigned int convert(BlendKey::Key a_Key);
-	virtual unsigned int convert(BlendOP::Key a_Key);
-	virtual unsigned int convert(BlendLogic::Key a_Key);
-	virtual unsigned int convert(CullMode::Key a_Key);
-	virtual unsigned int convert(CompareFunc::Key a_Key);
-	virtual unsigned int convert(StencilOP::Key a_Key);
-	virtual unsigned int convert(TopologyType::Key a_Key);
-	virtual unsigned int convert(Topology::Key a_Key);
+	virtual unsigned int getBlendKey(BlendKey::Key a_Key);
+	virtual unsigned int getBlendOP(BlendOP::Key a_Key);
+	virtual unsigned int getBlendLogic(BlendLogic::Key a_Key);
+	virtual unsigned int getCullMode(CullMode::Key a_Key);
+	virtual unsigned int getComapreFunc(CompareFunc::Key a_Key);
+	virtual unsigned int getStencilOP(StencilOP::Key a_Key);
+	virtual unsigned int getTopologyType(TopologyType::Key a_Key);
+	virtual unsigned int getTopology(Topology::Key a_Key);
 
 	// texture part
 	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format);
@@ -136,7 +187,6 @@ public:
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
 	virtual void generateMipmap(int a_ID);
-	virtual int getTextureHeapID(int a_ID);
 	virtual PixelFormat::Key getTextureFormat(int a_ID);
 	virtual glm::ivec3 getTextureSize(int a_ID);
 	virtual void* getTextureResource(int a_ID);
@@ -175,17 +225,22 @@ public:
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
+	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, bool a_bRenderTarget);
+	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID);
+	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
+	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
 	D3D12_VERTEX_BUFFER_VIEW getVertexBufferView(int a_ID);
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 
 	// thread part
-	D3D12GpuThread requestThread();
-	void recycleThread(D3D12GpuThread a_Thread);
+	D3D12GpuThread requestThread(bool a_bCompute);
+	void recycleThread(D3D12GpuThread a_Thread, bool a_bCompute);
 	void waitForResourceUpdate();
 
 private:
 	void resourceThread();
+	void computeThread();
 	ID3D12Resource* initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState = D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAGS a_Flag = D3D12_RESOURCE_FLAG_NONE);
 	void updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte);
 
@@ -290,16 +345,15 @@ private:
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
 	unsigned int m_IdleResThread;
-	HANDLE m_FenceEvent;
-	uint64 m_SyncVal;
-	ID3D12Fence *m_pSynchronizer;
+	D3D12Fence *m_pResFence, *m_pComputeFence;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
 	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
-	std::thread *m_pResourceLoop;
-	bool m_bResLoop;
+	std::thread *m_pResourceLoop, *m_pComputeLoop;
+	bool m_bLooping;
 
+	std::vector<D3D12GpuThread> m_ComputeReadyThread, m_ComputeBusyThread;
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
-	std::mutex m_ThreadMutex, m_ResourceMutex;
+	std::mutex m_ThreadMutex, m_ResourceMutex, m_ComputeMutex;
 };
 
 }

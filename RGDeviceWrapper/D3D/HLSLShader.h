@@ -29,11 +29,6 @@ protected:
 class HLSLProgram12 : public HLSLProgram
 {
 	friend class HLSLComponent;
-public:
-	ID3D12PipelineState* getPipeline(){ return m_pPipeline; }
-	ID3D12RootSignature* getRegDesc(){ return m_pRegisterDesc; }
-	int getTextureRootSlot(unsigned int a_Stage){ return a_Stage >= m_TextureStageMap.size() ? -1 : m_TextureStageMap[a_Stage]; }
-
 protected:
 	virtual void init(boost::property_tree::ptree &a_Root);
 
@@ -44,13 +39,23 @@ private:
 	struct RegisterInfo
 	{
 		ShaderRegType::Key m_Type;
-		unsigned int m_RootIndex;
-		unsigned int m_Slot;
-		unsigned int m_Offset;// for constant
-		unsigned int m_Size;// for constant
+		int m_RootIndex;
+		int m_Slot;
+		int m_Offset;// for constant
+		int m_Size;// for constant
 		bool m_bReserved;
 	};
 	
+public:
+	ID3D12PipelineState* getPipeline(){ return m_pPipeline; }
+	ID3D12RootSignature* getRegDesc(){ return m_pRegisterDesc; }
+	ID3D12CommandSignature* getCommandSignature(){ return m_pIndirectFmt; }
+	int getTextureSlot(unsigned int a_Stage){ return a_Stage >= m_TextureStageMap.size() ? -1 : (int)m_TextureStageMap[a_Stage]; }
+	std::pair<int, int> getConstantSlot(std::string a_Name);
+	int getConstBufferSlot(int a_Stage){ return (int)m_ConstStageMap.size() <= a_Stage ? -1 : (int)m_ConstStageMap[a_Stage]; }
+	int getUavSlot(int a_Stage){ return (int)m_UavStageMap.size() <= a_Stage ? -1 : (int)m_UavStageMap[a_Stage]; }
+
+private:
 	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput);
 	void initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
 	void initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
@@ -62,6 +67,8 @@ private:
 	D3D_PRIMITIVE_TOPOLOGY m_Topology;
 	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::StorageBuffer+1];
 	std::vector<unsigned int> m_TextureStageMap;// stage(t#) : root slot
+	std::vector<unsigned int> m_ConstStageMap;// stage(b#) : root slot
+	std::vector<unsigned int> m_UavStageMap;// stage(u#) : root slot
 
 	unsigned int m_IndirectCmdSize;
 	std::vector<unsigned int> m_CmdAlignmentOffset;

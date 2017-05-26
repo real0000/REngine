@@ -125,9 +125,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommonUtil.cpp" />
+    <ClCompile Include="MathExtend.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonUtil.h" />
+    <ClInclude Include="MathExtend.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

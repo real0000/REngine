@@ -129,6 +129,13 @@ void HLSLProgram12::init(boost::property_tree::ptree &a_Root)
 	else initComputeShader(l_ShaderSetting, l_Shaders, l_ParamDef);
 }
 
+std::pair<int, int> HLSLProgram12::getConstantSlot(std::string a_Name)
+{
+	auto it = m_RegMap[ShaderRegType::Constant].find(a_Name);
+	if( m_RegMap[ShaderRegType::Constant].end() == it ) return std::make_pair(-1, -1);
+	return std::make_pair(it->second->m_Slot, it->second->m_Offset);
+}
+
 void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput)
 {
 	char l_DefName[256], l_Def[1024];
@@ -256,6 +263,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
 			snprintf(l_Def, 1024, ":register(u%d)", l_Slot);
 			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
+			m_UavStageMap.push_back(l_Slot);
 
 			++l_Slot;
 		}
@@ -285,6 +293,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
 			snprintf(l_Def, 1024, ":register(b%d)", l_Slot);
 			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
+			m_ConstStageMap.push_back(l_Slot);
 
 			++l_Slot;
 		}
