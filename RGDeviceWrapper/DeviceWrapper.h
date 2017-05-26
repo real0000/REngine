@@ -90,24 +90,30 @@ public:
 	virtual unsigned int getTopologyType(TopologyType::Key a_Key) = 0;
 	virtual unsigned int getTopology(Topology::Key a_Key) = 0;
 	virtual unsigned int getPixelFormat(PixelFormat::Key a_Key) = 0;
+
 	virtual unsigned int getPixelSize(PixelFormat::Key a_Key);
 	virtual unsigned int getVertexSlotStride(unsigned int a_Type);//VTXSLOT_*
 	virtual unsigned int getParamAlignment(ShaderParamType::Key a_Key) = 0;
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
 
 	// texture part
-	virtual int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
-	virtual int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
-	virtual int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
-	virtual void updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
-	virtual void updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
-	virtual void updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
+	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
+	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
+	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
 	virtual void generateMipmap(int a_ID) = 0;
 	virtual int getTextureHeapID(int a_ID) = 0;
 	virtual PixelFormat::Key getTextureFormat(int a_ID) = 0;
 	virtual glm::ivec3 getTextureSize(int a_ID) = 0;
 	virtual void* getTextureResource(int a_ID) = 0;
 	virtual void freeTexture(int a_ID) = 0;
+
+	// render target part
+	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;// 3d render target, use uav
+	virtual int createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;// texture 2d array
+	virtual void freeRenderTarget(int a_ID) = 0;
 
 	// vertex, index buffer
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT("")) = 0;//a_Slot < VTXSLOT_COUNT
@@ -134,10 +140,6 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end
 	virtual void freeUavBuffer(int a_BuffID) = 0;
-
-	// render target part
-	//virtual int createRenderTarget(int a_TextureID) = 0;
-	//virtual int createDepthStencilTarget(int a_TextureID) = 0;
 
 	// misc
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;

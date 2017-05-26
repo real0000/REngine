@@ -409,7 +409,7 @@ void D3D12Commander::threadEnd()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
-	, m_ManagedTexture(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
+	, m_ManagedTexture(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
@@ -419,6 +419,7 @@ D3D12Device::D3D12Device()
 	, m_pResourceLoop(nullptr), m_bResLoop(true)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
+	BIND_DEFAULT_ALLOCATOR(RenderTargetBinder, m_ManagedRenderTarget);
 	BIND_DEFAULT_ALLOCATOR(VertexBinder, m_ManagedVertexBuffer);
 	BIND_DEFAULT_ALLOCATOR(IndexBinder, m_ManagedIndexBuffer);
 	BIND_DEFAULT_ALLOCATOR(ConstBufferBinder, m_ManagedConstBuffer);
@@ -441,6 +442,7 @@ D3D12Device::~D3D12Device()
 	SAFE_DELETE(m_pDepthHeap);
 	
 	m_ManagedTexture.clear();
+	m_ManagedRenderTarget.clear();
 	m_ManagedVertexBuffer.clear();
 	m_ManagedIndexBuffer.clear();
 	m_ManagedConstBuffer.clear();
@@ -675,7 +677,7 @@ std::pair<int, int> D3D12Device::maxShaderModel()
 }
 
 // convert part
-unsigned int D3D12Device::getBlendKey(BlendKey::Key a_Key)
+unsigned int D3D12Device::convert(BlendKey::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -702,7 +704,7 @@ unsigned int D3D12Device::getBlendKey(BlendKey::Key a_Key)
 	return D3D12_BLEND_ZERO;
 }
 
-unsigned int D3D12Device::getBlendOP(BlendOP::Key a_Key)
+unsigned int D3D12Device::convert(BlendOP::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -717,7 +719,7 @@ unsigned int D3D12Device::getBlendOP(BlendOP::Key a_Key)
 	return D3D12_BLEND_OP_ADD;
 }
 
-unsigned int D3D12Device::getBlendLogic(BlendLogic::Key a_Key)
+unsigned int D3D12Device::convert(BlendLogic::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -743,7 +745,7 @@ unsigned int D3D12Device::getBlendLogic(BlendLogic::Key a_Key)
 	return D3D12_LOGIC_OP_CLEAR;
 }
 
-unsigned int D3D12Device::getCullMode(CullMode::Key a_Key)
+unsigned int D3D12Device::convert(CullMode::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -756,7 +758,7 @@ unsigned int D3D12Device::getCullMode(CullMode::Key a_Key)
 	return D3D12_CULL_MODE_NONE;
 }
 
-unsigned int D3D12Device::getComapreFunc(CompareFunc::Key a_Key)
+unsigned int D3D12Device::convert(CompareFunc::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -774,7 +776,7 @@ unsigned int D3D12Device::getComapreFunc(CompareFunc::Key a_Key)
 	return D3D12_COMPARISON_FUNC_NEVER;
 }
 
-unsigned int D3D12Device::getStencilOP(StencilOP::Key a_Key)
+unsigned int D3D12Device::convert(StencilOP::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -792,7 +794,7 @@ unsigned int D3D12Device::getStencilOP(StencilOP::Key a_Key)
 	return D3D12_STENCIL_OP_KEEP;
 }
 
-unsigned int D3D12Device::getTopologyType(TopologyType::Key a_Key)
+unsigned int D3D12Device::convert(TopologyType::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -806,7 +808,7 @@ unsigned int D3D12Device::getTopologyType(TopologyType::Key a_Key)
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
-unsigned int D3D12Device::getTopology(Topology::Key a_Key)
+unsigned int D3D12Device::convert(Topology::Key a_Key)
 {
 	switch( a_Key )
 	{
@@ -859,28 +861,28 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 }
 
 // texture part
-int D3D12Device::allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format)
+int D3D12Device::allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format)
 {
 	assert(a_Size >= MIN_TEXTURE_SIZE);
 	unsigned int l_MipmapLevel = std::log2(a_Size) + 1;
 	return allocateTexture(glm::ivec3(a_Size, 1, 1), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE1D, l_MipmapLevel, 0);
 }
 
-int D3D12Device::allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize)
+int D3D12Device::allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize)
 {
 	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE);
 	unsigned int l_MipmapLevel = std::log2(std::max(a_Size.x, a_Size.y)) + 1;
 	return allocateTexture(glm::ivec3(a_Size.x, a_Size.y, std::max<int>(a_ArraySize, 1)), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE2D, l_MipmapLevel, 0);
 }
 
-int D3D12Device::allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format)
+int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format)
 {
 	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE && a_Size.z >= MIN_TEXTURE_SIZE);
 	unsigned int l_MipmapLevel = std::log2(std::max(std::max(a_Size.x, a_Size.y), a_Size.z)) + 1;
 	return allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, l_MipmapLevel, 0);
 }
 
-void D3D12Device::updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData)
+void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData)
 {
 #ifdef _DEBUG
 	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
@@ -889,10 +891,10 @@ void D3D12Device::updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned
 	assert(a_Size >= 1);
 	assert(a_Offset < ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset + a_Size <= ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel));
 #endif
-	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size, 1, 1), glm::ivec3(a_Offset, 0, 0), a_pSrcData);
+	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size, 1, 1), glm::ivec3(a_Offset, 0, 0), a_pSrcData, 0xff);
 }
 
-void D3D12Device::updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
+void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
 {
 #ifdef _DEBUG
 	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
@@ -903,10 +905,10 @@ void D3D12Device::updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ive
 		   a_Offset.y < (l_pTargetTexture->m_Size.y >> a_MipmapLevel) && a_Offset.y + a_Size.y <= (l_pTargetTexture->m_Size.y >> a_MipmapLevel) &&
 		   a_Idx < (unsigned int)l_pTargetTexture->m_Size.z);
 #endif
-	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size.x, a_Size.y, 1), glm::ivec3(a_Offset.x, a_Offset.y, a_Idx), a_pSrcData);
+	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size.x, a_Size.y, 1), glm::ivec3(a_Offset.x, a_Offset.y, a_Idx), a_pSrcData, 0xff);
 }
 
-void D3D12Device::updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
+void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
 {
 #ifdef _DEBUG
 	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
@@ -917,7 +919,7 @@ void D3D12Device::updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ive
 		   a_Offset.y < (l_pTargetTexture->m_Size.y >> a_MipmapLevel) && a_Offset.y + a_Size.y <= (l_pTargetTexture->m_Size.y >> a_MipmapLevel) &&
 		   a_Offset.z < (l_pTargetTexture->m_Size.z >> a_MipmapLevel) && a_Offset.z + a_Size.z <= (l_pTargetTexture->m_Size.z >> a_MipmapLevel));
 #endif
-	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData);
+	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData, 0xff);
 }
 
 /*void D3D12Device::generateMipmap(int a_ID)
@@ -950,6 +952,70 @@ void D3D12Device::freeTexture(int a_ID)
 	TextureBinder *l_pTargetBinder = m_ManagedTexture[a_ID];
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
 	m_ManagedTexture.release(a_ID);
+}
+
+// render target part
+int D3D12Device::createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format)
+{
+	RenderTargetBinder *l_pNewBinder = nullptr;
+	int l_Res = m_ManagedRenderTarget.retain(&l_pNewBinder);
+
+	l_pNewBinder->m_TextureID = allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	l_pNewBinder->m_pRefBinder = m_ManagedTexture[l_pNewBinder->m_TextureID];
+	l_pNewBinder->m_pRefBinder->m_Type = TEXTYPE_RENDER_TARGET_VIEW;
+
+	D3D12_RENDER_TARGET_VIEW_DESC l_RTVDesc;
+	l_RTVDesc.Format = (DXGI_FORMAT)getPixelFormat(a_Format);
+	l_RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+	l_RTVDesc.Texture2D.MipSlice = 0;
+	l_RTVDesc.Texture2D.PlaneSlice = 0;
+	l_pNewBinder->m_HeapID = m_pRenderTargetHeap->newHeap(l_pNewBinder->m_pRefBinder->m_pTexture, &l_RTVDesc);
+
+	return l_Res;
+}
+
+int D3D12Device::createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize)
+{
+	assert(a_ArraySize > 0);
+	RenderTargetBinder *l_pNewBinder = nullptr;
+	int l_Res = m_ManagedRenderTarget.retain(&l_pNewBinder);
+
+	bool l_bDepthStencilBuffer = a_Format == PixelFormat::d32_float_s8x24_uint ||
+								a_Format == PixelFormat::d32_float ||
+								a_Format == PixelFormat::d24_unorm_s8_uint ||
+								a_Format == PixelFormat::d16_unorm;
+	l_pNewBinder->m_TextureID = allocateTexture(glm::ivec3(a_Size.x, a_Size.y, a_ArraySize), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE2D, 1, l_bDepthStencilBuffer ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	l_pNewBinder->m_pRefBinder = m_ManagedTexture[l_pNewBinder->m_TextureID];
+	l_pNewBinder->m_pRefBinder->m_Type = l_bDepthStencilBuffer ? TEXTYPE_DEPTH_STENCIL_VIEW : TEXTYPE_RENDER_TARGET_VIEW;
+
+	if( l_bDepthStencilBuffer )
+	{
+		D3D12_DEPTH_STENCIL_VIEW_DESC l_DSVDesc;
+		l_DSVDesc.Format = (DXGI_FORMAT)getPixelFormat(a_Format);
+		l_DSVDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		l_DSVDesc.Texture1D.MipSlice = 0;
+		l_DSVDesc.Flags = D3D12_DSV_FLAG_NONE;
+		l_pNewBinder->m_HeapID = m_pDepthHeap->newHeap(l_pNewBinder->m_pRefBinder->m_pTexture, &l_DSVDesc);
+	}
+	else
+	{
+		D3D12_RENDER_TARGET_VIEW_DESC l_RTVDesc;
+		l_RTVDesc.Format = (DXGI_FORMAT)getPixelFormat(a_Format);
+		l_RTVDesc.ViewDimension = a_ArraySize == 1 ? D3D12_RTV_DIMENSION_TEXTURE2D : D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+		l_RTVDesc.Texture2D.MipSlice = 0;
+		l_RTVDesc.Texture2D.PlaneSlice = 0;
+		l_pNewBinder->m_HeapID = m_pRenderTargetHeap->newHeap(l_pNewBinder->m_pRefBinder->m_pTexture, &l_RTVDesc);
+	}
+
+	return l_Res;
+}
+
+void D3D12Device::freeRenderTarget(int a_ID)
+{
+	RenderTargetBinder *l_pTargetBinder = m_ManagedRenderTarget[a_ID];
+	assert(nullptr != l_pTargetBinder);
+	freeTexture(l_pTargetBinder->m_TextureID);
+	m_ManagedRenderTarget.release(a_ID);
 }
 
 // vertex, index buffer part
@@ -1210,7 +1276,7 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned 
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSetting.size(), &(l_TransToSetting[0]));
 		
 			#pragma	omp parallel for
-			for( int i=0 ; i<a_BuffIDList.size() ; ++i )
+			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
 			{
 				UnorderAccessBufferBinder *l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
 				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i])
@@ -1441,8 +1507,8 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 	HRESULT l_Res = m_pDevice->CreateCommittedResource(&l_HeapProp, D3D12_HEAP_FLAG_NONE, &l_TexResDesc, l_State, l_bRenderTarget ? &l_ClearVal : nullptr, IID_PPV_ARGS(&l_pNewBinder->m_pTexture));
 	if( S_OK != l_Res )
 	{
-		wxMessageBox(wxT("Failed to create texture buffer"), wxT("D3D12DeviceInstance::allocateTexture"));
-		return 0;
+		wxMessageBox(wxT("Failed to create texture buffer"), wxT("D3D12Device::allocateTexture"));
+		return -1;
 	}
 	
 	if( 0 == (a_Flag & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) )
@@ -1470,7 +1536,7 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 	return l_TextureID;
 }
 
-void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
+void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData, unsigned char a_FillColor)
 {
 	TextureBinder *l_pTargetTexture = m_ManagedTexture[a_ID];
 	
@@ -1478,7 +1544,7 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 	std::vector<unsigned char> l_EmptyBuff;
 	if( nullptr == a_pSrcData )
 	{
-		l_EmptyBuff.resize(l_PixelSize * a_Size.x * a_Size.y * a_Size.z, 0xff);
+		l_EmptyBuff.resize(l_PixelSize * a_Size.x * a_Size.y * a_Size.z, a_FillColor);
 		a_pSrcData = (void*)&(l_EmptyBuff.front());
 	}
 	

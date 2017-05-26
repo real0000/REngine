@@ -119,22 +119,22 @@ public:
 	virtual std::pair<int, int> maxShaderModel();
 
 	// converter part( *::Key -> d3d, vulkan var )
-	virtual unsigned int getBlendKey(BlendKey::Key a_Key);
-	virtual unsigned int getBlendOP(BlendOP::Key a_Key);
-	virtual unsigned int getBlendLogic(BlendLogic::Key a_Key);
-	virtual unsigned int getCullMode(CullMode::Key a_Key);
-	virtual unsigned int getComapreFunc(CompareFunc::Key a_Key);
-	virtual unsigned int getStencilOP(StencilOP::Key a_Key);
-	virtual unsigned int getTopologyType(TopologyType::Key a_Key);
-	virtual unsigned int getTopology(Topology::Key a_Key);
+	virtual unsigned int convert(BlendKey::Key a_Key);
+	virtual unsigned int convert(BlendOP::Key a_Key);
+	virtual unsigned int convert(BlendLogic::Key a_Key);
+	virtual unsigned int convert(CullMode::Key a_Key);
+	virtual unsigned int convert(CompareFunc::Key a_Key);
+	virtual unsigned int convert(StencilOP::Key a_Key);
+	virtual unsigned int convert(TopologyType::Key a_Key);
+	virtual unsigned int convert(Topology::Key a_Key);
 
 	// texture part
-	virtual int allocateTexture1D(unsigned int a_Size, PixelFormat::Key a_Format);
-	virtual int allocateTexture2D(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1);
-	virtual int allocateTexture3D(glm::ivec3 a_Size, PixelFormat::Key a_Format);
-	virtual void updateTexture1D(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData);
-	virtual void updateTexture2D(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
-	virtual void updateTexture3D(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
+	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format);
+	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1);
+	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format);
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData);
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
+	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
 	virtual void generateMipmap(int a_ID);
 	virtual int getTextureHeapID(int a_ID);
 	virtual PixelFormat::Key getTextureFormat(int a_ID);
@@ -142,6 +142,11 @@ public:
 	virtual void* getTextureResource(int a_ID);
 	virtual void freeTexture(int a_ID);
 	
+	// render target part
+	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);// 3d render target, use uav
+	virtual int createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1);// texture 2d array
+	virtual void freeRenderTarget(int a_ID);
+
 	// vertex, index buffer part
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT(""));
 	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte);
@@ -202,8 +207,17 @@ private:
 		TextureType m_Type;
 		unsigned int m_MipmapLevels;
 	};
+	struct RenderTargetBinder
+	{
+		RenderTargetBinder() : m_TextureID(-1), m_pRefBinder(nullptr), m_HeapID(0){}
+		~RenderTargetBinder(){}
+
+		int m_TextureID;
+		TextureBinder *m_pRefBinder;
+		unsigned int m_HeapID;
+	};
 	int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag);
-	void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
+	void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData, unsigned char a_FillColor);
 
 	struct VertexBinder
 	{
@@ -264,6 +278,7 @@ private:
 	std::map<wxWindow *, GraphicCanvas *> m_CanvasContainer;
 	
 	SerializedObjectPool<TextureBinder> m_ManagedTexture;
+	SerializedObjectPool<RenderTargetBinder> m_ManagedRenderTarget;
 	SerializedObjectPool<VertexBinder> m_ManagedVertexBuffer;
 	SerializedObjectPool<IndexBinder> m_ManagedIndexBuffer;
 	SerializedObjectPool<ConstBufferBinder> m_ManagedConstBuffer;
