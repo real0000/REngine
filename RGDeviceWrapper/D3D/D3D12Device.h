@@ -111,7 +111,6 @@ public:
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
-	virtual void bindVtxFlag(unsigned int a_VtxFlag);
 	virtual void bindUniformBlock(int a_HeapID, int a_BlockStage);
 	virtual void bindUavBlock(int a_HeapID, int a_BlockStage);
 	virtual void clearRenderTarget(int a_ID, glm::vec4 a_Color);
@@ -128,7 +127,7 @@ public:
 	virtual void setViewPort(int a_NumViewport, ...);// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
 
-	virtual void flush();
+	virtual void flush(bool a_bToBackBuffer = false);
 	virtual void present();
 
 	bool isFullScreen(){ return m_bFullScreen; }
@@ -140,7 +139,7 @@ private:
 	bool m_bFullScreen;
 	unsigned int m_BackBuffer[NUM_BACKBUFFER];
 	ID3D12Resource *m_pBackbufferRes[NUM_BACKBUFFER];
-	IDXGISwapChain *m_pSwapChain;
+	IDXGISwapChain3 *m_pSwapChain;
 	ID3D12CommandQueue *m_pDrawCmdQueue, *m_pBundleCmdQueue;// to do : add bundle support
 
 	WXWidget m_Handle;
@@ -149,6 +148,12 @@ private:
 	D3D12Device *m_pRefDevice;
 	D3D12HeapManager *m_pRefHeapOwner;
 	std::vector<D3D12GpuThread> m_ReadyThread, m_BusyThread;
+	D3D12GpuThread m_PresentBundle[NUM_BACKBUFFER], m_PresentCopySource;
+
+	int m_LastRenderTargetID;
+	std::mutex m_RenerderTargetLock;
+	unsigned int m_CopySrcSlot;
+	glm::ivec2 m_ScreenSize;
 	
 	static ComputeCmdComponent m_ComputeComponent;
 	static GraphicCmdComponent m_GraphicComponent;
@@ -230,6 +235,7 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
 	D3D12_VERTEX_BUFFER_VIEW getVertexBufferView(int a_ID);
+	D3D12_VERTEX_BUFFER_VIEW getQuadVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 
@@ -354,6 +360,8 @@ private:
 	std::vector<D3D12GpuThread> m_ComputeReadyThread, m_ComputeBusyThread;
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
 	std::mutex m_ThreadMutex, m_ResourceMutex, m_ComputeMutex;
+
+	int m_QuadBufferID;
 };
 
 }

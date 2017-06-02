@@ -308,10 +308,15 @@ STRING_ENUM_CLASS(PixelFormat,
 
 #define SHADER_PATH "Shaders/"
 STRING_ENUM_CLASS(DefaultPrograms,
-	z_disable_line,
-	z_enable_line,
-	z_disable_image,
-	z_enable_image,
+
+	// compute
+	GenerateMipmap1D,
+	GenerateMipmap2D,
+	GenerateMipmap3D,
+
+	// draw
+	Copy,
+
 	num_default_program)
 
 }

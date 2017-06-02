@@ -1,0 +1,8 @@
+#include <StdInclude.h>
+
+Texture2D m_SrcTex auto_bind_m_SrcTex;
+
+float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
+{
+	return m_SrcTex.Sample(s_PointSampler, a_UV.xy);
+}

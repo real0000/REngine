@@ -1,0 +1,12 @@
+#include <StdInclude.h>
+
+Texture2D<float4> g_SrcTexture auto_bind_g_SrcTexture;
+RWTexture2D<float4> g_DstTexture auto_bind_g_DstTexture;
+
+[numthreads(1, 1, 1 )]
+void GenerateMipMaps(uint3 a_ThreadID : SV_DispatchThreadID)
+{
+    float2 l_Texcoord = c_PixelSize * (a_ThreadID.xy + 0.5);
+    float4 l_Color = g_SrcTexture.SampleLevel(s_LinearSampler, l_Texcoord, 0);
+    g_DstTexture[a_ThreadID.xy] = l_Color;
+}

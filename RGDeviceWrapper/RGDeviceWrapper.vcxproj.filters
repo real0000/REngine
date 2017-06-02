@@ -53,5 +53,36 @@
     <Xml Include="Shaders\TextureOnly.xml">
       <Filter>Shaders</Filter>
     </Xml>
+    <Xml Include="Shaders\GenerateMipmap2D.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\GenerateMipmap1D.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\GenerateMipmap3D.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\Copy.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\GenerateMipmap2D.compute">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Copy.pixel">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Quad.vertex">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\GenerateMipmap1D.compute">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipmap3D.compute">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

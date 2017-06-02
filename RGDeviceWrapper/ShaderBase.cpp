@@ -98,7 +98,6 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 
 	boost::property_tree::ptree &l_ParamSetting = a_Root.get_child("root.ParamList");
 	boost::property_tree::ptree &l_Shaders = a_Root.get_child("root.Shaders");
-	boost::property_tree::ptree &l_ShaderSetting = a_Root.get_child("root.ShaderSetting");
 
 	// find max valid shader model block
 	{
@@ -113,7 +112,7 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 		for( unsigned int i=l_Start ; i<c_NumShaderModel ; ++i )
 		{
 			snprintf(l_Buff, 256, "Model_%d_%d", c_ShaderModelList[i].first, c_ShaderModelList[i].second);
-			if( l_ShaderSetting.not_found() != l_ShaderSetting.find(l_Buff) )
+			if( l_Shaders.not_found() != l_Shaders.find(l_Buff) )
 			{
 				m_ShaderInUse = c_ShaderModelList[i];
 				break;

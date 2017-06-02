@@ -8,6 +8,18 @@
 namespace R
 {
 
+static void resourceTransition(ID3D12GraphicsCommandList *a_pCmdList, ID3D12Resource *a_pResource, D3D12_RESOURCE_STATES a_Before, D3D12_RESOURCE_STATES a_After, int a_SubResource = -1)
+{
+	D3D12_RESOURCE_BARRIER l_TransSetting = {};
+	l_TransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	l_TransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	l_TransSetting.Transition.pResource = a_pResource;
+	l_TransSetting.Transition.Subresource = -1 == a_SubResource ? D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES : a_SubResource;
+	l_TransSetting.Transition.StateBefore = a_Before;
+	l_TransSetting.Transition.StateAfter = a_After;
+	a_pCmdList->ResourceBarrier(1, &l_TransSetting);
+}
+
 #pragma region D3D12HeapManager
 //
 // HeapManager
@@ -190,11 +202,13 @@ struct D3D12ThreadCommandData
 		, m_GraphicThread(nullptr, nullptr)
 		, m_ComputeThread(nullptr, nullptr)
 		, m_pCurrProgram(nullptr)
+		, m_RenderTargetID(-1)
 	{}
 
 	D3D12Commander::CmdComponent *m_pComponent;
 	D3D12GpuThread m_CurrThread, m_GraphicThread, m_ComputeThread;
 	HLSLProgram12 *m_pCurrProgram;
+	int m_RenderTargetID;
 };
 thread_local D3D12ThreadCommandData g_CmdThreadData;
 D3D12Commander::ComputeCmdComponent D3D12Commander::m_ComputeComponent;
@@ -207,17 +221,26 @@ D3D12Commander::D3D12Commander(D3D12HeapManager *a_pHeapOwner)
 	, m_pFence(nullptr)
 	, m_pRefDevice(TYPED_GDEVICE(D3D12Device))
 	, m_pRefHeapOwner(a_pHeapOwner)
+	, m_LastRenderTargetID(-1), m_RenerderTargetLock(), m_CopySrcSlot(0), m_ScreenSize(1280, 720)
 {
+	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i ) m_PresentBundle[i] = std::make_pair(nullptr, nullptr);
+
 	memset(m_BackBuffer, 0, sizeof(unsigned int) * NUM_BACKBUFFER);
 	memset(m_pBackbufferRes, 0, sizeof(ID3D12Resource *) * NUM_BACKBUFFER);
 }
 
 D3D12Commander::~D3D12Commander()
 {
+	m_pRefDevice->waitForResourceUpdate();
+	m_pFence->wait();
+
 	SAFE_RELEASE(m_pDrawCmdQueue)
 	SAFE_RELEASE(m_pBundleCmdQueue)
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
+		SAFE_RELEASE(m_PresentBundle[i].first)
+		SAFE_RELEASE(m_PresentBundle[i].second)
+
 		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
 		SAFE_RELEASE(m_pBackbufferRes[i])
 	}
@@ -254,12 +277,14 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 	l_SwapChainDesc.OutputWindow = (HWND)a_Handle;
 	l_SwapChainDesc.SampleDesc.Count = 1;
 	l_SwapChainDesc.Windowed = (m_bFullScreen = a_bFullScr);
-
-	if( S_OK != l_pDevFactory->CreateSwapChain(m_pDrawCmdQueue, &l_SwapChainDesc, &m_pSwapChain) )
+	
+	IDXGISwapChain *l_pSwapChain = nullptr;
+	if( S_OK != l_pDevFactory->CreateSwapChain(m_pDrawCmdQueue, &l_SwapChainDesc, &l_pSwapChain) )
 	{
 		wxMessageBox(wxT("swap chain create failed"), wxT("D3D12Commander::init"));
 		return;
 	}
+	m_pSwapChain = (IDXGISwapChain3 *)l_pSwapChain;
 
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
@@ -271,8 +296,41 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 
 		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], (D3D12_RENDER_TARGET_VIEW_DESC *)nullptr);
 	}
+	
+	l_Res = m_pRefDevice->getDeviceInst()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_PresentCopySource.first));
+	assert(S_OK == l_Res);
+	l_Res = m_pRefDevice->getDeviceInst()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_PresentCopySource.first, nullptr, IID_PPV_ARGS(&m_PresentCopySource.second));
+	assert(S_OK == l_Res);
+
+	const float l_Black[] = {0.0f, 0.0f, 0.0f, 0.0f};
+	HLSLProgram12 *l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::Copy);
+	m_CopySrcSlot = l_pProgram->getTextureSlot(0);
+	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
+	{
+		HRESULT l_Res = m_pRefDevice->getDeviceInst()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_PresentBundle[i].first));
+		assert(S_OK == l_Res);
+		l_Res = m_pRefDevice->getDeviceInst()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_PresentBundle[i].first, nullptr, IID_PPV_ARGS(&m_PresentBundle[i].second));
+		assert(S_OK == l_Res);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE l_BackBufferCpuHandle(m_pRefHeapOwner->getCpuHandle(m_BackBuffer[i]));
+
+		m_PresentBundle[i].first->Reset();
+		m_PresentBundle[i].second->Reset(m_PresentBundle[i].first, nullptr);
+
+		resourceTransition(m_PresentBundle[i].second, m_pBackbufferRes[i], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		m_PresentBundle[i].second->OMSetRenderTargets(1, &l_BackBufferCpuHandle, false, nullptr);
+		m_PresentBundle[i].second->ClearRenderTargetView(l_BackBufferCpuHandle, l_Black, 0, nullptr);
+		m_PresentBundle[i].second->SetGraphicsRootSignature(l_pProgram->getRegDesc());
+		m_PresentBundle[i].second->SetPipelineState(l_pProgram->getPipeline());
+		m_PresentBundle[i].second->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		m_PresentBundle[i].second->DrawInstanced(4, 1, 0, 0);
+
+		resourceTransition(m_PresentBundle[i].second, m_pBackbufferRes[i], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		m_PresentBundle[i].second->Close();
+	}
 
 	m_pFence = new D3D12Fence(m_pRefDevice->getDeviceInst(), m_pDrawCmdQueue);
+	m_ScreenSize = a_Size;
 }
 
 void D3D12Commander::resize(glm::ivec2 a_Size, bool a_bFullScr)
@@ -335,16 +393,6 @@ void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderT
 	if( -1 == l_RootSlot ) return;
 
 	g_CmdThreadData.m_pComponent->setRootDescriptorTable(l_Thread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_bRenderTarget));
-}
-
-void D3D12Commander::bindVtxFlag(unsigned int a_VtxFlag)
-{
-	D3D12GpuThread l_Thread = validateThisThread();
-
-	std::pair<int, int> l_SlotInfo = g_CmdThreadData.m_pCurrProgram->getConstantSlot("m_VtxFlag");
-	if( -1 == l_SlotInfo.first ) return;
-
-	g_CmdThreadData.m_pComponent->setRoot32BitConstant(l_Thread.second, l_SlotInfo.first, a_VtxFlag, l_SlotInfo.second);
 }
 
 void D3D12Commander::bindUniformBlock(int a_ID, int a_BlockStage)
@@ -424,6 +472,7 @@ void D3D12Commander::setRenderTarget(int a_DepthID, std::vector<int> &a_RederTar
 	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> l_RTVHandle(a_RederTargetIDList.size());
 	for( unsigned int i=0 ; i<a_RederTargetIDList.size() ; ++i ) l_RTVHandle[i] = m_pRefDevice->getRenderTargetCpuHandle(a_RederTargetIDList[i]);
 	l_Thread.second->OMSetRenderTargets(l_RTVHandle.size(), &(l_RTVHandle.front()), FALSE, -1 == a_DepthID ? nullptr : &(m_pRefDevice->getRenderTargetCpuHandle(a_DepthID)));
+	g_CmdThreadData.m_RenderTargetID = a_RederTargetIDList.front();
 }
 
 void D3D12Commander::setRenderTargetWithBackBuffer(int a_DepthID, unsigned int a_BackIdx)
@@ -485,7 +534,7 @@ D3D12GpuThread D3D12Commander::validateThisThread()
 	return g_CmdThreadData.m_CurrThread;
 }
 
-void D3D12Commander::flush()
+void D3D12Commander::flush(bool a_bToBackBuffer)
 {
 	m_pFence->wait();
 
@@ -498,6 +547,19 @@ void D3D12Commander::flush()
 
 	std::vector<ID3D12CommandList *> l_CmdArray(m_BusyThread.size());
 	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) l_CmdArray[i] = m_BusyThread[i].second;
+	
+	if( a_bToBackBuffer )
+	{
+		glm::Viewport l_Viewport(0.0f, 0.0f, m_ScreenSize.x, m_ScreenSize.y, 0.0f, 1.0f);
+		glm::ivec4 l_Scissor(0, 0, m_ScreenSize.x, m_ScreenSize.y);
+		m_PresentCopySource.second->IASetVertexBuffers(0, 1, &(m_pRefDevice->getQuadVertexBufferView()));
+		m_PresentCopySource.second->SetGraphicsRootDescriptorTable(m_CopySrcSlot, m_pRefDevice->getTextureGpuHandle(m_LastRenderTargetID, true));
+		m_PresentCopySource.second->RSSetViewports(1, (const D3D12_VIEWPORT *)&l_Viewport);
+		m_PresentCopySource.second->RSSetScissorRects(1, (const D3D12_RECT *)&l_Scissor);
+
+		l_CmdArray.push_back(m_PresentCopySource.second);
+		l_CmdArray.push_back(m_PresentBundle[m_pSwapChain->GetCurrentBackBufferIndex()].second);
+	}
 
 	m_pDrawCmdQueue->ExecuteCommandLists(l_CmdArray.size(), l_CmdArray.data());
 
@@ -506,10 +568,11 @@ void D3D12Commander::flush()
 
 void D3D12Commander::present()
 {
-	//m_pFence->wait();
 	m_pRefDevice->waitForResourceUpdate();
-
-	m_pSwapChain->Present(1, 0);
+	m_pFence->wait();
+	
+	// to do : add fps setting
+	m_pSwapChain->Present(0, 0);
 
 	m_pFence->signal();
 	m_pFence->wait();
@@ -519,6 +582,9 @@ void D3D12Commander::threadEnd()
 {
 	if( nullptr != g_CmdThreadData.m_GraphicThread.first )
 	{
+		std::lock_guard<std::mutex> l_RenderTargetLocker(m_RenerderTargetLock);
+		if( -1 != g_CmdThreadData.m_RenderTargetID ) m_LastRenderTargetID = g_CmdThreadData.m_RenderTargetID;
+
 		g_CmdThreadData.m_GraphicThread.second->Close();
 		m_ReadyThread.push_back(g_CmdThreadData.m_GraphicThread);
 	}
@@ -531,6 +597,7 @@ void D3D12Commander::threadEnd()
 	g_CmdThreadData.m_ComputeThread = g_CmdThreadData.m_GraphicThread = g_CmdThreadData.m_CurrThread = std::make_pair(nullptr, nullptr);
 	g_CmdThreadData.m_pCurrProgram = nullptr;
 	g_CmdThreadData.m_pComponent = nullptr;
+	g_CmdThreadData.m_RenderTargetID = -1;
 }
 #pragma endregion
 
@@ -548,6 +615,7 @@ D3D12Device::D3D12Device()
 	, m_IdleResThread(0)
 	, m_pResFence(nullptr), m_pComputeFence(nullptr)
 	, m_pResourceLoop(nullptr), m_bLooping(true)
+	, m_QuadBufferID(-1)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
 	BIND_DEFAULT_ALLOCATOR(RenderTargetBinder, m_ManagedRenderTarget);
@@ -561,6 +629,9 @@ D3D12Device::D3D12Device()
 
 D3D12Device::~D3D12Device()
 {
+	if( -1 != m_QuadBufferID ) freeVertexBuffer(m_QuadBufferID);
+	m_QuadBufferID = -1;
+
 	m_bLooping = false;
 	if( nullptr != m_pResourceLoop ) m_pResourceLoop->join();
 	delete m_pResourceLoop;
@@ -740,6 +811,15 @@ void D3D12Device::init()
 		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 16, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	}
+
+	const glm::vec3 c_QuadVtx[] =
+	{
+		glm::vec3(-1.0f, 1.0f, 0.0f),
+		glm::vec3(-1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(1.0f, -1.0f, 0.0f)
+	};
+	m_QuadBufferID = requestVertexBuffer((void *)c_QuadVtx, VTXSLOT_POSITION, 4);
 }
 
 void D3D12Device::setupCanvas(wxWindow *a_pWnd, GraphicCanvas *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr)
@@ -1054,10 +1134,120 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData, 0xff);
 }
 
-/*void D3D12Device::generateMipmap(int a_ID)
+void D3D12Device::generateMipmap(int a_ID)
 {
-	// require : hlsl 12 compute part
-}*/
+	D3D12GpuThread l_Thread = requestThread(true);
+	l_Thread.first->Reset();
+	l_Thread.second->Reset(l_Thread.first, nullptr);
+
+	TextureBinder *l_pTargetBinder = m_ManagedTexture[a_ID];
+	assert(nullptr != l_pTargetBinder);
+
+	HLSLProgram12 *l_pProgram = nullptr;
+	unsigned int l_NumConst = 0;
+	std::function<D3D12_UNORDERED_ACCESS_VIEW_DESC(unsigned int)> l_UavStructFunc = nullptr;
+	std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
+	switch( l_pTargetBinder->m_Type )
+	{
+		case TEXTYPE_SIMPLE_1D:
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap1D);
+			l_NumConst = 1;
+			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
+			{
+				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
+				l_Desc.Texture1D.MipSlice = a_MipLevel;
+				return l_Desc;
+			};
+			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
+				l_Desc.Texture1D.MipLevels = 1;
+				l_Desc.Texture1D.MostDetailedMip = a_MipLevel;
+				return l_Desc;
+			};
+			break;
+
+		case TEXTYPE_SIMPLE_2D:
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap2D);
+			l_NumConst = 2;
+			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
+			{
+				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+				l_Desc.Texture2D.MipSlice = a_MipLevel;
+				return l_Desc;
+			};
+			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				l_Desc.Texture2D.MipLevels = 1;
+				l_Desc.Texture2D.MostDetailedMip = a_MipLevel;
+				return l_Desc;
+			};
+			break;
+
+		case TEXTYPE_SIMPLE_3D:
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap3D);
+			l_NumConst = 3;
+			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
+			{
+				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+				l_Desc.Texture3D.MipSlice = a_MipLevel;
+				return l_Desc;
+			};
+			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
+				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+				l_Desc.Texture3D.MipLevels = 1;
+				l_Desc.Texture3D.MostDetailedMip = a_MipLevel;
+				return l_Desc;
+			};
+			break;
+
+		default:break;
+	}
+	assert(nullptr == l_pProgram);
+
+	l_Thread.second->SetPipelineState(l_pProgram->getPipeline());
+	l_Thread.second->SetComputeRootSignature(l_pProgram->getRegDesc());
+	glm::ivec3 l_Dim(l_pTargetBinder->m_Size);
+	unsigned int l_B0 = l_pProgram->getConstantSlot("c_PixelSize").first;
+	unsigned int l_T0 = l_pProgram->getTextureSlot(0);
+	unsigned int l_U0 = l_pProgram->getUavSlot(0);
+
+	for( int i=1 ; i<(int)l_pTargetBinder->m_MipmapLevels ; ++i )
+	{
+		l_Dim = glm::max(l_Dim / 2, glm::ivec3(1, 1, 1));
+		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, i);
+		
+		D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc(l_UavStructFunc(i));
+		l_UAVDesc.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetBinder->m_Format);
+		int l_TempUavID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, nullptr, &l_UAVDesc);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC l_SrcDesc(l_SrvStructFunc(i-1));
+		l_SrcDesc.Format = l_UAVDesc.Format;
+		int l_TempSrvID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, &l_SrcDesc);
+		
+		glm::vec3 l_PixelSize(1.0f / glm::vec3(l_Dim.x, l_Dim.y, l_Dim.z));
+		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
+		l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
+		l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
+		l_Thread.second->Dispatch(l_Dim.x, l_Dim.y, l_Dim.z);
+
+		m_pShaderResourceHeap->recycle(l_TempUavID);
+		m_pShaderResourceHeap->recycle(l_TempSrvID);
+
+		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, i);
+	}
+
+	l_Thread.second->Close();
+	recycleThread(l_Thread, true);
+}
 
 PixelFormat::Key D3D12Device::getTextureFormat(int a_ID)
 {
@@ -1240,6 +1430,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getUnorderAccessBufferGpuHandle(int a_I
 D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
 {
 	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
+}
+
+D3D12_VERTEX_BUFFER_VIEW D3D12Device::getQuadVertexBufferView()
+{
+	return getVertexBufferView(m_QuadBufferID);
 }
 
 D3D12_INDEX_BUFFER_VIEW D3D12Device::getIndexBufferView(int a_ID)

@@ -58,7 +58,7 @@ public:
 private:
 	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput);
 	void initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
-	void initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
+	void initComputeShader(boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
 	void assignCmd(unsigned int &a_Offset, unsigned int a_Size);
 
 	ID3D12PipelineState *m_pPipeline;

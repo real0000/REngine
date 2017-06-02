@@ -29,7 +29,6 @@ public:
 	virtual void bindVertex(VertexBuffer *a_pBuffer) = 0;
 	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
-	virtual void bindVtxFlag(unsigned int a_VtxFlag) = 0;
 	virtual void bindUniformBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void bindUavBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color) = 0;
@@ -47,7 +46,7 @@ public:
 	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
 
-	virtual void flush() = 0;
+	virtual void flush(bool a_bToBackBuffer = false) = 0;
 	virtual void present() = 0;
 };
 

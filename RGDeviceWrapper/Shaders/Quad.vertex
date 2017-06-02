@@ -1,0 +1,14 @@
+struct VS_Output
+{
+	float2 m_UV : TEXCOORD0;
+	float4 m_Position : SV_POSITION;
+};
+
+VS_Output main(float3 a_Position : POSITION0)
+{
+	VS_Output l_Output;
+	l_Output.m_UV = a_Position.xy * float2(0.5, -0.5) + float2(0.5, 0.5);
+	l_Output.m_Position = float4(a_Position, 1.0);
+
+	return l_Output;
+}

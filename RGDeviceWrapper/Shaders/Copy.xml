@@ -1,0 +1,36 @@
+<root isCompute="false" isIndexed="true">
+  <ParamList>
+    <Srv2D name="m_SrcTex" desc="" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Vertex file="Quad.vertex">
+      </Vertex>
+      <!--Geometry file="">
+      </Geometry>
+      <TessCtrl file="">  
+      </TessCtrl>
+      <TessEval file="">
+      </TessEval>
+      <Compute>
+      </Compute>-->
+      <Fragment file="Copy.pixel">
+        m_SrcTex
+      </Fragment>
+    </Model_5_1>
+  </Shaders>
+  <ShaderSetting sampleMask="ffffffff" topology="triangle_strip" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
+    <BlendState/>
+    <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="false" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
+    <DepthStencil>
+      <Depth enable="false" write="false" func="less"/>
+      <Stencil enable="false" readMask="ff" writeMask="ff">
+        <Front func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+        <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+      </Stencil>
+    </DepthStencil>
+    <RenderTarget depthStencil="">
+      <rgba8_unorm/>
+    </RenderTarget>
+  </ShaderSetting>
+</root>

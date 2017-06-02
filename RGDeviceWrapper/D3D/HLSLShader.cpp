@@ -117,16 +117,14 @@ HLSLProgram12::~HLSLProgram12()
 
 void HLSLProgram12::init(boost::property_tree::ptree &a_Root)
 {
-	boost::property_tree::ptree &l_ShaderSetting = a_Root.get_child("root.ShaderSetting");
-
 	char l_Buff[256];
 	snprintf(l_Buff, 256, "root.Shaders.Model_%d_%d", shaderInUse().first, shaderInUse().second);
 	boost::property_tree::ptree &l_Shaders = a_Root.get_child(l_Buff);
 	
 	std::map<std::string, std::string> l_ParamDef;
 	initRegister(l_Shaders, a_Root.get_child("root.ParamList"), l_ParamDef);
-	if( !isCompute() ) initDrawShader(l_ShaderSetting, l_Shaders, l_ParamDef);
-	else initComputeShader(l_ShaderSetting, l_Shaders, l_ParamDef);
+	if( !isCompute() ) initDrawShader(a_Root.get_child("root.ShaderSetting"), l_Shaders, l_ParamDef);
+	else initComputeShader(l_Shaders, l_ParamDef);
 }
 
 std::pair<int, int> HLSLProgram12::getConstantSlot(std::string a_Name)
@@ -739,9 +737,26 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 	}
 }
 
-void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine)
+void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine)
 {
+	D3D12Device *l_pRefDevice = TYPED_GDEVICE(D3D12Device);
+	ID3D12Device *l_pDeviceInst = l_pRefDevice->getDeviceInst();
+	
+	char l_Buff[256];
+	snprintf(l_Buff, 256, "%s.<xmlattr>.file", ShaderStages::toString(ShaderStages::Compute).c_str());
+	wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
+				
+	assert( !l_Filename.empty() );
+	a_ParamDefine.insert(std::make_pair("COMPUTE_SHADER", "1"));
+	ID3DBlob *l_pBinaryCode = (ID3DBlob *)ProgramManager::singleton().getShader(l_Filename, ShaderStages::Compute, shaderInUse(), a_ParamDefine);
 
+	D3D12_COMPUTE_PIPELINE_STATE_DESC l_PsoDesc = {};
+	l_PsoDesc.pRootSignature = m_pRegisterDesc;
+	l_PsoDesc.CS.pShaderBytecode = l_pBinaryCode->GetBufferPointer();
+	l_PsoDesc.CS.BytecodeLength = l_pBinaryCode->GetBufferSize();
+
+	HRESULT l_Res = l_pDeviceInst->CreateComputePipelineState(&l_PsoDesc, IID_PPV_ARGS(&m_pPipeline));
+	assert(S_OK == l_Res);
 }
 
 void HLSLProgram12::assignCmd(unsigned int &a_Offset, unsigned int a_Size)

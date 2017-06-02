@@ -1,0 +1,13 @@
+<root isCompute="true" isIndexed="false">
+  <ParamList>
+    <Constant name="c_PixelSize" type="float3" reserved="true"/>
+    <StorageBuffer name="g_DstTexture"/>
+    <Srv2D name="g_SrcTexture" desc="" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Compute file="GenerateMipmap3D.compute">
+      </Compute>
+    </Model_5_1>
+  </Shaders>
+</root>
