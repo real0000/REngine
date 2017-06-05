@@ -303,7 +303,7 @@ void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
 	assert(S_OK == l_Res);
 
 	const float l_Black[] = {0.0f, 0.0f, 0.0f, 0.0f};
-	HLSLProgram12 *l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::Copy);
+	HLSLProgram12 *l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getData(DefaultPrograms::Copy);
 	m_CopySrcSlot = l_pProgram->getTextureSlot(0);
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
@@ -1150,7 +1150,7 @@ void D3D12Device::generateMipmap(int a_ID)
 	switch( l_pTargetBinder->m_Type )
 	{
 		case TEXTYPE_SIMPLE_1D:
-			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap1D);
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap1D);
 			l_NumConst = 1;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
@@ -1170,7 +1170,7 @@ void D3D12Device::generateMipmap(int a_ID)
 			break;
 
 		case TEXTYPE_SIMPLE_2D:
-			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap2D);
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
 			l_NumConst = 2;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
@@ -1190,7 +1190,7 @@ void D3D12Device::generateMipmap(int a_ID)
 			break;
 
 		case TEXTYPE_SIMPLE_3D:
-			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getProgram(DefaultPrograms::GenerateMipmap3D);
+			l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap3D);
 			l_NumConst = 3;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{

@@ -276,7 +276,7 @@ ProgramManager& ProgramManager::singleton()
 }
 
 ProgramManager::ProgramManager()
-	: SearchPathSystem()
+	: SearchPathSystem(std::bind(&ProgramManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&ProgramManager::allocator, this))
 {	
 	wxString l_Path(wxGetCwd());
 	l_Path.Replace("\\", "/");
@@ -289,44 +289,6 @@ ProgramManager::ProgramManager()
 ProgramManager::~ProgramManager()
 {
 	SAFE_DELETE(m_pShaderComponent);
-
-	for( unsigned int i=0 ; i<m_Programs.size() ; ++i ) delete m_Programs[i];
-	m_Programs.clear();
-	m_ProgramMap.clear();
-}
-
-ShaderProgram* ProgramManager::getProgram(wxString a_Filename)
-{
-	int l_ProgramID = getProgramKey(a_Filename);
-	if( -1 != l_ProgramID ) return m_Programs[l_ProgramID];
-
-	wxString l_Path(a_Filename);
-	if( !a_Filename.StartsWith(SHADER_PATH) ) l_Path = SHADER_PATH + a_Filename;
-	
-	boost::property_tree::ptree l_XMLTree;
-	boost::property_tree::xml_parser::read_xml((const char *)l_Path.c_str(), l_XMLTree);
-	if( l_XMLTree.empty() ) return nullptr;
-
-	ShaderProgram *l_pNewProgram = m_pShaderComponent->newProgram();
-	l_pNewProgram->setup(l_XMLTree);
-
-	m_ProgramMap[a_Filename] = m_Programs.size();
-	m_Programs.push_back(l_pNewProgram);
-	
-	return l_pNewProgram;
-}
-
-ShaderProgram* ProgramManager::getProgram(int a_ProgramID)
-{
-	if( (int)m_Programs.size() <= a_ProgramID ) return nullptr;
-	return m_Programs[a_ProgramID];
-}
-
-int ProgramManager::getProgramKey(wxString a_Filename)
-{
-	auto it = m_ProgramMap.find(a_Filename);
-	if( m_ProgramMap.end() == it ) return -1;
-	return it->second;
 }
 
 void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
@@ -335,12 +297,26 @@ void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, 
 	return m_pShaderComponent->getShader(a_Filename, a_Stage, a_Module, a_ParamDefine);
 }
 
+
+ShaderProgram* ProgramManager::allocator()
+{
+	return m_pShaderComponent->newProgram();
+}
+
+void ProgramManager::loadFile(ShaderProgram *a_pInst, wxString a_Path)
+{
+	boost::property_tree::ptree l_XMLTree;
+	boost::property_tree::xml_parser::read_xml((const char *)a_Path.c_str(), l_XMLTree);
+	assert( !l_XMLTree.empty() );
+	a_pInst->setup(l_XMLTree);
+}
+
 void ProgramManager::initDefaultProgram()
 {
 	for( unsigned int i=0 ; i<DefaultPrograms::num_default_program ; ++i )
 	{
 		wxString l_FileToCompile(DefaultPrograms::toString((DefaultPrograms::Key)i) + wxT(".xml"));
-		getProgram(l_FileToCompile);
+		getData(l_FileToCompile);
 	}
 }
 #pragma endregion

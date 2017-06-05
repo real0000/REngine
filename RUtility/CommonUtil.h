@@ -28,6 +28,8 @@
 #include <stack>
 #include <set>
 #include <list>
+#include <thread>
+#include <mutex>
 #include <stdarg.h>
 
 #define GLM_FORCE_RADIANS
@@ -244,19 +246,202 @@ private:									\
 std::vector<wxString> classname::m_Strings;\
 std::map<wxString, classname::Key> classname::m_StringMap;
 
+STRING_ENUM_CLASS(PixelFormat,
+	unknown,
+    rgba32_typeless,
+    rgba32_float,
+    rgba32_uint,
+    rgba32_sint,
+    rgb32_typeless,
+    rgb32_float,
+    rgb32_uint,
+    rgb32_sint,
+    rgba16_typeless,
+    rgba16_float,
+    rgba16_unorm,
+    rgba16_uint,
+    rgba16_snorm,
+    rgba16_sint,
+    rg32_typeless,
+    rg32_float,
+    rg32_uint,
+    rg32_sint,
+    r32g8x24_typeless,
+    d32_float_s8x24_uint,
+    r32_float_x8x24_typeless,
+    x32_typeless_g8x24_uint,
+    rgb10a2_typeless,
+    rgb10a2_unorm,
+    rgb10a2_uint,
+    r11g11b10_float,
+    rgba8_typeless,
+    rgba8_unorm,
+    rgba8_unorm_srgb,
+    rgba8_uint,
+    rgba8_snorm,
+    rgba8_sint,
+    rg16_typeless,
+    rg16_float,
+    rg16_unorm,
+    rg16_uint,
+    rg16_snorm,
+    rg16_sint,
+    r32_typeless,
+    d32_float,
+    r32_float,
+    r32_uint,
+    r32_sint,
+    r24g8_typeless,
+    d24_unorm_s8_uint,
+    r24_unorm_x8_typeless,
+    x24_typeless_g8_uint,
+    rg8_typeless,
+    rg8_unorm,
+    rg8_uint,
+    rg8_snorm,
+    rg8_sint,
+    r16_typeless,
+    r16_float,
+    d16_unorm,
+    r16_unorm,
+    r16_uint,
+    r16_snorm,
+    r16_sint,
+    r8_typeless,
+    r8_unorm,
+    r8_uint,
+    r8_snorm,
+    r8_sint,
+    a8_unorm,
+    r1_unorm,
+    rgb9e5,
+    rgbg8_unorm,
+    grgb8_unorm,
+    bc1_typeless,
+    bc1_unorm,
+    bc1_unorm_srgb,
+    bc2_typeless,
+    bc2_unorm,
+    bc2_unorm_srgb,
+    bc3_typeless,
+    bc3_unorm,
+    bc3_unorm_srgb,
+    bc4_typeless,
+    bc4_unorm,
+    bc4_snorm,
+    bc5_typeless,
+    bc5_unorm,
+    bc5_snorm,
+    b5g6r5_unorm,
+    bgr5a1_unorm,
+    bgra8_unorm,
+    bgrx8_unorm,
+    rgb10_xr_bias_a2_unorm,
+    bgra8_typeless,
+    bgra8_unorm_srgb,
+    bgrx8_typeless,
+    bgrx8_unorm_srgb,
+    bc6h_typeless,
+    bc6h_uf16,
+    bc6h_sf16,
+    bc7_typeless,
+    bc7_unorm,
+    bc7_unorm_srgb,
+    ayuv,
+    y410,
+    y416,
+    nv12,
+    p010,
+    p016,
+    opaque420,
+    yuy2,
+    y210,
+    y216,
+    nv11,
+    ai44,
+    ia44,
+    p8,
+    ap8,
+    bgra4_unorm,
+    p208,
+    v208,
+    v408,
+    uint)
+
+template<typename T>
 class SearchPathSystem
 { 
 public:
-	SearchPathSystem();
-	virtual ~SearchPathSystem();
+	SearchPathSystem(std::function<void(T *, wxString)> a_pFileLoader, std::function<T*()> a_pAllocFunc)
+		: m_FileLoader(a_pFileLoader)
+		, m_ManagedObject()
+	{
+		m_ManagedObject.setNewFunc(a_pAllocFunc);
+		m_ManagedObject.setDelFunc(std::bind(&defaultDelFunc<T>, std::placeholders::_1));
+	}
 
-	wxString findFile(wxString a_Filename);
-	void addSearchPath(wxString a_Path);
-	void clearFileCache(){ m_FileCache.clear(); }
+	virtual ~SearchPathSystem()
+	{
+		clearCache();
+	}
+
+	std::pair<int, T*> getData(wxString a_Filename)
+	{
+		T *l_pNewFile = nullptr;
+		int l_ID = -1;
+		wxString l_FilePath(wxT(""));
+		{
+			std::lock_guard<std::mutex> l_Guard(m_Locker);
+
+			auto it = m_FileIDMap.find(a_Filename);
+			if( m_FileIDMap.end() != it ) return std::make_pair(it->second, m_ManagedObject[it->second]);
+
+			l_FilePath = findFullPath(a_Filename);
+			if( l_FilePath.empty() ) return std::make_pair(-1, nullptr);
+
+			l_ID = m_ManagedObject.retain(&l_pNewFile);
+			m_FileIDMap.insert(std::make_pair(a_Filename, l_ID));
+		}
+		m_FileLoader(l_pNewFile, l_FilePath);
+		return std::make_pair(l_ID, l_pNewFile);
+	}
+
+	T* getData(int a_ID)
+	{
+		return m_ManagedObject[a_ID];
+	}
+
+	wxString findFullPath(wxString a_Filename)
+	{
+		for( unsigned int i=0 ; i<m_SearchPath.size() ; ++i )
+		{
+			wxString l_FilePath(m_SearchPath[i] + a_Filename);
+			if( wxFileExists(l_FilePath) ) return l_FilePath;
+		}
+		return wxT("");
+	}
+		
+	void addSearchPath(wxString a_Path)
+	{
+		a_Path.Replace(wxT("\\"), wxT("/"));
+		if( !a_Path.EndsWith("/") ) a_Path += wxT("/");
+		assert(std::find(m_SearchPath.begin(), m_SearchPath.end(), a_Path) == m_SearchPath.end());
+		m_SearchPath.push_back(a_Path);
+	}
+	
+	void clearCache()
+	{
+		m_ManagedObject.clear();
+		m_FileIDMap.clear();
+	}
 
 private:
-	std::map<wxString, wxString> m_FileCache;
+	std::map<wxString, int> m_FileIDMap;
+	SerializedObjectPool<T> m_ManagedObject;
 	std::vector<wxString> m_SearchPath;
+	std::function<void(T *, wxString)> m_FileLoader;
+
+	std::mutex m_Locker;
 };
 
 class ThreadEventCallback

@@ -782,7 +782,7 @@ HLSLComponent::~HLSLComponent()
 	
 HRESULT __stdcall HLSLComponent::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
 {
-	wxString l_Filepath(ProgramManager::singleton().findFile(pFileName));
+	wxString l_Filepath(ProgramManager::singleton().findFullPath(pFileName));
 
 	wxFile l_File;
 	if( !l_File.Open(l_Filepath) ) return E_FAIL;
@@ -814,7 +814,7 @@ HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
 
 void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
-	wxString l_ShaderName(ProgramManager::singleton().findFile(a_Filename));
+	wxString l_ShaderName(ProgramManager::singleton().findFullPath(a_Filename));
 	auto it = m_ShaderMap.find(l_ShaderName);
 	if( m_ShaderMap.end() != it ) return it->second;
 

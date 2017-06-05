@@ -109,16 +109,12 @@ public:
 	virtual ShaderProgram* newProgram() = 0;
 };
 
-class ProgramManager : public SearchPathSystem
+class ProgramManager : public SearchPathSystem<ShaderProgram>
 {
 public:
 	static void init(ProgramManagerComponent *a_pComponent);
 	static ProgramManager& singleton();
 
-	ShaderProgram* getProgram(wxString a_Filename);
-	ShaderProgram* getProgram(int a_ProgramID);
-	int getProgramKey(wxString a_Filename);
-	
 	// call for program initial, DO NOT use this method directly
 	void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 
@@ -126,10 +122,10 @@ private:
 	ProgramManager();
 	virtual ~ProgramManager();
 
+	ShaderProgram* allocator();
+	void loadFile(ShaderProgram *a_pInst, wxString a_Path);
 	void initDefaultProgram();
 
-	std::vector<ShaderProgram *> m_Programs;
-	std::map<wxString, int> m_ProgramMap;
 	static ProgramManagerComponent *m_pShaderComponent; 
 };
 

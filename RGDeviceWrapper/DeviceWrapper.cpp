@@ -16,7 +16,6 @@ STRING_ENUM_CLASS_INST(CompareFunc)
 STRING_ENUM_CLASS_INST(StencilOP)
 STRING_ENUM_CLASS_INST(TopologyType)
 STRING_ENUM_CLASS_INST(Topology)
-STRING_ENUM_CLASS_INST(PixelFormat)
 STRING_ENUM_CLASS_INST(DefaultPrograms)
 
 #pragma region GraphicCommander
@@ -33,7 +32,7 @@ GraphicCommander::~GraphicCommander()
 
 void GraphicCommander::useProgram(unsigned int a_Key)
 {
-	ShaderProgram *l_pProgram = ProgramManager::singleton().getProgram(a_Key);
+	ShaderProgram *l_pProgram = ProgramManager::singleton().getData(a_Key);
 	useProgram(l_pProgram);
 }
 
