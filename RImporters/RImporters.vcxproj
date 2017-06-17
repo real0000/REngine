@@ -114,12 +114,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="ImageImporter.h" />
+    <ClInclude Include="Image\ImageImporter.h" />
     <ClInclude Include="ModelImporter.h" />
     <ClInclude Include="RImporters.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ImageImporter.cpp" />
+    <ClCompile Include="Image\DDSTextureLoader.cpp" />
+    <ClCompile Include="Image\ImageImporter.cpp" />
     <ClCompile Include="ModelImporter.cpp" />
     <ClCompile Include="RImporters.cpp" />
   </ItemGroup>

@@ -246,6 +246,18 @@ private:									\
 std::vector<wxString> classname::m_Strings;\
 std::map<wxString, classname::Key> classname::m_StringMap;
 
+enum TextureType
+{
+	TEXTYPE_SIMPLE_1D = 0,
+	TEXTYPE_SIMPLE_2D,
+	TEXTYPE_SIMPLE_2D_ARRAY,
+	TEXTYPE_SIMPLE_CUBE,
+	TEXTYPE_SIMPLE_CUBE_ARRAY,
+	TEXTYPE_SIMPLE_3D,
+	TEXTYPE_DEPTH_STENCIL_VIEW,
+	TEXTYPE_RENDER_TARGET_VIEW,
+};
+
 STRING_ENUM_CLASS(PixelFormat,
 	unknown,
     rgba32_typeless,
@@ -367,6 +379,7 @@ STRING_ENUM_CLASS(PixelFormat,
     v208,
     v408,
     uint)
+unsigned int getPixelSize(PixelFormat::Key a_Key);
 
 template<typename T>
 class SearchPathSystem

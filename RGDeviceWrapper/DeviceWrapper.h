@@ -91,15 +91,13 @@ public:
 	virtual unsigned int getTopologyType(TopologyType::Key a_Key) = 0;
 	virtual unsigned int getTopology(Topology::Key a_Key) = 0;
 	virtual unsigned int getPixelFormat(PixelFormat::Key a_Key) = 0;
-
-	virtual unsigned int getPixelSize(PixelFormat::Key a_Key);
 	virtual unsigned int getVertexSlotStride(unsigned int a_Type);//VTXSLOT_*
 	virtual unsigned int getParamAlignment(ShaderParamType::Key a_Key) = 0;
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
 
 	// texture part
 	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
-	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;
+	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false) = 0;
 	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;

@@ -3,11 +3,23 @@
   <ItemGroup>
     <ClCompile Include="RImporters.cpp" />
     <ClCompile Include="ModelImporter.cpp" />
-    <ClCompile Include="ImageImporter.cpp" />
+    <ClCompile Include="Image\ImageImporter.cpp">
+      <Filter>Image</Filter>
+    </ClCompile>
+    <ClCompile Include="Image\DDSTextureLoader.cpp">
+      <Filter>Image</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RImporters.h" />
     <ClInclude Include="ModelImporter.h" />
-    <ClInclude Include="ImageImporter.h" />
+    <ClInclude Include="Image\ImageImporter.h">
+      <Filter>Image</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Image">
+      <UniqueIdentifier>{ee774e57-0e83-4efb-b042-932c21b2096d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

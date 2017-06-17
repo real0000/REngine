@@ -16,15 +16,22 @@ public:
 
 	void init(wxString a_Path);
 	bool isReady(){ return m_bReady; }
-	void* getPixels(){ return m_pPixelData; }
+	void* getPixels(unsigned int a_Surface){ return m_RefSurfacePtr[a_Surface]; }
 	PixelFormat::Key getFormat(){ return m_Format; }
 	glm::ivec3 getSize(){ return m_Dim; }
+	TextureType getType(){ return m_Type; }
 
 private:
+	void loadDDS(wxString a_Filepath);
+	void loadGeneral(wxString a_Filepath);
+	void clear();// destructor or load failed
+
 	bool m_bReady;
-	char *m_pPixelData;
+	unsigned char *m_pImageData;
+	std::vector<unsigned char *> m_RefSurfacePtr;
 	PixelFormat::Key m_Format;
 	glm::ivec3 m_Dim;
+	TextureType m_Type;
 };
 
 class ImageManager : public SearchPathSystem<ImageData>

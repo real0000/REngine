@@ -7,6 +7,6 @@
 
 #include "CommonUtil.h"
 #include "ModelImporter.h"
-#include "ImageImporter.h"
+#include "Image/ImageImporter.h"
 
 #endif
