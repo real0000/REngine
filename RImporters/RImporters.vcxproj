@@ -115,13 +115,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Image\ImageImporter.h" />
-    <ClInclude Include="ModelImporter.h" />
+    <ClInclude Include="Model\ModelImporter.h" />
     <ClInclude Include="RImporters.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Image\DDSTextureLoader.cpp" />
     <ClCompile Include="Image\ImageImporter.cpp" />
-    <ClCompile Include="ModelImporter.cpp" />
+    <ClCompile Include="Model\ModelImporter.cpp" />
     <ClCompile Include="RImporters.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

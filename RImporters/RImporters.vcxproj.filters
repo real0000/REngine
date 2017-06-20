@@ -2,24 +2,31 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="RImporters.cpp" />
-    <ClCompile Include="ModelImporter.cpp" />
     <ClCompile Include="Image\ImageImporter.cpp">
       <Filter>Image</Filter>
     </ClCompile>
     <ClCompile Include="Image\DDSTextureLoader.cpp">
       <Filter>Image</Filter>
     </ClCompile>
+    <ClCompile Include="Model\ModelImporter.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RImporters.h" />
-    <ClInclude Include="ModelImporter.h" />
     <ClInclude Include="Image\ImageImporter.h">
       <Filter>Image</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\ModelImporter.h">
+      <Filter>Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Image">
       <UniqueIdentifier>{ee774e57-0e83-4efb-b042-932c21b2096d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Model">
+      <UniqueIdentifier>{5ac5b482-49d1-4358-ae6b-7a1a5a2d220a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
