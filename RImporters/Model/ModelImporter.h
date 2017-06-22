@@ -8,6 +8,9 @@
 namespace R
 {
 
+class AnimationData;
+class ModelData;
+
 enum DefaultTextureUsageType
 {
 	TEXUSAGE_DIFFUSE = 0,
@@ -19,23 +22,44 @@ enum DefaultTextureUsageType
 	TEXUSAGE_TYPECOUNT
 };
 
+class ModelNode
+{
+	friend class ModelData;
+	friend class AnimationData;
+public:
+    ModelNode();
+    virtual ~ModelNode();
+
+	ModelNode* getParent(){ return m_pParent; }
+	ModelNode* find(wxString a_Name);
+	wxString getName(){ return m_NodeName; }
+	glm::mat4x4 getTransform(){ return m_Transform; }
+	std::vector<unsigned int>& getRefMesh(){ return m_RefMesh; }
+
+private:
+    ModelNode *m_pParent;
+    wxString m_NodeName;
+    glm::mat4x4 m_Transform;
+    std::vector<ModelNode *> m_Children;//index
+    std::vector<unsigned int> m_RefMesh;//index
+};
+
 class ModelData
 {
 public:
-	struct ModelVertex
+	struct Vertex
     {
-        ModelVertex()
+        Vertex()
             : m_Position(0.0f, 0.0f, 0.0f)
             , m_Normal(0.0f, 0.0f, 0.0f)
             , m_Tangent(0.0f, 0.0f, 0.0f)
             , m_Binormal(0.0f, 0.0f, 0.0f)
 			, m_BoneId(0, 0, 0, 0)
-			, m_Weight(0.0f, 0.0f, 0.0f, 0.0f)
-			, m_Color(0xffffffff)
+			, m_Weight(1.0f, 0.0f, 0.0f, 0.0f)
 		{
 			memset(m_Texcoord, 0, sizeof(glm::vec4) * 4);
 		}
-		virtual ~ModelVertex(){}
+		virtual ~Vertex(){}
 
         glm::vec3 m_Position;
         glm::vec4 m_Texcoord[4];
@@ -44,50 +68,42 @@ public:
         glm::vec3 m_Binormal;
 		glm::ivec4 m_BoneId;
 		glm::vec4 m_Weight;
-		unsigned int m_Color;
     };
-    struct ModelMeshes
+    struct Meshes
     {
-        ModelMeshes()
+        Meshes()
 			: m_Name(wxT(""))
 			, m_Index(0)
 			, m_BoxSize(0.0f, 0.0f, 0.0f)
+			, m_bHasBone(false)
 		{
 		}
-		virtual ~ModelMeshes(){}
+		virtual ~Meshes(){}
 
         wxString m_Name;
         unsigned int m_Index;
-        std::vector<ModelVertex> m_Vertex;
+        std::vector<Vertex> m_Vertex;
         std::vector<unsigned int> m_Indicies;
 
         std::map<unsigned int, std::string> m_Texures[8];
-        std::vector<unsigned int> m_RefNode;
+		std::vector<glm::mat4x4> m_Bones;
+        std::vector<ModelNode *> m_RefNode;
         glm::vec3 m_BoxSize;
-    };
-	struct ModelNode
-    {
-        ModelNode() : m_pParent(nullptr), m_NodeName(""), m_Transform(1.0f){}
-        ~ModelNode()
-        {
-            m_Children.clear();
-        }
-
-        ModelNode *m_pParent;
-        std::string m_NodeName;
-        glm::mat4x4 m_Transform;
-        std::vector<unsigned int> m_Children;//index
-        std::vector<unsigned int> m_RefMesh;//index
+		bool m_bHasBone;
     };
 public:
 	ModelData();
 	virtual ~ModelData();
 
 	void init(wxString a_Filepath);
-	ModelNode* find(wxString a_Name);
 
-    std::vector<ModelMeshes *> m_Meshes;
-	std::vector<ModelNode *> m_Nodes;
+	std::vector<Meshes *>& getMeshes(){ return m_Meshes; }
+	ModelNode* find(wxString a_Name);
+	ModelNode* getRootNode(){ return m_pRootNode; }
+
+private:
+    std::vector<Meshes *> m_Meshes;
+	ModelNode * m_pRootNode;
 };
 
 class ModelManager : public SearchPathSystem<ModelData>
@@ -101,7 +117,6 @@ private:
 
 	void loadFile(ModelData *a_pInst, wxString a_Path);
 };
-
 
 }
 

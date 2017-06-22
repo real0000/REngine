@@ -115,12 +115,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Image\ImageImporter.h" />
+    <ClInclude Include="Model\AnimationImporter.h" />
     <ClInclude Include="Model\ModelImporter.h" />
     <ClInclude Include="RImporters.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Image\DDSTextureLoader.cpp" />
     <ClCompile Include="Image\ImageImporter.cpp" />
+    <ClCompile Include="Model\AnimationImporter.cpp" />
     <ClCompile Include="Model\ModelImporter.cpp" />
     <ClCompile Include="RImporters.cpp" />
   </ItemGroup>

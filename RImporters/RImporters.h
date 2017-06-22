@@ -6,6 +6,7 @@
 #define _R_IMPORTERS_H_
 
 #include "CommonUtil.h"
+#include "Model/AnimationImporter.h"
 #include "Model/ModelImporter.h"
 #include "Image/ImageImporter.h"
 

@@ -11,6 +11,9 @@
     <ClCompile Include="Model\ModelImporter.cpp">
       <Filter>Model</Filter>
     </ClCompile>
+    <ClCompile Include="Model\AnimationImporter.cpp">
+      <Filter>Model</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RImporters.h" />
@@ -18,6 +21,9 @@
       <Filter>Image</Filter>
     </ClInclude>
     <ClInclude Include="Model\ModelImporter.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\AnimationImporter.h">
       <Filter>Model</Filter>
     </ClInclude>
   </ItemGroup>

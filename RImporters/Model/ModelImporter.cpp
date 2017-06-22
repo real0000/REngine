@@ -9,12 +9,39 @@
 namespace R
 {
 
+#pragma region ModelNode
+//
+// ModelNode
+//
+ModelNode::ModelNode()
+	: m_pParent(nullptr), m_NodeName(""), m_Transform(1.0f)
+{
+}
+
+ModelNode::~ModelNode()
+{
+	for( unsigned int i=0 ; i<m_Children.size() ; ++i ) delete m_Children[i];
+	m_Children.clear();
+}
+
+ModelNode* ModelNode::find(wxString a_Name)
+{
+	if( m_NodeName == a_Name ) return this;
+	for( unsigned int i=0 ; i<m_Children.size() ; ++i )
+	{
+		ModelNode *l_pNode = m_Children[i]->find(a_Name);
+		if( nullptr != l_pNode ) return l_pNode;
+	}
+	return nullptr;
+}
+#pragma endregion
+
 #pragma region ModelData
 //
 // fbx sdk help function
 //
 template<typename SrcType, typename TVec>
-static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData::ModelMeshes *a_pTargetMesh, std::function<void(ModelData::ModelVertex&, TVec)> a_Lambda)
+static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData::Meshes *a_pTargetMesh, std::function<void(ModelData::Vertex&, TVec)> a_Lambda)
 {
     if( nullptr == a_pSrcData ) return;
 
@@ -91,6 +118,7 @@ static wxString getFbxMaterialTexture(FbxSurfaceMaterial *a_pSrcMaterial, const 
 // ModelData
 //
 ModelData::ModelData()
+	: m_pRootNode(nullptr)
 {
 
 }
@@ -99,8 +127,7 @@ ModelData::~ModelData()
 {
 	for( unsigned int i=0 ; i<m_Meshes.size() ; ++i ) delete m_Meshes[i];
 	m_Meshes.clear();
-	for( unsigned int i=0 ; i<m_Nodes.size() ; ++i ) delete m_Nodes[i];
-	m_Nodes.clear();
+	SAFE_DELETE(m_pRootNode)
 }
 
 void ModelData::init(wxString a_Filepath)
@@ -109,7 +136,7 @@ void ModelData::init(wxString a_Filepath)
     FbxIOSettings *l_pIOCfg = FbxIOSettings::Create(l_pSdkManager, IOSROOT);
     l_pIOCfg->SetBoolProp(IMP_FBX_MATERIAL, true);
     l_pIOCfg->SetBoolProp(IMP_FBX_TEXTURE, true);
-    l_pIOCfg->SetBoolProp(IMP_FBX_LINK, false);
+    l_pIOCfg->SetBoolProp(IMP_FBX_LINK, true);
     l_pIOCfg->SetBoolProp(IMP_FBX_SHAPE, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_GOBO, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_ANIMATION, false);
@@ -124,25 +151,24 @@ void ModelData::init(wxString a_Filepath)
     l_pImporter->Import(l_pScene);
     l_pImporter->Destroy();
 
-    std::map<FbxNode *, unsigned int> l_NodeIdxMap;
+    std::map<FbxNode *, ModelNode *> l_NodeMap;
     std::map<FbxMesh *, unsigned int> l_MeshMap;
+	std::vector<ModelNode *> l_NodeVec(l_pScene->GetNodeCount(), nullptr);
     {
-        m_Nodes.resize(l_pScene->GetNodeCount(), nullptr);
-        for( unsigned int i=0 ; i<m_Nodes.size() ; ++i )
+        for( unsigned int i=0 ; i<l_NodeVec.size() ; ++i )
         {
-            m_Nodes[i] = new ModelNode();
+            l_NodeVec[i] = new ModelNode();
             FbxNode *l_pCurrNode = l_pScene->GetNode(i);
-            l_NodeIdxMap[l_pCurrNode] = i;
+            l_NodeMap[l_pCurrNode] = l_NodeVec[i];
 
             FbxAMatrix l_FbxMat = l_pCurrNode->EvaluateLocalTransform();
 
-            m_Nodes[i]->m_NodeName = l_pCurrNode->GetName();
+            l_NodeVec[i]->m_NodeName = l_pCurrNode->GetName();
             for( unsigned int j=0 ; j<4 ; ++j )
             {
                 FbxVector4 l_Data = l_FbxMat.GetColumn(j);
-                m_Nodes[i]->m_Transform[j] = glm::vec4(l_Data[0], l_Data[1], l_Data[2], l_Data[3]);
+                l_NodeVec[i]->m_Transform[j] = glm::vec4(l_Data[0], l_Data[1], l_Data[2], l_Data[3]);
             }
-            //m_ModelNodes[i]->m_Transform = glm::transpose(m_ModelNodes[i]->m_Transform);
 
             FbxNodeAttribute *l_pNodeAttr = l_pCurrNode->GetNodeAttribute();
             if( nullptr != l_pNodeAttr )
@@ -160,7 +186,7 @@ void ModelData::init(wxString a_Filepath)
                             l_MeshMap.insert(std::make_pair(l_pMesh, l_MeshIdx));
                         }
                         else l_MeshIdx = l_MeshIt->second;
-                        m_Nodes[i]->m_RefMesh.push_back(l_MeshIdx);
+                        l_NodeVec[i]->m_RefMesh.push_back(l_MeshIdx);
                         }break;
 
                     default:break;
@@ -168,37 +194,59 @@ void ModelData::init(wxString a_Filepath)
             }
         }
 
-        for( unsigned int i=0 ; i<m_Nodes.size() ; ++i )
+		std::vector<ModelNode *> l_TempRootNodes;
+        for( unsigned int i=0 ; i<l_NodeVec.size() ; ++i )
         {
             FbxNode *l_pCurrNode = l_pScene->GetNode(i);
-            if( nullptr != l_pCurrNode->GetParent() ) m_Nodes[i]->m_pParent = m_Nodes[l_NodeIdxMap[l_pCurrNode->GetParent()]];
+            if( nullptr != l_pCurrNode->GetParent() ) l_NodeVec[i]->m_pParent = l_NodeMap[l_pCurrNode->GetParent()];
+			else l_TempRootNodes.push_back(l_NodeVec[i]);
+
             for( int j=0 ; j<l_pCurrNode->GetChildCount() ; ++j )
             {
-                unsigned int l_ChildIdx = l_NodeIdxMap[l_pCurrNode->GetChild(j)];
-                m_Nodes[i]->m_Children.push_back(l_ChildIdx);
+                ModelNode *l_pChild = l_NodeMap[l_pCurrNode->GetChild(j)];
+                l_NodeVec[i]->m_Children.push_back(l_pChild);
             }
         }
+
+		if( !l_NodeVec.empty() )
+		{
+			if( 1 == l_TempRootNodes.size() ) m_pRootNode = l_TempRootNodes.front();
+			else
+			{
+				m_pRootNode = new ModelNode();
+				m_pRootNode->m_NodeName = wxT("RootNode");
+				for( unsigned int i=0 ; i<l_TempRootNodes.size() ; ++i )
+				{
+					l_TempRootNodes[i]->m_pParent = m_pRootNode;
+					m_pRootNode->m_Children.push_back(l_TempRootNodes[i]);
+				}
+			}
+		}
     }
 
     m_Meshes.resize(l_MeshMap.size(), nullptr);
+	std::vector<int> l_BoneRecord;
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
         unsigned int l_Idx = it->second;
-        m_Meshes[l_Idx] = new ModelMeshes();
-        m_Meshes[l_Idx]->m_Name = it->first->GetName();
-        m_Meshes[l_Idx]->m_Index = l_Idx;
+        Meshes *l_pDstMesh = m_Meshes[l_Idx] = new Meshes();
+        l_pDstMesh->m_Name = it->first->GetName();
+        l_pDstMesh->m_Index = l_Idx;
 
         FbxNode *l_pRefNode = it->first->GetNode();
-        m_Meshes[l_Idx]->m_RefNode.push_back(l_NodeIdxMap[l_pRefNode]);
+        l_pDstMesh->m_RefNode.push_back(l_NodeMap[l_pRefNode]);
 
         FbxVector4 l_FbxBoxMax, l_FbxBoxMin, l_FbxBoxCenter;
         l_pRefNode->EvaluateGlobalBoundingBoxMinMaxCenter(l_FbxBoxMin, l_FbxBoxMax, l_FbxBoxCenter);
         l_FbxBoxMax -= l_FbxBoxMin;
-        m_Meshes[l_Idx]->m_BoxSize = glm::vec3(l_FbxBoxMax[0], l_FbxBoxMax[1], l_FbxBoxMax[2]) * 0.5f;
+        l_pDstMesh->m_BoxSize = glm::vec3(l_FbxBoxMax[0], l_FbxBoxMax[1], l_FbxBoxMax[2]) * 0.5f;
 
         unsigned int l_NumVtx = l_pSrcMesh->GetControlPointsCount();
-        m_Meshes[l_Idx]->m_Vertex.resize(l_NumVtx);
+        l_pDstMesh->m_Vertex.resize(l_NumVtx);
+		l_BoneRecord.resize(l_NumVtx);
+		memset(l_BoneRecord.data(), 0, sizeof(int) * l_NumVtx);
+
         FbxVector4 l_Trans = l_pRefNode->GetGeometricTranslation(FbxNode::eSourcePivot);
         FbxVector4 l_Scale = l_pRefNode->GetGeometricScaling(FbxNode::eSourcePivot);
         FbxVector4 l_Rot = l_pRefNode->GetGeometricRotation(FbxNode::eSourcePivot);
@@ -214,63 +262,94 @@ void ModelData::init(wxString a_Filepath)
         {
             FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[i];
             glm::vec4 l_Temp = glm::vec4(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2], 1.0f) * l_MultiMat;
-            ModelVertex &l_TargetVtx = m_Meshes[l_Idx]->m_Vertex[i];
+            Vertex &l_TargetVtx = l_pDstMesh->m_Vertex[i];
             l_TargetVtx.m_Position = glm::vec3(l_Temp[0], l_Temp[1], l_Temp[2]);
         }
         
-        std::function<void(ModelVertex&, FbxVector4)> l_SetNormalFunc = [](ModelVertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetNormals(), m_Meshes[l_Idx], l_SetNormalFunc);
+        std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetNormals(), l_pDstMesh, l_SetNormalFunc);
 
-        std::function<void(ModelVertex&, FbxVector4)> l_SetTangentFunc = [](ModelVertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetTangents(), m_Meshes[l_Idx], l_SetTangentFunc);
+        std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetTangents(), l_pDstMesh, l_SetTangentFunc);
 
-        std::function<void(ModelVertex&, FbxVector4)> l_SetBinormalFunc = [](ModelVertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetBinormals(), m_Meshes[l_Idx], l_SetBinormalFunc);
+        std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetBinormals(), l_pDstMesh, l_SetBinormalFunc);
 
 		for( int i=0 ; i<l_pSrcMesh->GetLayerCount() ; ++i )
 		{
-			std::function<void(ModelVertex&, FbxVector2)> l_SetUVFunc = [&i](ModelVertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
-			std::function<void(ModelVertex&, FbxVector2)> l_SetUV2Func = [&i](ModelVertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
+			std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
+			std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
 
-			setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), m_Meshes[l_Idx], i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
+			setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_pDstMesh, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
         }
+
+		for( int i=0 ; i<l_pSrcMesh->GetDeformerCount() ; ++i )
+		{
+			FbxDeformer *l_pDefornmer = l_pSrcMesh->GetDeformer(i);
+			if( FbxDeformer::eSkin != l_pDefornmer->GetDeformerType() ) continue;
+
+			l_pDstMesh->m_bHasBone	= true;
+			FbxSkin *l_pSkin = (FbxSkin *)l_pDefornmer;
+			for( int j=0 ; j<l_pSkin->GetClusterCount() ; ++j )
+			{
+				FbxCluster *l_pCluster = l_pSkin->GetCluster(j);
+				l_pCluster->GetTransformLinkMatrix(l_VtxTrans);
+				
+				int l_BondIndex = l_pDstMesh->m_Bones.size();
+				glm::mat4x4 l_DstBonsMat(l_VtxTrans.Get(0, 0), l_VtxTrans.Get(0, 1), l_VtxTrans.Get(0, 2), l_VtxTrans.Get(0, 3)
+										,l_VtxTrans.Get(1, 0), l_VtxTrans.Get(1, 1), l_VtxTrans.Get(1, 2), l_VtxTrans.Get(1, 3)
+										,l_VtxTrans.Get(2, 0), l_VtxTrans.Get(2, 1), l_VtxTrans.Get(2, 2), l_VtxTrans.Get(2, 3)
+										,l_VtxTrans.Get(3, 0), l_VtxTrans.Get(3, 1), l_VtxTrans.Get(3, 2), l_VtxTrans.Get(3, 3));
+				l_pDstMesh->m_Bones.push_back(l_DstBonsMat);
+				for( int k=0 ; k<l_pCluster->GetControlPointIndicesCount() ; ++k )
+				{
+					Vertex &l_Vtx = l_pDstMesh->m_Vertex[l_pCluster->GetControlPointIndices()[k]];
+					int &l_WeightIdx = l_BoneRecord[l_pCluster->GetControlPointIndices()[k]];
+					assert(l_WeightIdx < 4);
+					l_Vtx.m_BoneId[l_WeightIdx] = l_BondIndex;
+					l_Vtx.m_Weight[l_WeightIdx] = l_pCluster->GetControlPointWeights()[k];
+					++l_WeightIdx;
+				}
+			}
+		}
 
         for( int i=0 ; i<l_pSrcMesh->GetPolygonCount() ; ++i )
         {
             for( unsigned int j=0 ; j<3 ; ++j )
             {
                 unsigned int l_PtIdx = l_pSrcMesh->GetPolygonVertex(i, j);
-                m_Meshes[l_Idx]->m_Indicies.push_back(l_PtIdx);        
+                l_pDstMesh->m_Indicies.push_back(l_PtIdx);        
             }
         }
 
 		for( int i=0 ; i<l_pRefNode->GetMaterialCount() ; ++i )
 		{
 			FbxSurfaceMaterial *l_pSrcMaterial = l_pRefNode->GetMaterial(i);
-			m_Meshes[l_Idx]->m_Texures[i][TEXUSAGE_DIFFUSE] = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sDiffuse);
+			l_pDstMesh->m_Texures[i][TEXUSAGE_DIFFUSE] = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sDiffuse);
             
 			wxString l_TexName(getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sSpecular));
-			if( 0 != l_TexName.length() ) m_Meshes[l_Idx]->m_Texures[i][TEXUSAGE_SPECULAR] = l_TexName;
+			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_SPECULAR] = l_TexName;
 
 			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sReflection);
-			if( 0 != l_TexName.length() ) m_Meshes[l_Idx]->m_Texures[i][TEXUSAGE_GLOSSINESS] = l_TexName;
+			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_GLOSSINESS] = l_TexName;
 
 			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sNormalMap);
-			if( 0 != l_TexName.length() ) m_Meshes[l_Idx]->m_Texures[i][TEXUSAGE_NORMAL] = l_TexName;
+			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_NORMAL] = l_TexName;
 			
 			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sBump);
-			if( 0 != l_TexName.length() ) m_Meshes[l_Idx]->m_Texures[i][TEXUSAGE_HEIGHT] = l_TexName;
+			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_HEIGHT] = l_TexName;
 		}
     }
 
     l_pScene->Clear();
+	l_pScene->Destroy();
+	l_pIOCfg->Destroy();
+	l_pSdkManager->Destroy();
 }
 
-ModelData::ModelNode* ModelData::find(wxString a_Name)
+ModelNode* ModelData::find(wxString a_Name)
 {
-	auto l_FindFunc = [&a_Name](ModelNode *a_pNode)->bool{ return a_pNode->m_NodeName == a_Name; };
-	auto it = std::find_if(m_Nodes.begin(), m_Nodes.end(), l_FindFunc);
-	return it == m_Nodes.end() ? nullptr : *it;
+	return nullptr != m_pRootNode ? m_pRootNode->find(a_Name) : nullptr;
 }
 #pragma endregion
 
