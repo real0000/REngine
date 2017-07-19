@@ -6,12 +6,12 @@
 #ifndef _CAMERA_H_
 #define _CAMERA_H_
 
-#include "Module/Scene/SceneNode.h"
-
 namespace R
 {
 
-class Camera : public SceneNode
+class EngineComponent;
+
+class CameraComponent : public EngineComponent
 {
 public:
 	enum
@@ -23,24 +23,25 @@ public:
 
 		NUM_MATRIX
 	};
-	Camera();
-	virtual ~Camera();
+	CameraComponent(SceneNode *a_pOwner);
+	virtual ~CameraComponent();
+	
+	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
+	virtual bool isHidden(){ return false; }
 
-	void setEyeCenter(glm::vec3 l_Eye, glm::vec3 l_Center);
-	void setEye(glm::vec3 l_Eye);
+	void setEyeCenter(glm::vec3 a_Eye, glm::vec3 a_Center);
+	void setEye(glm::vec3 a_Eye);
 	glm::vec3 getEye(){ return m_Eye; }
-	void setLookAt(glm::vec3 l_Center);
+	void setLookAt(glm::vec3 a_Center);
 	glm::vec3 getLookAt(){ return m_LookAt; }
-	void setUp(glm::vec3 l_Up);
+	void setUp(glm::vec3 a_Up);
 	glm::vec3 getUp(){ return m_Up; }
-	void setZoom(float l_Zoom);
-	float getZoom(){ return m_Zoom; }
-	void setOrthoView(float l_Width, float l_Height);
-    void setPerspectiveView(float l_Fovy, float l_Aspect, float l_Near, float l_Far);
-	glm::vec4 getPerspectiveParam(){ return m_PersParam; }
+	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far);
+    void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far);
+	glm::vec4 getViewParam(){ return m_ViewParam; }
 	bool isOrthoView(){ return m_bOrtho; }
 	
-	glm::mat4x4* getMatrix(unsigned int l_ID){ if( l_ID < NUM_MATRIX ) return &(m_Matrices[l_ID]); return nullptr; }
+	glm::mat4x4* getMatrix(unsigned int a_ID){ if( a_ID < NUM_MATRIX ) return &(m_Matrices[a_ID]); return nullptr; }
 	glm::mat4x4* getMatrix(){ return m_Matrices; }
 	
 private:
@@ -49,9 +50,7 @@ private:
 	void calViewProjection();
 
 	glm::mat4x4 m_Matrices[NUM_MATRIX];
-	glm::vec2 m_ViewSize;
-	glm::vec4 m_PersParam;
-	float m_Zoom;
+	glm::vec4 m_ViewParam;
 	bool m_bOrtho;
 	
 	glm::vec3 m_Eye, m_LookAt, m_Up;

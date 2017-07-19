@@ -5,67 +5,87 @@
 
 #include "CommonUtil.h"
 #include "REngine.h"
-#include <time.h>
+
+#include <chrono>
+#include "boost/property_tree/ini_parser.hpp"
 
 namespace R
 {
 
+STRING_ENUM_CLASS_INST(GraphicApi)
+
+#pragma region EngineComponent
 //
-// EngineThread
+// EngineComponent
 //
-EngineThread::EngineThread(float l_Period, unsigned int l_ID)
-	: m_ID(l_ID), m_Period(l_Period)
-	, m_Prev(0)
-	, m_Curr(0)
-	, m_bExit(false)
+EngineComponent::EngineComponent(SceneNode *a_pOwner)
+	: m_Name(wxT(""))
+	, m_pRefOwner(a_pOwner)
 {
 }
 
-EngineThread::~EngineThread()
+EngineComponent::~EngineComponent()
 {
 }
 
-void EngineThread::fakeEntry()
+void EngineComponent::setOwnerNode(SceneNode *a_pOwner)
 {
-	m_Curr = timeGetTime();
-	float l_Delta = (m_Curr - m_Prev) * 0.001f;
-	if( l_Delta >= m_Period )
-	{
-		EngineCore::singleton().threadUpdate(m_ID, l_Delta);
-		m_Prev = m_Curr;
-	}
+	assert(a_pOwner);
+	m_pRefOwner = a_pOwner;
+}
+#pragma endregion
+
+#pragma region EngineSetting
+//
+// EngineSetting
+//
+EngineSetting& EngineSetting::singleton()
+{
+	static EngineSetting s_Inst;
+	return s_Inst;
 }
 
-wxThread::ExitCode EngineThread::Entry()
+EngineSetting::EngineSetting()
+	: m_Title(wxT("REngine"))
+	, m_Api(GraphicApi::d3d12)
+	, m_DefaultSize(1280, 720)
+	, m_bFullScreen(false)
+	, m_FPS(60)
 {
-	while( !EngineCore::singleton().isShutdown() && !m_bExit )
-	{
-		m_Curr = timeGetTime();
-		float l_Delta = (m_Curr - m_Prev) * 0.001f;
-		if( l_Delta >= m_Period )
-		{
-			EngineCore::singleton().threadUpdate(m_ID, l_Delta);
-			m_Prev = m_Curr;
-		}
-		else
-		{
-			float l_Percent = (m_Period - l_Delta) / m_Period;
-			unsigned int l_Priority = (wxPRIORITY_MAX - wxPRIORITY_DEFAULT) * l_Percent * 0.5f + wxPRIORITY_DEFAULT;
-			SetPriority(l_Priority);
-			Sleep((m_Curr - m_Prev) >> 1);
-		}
-	}
-    
-	EngineCore::singleton().threadJoin(m_ID);
+	boost::property_tree::ptree l_IniFile;
+	boost::property_tree::ini_parser::read_ini(CONIFG_FILE, l_IniFile);
+	if( l_IniFile.empty() ) return;
 
-	return NULL;
+	m_Title = l_IniFile.get("General.Title", "REngine");
+
+	m_Api = GraphicApi::fromString(l_IniFile.get("Graphic.Api", "d3d12"));
+	m_DefaultSize.x = l_IniFile.get("Graphic.DefaultWidth", 1280);
+	m_DefaultSize.y = l_IniFile.get("Graphic.DefaultHeight", 720);
+	m_bFullScreen = l_IniFile.get("Graphic.FullScreen", false);
+	m_FPS = l_IniFile.get("Graphic.FPS", 60);
 }
 
-void EngineThread::OnExit()
+EngineSetting::~EngineSetting()
 {
-
 }
 
+void EngineSetting::save()
+{
+	boost::property_tree::ptree l_IniFile;
+	
+	l_IniFile.put("General.Title", m_Title.c_str());
+
+	l_IniFile.put("Graphic.Api", GraphicApi::toString(m_Api));
+	l_IniFile.put("Graphic.Width", m_DefaultSize.x);
+	l_IniFile.put("Graphic.Height", m_DefaultSize.y);
+	l_IniFile.put("Graphic.FullScreen", m_bFullScreen);
+	l_IniFile.put("Graphic.FPS", 60);
+
+	boost::property_tree::ini_parser::write_ini(CONIFG_FILE, l_IniFile);
+}
+#pragma endregion
+
+#pragma region EngineCore
 //
 // EngineCore
 //
@@ -81,80 +101,75 @@ EngineCore& EngineCore::singleton()
 
 EngineCore::EngineCore()
 	: m_bValid(false)
+	, m_bShutdown(false)
+	, m_pMainLoop(nullptr)
 {
 }
 
 EngineCore::~EngineCore()
 {
-	for( unsigned int i=0 ; i<m_MutexLock.size() ; ++i ) delete m_MutexLock[i];
-	m_MutexLock.clear();
+	if( !m_bValid ) return;
+
+	if( nullptr != m_pMainLoop )
+	{
+		delete m_pMainLoop;
+		m_pMainLoop = nullptr;
+	}
 }
 
 bool EngineCore::init()
 {
-	m_bValid = true;
-
-	for( unsigned int i=0 ; i<LOCKER_CUSTOM_ID_START ; ++i ) m_MutexLock.push_back(new wxMutex());
-
-	m_pMainMachine = new CoreMachine();
-	m_pMainMachine->switchState(CORE_STATE_DEFAULT);
-	
-	EngineThread *l_pNewEngineThread = new EngineThread(1.0f/60.0f, DEF_THREAD_GRAPHIC);// graphic thread shoud be main thread, so create as fake
-	m_EngineThread[DEF_THREAD_GRAPHIC] = l_pNewEngineThread;
-
-	addThread(DEF_THREAD_INPUT, 1.0f/60.0f);
-	addThread(DEF_THREAD_LOADER_0, 1.0f/20.0f);
-	addThread(DEF_THREAD_LOADER_1, 1.0f/20.0f);
-	addThread(DEF_THREAD_LOADER_2, 1.0f/20.0f);
-	addThread(DEF_THREAD_LOADER_3, 1.0f/20.0f);
-
-	return true;
-}
-
-void EngineCore::threadUpdate(unsigned int l_ID, float l_Delta)
-{
-	m_pMainMachine->update(l_ID, l_Delta);
-	for( unsigned int i=0 ; i<m_RegistedMachine.size() ; ++i ) m_RegistedMachine[i]->update(l_ID, l_Delta);
-}
-
-void EngineCore::threadJoin(unsigned int l_ID)
-{
-	lock(LOCKER_MAIN);
-
-	std::map<unsigned int, EngineThread *>::iterator it = m_EngineThread.find(l_ID);
-	assert(m_EngineThread.end() != it && "invalid thread id");
-
-	m_pMainMachine->addInterruptEvent(l_ID, COMMON_EVENT_THREAD_END);
-	for( unsigned int i=0 ; i<m_RegistedMachine.size() ; ++i ) m_RegistedMachine[i]->addInterruptEvent(l_ID, COMMON_EVENT_THREAD_END);
-
-	if( DEF_THREAD_GRAPHIC == l_ID ) delete it->second;
-	m_EngineThread.erase(it);
-
-	if( m_EngineThread.empty() && m_bShutdown )
+	switch( EngineSetting::singleton().m_Api )
 	{
-		m_pMainMachine->addInterruptEvent(l_ID, COMMON_EVENT_SHUTDOWN);
-		for( unsigned int i=0 ; i<m_RegistedMachine.size() ; i++ )
-		{
-			m_RegistedMachine[i]->addInterruptEvent(l_ID, COMMON_EVENT_SHUTDOWN);
-			delete m_RegistedMachine[i];
-		}
-		m_RegistedMachine.clear();
-		delete m_pMainMachine;
-		m_pMainMachine = NULL;
+		case GraphicApi::d3d12:
+			GraphicDeviceManager::singleton().init<D3D12Device>();
+			m_bValid = true;
+			break;
+
+		default:break;
 	}
+	if( m_bValid ) m_pMainLoop = new std::thread(&EngineCore::mainLoop, this);
 	
-	unlock(LOCKER_MAIN);
+	return m_bValid;
 }
 
-void EngineCore::initGameWindow(wxString l_CfgFile)
+GraphicCanvas* EngineCore::createCanvas()
 {
-	//
-	// to do : read xml file for settings
-	//
-	m_pMainMachine->addEvent(DEF_THREAD_GRAPHIC, 0.0f, CoreMachine::EVENT_CREATE_SINGLE_CANVAS, wxT("0 Test 1280 720 0 0"));
+	if( !m_bValid ) return nullptr;
+	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
+
+	wxFrame *l_pNewWindow = new wxFrame(NULL, wxID_ANY, EngineSetting::singleton().m_Title);
+	l_pNewWindow->Show();
+
+	GraphicCanvas *l_pCanvas = new GraphicCanvas(l_pNewWindow, wxID_ANY);
+	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
+	l_pCanvas->setFullScreen(EngineSetting::singleton().m_bFullScreen);
+	l_pCanvas->init();
+	
+	m_ManagedCanvas.insert(l_pCanvas);
+	return l_pCanvas;
 }
 
-//void initWnd(wxWindow *l_pParent);
+GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
+{
+	if( !m_bValid ) return nullptr;
+	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
+
+	GraphicCanvas *l_pCanvas = new GraphicCanvas(a_pParent, wxID_ANY);
+	l_pCanvas->init();
+	m_ManagedCanvas.insert(l_pCanvas);
+	return l_pCanvas;
+}
+
+void EngineCore::destroyCanvas(GraphicCanvas *a_pCanvas)
+{
+	if( !m_bValid ) return;
+	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
+
+	a_pCanvas->getCommander()->flush();
+	m_ManagedCanvas.erase(a_pCanvas);
+	delete a_pCanvas;
+}
 
 bool EngineCore::isShutdown()
 {
@@ -164,54 +179,34 @@ bool EngineCore::isShutdown()
 void EngineCore::shutDown()
 {
 	m_bShutdown = true;
-	while( 1 != m_EngineThread.size() ) Sleep(1000 / 60);
-	threadJoin(DEF_THREAD_GRAPHIC);
-
-	ExternModelFileManager::purge();
-	GLSLProgramManager::purge();
-	TextureManager::purge();
+	m_bValid = false;
+	m_pMainLoop->join();
+	for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) delete *it;
+	m_ManagedCanvas.clear();
 }
 
 void EngineCore::mainLoop()
 {
-	m_EngineThread[DEF_THREAD_GRAPHIC]->fakeEntry();
-}
+	auto l_Start = std::chrono::high_resolution_clock::now();
+	while( !m_bShutdown )
+	{
+		auto l_Now = std::chrono::high_resolution_clock::now();
+		auto l_Delta = std::chrono::duration<double, std::milli>(l_Now - l_Start).count();
+		if( l_Delta < 1000.0f/EngineSetting::singleton().m_FPS )
+		{
+			std::this_thread::yield();
+			continue;
+		}
 
-void EngineCore::addThread(unsigned int l_ID, float l_Period)
-{
-	assert( l_Period > 0.0f );
+		l_Delta *= 0.001f;// to second
+		{
+			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
+			for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) (*it)->update(l_Delta);
+		}
 
-	EngineThread *l_pNewEngineThread = new EngineThread(l_Period, l_ID);
-	
-	lock(LOCKER_MAIN);
-		m_EngineThread[l_ID] = l_pNewEngineThread;
-	unlock(LOCKER_MAIN);
-
-	l_pNewEngineThread->Create();
-	l_pNewEngineThread->Run();
+		l_Start = l_Now;
+	}
 }
-	
-void EngineCore::removeThread(unsigned int l_ID)
-{
-	assert(l_ID >= DEF_THREAD_RESERVE_END && "Invalid thread id");
-	std::map<unsigned int, EngineThread *>::iterator it = m_EngineThread.find(l_ID);
-	assert(it != m_EngineThread.end());
-	it->second->setOffDuty();
-}
-
-inline void EngineCore::lock(unsigned int l_LockerID)
-{
-	m_MutexLock[l_LockerID]->Lock();
-}
-
-inline void EngineCore::unlock(unsigned int l_LockerID)
-{
-	m_MutexLock[l_LockerID]->Unlock();
-}
-
-void EngineCore::loadModel(wxString l_Filename, bool l_bImmediate)
-{
-	m_pMainMachine->addEvent(DEF_THREAD_GRAPHIC, 0.0f, CoreMachine::EVENT_LOAD_MODEL_FILE, wxString::Format(wxT("%s %d"), l_Filename, l_bImmediate ? 1 : 0));
-}
+#pragma endregion
 
 }

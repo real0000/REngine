@@ -372,7 +372,7 @@ ModelManager::~ModelManager()
 {
 }
 
-void ModelManager::loadFile(ModelData *a_pInst, wxString a_Path)
+void ModelManager::loadFile(std::shared_ptr<ModelData> a_pInst, wxString a_Path)
 {
 	a_pInst->init(a_Path);
 }

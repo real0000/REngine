@@ -9,35 +9,39 @@
 namespace R
 {
 
-class SceneNode;
-class Camera;
+class CameraComponent;
+class EngineComponent;
 
-class SceneBlock;
-class Scene;
-/*
-class BaseSceneManager
+class SceneNode
 {
 public:
-	virtual void addSceneNode(SceneNode *l_pNode) = 0;
-	virtual void removedSceneNode(SceneNode *l_pNode) = 0;
-	virtual void getVisibleList(Camera &l_Viewer, std::vector<SceneNode *> &l_OutputList) = 0;
+	SceneNode();
+	virtual ~SceneNode();
 
-};*/
+	void setTransform(glm::mat4x4 a_Transform);
+	void addChild(SceneNode *a_pNode);
+	void update(glm::mat4x4 a_ParentTranform);
 
-class SceneBlock
-{
-	friend class Scene;
+	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
+	void getComponent(wxString a_Name, std::vector< std::shared_ptr<EngineComponent> > &a_Output);
+	template<typename T>
+	void getComponent(unsigned int a_TypeID, std::vector< std::shared_ptr<T> > &a_Output)
+	{
+		auto it = m_Components.find(a_TypeID);
+		if( m_Components.end() == it || it->second.emplace() ) return;
+		a_Output.resize(it->second.size());
+		std::copy(it->second.begin(), it->second.end(), a_Output.begin());
+	}
+
 private:
-	SceneBlock();
-	virtual ~SceneBlock();
+	glm::mat4x4 m_World;
+	glm::mat4x4 m_LocalTransform;
 
-	void active();
-	void deactive();
-
-	SceneBlock *m_pNeighbors[26];
-	std::vector<SceneNode *> m_RootNodes;
-	physx::PxScene *m_pPhysicWorld;
+	std::vector<SceneNode *> m_Children;
+	SceneNode *m_pParent;
+	std::map<unsigned int, std::vector< std::shared_ptr<EngineComponent> > > m_Components;
 };
+
 
 class Scene
 {
@@ -45,10 +49,11 @@ public:
 	Scene();
 	virtual ~Scene();
 
-	void addSceneNode(SceneNode *l_pNode);
+
 	
 private:
-	std::vector<SceneBlock *> m_SceneBlocks;
+	SceneNode *m_pRoot;
+	CameraComponent *m_pCurrCamera;
 };
 
 }

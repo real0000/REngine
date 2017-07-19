@@ -32,7 +32,7 @@ GraphicCommander::~GraphicCommander()
 
 void GraphicCommander::useProgram(unsigned int a_Key)
 {
-	ShaderProgram *l_pProgram = ProgramManager::singleton().getData(a_Key);
+	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(a_Key);
 	useProgram(l_pProgram);
 }
 
@@ -54,14 +54,70 @@ void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ..
 //
 // GraphicCanvas
 //
-GraphicCanvas::GraphicCanvas()
-	: m_pRefCommander(nullptr)
+GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
+	: wxWindow(a_pParent, a_ID)
+	, m_pCommander(nullptr)
 	, m_RenderFunc(nullptr)
+	, m_bFullScreen(false)
 {
+	Layout();
+	Fit();
 }
 
 GraphicCanvas::~GraphicCanvas()
 {
+	SAFE_DELETE(m_pCommander)
+}
+
+void GraphicCanvas::init()
+{
+	m_pCommander = GDEVICE()->commanderFactory();
+	glm::ivec2 l_ScreenSize(GetClientSize().x, GetClientSize().y);
+	m_pCommander->init(GetHandle(), l_ScreenSize, m_bFullScreen);
+
+	if( m_bFullScreen )
+	{
+#ifdef WIN32
+		DEVMODE l_DevMode;
+		memset(&l_DevMode, 0, sizeof(DEVMODE));
+		l_DevMode.dmSize = sizeof(DEVMODE);
+		l_DevMode.dmPelsWidth = l_ScreenSize.x;
+		l_DevMode.dmPelsHeight = l_ScreenSize.y;
+		l_DevMode.dmBitsPerPel = 32;
+		l_DevMode.dmDisplayFrequency = 60;
+		l_DevMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+
+		bool l_bSuccess = ChangeDisplaySettings(&l_DevMode, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
+		assert( l_bSuccess && "invalid display settings");
+#endif
+	}
+}
+
+void GraphicCanvas::setFullScreen(bool a_bFullScreen)
+{
+	if( nullptr == m_pCommander )
+	{
+		m_bFullScreen = a_bFullScreen;
+		return;
+	}
+
+	if( m_bFullScreen != a_bFullScreen )
+	{
+		m_bFullScreen = a_bFullScreen;
+#ifdef WIN32
+		DEVMODE l_DevMode;
+		memset(&l_DevMode, 0, sizeof(DEVMODE));
+		l_DevMode.dmSize = sizeof(DEVMODE);
+		l_DevMode.dmPelsWidth = GetClientSize().x;
+		l_DevMode.dmPelsHeight = GetClientSize().y;
+		l_DevMode.dmBitsPerPel = 32;
+		l_DevMode.dmDisplayFrequency = 60;
+		l_DevMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+
+		bool l_bSuccess = ChangeDisplaySettings(&l_DevMode, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
+		assert( l_bSuccess && "invalid display settings");
+#endif
+	}
 }
 
 void GraphicCanvas::update(float a_Delta)
@@ -69,26 +125,16 @@ void GraphicCanvas::update(float a_Delta)
 	if( m_RenderFunc ) m_RenderFunc(a_Delta);
 }
 
-void GraphicCanvas::init(WXWidget a_Wnd, glm::ivec2 a_Size, bool a_bFullScr)
-{
-	if( nullptr == m_pRefCommander ) return ;
-	m_pRefCommander->init(a_Wnd, a_Size, a_bFullScr);
-}
+BEGIN_EVENT_TABLE(GraphicCanvas, wxWindow)
+	EVT_SIZE(GraphicCanvas::onSize)
+END_EVENT_TABLE()
 
-void GraphicCanvas::resize(glm::ivec2 a_Size, bool a_bFullScr)
+void GraphicCanvas::onSize(wxSizeEvent& event)
 {
-	if( nullptr == m_pRefCommander ) return ;
-	m_pRefCommander->resize(a_Size, a_bFullScr);
-}
-
-void GraphicCanvas::setCommander(GraphicCommander *a_pCommander)
-{
-	if( nullptr == m_pRefCommander ) m_pRefCommander = a_pCommander;
-}
-
-void GraphicCanvas::setRenderFunction(std::function<void(float)> a_Func)
-{
-	m_RenderFunc = a_Func;
+	if( nullptr == m_pCommander ) return;
+	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
+	
+	m_pCommander->resize(glm::ivec2(GetClientSize().x, GetClientSize().y), m_bFullScreen);
 }
 #pragma endregion
 

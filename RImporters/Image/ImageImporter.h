@@ -43,7 +43,7 @@ private:
 	ImageManager();
 	virtual ~ImageManager();
 
-	void loadFile(ImageData *a_pInst, wxString a_Path);
+	void loadFile(std::shared_ptr<ImageData> a_pInst, wxString a_Path);
 };
 
 }

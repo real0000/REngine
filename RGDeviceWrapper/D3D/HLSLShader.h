@@ -35,16 +35,6 @@ protected:
 private:
 	HLSLProgram12();
 	virtual ~HLSLProgram12();
-
-	struct RegisterInfo
-	{
-		ShaderRegType::Key m_Type;
-		int m_RootIndex;
-		int m_Slot;
-		int m_Offset;// for constant
-		int m_Size;// for constant
-		bool m_bReserved;
-	};
 	
 public:
 	ID3D12PipelineState* getPipeline(){ return m_pPipeline; }

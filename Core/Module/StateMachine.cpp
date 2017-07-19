@@ -11,9 +11,9 @@ namespace R
 //
 // StateItem
 //
-BaseStateItem::BaseStateItem(StateMachine *l_pOwner, int l_StateID)
-	: m_pOwner(l_pOwner)
-	, m_StateID(m_StateID)
+BaseStateItem::BaseStateItem(StateMachine *a_pOwner, int a_StateID)
+	: m_pOwner(a_pOwner)
+	, m_StateID(a_StateID)
 {
 	assert(NULL != m_pOwner);
 }
@@ -22,33 +22,33 @@ BaseStateItem::~BaseStateItem()
 {
 }
 
-void BaseStateItem::switchState(unsigned int l_StateID)
+void BaseStateItem::switchState(unsigned int a_StateID)
 {
-	m_pOwner->switchState(l_StateID);
+	m_pOwner->switchState(a_StateID);
 }
 
-unsigned int BaseStateItem::addEvent(unsigned int l_ThreadID, float l_DelayTime, int l_EventID, ...)
+unsigned int BaseStateItem::addEvent(float a_DelayTime, int a_EventID, ...)
 {
 	va_list l_Args;
 
-	va_start(l_Args, l_EventID);
+	va_start(l_Args, a_EventID);
 
 	wxString l_Params;
-	l_Params.FormatV(m_pOwner->getEventFormat(l_EventID), l_Args);
+	l_Params.FormatV(m_pOwner->getEventFormat(a_EventID), l_Args);
 
 	va_end(l_Args);
 
-	return m_pOwner->addEvent(l_ThreadID, l_DelayTime, l_EventID, l_Params);
+	return m_pOwner->addEvent(a_DelayTime, a_EventID, l_Params);
 }
 
-unsigned int BaseStateItem::addEvent(unsigned int l_ThreadID, float l_DelayTime, int l_EventID, wxString l_Params)
+unsigned int BaseStateItem::addEvent(float a_DelayTime, int a_EventID, wxString a_Params)
 {
-	return m_pOwner->addEvent(l_ThreadID, l_DelayTime, l_EventID, l_Params);
+	return m_pOwner->addEvent(a_DelayTime, a_EventID, a_Params);
 }
 
-void BaseStateItem::removeEvent(unsigned int l_EventKey)
+void BaseStateItem::removeEvent(unsigned int a_EventKey)
 {
-	m_pOwner->removeEvent(l_EventKey);
+	m_pOwner->removeEvent(a_EventKey);
 }
 
 unsigned int BaseStateItem::getPrevStateID()
@@ -78,35 +78,28 @@ StateMachine::~StateMachine()
 	m_StateStorage.clear();
 }
 
-void StateMachine::update(unsigned int l_ThreadID, float l_Delta)
+void StateMachine::update(float a_Delta)
 {
-	std::map<unsigned int, std::map<unsigned int, StateEvent> >::iterator it = m_Events.find(l_ThreadID);
-	if( m_Events.end() == m_Events.find(l_ThreadID) )
-	{
-		m_Events[l_ThreadID] = std::map<unsigned int, StateEvent>();
-		it = m_Events.find(l_ThreadID);
-	}
-
 	std::vector< std::map<unsigned int, StateEvent>::iterator > l_EventList;
-	for( std::map<unsigned int, StateEvent>::iterator l_StateIt = it->second.begin() ; l_StateIt != it->second.end() ; l_StateIt++ )
+	for( auto l_StateIt = m_Events.begin() ; l_StateIt != m_Events.end() ; l_StateIt++ )
 	{
-		l_StateIt->second.m_Time -= l_Delta;
+		l_StateIt->second.m_Time -= a_Delta;
 		if( 0.0f >= l_StateIt->second.m_Time ) l_EventList.push_back(l_StateIt);
 	}
 
 	if( NULL != m_pCurrState )
 	{
 		for( unsigned int i=0 ; i<l_EventList.size() ; ++i ) m_pCurrState->eventHandler(l_EventList[i]->second.m_EventID, l_EventList[i]->second.m_Params);
-		m_pCurrState->update(l_ThreadID, l_Delta);
+		m_pCurrState->update(a_Delta);
 	}
 
-	for( int i=int(l_EventList.size())-1 ; i>=0 ; --i ) it->second.erase(l_EventList[i]);
+	for( int i=int(l_EventList.size())-1 ; i>=0 ; --i ) m_Events.erase(l_EventList[i]);
 }
 
-void StateMachine::switchState(unsigned int StateID)
+void StateMachine::switchState(unsigned int a_StateID)
 {
-	BaseStateItem *l_pItem = m_StateStorage[StateID];
-	if( NULL == l_pItem ) m_StateStorage[StateID] = l_pItem = stateItemFactory(StateID);
+	BaseStateItem *l_pItem = m_StateStorage[a_StateID];
+	if( NULL == l_pItem ) m_StateStorage[a_StateID] = l_pItem = stateItemFactory(a_StateID);
 	assert(NULL != l_pItem);
 
 	m_pNextState = l_pItem;
@@ -117,45 +110,34 @@ void StateMachine::switchState(unsigned int StateID)
 	m_pCurrState->begin();
 }
 
-unsigned int StateMachine::addEvent(unsigned int l_ThreadID, float l_DelayTime, unsigned int l_EventID, wxString l_Params)
+unsigned int StateMachine::addEvent(float a_DelayTime, unsigned int a_EventID, wxString a_Params)
 {
-	unsigned int l_ID = m_EventSerial | (l_ThreadID << 24);
+	unsigned int l_ID = m_EventSerial;
+	++m_EventSerial;
 	
 	StateEvent l_NewEvt;
-	l_NewEvt.m_EventID = l_EventID;
-	l_NewEvt.m_Time = l_DelayTime;
-	splitString(wxT(' '), l_Params, l_NewEvt.m_Params);
+	l_NewEvt.m_EventID = a_EventID;
+	l_NewEvt.m_Time = a_DelayTime;
+	splitString(wxT(' '), a_Params, l_NewEvt.m_Params);
+	m_Events.insert(std::make_pair(m_EventSerial, l_NewEvt));
 
-	std::map<unsigned int, std::map<unsigned int, StateEvent> >::iterator it = m_Events.find(l_ThreadID);
-	if( m_Events.end() == m_Events.find(l_ThreadID) )
-	{
-		m_Events[l_ThreadID] = std::map<unsigned int, StateEvent>();
-		it = m_Events.find(l_ThreadID);
-	}
-
-	it->second[m_EventSerial] = l_NewEvt;
-
-	m_EventSerial = (++m_EventSerial) % 0xffffff;
 	return l_ID;
 }
 
-void StateMachine::addInterruptEvent(unsigned int l_ThreadID, unsigned int l_EventID, wxString l_Params)
+void StateMachine::addInterruptEvent(unsigned int a_EventID, wxString a_Params)
 {
-	unsigned int l_ID = m_EventSerial | (l_ThreadID << 24);
+	unsigned int l_ID = m_EventSerial;
 	
 	std::vector<wxString> l_SplitParams;
-	splitString(wxT(' '), l_Params, l_SplitParams);
+	splitString(wxT(' '), a_Params, l_SplitParams);
 
-	if( NULL != m_pCurrState ) m_pCurrState->eventHandler(l_EventID, l_SplitParams);
+	if( NULL != m_pCurrState ) m_pCurrState->eventHandler(a_EventID, l_SplitParams);
 }
 
-void StateMachine::removeEvent(unsigned int l_EventID)
+void StateMachine::removeEvent(unsigned int a_EventID)
 {
-	int l_ThreadID = (l_EventID & 0xff000000) >> 24;
-	int l_EventSerial = l_EventID & 0x00ffffff;
-	std::map<unsigned int, StateEvent> &l_EvtList = m_Events[l_ThreadID];
-	std::map<unsigned int, StateEvent>::iterator it = l_EvtList.find(l_EventSerial);
-	if( l_EvtList.end() != it ) l_EvtList.erase(it);
+	std::map<unsigned int, StateEvent>::iterator it = m_Events.find(a_EventID);
+	if( m_Events.end() != it ) m_Events.erase(it);
 }
 
 }

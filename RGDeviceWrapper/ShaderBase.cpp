@@ -17,11 +17,13 @@ STRING_ENUM_CLASS_INST(ShaderStages)
 //
 ProgramTextureDesc::ProgramTextureDesc()
 	: m_Describe(wxT(""))
+	, m_pRegInfo(nullptr)
 {
 }
 
 ProgramTextureDesc::~ProgramTextureDesc()
 {
+	SAFE_DELETE(m_pRegInfo)
 }
 
 //
@@ -32,13 +34,14 @@ ProgramParamDesc::ProgramParamDesc()
 	, m_Offset(0)
 	, m_Type(ShaderParamType::float1)
 	, m_pDefault(nullptr)
-	, m_pRefRegInfo(nullptr)
+	, m_pRegInfo(nullptr)
 {
 }
 
 ProgramParamDesc::~ProgramParamDesc()
 {
 	SAFE_DELETE(m_pDefault)
+	SAFE_DELETE(m_pRegInfo)
 }
 
 //
@@ -46,7 +49,7 @@ ProgramParamDesc::~ProgramParamDesc()
 //
 ProgramBlockDesc::ProgramBlockDesc()
 	: m_BlockSize(0)
-	, m_pRefRegInfo(nullptr)
+	, m_pRegInfo(nullptr)
 {
 }
 
@@ -54,6 +57,7 @@ ProgramBlockDesc::~ProgramBlockDesc()
 {
 	for( auto it = m_ParamDesc.begin() ; it != m_ParamDesc.end() ; ++it ) delete it->second;
 	m_ParamDesc.clear();
+	SAFE_DELETE(m_pRegInfo)
 }
 #pragma endregion
 
@@ -267,6 +271,7 @@ void ProgramManager::init(ProgramManagerComponent *a_pComponent)
 {
 	assert(nullptr == m_pShaderComponent);
 	m_pShaderComponent = a_pComponent;
+	ProgramManager::singleton();// to init default program
 }
 
 ProgramManager& ProgramManager::singleton()
@@ -297,13 +302,12 @@ void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, 
 	return m_pShaderComponent->getShader(a_Filename, a_Stage, a_Module, a_ParamDefine);
 }
 
-
-ShaderProgram* ProgramManager::allocator()
+std::shared_ptr<ShaderProgram> ProgramManager::allocator()
 {
-	return m_pShaderComponent->newProgram();
+	return std::shared_ptr<ShaderProgram>(m_pShaderComponent->newProgram());;
 }
 
-void ProgramManager::loadFile(ShaderProgram *a_pInst, wxString a_Path)
+void ProgramManager::loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path)
 {
 	boost::property_tree::ptree l_XMLTree;
 	boost::property_tree::xml_parser::read_xml((const char *)a_Path.c_str(), l_XMLTree);

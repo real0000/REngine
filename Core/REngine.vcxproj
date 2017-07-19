@@ -26,26 +26,26 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_WIN|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_WIN|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -160,44 +160,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="CommonConst.h" />
     <ClInclude Include="Core.h" />
-    <ClInclude Include="Module\CoreMachine.h" />
-    <ClInclude Include="Module\Material.h" />
-    <ClInclude Include="Module\Model\DrawBuffer.h" />
-    <ClInclude Include="Module\Model\Entity.h" />
-    <ClInclude Include="Module\Model\SimpleObject.h" />
+    <ClInclude Include="Module\Model\Material.h" />
+    <ClInclude Include="Module\Model\Model.h" />
     <ClInclude Include="Module\PhysicalModule.h" />
     <ClInclude Include="Module\Scene\Camera.h" />
     <ClInclude Include="Module\Scene\Scene.h" />
-    <ClInclude Include="Module\Scene\SceneNode.h" />
     <ClInclude Include="Module\StateMachine.h" />
     <ClInclude Include="Module\Texture\FrameTexture.h" />
     <ClInclude Include="Module\Texture\TextureAtlas.h" />
     <ClInclude Include="Module\Texture\Texture.h" />
     <ClInclude Include="REngine.h" />
-    <ClInclude Include="wxCanvas.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Module\CoreMachine.cpp" />
-    <ClCompile Include="Module\Material.cpp" />
-    <ClCompile Include="Module\Model\DrawBuffer.cpp" />
-    <ClCompile Include="Module\Model\Entity.cpp" />
-    <ClCompile Include="Module\Model\SimpleObject.cpp" />
+    <ClCompile Include="Module\Model\Material.cpp" />
+    <ClCompile Include="Module\Model\Model.cpp" />
     <ClCompile Include="Module\PhysicalModule.cpp" />
     <ClCompile Include="Module\Scene\Camera.cpp" />
     <ClCompile Include="Module\Scene\Scene.cpp" />
-    <ClCompile Include="Module\Scene\SceneNode.cpp" />
     <ClCompile Include="Module\StateMachine.cpp" />
     <ClCompile Include="Module\Texture\FrameTexture.cpp" />
     <ClCompile Include="Module\Texture\TextureAtlas.cpp" />
     <ClCompile Include="Module\Texture\Texture.cpp" />
     <ClCompile Include="REngine.cpp" />
-    <ClCompile Include="wxCanvas.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

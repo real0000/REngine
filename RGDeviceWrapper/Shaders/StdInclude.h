@@ -61,11 +61,7 @@
 		float4x4 m_Projection;
 		float4x4 m_ViewProjection;
 		float4x4 m_InvView;
-		float4x4 m_InvProjection;
-		float4x4 m_InvViewProjection;
 		float4 m_CameraParam;// screen width, screen height, near, far
-		float3 m_Time;//time, sin(Time), cos(Time), 
-		float m_Random;// 0 ~ 1.0
 	};
 
 	float3 encodeNormal(float3 a_Normal)

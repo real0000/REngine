@@ -107,7 +107,7 @@ public:
 	virtual void resize(glm::ivec2 a_Size, bool a_bFullScr);
 
 	// draw command
-	virtual void useProgram(ShaderProgram *a_pProgram);
+	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram);
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
@@ -118,7 +118,7 @@ public:
 	virtual void clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx);
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx);
-	virtual void drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
+	virtual void drawIndirect(std::shared_ptr<ShaderProgram> a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1);
 	
 	virtual void setTopology(Topology::Key a_Key);
@@ -130,13 +130,10 @@ public:
 	virtual void flush(bool a_bToBackBuffer = false);
 	virtual void present();
 
-	bool isFullScreen(){ return m_bFullScreen; }
-
 private:
 	D3D12GpuThread validateThisThread();
 	void threadEnd();
 
-	bool m_bFullScreen;
 	unsigned int m_BackBuffer[NUM_BACKBUFFER];
 	ID3D12Resource *m_pBackbufferRes[NUM_BACKBUFFER];
 	IDXGISwapChain3 *m_pSwapChain;
@@ -169,10 +166,11 @@ public:
 	virtual void initDeviceMap();
 	virtual void initDevice(unsigned int a_DeviceID);
 	virtual void init();
-	virtual void setupCanvas(wxWindow *a_pWnd, GraphicCanvas *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr);
-	virtual void resetCanvas(wxWindow *a_pWnd, glm::ivec2 a_Size, bool a_bFullScr);
-	virtual void destroyCanvas(wxWindow *a_pCanvas);
+	virtual GraphicCommander* commanderFactory();
 	virtual std::pair<int, int> maxShaderModel();
+	
+	// support flags
+	virtual bool supportExtraIndirectCommand(){ return true; }
 
 	// converter part( *::Key -> d3d, vulkan var )
 	virtual unsigned int getBlendKey(BlendKey::Key a_Key);
@@ -194,6 +192,7 @@ public:
 	virtual void generateMipmap(int a_ID);
 	virtual PixelFormat::Key getTextureFormat(int a_ID);
 	virtual glm::ivec3 getTextureSize(int a_ID);
+	virtual TextureType getTextureType(int a_ID);
 	virtual void* getTextureResource(int a_ID);
 	virtual void freeTexture(int a_ID);
 	
@@ -274,7 +273,7 @@ private:
 		~RenderTargetBinder(){}
 
 		int m_TextureID;
-		TextureBinder *m_pRefBinder;
+		std::shared_ptr<TextureBinder> m_pRefBinder;
 		unsigned int m_HeapID;
 	};
 	int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag, bool a_bCube = false);
@@ -336,7 +335,6 @@ private:
 	D3D12GpuThread newThread(D3D12_COMMAND_LIST_TYPE a_Type);
 
 	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap;
-	std::map<wxWindow *, GraphicCanvas *> m_CanvasContainer;
 	
 	SerializedObjectPool<TextureBinder> m_ManagedTexture;
 	SerializedObjectPool<RenderTargetBinder> m_ManagedRenderTarget;

@@ -9,38 +9,11 @@
 namespace R
 {
 
+class ProgramManager;
+
 //
 // program part
 //
-struct ProgramTextureDesc
-{
-	ProgramTextureDesc();
-	~ProgramTextureDesc();
-
-	wxString m_Describe;
-	void *m_pRefRegInfo;
-};
-struct ProgramParamDesc
-{
-	ProgramParamDesc();
-	~ProgramParamDesc();
-
-	wxString m_Describe;
-	unsigned int m_Offset;
-	ShaderParamType::Key m_Type;
-	char *m_pDefault;
-	void *m_pRefRegInfo;
-};
-struct ProgramBlockDesc
-{
-	ProgramBlockDesc();
-	~ProgramBlockDesc();
-
-	unsigned int m_BlockSize;
-	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
-	void *m_pRefRegInfo;
-};
-
 STRING_ENUM_CLASS(ShaderRegType,
 	Srv2D,
 	Srv2DArray,
@@ -60,8 +33,51 @@ STRING_ENUM_CLASS(ShaderStages,
 	Fragment,
 	
 	NumStage)
+
+struct RegisterInfo
+{
+	ShaderRegType::Key m_Type;
+	int m_RootIndex;
+	int m_Slot;
+	int m_Offset;// for constant
+	int m_Size;// for constant
+	bool m_bReserved;
+};
+
+struct ProgramTextureDesc
+{
+	ProgramTextureDesc();
+	~ProgramTextureDesc();
+
+	wxString m_Describe;
+	RegisterInfo *m_pRegInfo;
+};
+
+struct ProgramParamDesc
+{
+	ProgramParamDesc();
+	~ProgramParamDesc();
+
+	wxString m_Describe;
+	unsigned int m_Offset;
+	ShaderParamType::Key m_Type;
+	char *m_pDefault;
+	RegisterInfo *m_pRegInfo;
+};
+
+struct ProgramBlockDesc
+{
+	ProgramBlockDesc();
+	~ProgramBlockDesc();
+
+	unsigned int m_BlockSize;
+	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
+	RegisterInfo *m_pRegInfo;
+};
+
 class ShaderProgram
 {
+	friend class ProgramManager;
 public:
 	ShaderProgram();
 	virtual ~ShaderProgram();
@@ -70,10 +86,13 @@ public:
 	bool isCompute(){ return m_bCompute; }
 	bool isIndexedDraw(){ return m_bIndexedDraw; }
 	std::pair<int, int> shaderInUse(){ return m_ShaderInUse; }
-	
-protected:
+
 	std::map<std::string, ProgramTextureDesc *>& getTextureDesc(){ return m_TextureDesc; }
 	std::map<std::string, ProgramBlockDesc *>& getBlockDesc(){ return m_BlockDesc; }
+	std::vector<ProgramBlockDesc *>& getConstBlockDesc(){ return m_ConstBlockDesc; }
+	std::vector<ProgramBlockDesc *>& getStorageBlockDesc(){ return m_StorageDesc; }
+	
+protected:
 	ProgramBlockDesc* newConstBlockDesc()
 	{
 		m_ConstBlockDesc.push_back(new ProgramBlockDesc());
@@ -90,7 +109,7 @@ protected:
 private:
 	void parseStructureDefineRoot(boost::property_tree::ptree &a_Root);
 	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
-
+	
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
 	std::map<std::string, ProgramBlockDesc *> m_BlockDesc;
 	std::vector<ProgramBlockDesc *> m_ConstBlockDesc, m_StorageDesc;
@@ -109,6 +128,7 @@ public:
 	virtual ShaderProgram* newProgram() = 0;
 };
 
+// don't use clearCache method, ProgramManager will crash
 class ProgramManager : public SearchPathSystem<ShaderProgram>
 {
 public:
@@ -122,8 +142,8 @@ private:
 	ProgramManager();
 	virtual ~ProgramManager();
 
-	ShaderProgram* allocator();
-	void loadFile(ShaderProgram *a_pInst, wxString a_Path);
+	std::shared_ptr<ShaderProgram> allocator();
+	void loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path);
 	void initDefaultProgram();
 
 	static ProgramManagerComponent *m_pShaderComponent; 

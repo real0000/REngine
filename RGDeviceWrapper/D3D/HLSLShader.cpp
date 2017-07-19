@@ -185,7 +185,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	std::vector<D3D12_DESCRIPTOR_RANGE> l_RegRangeCollect;
 	std::map<ShaderRegType::Key, std::vector<std::string> > l_TempRegCount;
 	std::map<std::string, ProgramTextureDesc *> &l_TextuerMap = getTextureDesc();
-	std::map<std::string, ProgramBlockDesc *> &l_BlockMap = getBlockDesc();
 
 	// srv
 	unsigned int l_Slot = 0;
@@ -207,7 +206,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 				{
 					it->second->m_RootIndex = l_RegCollect.size();;
 					it->second->m_Slot = l_Slot;
-					l_TextuerMap[it->first]->m_pRefRegInfo = it->second;
+					l_TextuerMap[it->first]->m_pRegInfo = it->second;
 					m_RegMap[l_Type][it->first] = it->second;
 
 					l_TempRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -245,7 +244,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		{
 			it->second->m_RootIndex = l_RegCollect.size();;
 			it->second->m_Slot = l_Slot;
-			l_TextuerMap[it->first]->m_pRefRegInfo = it->second;
+			l_TextuerMap[it->first]->m_pRegInfo = it->second;
 			m_RegMap[ShaderRegType::StorageBuffer][it->first] = it->second;
 			
 			D3D12_ROOT_PARAMETER l_TempReg;
@@ -256,7 +255,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_RegCollect.push_back(l_TempReg);
 
 			ProgramBlockDesc *l_pNewBlock = newStorageBlockDesc();
-			l_pNewBlock->m_pRefRegInfo = it->second;
+			l_pNewBlock->m_pRegInfo = it->second;
 			
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
 			snprintf(l_Def, 1024, ":register(u%d)", l_Slot);
@@ -278,7 +277,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		{
 			it->second->m_RootIndex = l_RegCollect.size();
 			it->second->m_Slot = l_Slot;
-			l_TextuerMap[it->first]->m_pRefRegInfo = it->second;
+			l_TextuerMap[it->first]->m_pRegInfo = it->second;
 			m_RegMap[ShaderRegType::ConstBuffer][it->first] = it->second;
 			
 			D3D12_ROOT_PARAMETER l_TempReg;
@@ -317,7 +316,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			unsigned int l_ParamSize = l_pNewConstBlock->m_BlockSize - l_pNewParam->m_Offset;
 			l_pNewParam->m_pDefault = new char[l_ParamSize];
 			memset(l_pNewParam->m_pDefault, 0, l_ParamSize);
-			l_pNewParam->m_pRefRegInfo = it->second;
+			l_pNewParam->m_pRegInfo = it->second;
 			l_pNewConstBlock->m_ParamDesc.insert(std::make_pair(it->first, l_pNewParam));
 
 			it->second->m_RootIndex = l_RegCollect.size();

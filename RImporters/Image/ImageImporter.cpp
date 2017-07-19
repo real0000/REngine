@@ -17,6 +17,7 @@ ImageData::ImageData()
 	, m_pImageData(nullptr)
 	, m_Format(PixelFormat::unknown)
 	, m_Dim(0, 0, 0)
+	, m_Type(TEXTYPE_SIMPLE_2D)
 {
 }
 
@@ -46,9 +47,9 @@ void ImageData::loadGeneral(wxString a_Filepath)
 	if( nullptr == l_pAlphaBuff ) l_GetAlphaFunc = [](unsigned char *a_pSrc, unsigned int a_Offset)->unsigned char{ return 0xff; };
 	else l_GetAlphaFunc = [](unsigned char *a_pSrc, unsigned int a_Offset)->unsigned char{ return a_pSrc[a_Offset]; };
 		
-	for( unsigned int y=0 ; y<m_Dim.y ; ++y )
+	for( int y=0 ; y<m_Dim.y ; ++y )
 	{
-		for( unsigned int x=0 ; x<m_Dim.x ; ++x )
+		for( int x=0 ; x<m_Dim.x ; ++x )
 		{
 			unsigned int l_Offset = m_Dim.x * y + x;
 			m_pImageData[l_Offset * 4] = l_pRGBBuff[l_Offset * 3];
@@ -87,7 +88,7 @@ ImageManager::~ImageManager()
 {
 }
 
-void ImageManager::loadFile(ImageData *a_pInst, wxString a_Path)
+void ImageManager::loadFile(std::shared_ptr<ImageData> a_pInst, wxString a_Path)
 {
 	a_pInst->init(a_Path);
 }

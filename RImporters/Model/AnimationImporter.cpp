@@ -23,7 +23,7 @@ AnimationData::~AnimationData()
 void AnimationData::init(wxString a_Filepath)
 {
 	FbxManager *l_pSdkManager = FbxManager::Create();
-    FbxIOSettings *l_pIOCfg = FbxIOSettings::Create(l_pSdkManager, IOSROOT);
+	FbxIOSettings *l_pIOCfg = FbxIOSettings::Create(l_pSdkManager, IOSROOT);
     l_pIOCfg->SetBoolProp(IMP_FBX_MATERIAL, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_TEXTURE, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_LINK, false);
@@ -134,7 +134,7 @@ AnimationManager::~AnimationManager()
 {
 }
 
-void AnimationManager::loadFile(AnimationData *a_pInst, wxString a_Filepath)
+void AnimationManager::loadFile(std::shared_ptr<AnimationData> a_pInst, wxString a_Filepath)
 {
 	a_pInst->init(a_Filepath);
 }

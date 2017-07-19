@@ -25,7 +25,7 @@ public:
 
 	// draw command
 	virtual void useProgram(unsigned int a_Key);
-	virtual void useProgram(ShaderProgram *a_pProgram) = 0;
+	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram) = 0;
 	virtual void bindVertex(VertexBuffer *a_pBuffer) = 0;
 	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
@@ -36,7 +36,7 @@ public:
 	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil) = 0;
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
-	virtual void drawIndirect(ShaderProgram *a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
+	virtual void drawIndirect(std::shared_ptr<ShaderProgram> a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;
 
 	virtual void setTopology(Topology::Key a_Key) = 0;
@@ -50,23 +50,28 @@ public:
 	virtual void present() = 0;
 };
 
-class GraphicCanvas
+class GraphicCanvas : public wxWindow
 {
 public:
-	GraphicCanvas();
+	GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID);
 	virtual ~GraphicCanvas();
 
-	void update(float a_Delta);
-	void init(WXWidget a_Wnd, glm::ivec2 a_Size, bool a_bFullScr);
-	void resize(glm::ivec2 a_Size, bool a_bFullScr);
+	void init();
+	void setFullScreen(bool a_bFullScreen);
+	bool isFullScreen(){ return m_bFullScreen; }
 
-	GraphicCommander* getCommander();
-	void setCommander(GraphicCommander *a_pCommander);
+	void update(float a_Delta);
 	void setRenderFunction(std::function<void(float)> a_Func);
+	GraphicCommander* getCommander(){ return m_pCommander; }
+	
+	void onSize(wxSizeEvent &a_Event);
 
 private:
-	GraphicCommander *m_pRefCommander;
+	GraphicCommander *m_pCommander;
 	std::function<void(float)> m_RenderFunc;
+	bool m_bFullScreen;
+
+	DECLARE_EVENT_TABLE()
 };
 
 // member function with source data must call on main thread
@@ -76,10 +81,11 @@ public:
 	virtual void initDeviceMap() = 0;
 	virtual void initDevice(unsigned int a_DeviceID) = 0;
 	virtual void init() = 0;
-	virtual void setupCanvas(wxWindow *a_pWnd, GraphicCanvas *a_pCanvas, glm::ivec2 a_Size, bool a_bFullScr) = 0;
-	virtual void resetCanvas(wxWindow *a_pWnd, glm::ivec2 a_Size, bool a_bFullScr) = 0;
-	virtual void destroyCanvas(wxWindow *a_pCanvas) = 0;
+	virtual GraphicCommander* commanderFactory() = 0;
 	virtual std::pair<int, int> maxShaderModel() = 0;
+
+	// support flags
+	virtual bool supportExtraIndirectCommand() = 0;
 
 	// converter part( *::Key -> d3d, vulkan var )
 	virtual unsigned int getBlendKey(BlendKey::Key a_Key) = 0;
@@ -105,6 +111,7 @@ public:
 	virtual void generateMipmap(int a_ID) = 0;
 	virtual PixelFormat::Key getTextureFormat(int a_ID) = 0;
 	virtual glm::ivec3 getTextureSize(int a_ID) = 0;
+	virtual TextureType getTextureType(int a_ID) = 0;
 	virtual void* getTextureResource(int a_ID) = 0;
 	virtual void freeTexture(int a_ID) = 0;
 

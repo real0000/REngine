@@ -10,7 +10,7 @@
 
 namespace R
 {
-
+	/*
 #pragma region TextureAtlas
 #pragma region TextureAtlas::SplitNode
 //
@@ -229,5 +229,5 @@ void TextureAtlasSet::updateBuffer(unsigned int l_TextureID, void *l_pData, unsi
 	it->second->updateBuffer(l_pData, l_OffsetX, l_OffsetY, l_Width, l_Height, l_Pitch);
 }
 #pragma endregion
-
+*/
 }

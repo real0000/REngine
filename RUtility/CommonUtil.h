@@ -30,6 +30,7 @@
 #include <list>
 #include <thread>
 #include <mutex>
+#include <memory>
 #include <stdarg.h>
 
 #define GLM_FORCE_RADIANS
@@ -64,27 +65,20 @@ void showOpenGLErrorCode(wxString a_StepInfo);
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut);
 
 template<typename T>
-T* defaultNewFunc()
+std::shared_ptr<T> defaultNewFunc()
 {
-	return new T();
-}
-
-template<typename T>
-void defaultDelFunc(T *a_pTarget)
-{
-	delete a_pTarget;
+	return std::shared_ptr<T>(new T());
 }
 
 #define BIND_DEFAULT_ALLOCATOR(T, Manager) \
-	Manager.setNewFunc(std::bind(&defaultNewFunc<T>)); \
-	Manager.setDelFunc(std::bind(&defaultDelFunc<T>, std::placeholders::_1));
+	Manager.setNewFunc(std::bind(&defaultNewFunc<T>));
 
 template<typename T>
 class SerializedObjectPool
 {
 public:
 	SerializedObjectPool(bool a_bPool = false)
-		: m_NewFunc(nullptr), m_DelFunc(nullptr)
+		: m_NewFunc(nullptr)
 	{
 		if( a_bPool )
 		{
@@ -103,16 +97,11 @@ public:
 		clear();
 	}
 	
-	void setNewFunc(std::function<T*()> l_NewFunc)
+	void setNewFunc(std::function<std::shared_ptr<T>()> a_NewFunc)
 	{
-		m_NewFunc = l_NewFunc;
+		m_NewFunc = a_NewFunc;
 	}
 
-	void setDelFunc(std::function<void(T *)> l_DelFunc)
-	{
-		m_DelFunc = l_DelFunc;
-	}
-	
 	unsigned int count()
 	{
 		return m_ObjectPool.size();
@@ -120,15 +109,11 @@ public:
 
 	void clear()
 	{
-		for( unsigned int i=0 ; i<m_ObjectPool.size() ; ++i )
-		{
-			if( nullptr != m_ObjectPool[i] ) m_DelFunc(m_ObjectPool[i]);
-		}
 		m_ObjectPool.clear();
 		m_FreeSlot.clear();
 	}
 
-	unsigned int retain(T** a_ppOutput = nullptr)
+	unsigned int retain(std::shared_ptr<T>* a_ppOutput = nullptr)
 	{
 		unsigned int l_Res = m_ReqFunc();
 		if( nullptr != a_ppOutput ) *a_ppOutput = m_ObjectPool[l_Res];
@@ -140,12 +125,12 @@ public:
 		m_RecFunc(a_ID);
 	}
 
-	T* getItem(unsigned int a_ID)
+	std::shared_ptr<T> getItem(unsigned int a_ID)
 	{
 		return m_ObjectPool[a_ID];
 	}
 	
-	virtual T* operator[](unsigned int a_ID)
+	virtual std::shared_ptr<T> operator[](unsigned int a_ID)
 	{
 		return m_ObjectPool[a_ID];
 	}
@@ -154,7 +139,7 @@ private:
 	// always new/delete
 	unsigned int newItem()
 	{
-		T *l_pNewItem = m_NewFunc();
+		std::shared_ptr<T> l_pNewItem = m_NewFunc();
 		unsigned int l_ID = m_ObjectPool.size();
 		if( m_FreeSlot.empty() ) m_ObjectPool.push_back(l_pNewItem);
 		else
@@ -170,7 +155,6 @@ private:
 	void deleteItem(unsigned int a_ID)
 	{
 		assert(nullptr != m_ObjectPool[a_ID]);
-		m_DelFunc(m_ObjectPool[a_ID]);
 		m_ObjectPool[a_ID] = nullptr;
 		m_FreeSlot.push_back(a_ID);
 	}
@@ -181,7 +165,7 @@ private:
 		unsigned int l_ID = 0;
 		if( m_FreeSlot.empty() )
 		{
-			T *l_pNewItem = m_NewFunc();
+			std::shared_ptr<T> l_pNewItem = m_NewFunc();
 			l_ID = m_ObjectPool.size();
 			m_ObjectPool.push_back(l_pNewItem);
 		}
@@ -202,10 +186,9 @@ private:
 
 	std::function<unsigned int()> m_ReqFunc;
 	std::function<void(unsigned int)> m_RecFunc;
-	std::function<T*()> m_NewFunc;
-	std::function<void(T *)> m_DelFunc;
+	std::function<std::shared_ptr<T>()> m_NewFunc;
 
-	std::vector<T *> m_ObjectPool;
+	std::vector< std::shared_ptr<T> > m_ObjectPool;
 	std::list<unsigned int> m_FreeSlot;
 };
 
@@ -385,12 +368,11 @@ template<typename T>
 class SearchPathSystem
 { 
 public:
-	SearchPathSystem(std::function<void(T *, wxString)> a_pFileLoader, std::function<T*()> a_pAllocFunc)
+	SearchPathSystem(std::function<void(std::shared_ptr<T>, wxString)> a_pFileLoader, std::function<std::shared_ptr<T>()> a_pAllocFunc)
 		: m_FileLoader(a_pFileLoader)
 		, m_ManagedObject()
 	{
 		m_ManagedObject.setNewFunc(a_pAllocFunc);
-		m_ManagedObject.setDelFunc(std::bind(&defaultDelFunc<T>, std::placeholders::_1));
 	}
 
 	virtual ~SearchPathSystem()
@@ -398,9 +380,9 @@ public:
 		clearCache();
 	}
 
-	std::pair<int, T*> getData(wxString a_Filename)
+	std::pair<int, std::shared_ptr<T> > getData(wxString a_Filename)
 	{
-		T *l_pNewFile = nullptr;
+		std::shared_ptr<T> l_pNewFile = nullptr;
 		int l_ID = -1;
 		wxString l_FilePath(wxT(""));
 		{
@@ -419,9 +401,19 @@ public:
 		return std::make_pair(l_ID, l_pNewFile);
 	}
 
-	T* getData(int a_ID)
+	std::shared_ptr<T> getData(int a_ID)
 	{
 		return m_ManagedObject[a_ID];
+	}
+
+	void removeData(wxString a_Filename)
+	{
+		std::lock_guard<std::mutex> l_Guard(m_Locker);
+		auto it = m_FileIDMap.find(a_Filename);
+		if( m_FileIDMap.end() == it ) return;
+
+		m_FileIDMap.erase(it);
+		m_ManagedObject.release(it->second);
 	}
 
 	wxString findFullPath(wxString a_Filename)
@@ -444,7 +436,6 @@ public:
 	
 	void clearCache()
 	{
-		m_ManagedObject.clear();
 		m_FileIDMap.clear();
 	}
 
@@ -452,7 +443,7 @@ private:
 	std::map<wxString, int> m_FileIDMap;
 	SerializedObjectPool<T> m_ManagedObject;
 	std::vector<wxString> m_SearchPath;
-	std::function<void(T *, wxString)> m_FileLoader;
+	std::function<void(std::shared_ptr<T>, wxString)> m_FileLoader;
 
 	std::mutex m_Locker;
 };

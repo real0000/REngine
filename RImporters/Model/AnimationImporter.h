@@ -44,7 +44,7 @@ private:
 	AnimationManager();
 	virtual ~AnimationManager();
 
-	void loadFile(AnimationData *a_pInst, wxString a_Filepath);
+	void loadFile(std::shared_ptr<AnimationData> a_pInst, wxString a_Filepath);
 };
 
 }

@@ -115,7 +115,7 @@ private:
 	ModelManager();
 	virtual ~ModelManager();
 
-	void loadFile(ModelData *a_pInst, wxString a_Path);
+	void loadFile(std::shared_ptr<ModelData> a_pInst, wxString a_Path);
 };
 
 }

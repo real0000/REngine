@@ -280,6 +280,7 @@ void ImageData::loadDDS(wxString a_Filepath)
                 return ;
             }
             m_Dim.y = m_Dim.z = 1;
+			m_Type = TEXTYPE_SIMPLE_1D;
             break;
 
         case DDS_DIMENSION_TEXTURE2D:
@@ -289,6 +290,7 @@ void ImageData::loadDDS(wxString a_Filepath)
                 isCubeMap = true;
             }
             m_Dim.z = 1;
+			//m_Type = TEXTYPE_SIMPLE_2D;
             break;
 
         case DDS_DIMENSION_TEXTURE3D:
@@ -303,6 +305,7 @@ void ImageData::loadDDS(wxString a_Filepath)
 				clear();
                 return ;
             }
+			m_Type = TEXTYPE_SIMPLE_3D;
             break;
 
         default:
@@ -325,6 +328,7 @@ void ImageData::loadDDS(wxString a_Filepath)
         if (header->flags & DDS_HEADER_FLAGS_VOLUME)
         {
             resDim = DDS_DIMENSION_TEXTURE3D;
+			m_Type = TEXTYPE_SIMPLE_3D;
         }
         else
         {
@@ -339,6 +343,7 @@ void ImageData::loadDDS(wxString a_Filepath)
 
                 arraySize = 6;
                 isCubeMap = true;
+				m_Type = TEXTYPE_SIMPLE_CUBE;
             }
 
             m_Dim.z = 1;
@@ -394,7 +399,12 @@ void ImageData::loadDDS(wxString a_Filepath)
             d = std::max(d >> 1, 1u);
         }
     }
-
+	if( TEXTYPE_SIMPLE_2D == m_Type && 1 != arraySize )
+	{
+		m_Dim.z = arraySize;
+		m_Type = TEXTYPE_SIMPLE_2D_ARRAY;
+	}
+	else if( TEXTYPE_SIMPLE_CUBE == m_Type  )m_Dim.z = arraySize;// 6
 	//*alphaMode = GetAlphaMode(header);
 	m_bReady = true;
 }

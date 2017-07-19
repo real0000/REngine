@@ -9,66 +9,97 @@
 namespace R
 {
 
-class StateMachine;
+// enging config file
+#define CONIFG_FILE "Config.ini"
 
-class EngineThread;
-class EngineCore;
+STRING_ENUM_CLASS(GraphicApi,
+	d3d11,
+	d3d12,
+	opengl,
+	vulkan)
 
-class EngineThread : public wxThread
+enum ComponentDefine
+{
+	// common component
+	COMPONENT_CAMERA = 0,
+	COMPONENT_MODEL_MESH,
+
+	// scene manager
+	COMPONENT_BVH_NODE,
+	
+	CUSTOM_COMPONENT,// all custom component type id must >= this value
+};
+
+class SceneNode;
+class GraphicCanvas;
+
+class EngineComponent
 {
 public:
-	EngineThread(float l_Period, unsigned int l_ID);
-	virtual ~EngineThread();
+	EngineComponent(SceneNode *a_pOwner);
+	virtual ~EngineComponent();
 
-	void fakeEntry();
-	virtual wxThread::ExitCode Entry();
-    virtual void OnExit();
+	virtual unsigned int typeID() = 0;
+	virtual bool isHidden() = 0;
 
-	void setOffDuty(){ m_bExit = true; }
+	wxString getName(){ return m_Name; }
+	void setName(wxString a_Name){ m_Name = a_Name; }
+	SceneNode* getOwnerNode(){ return m_pRefOwner; }
+	void setOwnerNode(SceneNode *a_pOwner);
 
 private:
-	unsigned int m_ID;
-	float m_Period;
-	time_t m_Prev, m_Curr;
-	bool m_bExit;
+	wxString m_Name;
+	SceneNode *m_pRefOwner;
+};
+
+class EngineSetting
+{
+public:
+	static EngineSetting& singleton();
+
+	void save();
+
+	// General
+	wxString m_Title;
+
+	// Graphic
+	GraphicApi::Key m_Api;
+	glm::ivec2 m_DefaultSize;
+	bool m_bFullScreen;
+	unsigned int m_FPS;
+
+private:
+	EngineSetting();
+	virtual ~EngineSetting();
 };
 
 class EngineCore
 {
-	friend class EngineThread;
 public:
 	static EngineCore& singleton();
 	
-	// for normal game frame : 1 canvas with close button
-	void initGameWindow(wxString l_CfgFile = wxT("Config.xml"));
-	void initWnd(wxWindow *l_pParent);
+	// for normal game : 1 canvas with close button
+	GraphicCanvas* createCanvas();
+	// for tool window
+	GraphicCanvas* createCanvas(wxWindow *a_pParent);
+	void destroyCanvas(GraphicCanvas *a_pCanvas);
 
 	bool isShutdown();
 	void shutDown();
-
-	void mainLoop();
-	void addThread(unsigned int l_ID, float l_Period);
-	void removeThread(unsigned int l_ID);
-	inline void lock(unsigned int l_LockerID);
-	inline void unlock(unsigned int l_LockerID);
-
-	// models
-	void loadModel(wxString l_Filename, bool l_bImmediate);
 
 private:
 	EngineCore();
 	virtual ~EngineCore();
 
 	bool init();
-	void threadUpdate(unsigned int l_ID, float l_Delta);
-	void threadJoin(unsigned int l_ID);
+	void mainLoop();
 
-	StateMachine *m_pMainMachine;
-	std::vector<StateMachine *> m_RegistedMachine;
-	std::map<unsigned int, EngineThread *> m_EngineThread;
-	std::vector<wxMutex *> m_MutexLock;
 	bool m_bValid;
 	bool m_bShutdown;
+
+	std::thread *m_pMainLoop;
+	std::set<GraphicCanvas *> m_ManagedCanvas;
+	std::mutex m_CanvasLock;
 };
 
 }

@@ -4,92 +4,83 @@
 //
 
 #include "CommonUtil.h"
+#include "Core.h"
 #include "Camera.h"
 
 namespace R
 {
 
-#pragma region Camera
+#pragma region CameraComponent
 //
 // Camera
 //
-Camera::Camera()
-	: SceneNode()
+CameraComponent::CameraComponent(SceneNode *a_pOwner)
+	: EngineComponent(a_pOwner)
 	, m_Eye(25.0f, 25.0f, 25.0f), m_LookAt(0.0f, 0.0f, 0.0f), m_Up(0.0f, 1.0f, 0.0f)
-	, m_ViewSize(400.0f, 400.0f), m_PersParam(45.0f, 1.0f, 0.1f, 10000.0f), m_Zoom(1.0f), m_bOrtho(false)
+	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_bOrtho(false)
 {
 }
 
-Camera::~Camera()
+CameraComponent::~CameraComponent()
 {
 }
 
-void Camera::setEyeCenter(glm::vec3 l_Eye, glm::vec3 l_Center)
+void CameraComponent::setEyeCenter(glm::vec3 l_Eye, glm::vec3 l_Center)
 {
 	m_Eye = l_Eye;
 	m_LookAt = l_Center;
 	calView();
 }
 
-void Camera::setEye(glm::vec3 _Eye)
+void CameraComponent::setEye(glm::vec3 _Eye)
 {
 	m_Eye = _Eye;
 	calView();
 }
 
-void Camera::setLookAt(glm::vec3 l_LookAt)
+void CameraComponent::setLookAt(glm::vec3 l_LookAt)
 {
 	m_LookAt = l_LookAt;
 	calView();
 }
 
-void Camera::setUp(glm::vec3 _Up)
+void CameraComponent::setUp(glm::vec3 _Up)
 {
 	m_Up = _Up;
 	calView();
 }
 
-void Camera::setZoom(float l_Zoom)
+void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far)
 {
-	m_Zoom = glm::clamp(l_Zoom, 0.1f, 10.0f);
-	calProjection();
-}
-
-void Camera::setOrthoView(float _Width, float _Height)
-{
-	m_ViewSize.x = _Width;
-	m_ViewSize.y = _Height;
+	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);
     m_bOrtho = true;
 	calProjection();
 }
     
-void Camera::setPerspectiveView(float _Fovy, float _Aspect, float _Near, float _Far)
+void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far)
 {
-    m_PersParam.x = _Fovy;
-    m_PersParam.y = _Aspect;
-    m_PersParam.z = _Near;
-    m_PersParam.w = _Far;
+	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, a_Far);
     m_bOrtho = false;
 	calProjection();
 }
 
-void Camera::calView()
+void CameraComponent::calView()
 {
 	m_Matrices[VIEW] = glm::lookAt(m_Eye, m_LookAt, m_Up);
 	m_Matrices[INVERTVIEW] = glm::inverse(m_Matrices[VIEW]);
 	calViewProjection();
 }
 
-void Camera::calProjection()
+void CameraComponent::calProjection()
 {
     if( m_bOrtho )
-        m_Matrices[PROJECTION] = glm::ortho(m_ViewSize.x / m_Zoom * -0.5f, m_ViewSize.x / m_Zoom * 0.5f,
-                                                  m_ViewSize.y / m_Zoom * -0.5f, m_ViewSize.y / m_Zoom * 0.5f, m_PersParam.z, m_PersParam.w);
-    else m_Matrices[PROJECTION] = glm::perspective(m_PersParam.x, m_PersParam.y, m_PersParam.z, m_PersParam.w);
+        m_Matrices[PROJECTION] = glm::ortho(m_ViewParam.x * -0.5f, m_ViewParam.x * 0.5f,
+											m_ViewParam.y * -0.5f, m_ViewParam.y * 0.5f, m_ViewParam.z, m_ViewParam.w);
+    else m_Matrices[PROJECTION] = glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w);
 	calViewProjection();
 }
 
-void Camera::calViewProjection()
+void CameraComponent::calViewProjection()
 {
 	m_Matrices[PROJECTION] = m_Matrices[PROJECTION] * m_Matrices[VIEW];
 }

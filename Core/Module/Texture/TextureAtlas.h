@@ -11,9 +11,8 @@
 namespace R
 {
 
-class Texture2D;
 class TextureManager;
-
+/*
 class TextureAtlas
 {
 public:
@@ -58,7 +57,7 @@ private:
 	unsigned int m_Serial;
 	unsigned int m_CurrArraySize;
 	unsigned int m_ExtendSize;
-};
+};*/
 
 }
 
