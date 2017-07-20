@@ -5,7 +5,7 @@
 #include "CommonUtil.h"
 #include "RImporters.h"
 #include "RGDeviceWrapper.h"
-#include "Module/Texture/Texture.h"
+#include "Texture.h"
 
 namespace R
 {

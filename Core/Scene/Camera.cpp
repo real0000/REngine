@@ -14,7 +14,7 @@ namespace R
 //
 // Camera
 //
-CameraComponent::CameraComponent(SceneNode *a_pOwner)
+CameraComponent::CameraComponent(std::shared_ptr<SceneNode> a_pOwner)
 	: EngineComponent(a_pOwner)
 	, m_Eye(25.0f, 25.0f, 25.0f), m_LookAt(0.0f, 0.0f, 0.0f), m_Up(0.0f, 1.0f, 0.0f)
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_bOrtho(false)
@@ -25,28 +25,28 @@ CameraComponent::~CameraComponent()
 {
 }
 
-void CameraComponent::setEyeCenter(glm::vec3 l_Eye, glm::vec3 l_Center)
+void CameraComponent::setEyeCenter(glm::vec3 a_Eye, glm::vec3 a_Center)
 {
-	m_Eye = l_Eye;
-	m_LookAt = l_Center;
+	m_Eye = a_Eye;
+	m_LookAt = a_Center;
 	calView();
 }
 
-void CameraComponent::setEye(glm::vec3 _Eye)
+void CameraComponent::setEye(glm::vec3 a_Eye)
 {
-	m_Eye = _Eye;
+	m_Eye = a_Eye;
 	calView();
 }
 
-void CameraComponent::setLookAt(glm::vec3 l_LookAt)
+void CameraComponent::setLookAt(glm::vec3 a_LookAt)
 {
-	m_LookAt = l_LookAt;
+	m_LookAt = a_LookAt;
 	calView();
 }
 
-void CameraComponent::setUp(glm::vec3 _Up)
+void CameraComponent::setUp(glm::vec3 a_Up)
 {
-	m_Up = _Up;
+	m_Up = a_Up;
 	calView();
 }
 

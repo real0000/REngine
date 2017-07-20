@@ -60,15 +60,14 @@ public:
 	void setFullScreen(bool a_bFullScreen);
 	bool isFullScreen(){ return m_bFullScreen; }
 
-	void update(float a_Delta);
-	void setRenderFunction(std::function<void(float)> a_Func);
+	void setResizeCallback(std::function<void(glm::ivec2)> a_Func){ m_ResizeCallback = a_Func; }
 	GraphicCommander* getCommander(){ return m_pCommander; }
 	
 	void onSize(wxSizeEvent &a_Event);
 
 private:
 	GraphicCommander *m_pCommander;
-	std::function<void(float)> m_RenderFunc;
+	std::function<void(glm::ivec2)> m_ResizeCallback;
 	bool m_bFullScreen;
 
 	DECLARE_EVENT_TABLE()

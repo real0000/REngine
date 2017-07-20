@@ -4,7 +4,10 @@
 //
 
 #include "CommonUtil.h"
-#include "REngine.h"
+#include "RGDeviceWrapper.h"
+#include "Core.h"
+#include "Canvas.h"
+#include "Scene/Scene.h"
 
 #include <chrono>
 #include "boost/property_tree/ini_parser.hpp"
@@ -18,20 +21,29 @@ STRING_ENUM_CLASS_INST(GraphicApi)
 //
 // EngineComponent
 //
-EngineComponent::EngineComponent(SceneNode *a_pOwner)
+EngineComponent::EngineComponent(std::shared_ptr<SceneNode> a_pOwner)
 	: m_Name(wxT(""))
-	, m_pRefOwner(a_pOwner)
+	, m_pOwner(a_pOwner)
 {
+	m_pOwner->add(shared_from_this());
 }
 
 EngineComponent::~EngineComponent()
 {
 }
 
-void EngineComponent::setOwnerNode(SceneNode *a_pOwner)
+void EngineComponent::setOwnerNode(std::shared_ptr<SceneNode> a_pOwner)
 {
 	assert(a_pOwner);
-	m_pRefOwner = a_pOwner;
+	m_pOwner->remove(shared_from_this());
+	m_pOwner = a_pOwner;
+	m_pOwner->add(shared_from_this());
+}
+
+void EngineComponent::remove()
+{
+	m_pOwner->remove(shared_from_this());
+	m_pOwner = nullptr;
 }
 #pragma endregion
 
@@ -121,9 +133,19 @@ bool EngineCore::init()
 {
 	switch( EngineSetting::singleton().m_Api )
 	{
+		case GraphicApi::d3d11:
+			//GraphicDeviceManager::singleton().init<D3D12Device>();
+			//m_bValid = true;
+			break;
+
 		case GraphicApi::d3d12:
 			GraphicDeviceManager::singleton().init<D3D12Device>();
 			m_bValid = true;
+			break;
+
+		case GraphicApi::vulkan:
+			//GraphicDeviceManager::singleton().init<D3D12Device>();
+			//m_bValid = true;
 			break;
 
 		default:break;
@@ -133,7 +155,7 @@ bool EngineCore::init()
 	return m_bValid;
 }
 
-GraphicCanvas* EngineCore::createCanvas()
+EngineCanvas* EngineCore::createCanvas()
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
@@ -141,7 +163,7 @@ GraphicCanvas* EngineCore::createCanvas()
 	wxFrame *l_pNewWindow = new wxFrame(NULL, wxID_ANY, EngineSetting::singleton().m_Title);
 	l_pNewWindow->Show();
 
-	GraphicCanvas *l_pCanvas = new GraphicCanvas(l_pNewWindow, wxID_ANY);
+	EngineCanvas *l_pCanvas = new EngineCanvas(l_pNewWindow);
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->setFullScreen(EngineSetting::singleton().m_bFullScreen);
 	l_pCanvas->init();
@@ -150,18 +172,18 @@ GraphicCanvas* EngineCore::createCanvas()
 	return l_pCanvas;
 }
 
-GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
+EngineCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
-	GraphicCanvas *l_pCanvas = new GraphicCanvas(a_pParent, wxID_ANY);
+	EngineCanvas *l_pCanvas = new EngineCanvas(a_pParent);
 	l_pCanvas->init();
 	m_ManagedCanvas.insert(l_pCanvas);
 	return l_pCanvas;
 }
 
-void EngineCore::destroyCanvas(GraphicCanvas *a_pCanvas)
+void EngineCore::destroyCanvas(EngineCanvas *a_pCanvas)
 {
 	if( !m_bValid ) return;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
@@ -201,7 +223,10 @@ void EngineCore::mainLoop()
 		l_Delta *= 0.001f;// to second
 		{
 			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
-			for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) (*it)->update(l_Delta);
+			
+			for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) (*it)->processInput();
+			SceneManager::singleton().update(l_Delta);
+			SceneManager::singleton().render();
 		}
 
 		l_Start = l_Now;

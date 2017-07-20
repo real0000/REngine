@@ -23,7 +23,7 @@ public:
 
 		NUM_MATRIX
 	};
-	CameraComponent(SceneNode *a_pOwner);
+	CameraComponent(std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~CameraComponent();
 	
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }

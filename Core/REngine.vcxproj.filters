@@ -1,78 +1,69 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Module">
-      <UniqueIdentifier>{4b1b49ac-73ed-43bb-852a-cc721df82d62}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Module\Texture">
-      <UniqueIdentifier>{bccc469d-4a75-48e6-b97c-69b189115de7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Module\Model">
+    <Filter Include="Model">
       <UniqueIdentifier>{c73d1786-8375-49eb-87e8-edc942ebefea}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Module\Scene">
+    <Filter Include="Scene">
       <UniqueIdentifier>{e1c3e040-e351-4189-968d-732e644a0772}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Texture">
+      <UniqueIdentifier>{bccc469d-4a75-48e6-b97c-69b189115de7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Module\StateMachine.h">
-      <Filter>Module</Filter>
-    </ClInclude>
-    <ClInclude Include="Module\Texture\TextureAtlas.h">
-      <Filter>Module\Texture</Filter>
-    </ClInclude>
-    <ClInclude Include="Module\Texture\Texture.h">
-      <Filter>Module\Texture</Filter>
-    </ClInclude>
     <ClInclude Include="Core.h" />
     <ClInclude Include="REngine.h" />
-    <ClInclude Include="Module\PhysicalModule.h">
-      <Filter>Module</Filter>
+    <ClInclude Include="Model\Material.h">
+      <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="Module\Texture\FrameTexture.h">
-      <Filter>Module\Texture</Filter>
+    <ClInclude Include="Model\Model.h">
+      <Filter>Model</Filter>
     </ClInclude>
-    <ClInclude Include="Module\Model\Material.h">
-      <Filter>Module\Model</Filter>
+    <ClInclude Include="Scene\Camera.h">
+      <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Module\Model\Model.h">
-      <Filter>Module\Model</Filter>
+    <ClInclude Include="Scene\Scene.h">
+      <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Module\Scene\Camera.h">
-      <Filter>Module\Scene</Filter>
+    <ClInclude Include="Texture\FrameTexture.h">
+      <Filter>Texture</Filter>
     </ClInclude>
-    <ClInclude Include="Module\Scene\Scene.h">
-      <Filter>Module\Scene</Filter>
+    <ClInclude Include="Texture\Texture.h">
+      <Filter>Texture</Filter>
     </ClInclude>
+    <ClInclude Include="Texture\TextureAtlas.h">
+      <Filter>Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="PhysicalModule.h" />
+    <ClInclude Include="StateMachine.h" />
+    <ClInclude Include="Canvas.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Module\StateMachine.cpp">
-      <Filter>Module</Filter>
-    </ClCompile>
-    <ClCompile Include="Module\Texture\TextureAtlas.cpp">
-      <Filter>Module\Texture</Filter>
-    </ClCompile>
-    <ClCompile Include="Module\Texture\Texture.cpp">
-      <Filter>Module\Texture</Filter>
-    </ClCompile>
     <ClCompile Include="REngine.cpp" />
-    <ClCompile Include="Module\PhysicalModule.cpp">
-      <Filter>Module</Filter>
+    <ClCompile Include="Model\Material.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="Module\Texture\FrameTexture.cpp">
-      <Filter>Module\Texture</Filter>
+    <ClCompile Include="Model\Model.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
-    <ClCompile Include="Module\Model\Material.cpp">
-      <Filter>Module\Model</Filter>
+    <ClCompile Include="Scene\Camera.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Module\Model\Model.cpp">
-      <Filter>Module\Model</Filter>
+    <ClCompile Include="Scene\Scene.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Module\Scene\Camera.cpp">
-      <Filter>Module\Scene</Filter>
+    <ClCompile Include="Texture\FrameTexture.cpp">
+      <Filter>Texture</Filter>
     </ClCompile>
-    <ClCompile Include="Module\Scene\Scene.cpp">
-      <Filter>Module\Scene</Filter>
+    <ClCompile Include="Texture\Texture.cpp">
+      <Filter>Texture</Filter>
     </ClCompile>
+    <ClCompile Include="Texture\TextureAtlas.cpp">
+      <Filter>Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="PhysicalModule.cpp" />
+    <ClCompile Include="StateMachine.cpp" />
+    <ClCompile Include="Canvas.cpp" />
   </ItemGroup>
 </Project>

@@ -160,29 +160,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Canvas.h" />
     <ClInclude Include="Core.h" />
-    <ClInclude Include="Module\Model\Material.h" />
-    <ClInclude Include="Module\Model\Model.h" />
-    <ClInclude Include="Module\PhysicalModule.h" />
-    <ClInclude Include="Module\Scene\Camera.h" />
-    <ClInclude Include="Module\Scene\Scene.h" />
-    <ClInclude Include="Module\StateMachine.h" />
-    <ClInclude Include="Module\Texture\FrameTexture.h" />
-    <ClInclude Include="Module\Texture\TextureAtlas.h" />
-    <ClInclude Include="Module\Texture\Texture.h" />
+    <ClInclude Include="Model\Material.h" />
+    <ClInclude Include="Model\Model.h" />
+    <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="REngine.h" />
+    <ClInclude Include="Scene\Camera.h" />
+    <ClInclude Include="Scene\Scene.h" />
+    <ClInclude Include="StateMachine.h" />
+    <ClInclude Include="Texture\FrameTexture.h" />
+    <ClInclude Include="Texture\Texture.h" />
+    <ClInclude Include="Texture\TextureAtlas.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Module\Model\Material.cpp" />
-    <ClCompile Include="Module\Model\Model.cpp" />
-    <ClCompile Include="Module\PhysicalModule.cpp" />
-    <ClCompile Include="Module\Scene\Camera.cpp" />
-    <ClCompile Include="Module\Scene\Scene.cpp" />
-    <ClCompile Include="Module\StateMachine.cpp" />
-    <ClCompile Include="Module\Texture\FrameTexture.cpp" />
-    <ClCompile Include="Module\Texture\TextureAtlas.cpp" />
-    <ClCompile Include="Module\Texture\Texture.cpp" />
+    <ClCompile Include="Canvas.cpp" />
+    <ClCompile Include="Model\Material.cpp" />
+    <ClCompile Include="Model\Model.cpp" />
+    <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="REngine.cpp" />
+    <ClCompile Include="Scene\Camera.cpp" />
+    <ClCompile Include="Scene\Scene.cpp" />
+    <ClCompile Include="StateMachine.cpp" />
+    <ClCompile Include="Texture\FrameTexture.cpp" />
+    <ClCompile Include="Texture\Texture.cpp" />
+    <ClCompile Include="Texture\TextureAtlas.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

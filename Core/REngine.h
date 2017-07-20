@@ -14,10 +14,14 @@
 
 #include "Core.h"
 
-#include "Module/PhysicalModule.h"
-#include "Module/StateMachine.h"
-#include "Module/Texture/FrameTexture.h"
-#include "Module/Texture/Texture.h"
-#include "Module/Texture/TextureAtlas.h"
+#include "PhysicalModule.h"
+#include "StateMachine.h"
+#include "Model/Material.h"
+#include "Model/Model.h"
+#include "Scene/Camera.h"
+#include "Scene/Scene.h"
+#include "Texture/FrameTexture.h"
+#include "Texture/Texture.h"
+#include "Texture/TextureAtlas.h"
 
 #endif

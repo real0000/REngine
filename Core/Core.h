@@ -23,6 +23,7 @@ enum ComponentDefine
 	// common component
 	COMPONENT_CAMERA = 0,
 	COMPONENT_MODEL_MESH,
+	//COMPONENT_MODEL_VOXEL_TERRAIN,
 
 	// scene manager
 	COMPONENT_BVH_NODE,
@@ -31,12 +32,12 @@ enum ComponentDefine
 };
 
 class SceneNode;
-class GraphicCanvas;
+class EngineCanvas;
 
-class EngineComponent
+class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
 public:
-	EngineComponent(SceneNode *a_pOwner);
+	EngineComponent(std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~EngineComponent();
 
 	virtual unsigned int typeID() = 0;
@@ -44,12 +45,13 @@ public:
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
-	SceneNode* getOwnerNode(){ return m_pRefOwner; }
-	void setOwnerNode(SceneNode *a_pOwner);
+	std::shared_ptr<SceneNode> getOwnerNode(){ return m_pOwner; }
+	void setOwnerNode(std::shared_ptr<SceneNode> a_pOwner);
+	void remove();
 
 private:
 	wxString m_Name;
-	SceneNode *m_pRefOwner;
+	std::shared_ptr<SceneNode> m_pOwner;
 };
 
 class EngineSetting
@@ -79,10 +81,10 @@ public:
 	static EngineCore& singleton();
 	
 	// for normal game : 1 canvas with close button
-	GraphicCanvas* createCanvas();
+	EngineCanvas* createCanvas();
 	// for tool window
-	GraphicCanvas* createCanvas(wxWindow *a_pParent);
-	void destroyCanvas(GraphicCanvas *a_pCanvas);
+	EngineCanvas* createCanvas(wxWindow *a_pParent);
+	void destroyCanvas(EngineCanvas *a_pCanvas);
 
 	bool isShutdown();
 	void shutDown();
@@ -98,7 +100,7 @@ private:
 	bool m_bShutdown;
 
 	std::thread *m_pMainLoop;
-	std::set<GraphicCanvas *> m_ManagedCanvas;
+	std::set<EngineCanvas *> m_ManagedCanvas;
 	std::mutex m_CanvasLock;
 };
 

@@ -57,7 +57,7 @@ void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ..
 GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	: wxWindow(a_pParent, a_ID)
 	, m_pCommander(nullptr)
-	, m_RenderFunc(nullptr)
+	, m_ResizeCallback(nullptr)
 	, m_bFullScreen(false)
 {
 	Layout();
@@ -120,11 +120,6 @@ void GraphicCanvas::setFullScreen(bool a_bFullScreen)
 	}
 }
 
-void GraphicCanvas::update(float a_Delta)
-{
-	if( m_RenderFunc ) m_RenderFunc(a_Delta);
-}
-
 BEGIN_EVENT_TABLE(GraphicCanvas, wxWindow)
 	EVT_SIZE(GraphicCanvas::onSize)
 END_EVENT_TABLE()
@@ -134,7 +129,9 @@ void GraphicCanvas::onSize(wxSizeEvent& event)
 	if( nullptr == m_pCommander ) return;
 	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
 	
-	m_pCommander->resize(glm::ivec2(GetClientSize().x, GetClientSize().y), m_bFullScreen);
+	glm::ivec2 l_NewSize(GetClientSize().x, GetClientSize().y);
+	m_pCommander->resize(l_NewSize, m_bFullScreen);
+	if( nullptr != m_ResizeCallback ) m_ResizeCallback(l_NewSize);
 }
 #pragma endregion
 

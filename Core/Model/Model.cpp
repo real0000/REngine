@@ -9,7 +9,7 @@
 #include "Model.h"
 #include "Material.h"
 
-#include "Module/Scene/Scene.h"
+#include "Scene/Scene.h"
 
 namespace R
 {
@@ -18,7 +18,7 @@ namespace R
 //
 // ModelComponent
 //
-ModelComponent::ModelComponent(SceneNode *a_pOwner)
+ModelComponent::ModelComponent(std::shared_ptr<SceneNode> a_pOwner)
 	: EngineComponent(a_pOwner)
 {
 }

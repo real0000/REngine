@@ -5,8 +5,8 @@
 
 #include "CommonUtil.h"
 
-#include "Module/Texture/Texture.h"
-#include "Module/Texture/TextureAtlas.h"
+#include "Texture.h"
+#include "TextureAtlas.h"
 
 namespace R
 {

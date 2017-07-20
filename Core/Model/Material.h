@@ -81,9 +81,14 @@ public:
 	
 	}
 
+	void setHide(bool a_bHide){ m_bHide = a_bHide; }
+	bool isHide(){ return m_bHide; }
+
 private:
 	ShaderProgram *m_pRefProgram;
 	std::vector<MaterialBlock *> m_BlockList;
+
+	bool m_bHide;
 };
 
 }

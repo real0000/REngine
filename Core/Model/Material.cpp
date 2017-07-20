@@ -6,7 +6,7 @@
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Material.h"
-#include "Module/Texture/Texture.h"
+#include "Texture/Texture.h"
 
 namespace R
 {
