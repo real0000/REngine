@@ -7,6 +7,7 @@
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Canvas.h"
+#include "Input/InputMediator.h"
 #include "Scene/Scene.h"
 
 #include <chrono>
@@ -114,12 +115,14 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
+	, m_pInput(new InputMediator())
 	, m_pMainLoop(nullptr)
 {
 }
 
 EngineCore::~EngineCore()
 {
+	SAFE_DELETE(m_pInput)
 	if( !m_bValid ) return;
 
 	if( nullptr != m_pMainLoop )
@@ -131,10 +134,11 @@ EngineCore::~EngineCore()
 
 bool EngineCore::init()
 {
+	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 	switch( EngineSetting::singleton().m_Api )
 	{
 		case GraphicApi::d3d11:
-			//GraphicDeviceManager::singleton().init<D3D12Device>();
+			//GraphicDeviceManager::singleton().init<D3D11Device>();
 			//m_bValid = true;
 			break;
 
@@ -144,7 +148,7 @@ bool EngineCore::init()
 			break;
 
 		case GraphicApi::vulkan:
-			//GraphicDeviceManager::singleton().init<D3D12Device>();
+			//GraphicDeviceManager::singleton().init<VulkanDevice>();
 			//m_bValid = true;
 			break;
 
@@ -205,6 +209,7 @@ void EngineCore::shutDown()
 	m_pMainLoop->join();
 	for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) delete *it;
 	m_ManagedCanvas.clear();
+	SDL_Quit();
 }
 
 void EngineCore::mainLoop()
@@ -224,7 +229,7 @@ void EngineCore::mainLoop()
 		{
 			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 			
-			for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) (*it)->processInput();
+			m_pInput->pollEvent();
 			SceneManager::singleton().update(l_Delta);
 			SceneManager::singleton().render();
 		}

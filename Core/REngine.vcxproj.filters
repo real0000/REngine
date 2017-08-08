@@ -10,6 +10,9 @@
     <Filter Include="Texture">
       <UniqueIdentifier>{bccc469d-4a75-48e6-b97c-69b189115de7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{551b1256-8aaf-4461-b805-6c1363192142}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core.h" />
@@ -38,6 +41,12 @@
     <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="StateMachine.h" />
     <ClInclude Include="Canvas.h" />
+    <ClInclude Include="Input\InputMediator.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\KeyboardInput.h">
+      <Filter>Input</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -65,5 +74,11 @@
     <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="StateMachine.cpp" />
     <ClCompile Include="Canvas.cpp" />
+    <ClCompile Include="Input\InputMediator.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\KeyboardInput.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

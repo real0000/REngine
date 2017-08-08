@@ -24,11 +24,6 @@ EngineCanvas::~EngineCanvas()
 {
 }
 
-void EngineCanvas::processInput()
-{
-
-}
-
 void EngineCanvas::resize(glm::ivec2 a_NewSize)
 {
 }

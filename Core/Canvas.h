@@ -10,6 +10,7 @@ namespace R
 {
 
 class Scene;
+class InputMediator;
 
 class EngineCanvas : public GraphicCanvas
 {
@@ -17,13 +18,11 @@ public:
 	EngineCanvas(wxWindow *a_pParent);
 	virtual ~EngineCanvas();
 
-	void processInput();
 	void resize(glm::ivec2 a_NewSize);
 	
 private:
 	std::shared_ptr<Scene> m_RefScene;
-
-	DECLARE_EVENT_TABLE()
+	InputMediator *m_pInputReceiver;
 };
 
 }

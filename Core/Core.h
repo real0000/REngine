@@ -6,6 +6,8 @@
 #ifndef _CORE_H_
 #define _CORE_H_
 
+#include "SDL.h"
+
 namespace R
 {
 
@@ -31,8 +33,10 @@ enum ComponentDefine
 	CUSTOM_COMPONENT,// all custom component type id must >= this value
 };
 
+struct InputData;
 class SceneNode;
 class EngineCanvas;
+class InputMediator;
 
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
@@ -42,6 +46,7 @@ public:
 
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
+	virtual bool inputListener(InputData &a_Input){ return false; }
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
@@ -99,6 +104,7 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 
+	InputMediator *m_pInput;
 	std::thread *m_pMainLoop;
 	std::set<EngineCanvas *> m_ManagedCanvas;
 	std::mutex m_CanvasLock;
