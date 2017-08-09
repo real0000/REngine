@@ -47,6 +47,9 @@
     <ClInclude Include="Input\KeyboardInput.h">
       <Filter>Input</Filter>
     </ClInclude>
+    <ClInclude Include="Input\MouseInput.h">
+      <Filter>Input</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -78,6 +81,9 @@
       <Filter>Input</Filter>
     </ClCompile>
     <ClCompile Include="Input\KeyboardInput.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\MouseInput.cpp">
       <Filter>Input</Filter>
     </ClCompile>
   </ItemGroup>

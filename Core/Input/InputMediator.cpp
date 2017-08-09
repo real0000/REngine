@@ -8,6 +8,7 @@
 #include "Core.h"
 #include "InputMediator.h"
 #include "KeyboardInput.h"
+#include "MouseInput.h"
 
 namespace R
 {
@@ -35,6 +36,7 @@ InputMediator::InputMediator(unsigned int a_Flag)
 	: m_Flags(a_Flag)
 {
 	m_InputMap.push_back(new KeyboardInput(this));
+	m_InputMap.push_back(new MouseInput(this));
 }
 
 InputMediator::~InputMediator()

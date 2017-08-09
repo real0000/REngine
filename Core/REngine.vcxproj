@@ -164,6 +164,7 @@
     <ClInclude Include="Core.h" />
     <ClInclude Include="Input\InputMediator.h" />
     <ClInclude Include="Input\KeyboardInput.h" />
+    <ClInclude Include="Input\MouseInput.h" />
     <ClInclude Include="Model\Material.h" />
     <ClInclude Include="Model\Model.h" />
     <ClInclude Include="PhysicalModule.h" />
@@ -179,6 +180,7 @@
     <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="Input\InputMediator.cpp" />
     <ClCompile Include="Input\KeyboardInput.cpp" />
+    <ClCompile Include="Input\MouseInput.cpp" />
     <ClCompile Include="Model\Material.cpp" />
     <ClCompile Include="Model\Model.cpp" />
     <ClCompile Include="PhysicalModule.cpp" />

@@ -39,6 +39,9 @@ void KeyboardInput::removeKey(int a_Define)
 void KeyboardInput::mapKey(int a_Define, wxString a_Key)
 {
 	removeKey(a_Define);
+	SDL_Keycode l_Code = SDL_GetKeyFromName(a_Key);
+	if( SDLK_UNKNOWN == l_Code ) return;
+	m_KeyMap.insert(std::make_pair(l_Code, a_Define));
 }
 
 bool KeyboardInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
@@ -68,7 +71,6 @@ bool KeyboardInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 	a_Output.m_Type = INPUTTYPE_BUTTON;
 	return true;
 }
-
 
 void KeyboardInput::initKeymap(std::vector<InputDeviceInterface::DeviceKey> &a_Output)
 {

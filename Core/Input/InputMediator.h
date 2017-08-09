@@ -17,7 +17,7 @@ enum InputType
 {
 	INPUTTYPE_BUTTON = 0,
 	INPUTTYPE_ANALOG,
-	INPUTTYPE_ANALOG2,
+	INPUTTYPE_MOTION,
 	INPUTTYPE_TEXT,
 
 	INPUTTYPE_UNDEFINED
@@ -32,7 +32,7 @@ struct InputData
 	union 
 	{
 		bool m_bDown;
-		float m_Val[2];// 0.0f ~ 1.0f
+		float m_Val[2];// 0.0f ~ 1.0f if analog
 	} m_Data;
 	wxString m_Text;// or key name
 	InputType m_Type;
