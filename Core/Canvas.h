@@ -22,7 +22,6 @@ public:
 	
 private:
 	std::shared_ptr<Scene> m_RefScene;
-	InputMediator *m_pInputReceiver;
 };
 
 }

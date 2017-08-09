@@ -17,6 +17,8 @@
 #include "PhysicalModule.h"
 #include "StateMachine.h"
 #include "Input/InputMediator.h"
+#include "Input/KeyboardInput.h"
+#include "Input/MouseInput.h"
 #include "Model/Material.h"
 #include "Model/Model.h"
 #include "Scene/Camera.h"

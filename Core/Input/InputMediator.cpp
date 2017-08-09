@@ -37,6 +37,8 @@ InputMediator::InputMediator(unsigned int a_Flag)
 {
 	m_InputMap.push_back(new KeyboardInput(this));
 	m_InputMap.push_back(new MouseInput(this));
+
+	// to do : add game controller and vive controller
 }
 
 InputMediator::~InputMediator()

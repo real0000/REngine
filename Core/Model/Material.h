@@ -9,6 +9,7 @@
 namespace R
 {
 
+class GraphicCommander;
 class ShaderProgram;
 class TextureUnit;
 
@@ -36,13 +37,13 @@ struct ProgramBlockDesc
 	ProgramBlockDesc();
 	~ProgramBlockDesc();
 
-	unsigned int m_BlockSize;
 	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
 	void *m_pRefRegInfo;
 };*/
 struct MaterialParam
 {
-	char *m_pVal;
+	std::vector<char *> m_pRefVal;
+	unsigned int m_Byte;
 	ShaderParamType::Key m_Type;
 };
 class MaterialBlock
@@ -51,14 +52,52 @@ public:
 	MaterialBlock();
 	virtual ~MaterialBlock();
 
-	void addParam(std::string a_Name, ShaderParamType::Key a_Type);
-	void init(ShaderRegType::Key a_Type, unsigned int a_NumSlot = 1);// ConstBuffer / Constant / StorageBuffer
+	void addParam(std::string a_Name, ShaderParamType::Key a_Type, char *a_pInitVal = nullptr);
+	void init(ShaderRegType::Key a_Type, unsigned int a_NumSlot = 1);// ConstBuffer / Constant(a_NumSlot == 1) / StorageBuffer
+
+	template<typename T>
+	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
+	{
+		assert(a_Slot < m_NumSlot);
+
+		auto it = m_Params.find(a_Name);
+		if( m_Params.end() == it ) return;
+		assert(it->second->m_Byte == sizeof(T));
+		memcpy(it->second->m_pRefVal[a_Slot], &a_Param, it->second->m_Byte);
+	}
+	template<typename T>
+	T getParam(wxString a_Name, unsigned int a_Slot)
+	{
+		assert(a_Slot < m_NumSlot);
+
+		T l_Res;
+
+		auto it = m_Params.find(a_Name);
+		if( m_Params.end() == it ) return l_Res;
+		assert(it->second->m_Byte == sizeof(T));
+		memcpy(&l_Res, it->second->m_pRefVal[a_Slot], it->second->m_Byte);
+		return l_Res;
+	}
+	void bind(GraphicCommander *a_pBinder);
 
 private:
 	struct InitVal
 	{
-		
+		struct InitParamInfo
+		{
+			std::string m_Name;
+			ShaderParamType::Key m_Type;
+			char m_Buffer[64];
+		};
+		std::vector<InitParamInfo> m_InitParams;
 	} *m_pInitVal;
+	
+	std::map<std::string, MaterialParam *> m_Params;
+	std::string m_FirstParam;// constant block need this
+	char *m_pBuffer;
+	unsigned int m_BlockSize;
+	unsigned int m_NumSlot;
+	ShaderRegType::Key m_Type;
 };
 
 class Material

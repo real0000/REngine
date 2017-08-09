@@ -394,6 +394,24 @@ void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderT
 	g_CmdThreadData.m_pComponent->setRootDescriptorTable(l_Thread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_bRenderTarget));
 }
 
+void D3D12Commander::bindConstant(std::string a_Name, unsigned int a_SrcData)
+{
+	D3D12GpuThread l_Thread = validateThisThread();
+	std::pair<int, int> l_ConstSlot = g_CmdThreadData.m_pCurrProgram->getConstantSlot(a_Name);
+	if( -1 == l_ConstSlot.first ) return;
+
+	g_CmdThreadData.m_pComponent->setRoot32BitConstant(l_Thread.second, l_ConstSlot.first, a_SrcData, l_ConstSlot.second >> 2);
+}
+
+void D3D12Commander::bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt)
+{
+	D3D12GpuThread l_Thread = validateThisThread();
+	std::pair<int, int> l_ConstSlot = g_CmdThreadData.m_pCurrProgram->getConstantSlot(a_Name);
+	if( -1 == l_ConstSlot.first ) return;
+
+	g_CmdThreadData.m_pComponent->setRoot32BitConstants(l_Thread.second, l_ConstSlot.first, a_SizeInUInt, a_pSrcData, l_ConstSlot.second >> 2);
+}
+
 void D3D12Commander::bindUniformBlock(int a_ID, int a_BlockStage)
 {
 	D3D12GpuThread l_Thread = validateThisThread();

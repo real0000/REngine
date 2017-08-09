@@ -111,6 +111,8 @@ public:
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
+	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData);
+	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt);
 	virtual void bindUniformBlock(int a_HeapID, int a_BlockStage);
 	virtual void bindUavBlock(int a_HeapID, int a_BlockStage);
 	virtual void clearRenderTarget(int a_ID, glm::vec4 a_Color);
