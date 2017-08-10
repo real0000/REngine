@@ -48,7 +48,8 @@ ProgramParamDesc::~ProgramParamDesc()
 // ProgramBlockDesc
 //
 ProgramBlockDesc::ProgramBlockDesc()
-	: m_BlockSize(0)
+	: m_bReserved(false)
+	, m_BlockSize(0)
 	, m_pRegInfo(nullptr)
 {
 }
@@ -79,11 +80,11 @@ ShaderProgram::~ShaderProgram()
 	for( auto it = m_BlockDesc.begin() ; it != m_BlockDesc.end() ; ++it ) delete it->second;
 	m_BlockDesc.clear();
 
-	for( unsigned int i=0 ; i<m_ConstBlockDesc.size() ; ++i ) delete m_ConstBlockDesc[i];
-	m_ConstBlockDesc.clear();
+	for( unsigned int i=0 ; i<m_ConstantBlockDesc.size() ; ++i ) delete m_ConstantBlockDesc[i];
+	m_ConstantBlockDesc.clear();
 
-	for( unsigned int i=0 ; i<m_StorageDesc.size() ; ++i ) delete m_StorageDesc[i];
-	m_StorageDesc.clear();
+	for( unsigned int i=0 ; i<m_UavDesc.size() ; ++i ) delete m_UavDesc[i];
+	m_UavDesc.clear();
 }
 
 void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
@@ -136,11 +137,7 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 		assert(m_BlockDesc.find(l_BlockName) == m_BlockDesc.end());
 		m_BlockDesc.insert(std::make_pair(l_BlockName, l_pNewBlock));
 
-		if( it->second.get("<xmlattr>.reserved", "false") == "true" )
-		{
-			l_pNewBlock->m_BlockSize = 0;
-			continue;
-		}
+		l_pNewBlock->m_bReserved = it->second.get("<xmlattr>.reserved", "false") == "true";
 
 		l_ParamOffset = 0;
 		for( auto l_ParamIt = it->second.begin() ; l_ParamIt != it->second.end() ; ++l_ParamIt )

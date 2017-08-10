@@ -20,7 +20,7 @@ STRING_ENUM_CLASS(ShaderRegType,
 	Srv3D,
 	ConstBuffer,
 	Constant,
-	StorageBuffer,
+	UavBuffer,
 
 	Sampler,)
 
@@ -70,6 +70,7 @@ struct ProgramBlockDesc
 	ProgramBlockDesc();
 	~ProgramBlockDesc();
 
+	bool m_bReserved;
 	unsigned int m_BlockSize;
 	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
 	RegisterInfo *m_pRegInfo;
@@ -89,19 +90,20 @@ public:
 
 	std::map<std::string, ProgramTextureDesc *>& getTextureDesc(){ return m_TextureDesc; }
 	std::map<std::string, ProgramBlockDesc *>& getBlockDesc(){ return m_BlockDesc; }
-	std::vector<ProgramBlockDesc *>& getConstBlockDesc(){ return m_ConstBlockDesc; }
-	std::vector<ProgramBlockDesc *>& getStorageBlockDesc(){ return m_StorageDesc; }
+	std::vector<ProgramBlockDesc *>& getConstBlockDesc(){ return m_ConstantBlockDesc; }
+	std::vector<ProgramBlockDesc *>& getUavBlockDesc(){ return m_UavDesc; }
 	
 protected:
 	ProgramBlockDesc* newConstBlockDesc()
 	{
-		m_ConstBlockDesc.push_back(new ProgramBlockDesc());
-		return m_ConstBlockDesc.back();
+		m_ConstantBlockDesc.push_back(new ProgramBlockDesc());
+		return m_ConstantBlockDesc.back();
 	}
-	ProgramBlockDesc* newStorageBlockDesc()
+	ProgramBlockDesc* newUavBlockDesc()
 	{
-		m_StorageDesc.push_back(new ProgramBlockDesc());
-		return m_StorageDesc.back();
+		m_UavDesc.push_back(new ProgramBlockDesc());
+		m_UavDesc.back()->m_bReserved = true;
+		return m_UavDesc.back();
 	}
 	virtual void init(boost::property_tree::ptree &a_Root) = 0;
 	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
@@ -111,8 +113,8 @@ private:
 	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
 	
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
-	std::map<std::string, ProgramBlockDesc *> m_BlockDesc;
-	std::vector<ProgramBlockDesc *> m_ConstBlockDesc, m_StorageDesc;
+	std::map<std::string, ProgramBlockDesc *> m_BlockDesc;// const buffer
+	std::vector<ProgramBlockDesc *> m_ConstantBlockDesc, m_UavDesc;// 32bit constantss, uav
 	bool m_bCompute;
 	bool m_bIndexedDraw;
 	std::pair<int, int> m_ShaderInUse;

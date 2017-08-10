@@ -105,7 +105,7 @@ HLSLProgram12::HLSLProgram12()
 
 HLSLProgram12::~HLSLProgram12()
 {
-	for( unsigned int i=0 ; i<ShaderRegType::StorageBuffer+1 ; ++i )
+	for( unsigned int i=0 ; i<ShaderRegType::UavBuffer+1 ; ++i )
 	{
 		for( auto it=m_RegMap[i].begin() ; it!=m_RegMap[i].end() ; ++it ) delete it->second;
 		m_RegMap[i].clear();
@@ -144,7 +144,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	}
 
 	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
-	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::StorageBuffer+1][ShaderStages::NumStage];
+	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::UavBuffer+1][ShaderStages::NumStage];
 	{
 		std::map<std::string, D3D12_SHADER_VISIBILITY> l_RegVisibleMaps;
 		for( auto it = a_ShaderDesc.begin() ; it != a_ShaderDesc.end() ; ++it )
@@ -173,7 +173,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			std::map<std::string, RegisterInfo *> &l_TargetMap = l_ParamMap[l_RegType][l_RegVisibleMaps[l_Name]];
 
 			RegisterInfo *l_pNewInfo = new RegisterInfo();
-			l_pNewInfo->m_bReserved = (it->second.get("<xmlattr>.reserved", "false") == "true") || l_RegType == ShaderRegType::StorageBuffer;
+			l_pNewInfo->m_bReserved = (it->second.get("<xmlattr>.reserved", "false") == "true") || l_RegType == ShaderRegType::UavBuffer;
 			l_pNewInfo->m_Type = l_RegType;
 			l_TargetMap.insert(std::make_pair(l_Name, l_pNewInfo));
 
@@ -237,7 +237,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	l_Slot = 0;
 	for( unsigned int l_Visibility = 0 ; l_Visibility < ShaderStages::NumStage ; ++l_Visibility )
 	{
-		std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[ShaderRegType::StorageBuffer][l_Visibility];
+		std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[ShaderRegType::UavBuffer][l_Visibility];
 		if( l_ParamList.empty() ) continue;
 
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
@@ -245,7 +245,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			it->second->m_RootIndex = l_RegCollect.size();;
 			it->second->m_Slot = l_Slot;
 			l_TextuerMap[it->first]->m_pRegInfo = it->second;
-			m_RegMap[ShaderRegType::StorageBuffer][it->first] = it->second;
+			m_RegMap[ShaderRegType::UavBuffer][it->first] = it->second;
 			
 			D3D12_ROOT_PARAMETER l_TempReg;
 			l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
@@ -254,7 +254,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 			l_RegCollect.push_back(l_TempReg);
 
-			ProgramBlockDesc *l_pNewBlock = newStorageBlockDesc();
+			ProgramBlockDesc *l_pNewBlock = newUavBlockDesc();
 			l_pNewBlock->m_pRegInfo = it->second;
 			
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());

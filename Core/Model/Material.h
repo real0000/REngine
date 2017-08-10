@@ -9,6 +9,7 @@
 namespace R
 {
 
+struct ProgramBlockDesc;
 class GraphicCommander;
 class ShaderProgram;
 class TextureUnit;
@@ -49,11 +50,8 @@ struct MaterialParam
 class MaterialBlock
 {
 public:
-	MaterialBlock();
+	MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot = 1);// ConstBuffer / Constant(a_NumSlot == 1) / UavBuffer
 	virtual ~MaterialBlock();
-
-	void addParam(std::string a_Name, ShaderParamType::Key a_Type, char *a_pInitVal = nullptr);
-	void init(ShaderRegType::Key a_Type, unsigned int a_NumSlot = 1);// ConstBuffer / Constant(a_NumSlot == 1) / StorageBuffer
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
@@ -78,35 +76,29 @@ public:
 		memcpy(&l_Res, it->second->m_pRefVal[a_Slot], it->second->m_Byte);
 		return l_Res;
 	}
-	void bind(GraphicCommander *a_pBinder);
+	void bind(GraphicCommander *a_pBinder, int a_Stage);
 
 private:
-	struct InitVal
-	{
-		struct InitParamInfo
-		{
-			std::string m_Name;
-			ShaderParamType::Key m_Type;
-			char m_Buffer[64];
-		};
-		std::vector<InitParamInfo> m_InitParams;
-	} *m_pInitVal;
+	void bindConstant(GraphicCommander *a_pBinder, int a_Stage);// a_Stage unused
+	void bindConstBuffer(GraphicCommander *a_pBinder, int a_Stage);
+	void bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage);
+	std::function<void(GraphicCommander *, int)> m_BindFunc;
 	
 	std::map<std::string, MaterialParam *> m_Params;
 	std::string m_FirstParam;// constant block need this
 	char *m_pBuffer;
 	unsigned int m_BlockSize;
 	unsigned int m_NumSlot;
+	int m_ID;
 	ShaderRegType::Key m_Type;
 };
 
 class Material
 {
 public:
-	Material();
+	Material(ShaderProgram *a_pRefProgram);
 	virtual ~Material();
 
-	void setProgram(ShaderProgram *a_pRefProgram);
 	ShaderProgram* getProgram();
 	void setTexture(wxString a_Name, std::shared_ptr<TextureUnit> a_Texture);
 	template<typename T>

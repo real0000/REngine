@@ -5,7 +5,7 @@
       <Param name="m_World" desc="" type="float4x4" size="100"/>
     </ConstBuffer>
     <Constant name="m_VtxFlag" type="int" reserved="false"/>
-    <!--StorageBuffer   always reserved/-->
+    <!--UavBuffer   always reserved/-->
     <Srv2D name="m_DiffTex" desc="" reserved="false"/>
     <Srv2D name="m_NormalTex" desc="" reserved="false"/>
   </ParamList>

@@ -173,6 +173,4 @@ unsigned int Dircet3DDevice::getParamAlignment(ShaderParamType::Key a_Key)
 }
 #pragma endregion
 
-
-
 }

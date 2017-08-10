@@ -31,7 +31,7 @@ public:
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
 	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData) = 0;
 	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt) = 0;
-	virtual void bindUniformBlock(int a_ID, int a_BlockStage) = 0;
+	virtual void bindConstBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void bindUavBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color) = 0;
 	virtual void clearBackBuffer(int a_Idx, glm::vec4 a_Color) = 0;

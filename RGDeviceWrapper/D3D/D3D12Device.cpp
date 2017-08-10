@@ -412,7 +412,7 @@ void D3D12Commander::bindConstant(std::string a_Name, void* a_pSrcData, unsigned
 	g_CmdThreadData.m_pComponent->setRoot32BitConstants(l_Thread.second, l_ConstSlot.first, a_SizeInUInt, a_pSrcData, l_ConstSlot.second >> 2);
 }
 
-void D3D12Commander::bindUniformBlock(int a_ID, int a_BlockStage)
+void D3D12Commander::bindConstBlock(int a_ID, int a_BlockStage)
 {
 	D3D12GpuThread l_Thread = validateThisThread();
 
