@@ -41,8 +41,11 @@ class InputMediator;
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
 public:
-	EngineComponent(std::shared_ptr<SceneNode> a_pOwner);
-	virtual ~EngineComponent();
+	template<typename T>
+	static std::shared_ptr<T> create(std::shared_ptr<SceneNode> a_pOwner)
+	{
+		return std::shared_ptr<T>(new T(a_pOwner));
+	}
 
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
@@ -51,8 +54,14 @@ public:
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	std::shared_ptr<SceneNode> getOwnerNode(){ return m_pOwner; }
-	void setOwnerNode(std::shared_ptr<SceneNode> a_pOwner);
+	void setOwner(std::shared_ptr<SceneNode> a_pOwner);
 	void remove();
+
+	void detach();//for engine use, user should not call this method
+
+protected:
+	EngineComponent(std::shared_ptr<SceneNode> a_pOwner);
+	virtual ~EngineComponent();
 
 private:
 	wxString m_Name;

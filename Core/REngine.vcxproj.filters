@@ -13,6 +13,12 @@
     <Filter Include="Input">
       <UniqueIdentifier>{551b1256-8aaf-4461-b805-6c1363192142}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scene\Graph">
+      <UniqueIdentifier>{6b28c606-305f-4b03-ad4c-3af592f5964c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\RenderPipeline">
+      <UniqueIdentifier>{cbc5e677-6b1c-4513-a489-ffe155f94270}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core.h" />
@@ -50,6 +56,18 @@
     <ClInclude Include="Input\MouseInput.h">
       <Filter>Input</Filter>
     </ClInclude>
+    <ClInclude Include="Scene\Graph\Octree.h">
+      <Filter>Scene\Graph</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Graph\SceneGraph.h">
+      <Filter>Scene\Graph</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\RenderPipline\Deferrede.h">
+      <Filter>Scene\RenderPipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\RenderPipline\RenderPipline.h">
+      <Filter>Scene\RenderPipeline</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -85,6 +103,18 @@
     </ClCompile>
     <ClCompile Include="Input\MouseInput.cpp">
       <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Graph\Octree.cpp">
+      <Filter>Scene\Graph</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Graph\SceneGraph.cpp">
+      <Filter>Scene\Graph</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\RenderPipline\Deferrede.cpp">
+      <Filter>Scene\RenderPipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp">
+      <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

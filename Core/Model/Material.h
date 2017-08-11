@@ -14,33 +14,6 @@ class GraphicCommander;
 class ShaderProgram;
 class TextureUnit;
 
-/*struct ProgramTextureDesc
-{
-	ProgramTextureDesc();
-	~ProgramTextureDesc();
-
-	wxString m_Describe;
-	void *m_pRefRegInfo;
-};
-struct ProgramParamDesc
-{
-	ProgramParamDesc();
-	~ProgramParamDesc();
-
-	wxString m_Describe;
-	unsigned int m_Offset;
-	ShaderParamType::Key m_Type;
-	char *m_pDefault;
-	void *m_pRefRegInfo;
-};
-struct ProgramBlockDesc
-{
-	ProgramBlockDesc();
-	~ProgramBlockDesc();
-
-	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
-	void *m_pRefRegInfo;
-};*/
 struct MaterialParam
 {
 	std::vector<char *> m_pRefVal;
@@ -64,7 +37,7 @@ public:
 		memcpy(it->second->m_pRefVal[a_Slot], &a_Param, it->second->m_Byte);
 	}
 	template<typename T>
-	T getParam(wxString a_Name, unsigned int a_Slot)
+	T getParam(std::string a_Name, unsigned int a_Slot)
 	{
 		assert(a_Slot < m_NumSlot);
 
@@ -98,26 +71,35 @@ class Material
 public:
 	Material(ShaderProgram *a_pRefProgram);
 	virtual ~Material();
+	static std::shared_ptr<Material> create(ShaderProgram *a_pRefProgram);
 
-	ShaderProgram* getProgram();
+	ShaderProgram* getProgram(){ return m_pRefProgram; }
 	void setTexture(wxString a_Name, std::shared_ptr<TextureUnit> a_Texture);
 	template<typename T>
-	void setParam(std::string a_Name, T a_Param)
+	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
-		
+		auto it = m_ParamIndexMap.find(a_Name);
+		if( m_ParamIndexMap.end() == it ) return;
+		m_BlockList[it->second]->setParam(a_Name, a_Slot);
 	}
 	template<typename T>
-	T getParam(int a_BlockIdx, wxString a_Name)
+	T getParam(std::string a_Name, unsigned int a_Slot)
 	{
-	
+		T l_Empty;
+
+		auto it = m_ParamIndexMap.find(a_Name);
+		if( m_ParamIndexMap.end() == it ) return l_Empty;
+		return 	m_BlockList[it->second]->getParam(a_Name, a_Slot);
 	}
 
 	void setHide(bool a_bHide){ m_bHide = a_bHide; }
 	bool isHide(){ return m_bHide; }
 
 private:
+
 	ShaderProgram *m_pRefProgram;
-	std::vector<MaterialBlock *> m_BlockList;
+	std::vector<MaterialBlock *> m_BlockList, m_OwnBlocks;
+	std::map<std::string, int> m_ParamIndexMap;// only own block here
 
 	bool m_bHide;
 };

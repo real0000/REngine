@@ -33,7 +33,7 @@ EngineComponent::~EngineComponent()
 {
 }
 
-void EngineComponent::setOwnerNode(std::shared_ptr<SceneNode> a_pOwner)
+void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 {
 	assert(a_pOwner);
 	m_pOwner->remove(shared_from_this());
@@ -44,6 +44,11 @@ void EngineComponent::setOwnerNode(std::shared_ptr<SceneNode> a_pOwner)
 void EngineComponent::remove()
 {
 	m_pOwner->remove(shared_from_this());
+	m_pOwner = nullptr;
+}
+
+void EngineComponent::detach()
+{
 	m_pOwner = nullptr;
 }
 #pragma endregion

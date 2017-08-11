@@ -109,4 +109,27 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 }
 #pragma endregion
 
+#pragma region Material
+//
+// Material
+//
+std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
+{
+	return std::shared_ptr<Material>(new Material(a_pRefProgram));
+}
+
+Material::Material(ShaderProgram *a_pRefProgram)
+{
+}
+
+Material::~Material()
+{
+}
+
+void Material::setTexture(wxString a_Name, std::shared_ptr<TextureUnit> a_Texture)
+{
+
+}
+#pragma endregion
+
 }

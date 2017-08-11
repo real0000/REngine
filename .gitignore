@@ -254,3 +254,5 @@ paket-files/
 # Custom
 *.tlog
 *.idb
+/Debug_WIN/REngine.lib
+/RImporters/~AutoRecover.RImporters.vcxproj

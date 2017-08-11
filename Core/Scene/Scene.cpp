@@ -10,8 +10,9 @@
 namespace R
 {
 
-SceneNode::SceneNode()
-	: m_pParent(nullptr)
+SceneNode::SceneNode(wxString a_Name)
+	: m_Name(a_Name)
+	, m_pParent(nullptr)
 {
 
 }
@@ -29,13 +30,65 @@ std::shared_ptr<SceneNode> SceneNode::addChild()
 {
 	std::shared_ptr<SceneNode> l_pNewNode = std::shared_ptr<SceneNode>(new SceneNode());
 	m_Children.push_back(l_pNewNode);
+	l_pNewNode->m_pParent = shared_from_this();
 	return l_pNewNode;
+}
+
+void SceneNode::destroy()
+{
+	m_pParent = nullptr;
+	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
+	{
+		for( auto setIt = it->second.begin() ; setIt != it->second.end() ; ++setIt )
+		{
+			(*setIt)->detach();
+		}
+		it->second.clear();
+	}
+	m_Components.clear();
+	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->destroy();
+	m_Children.clear();
+}
+
+void SceneNode::setParent(std::shared_ptr<SceneNode> a_pNewParent)
+{
+	if( a_pNewParent == m_pParent ) return;
+	assert( nullptr != a_pNewParent );
+	assert( nullptr != m_pParent );// don't do this to root node
+	
+	auto it = m_pParent->m_Children.begin();
+	for( ; it != m_pParent->m_Children.end() ; ++it )
+	{
+		if( (*it).get() == this )
+		{
+			m_pParent->m_Children.erase(it);
+			break;
+		}
+	}
+
+	m_pParent = a_pNewParent;
+	m_pParent->m_Children.push_back(shared_from_this());
+	update(m_pParent->m_World);
+}
+
+std::shared_ptr<SceneNode> SceneNode::find(wxString a_Name)
+{
+	if( a_Name == m_Name ) return shared_from_this();
+
+	std::shared_ptr<SceneNode> l_Res = nullptr;
+	for( auto it = m_Children.begin() ; it != m_Children.end() ; ++it )
+	{
+		l_Res = (*it)->find(a_Name);
+		if( nullptr != l_Res ) break;
+	}
+
+	return l_Res;
 }
 
 void SceneNode::update(glm::mat4x4 a_ParentTranform)
 {
 	m_World = a_ParentTranform * m_LocalTransform;
-	for( unsigned int i=0 ; i<m_Children.size() ; ++i ) m_Children[i]->update(m_World);
+	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->update(m_World);
 }
 
 std::shared_ptr<EngineComponent> SceneNode::getComponent(wxString a_Name)
@@ -45,7 +98,7 @@ std::shared_ptr<EngineComponent> SceneNode::getComponent(wxString a_Name)
 	{
 		for( auto setIt = it->second.begin() ; setIt != it->second.end() ; ++setIt )
 		{
-			return *setIt;
+			if( (*setIt)->getName() == a_Name ) return *setIt;
 		}
 	}
 	return nullptr;
