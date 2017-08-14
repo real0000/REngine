@@ -62,10 +62,10 @@
     <ClInclude Include="Scene\Graph\SceneGraph.h">
       <Filter>Scene\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="Scene\RenderPipline\Deferrede.h">
+    <ClInclude Include="Scene\RenderPipline\RenderPipline.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
-    <ClInclude Include="Scene\RenderPipline\RenderPipline.h">
+    <ClInclude Include="Scene\RenderPipline\Deferred.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
   </ItemGroup>
@@ -110,10 +110,10 @@
     <ClCompile Include="Scene\Graph\SceneGraph.cpp">
       <Filter>Scene\Graph</Filter>
     </ClCompile>
-    <ClCompile Include="Scene\RenderPipline\Deferrede.cpp">
+    <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp">
       <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
-    <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp">
+    <ClCompile Include="Scene\RenderPipline\Deferred.cpp">
       <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
   </ItemGroup>

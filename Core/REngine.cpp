@@ -27,6 +27,7 @@ EngineComponent::EngineComponent(std::shared_ptr<SceneNode> a_pOwner)
 	, m_pOwner(a_pOwner)
 {
 	m_pOwner->add(shared_from_this());
+	memset(&m_Flags, 0, sizeof(m_Flags));
 }
 
 EngineComponent::~EngineComponent()
@@ -45,11 +46,43 @@ void EngineComponent::remove()
 {
 	m_pOwner->remove(shared_from_this());
 	m_pOwner = nullptr;
+	removeInputListener();
+	removeUpdateListener();
 }
 
 void EngineComponent::detach()
 {
 	m_pOwner = nullptr;
+	removeInputListener();
+	removeUpdateListener();
+}
+
+void EngineComponent::addInputListener()
+{
+	if( 0 != m_Flags.m_bInputListener ) return;
+	EngineCore::singleton().addInputListener(shared_from_this());
+	m_Flags.m_bInputListener = 1;
+}
+
+void EngineComponent::removeInputListener()
+{
+	if( 0 == m_Flags.m_bInputListener ) return;
+	EngineCore::singleton().removeInputListener(shared_from_this());
+	m_Flags.m_bInputListener = 0;
+}
+
+void EngineComponent::addUpdateListener()
+{
+	if( 0 != m_Flags.m_bUpdateListener ) return;
+	EngineCore::singleton().addUpdateListener(shared_from_this());
+	m_Flags.m_bUpdateListener = 1;
+}
+
+void EngineComponent::removeUpdateListener()
+{
+	if( 0 == m_Flags.m_bUpdateListener ) return;
+	EngineCore::singleton().removeUpdateListener(shared_from_this());
+	m_Flags.m_bUpdateListener = 0;
 }
 #pragma endregion
 
@@ -137,33 +170,6 @@ EngineCore::~EngineCore()
 	}
 }
 
-bool EngineCore::init()
-{
-	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
-	switch( EngineSetting::singleton().m_Api )
-	{
-		case GraphicApi::d3d11:
-			//GraphicDeviceManager::singleton().init<D3D11Device>();
-			//m_bValid = true;
-			break;
-
-		case GraphicApi::d3d12:
-			GraphicDeviceManager::singleton().init<D3D12Device>();
-			m_bValid = true;
-			break;
-
-		case GraphicApi::vulkan:
-			//GraphicDeviceManager::singleton().init<VulkanDevice>();
-			//m_bValid = true;
-			break;
-
-		default:break;
-	}
-	if( m_bValid ) m_pMainLoop = new std::thread(&EngineCore::mainLoop, this);
-	
-	return m_bValid;
-}
-
 EngineCanvas* EngineCore::createCanvas()
 {
 	if( !m_bValid ) return nullptr;
@@ -217,6 +223,54 @@ void EngineCore::shutDown()
 	SDL_Quit();
 }
 
+void EngineCore::addInputListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	m_pInput->addListener(a_pListener);
+}
+
+void EngineCore::removeInputListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	m_pInput->removeListener(a_pListener);
+}
+
+void EngineCore::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	m_UpdateCallback.push_back(a_pListener);
+}
+
+void EngineCore::removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	auto it = std::find(m_UpdateCallback.begin(), m_UpdateCallback.end(), a_pListener);
+	m_UpdateCallback.erase(it);
+}
+
+bool EngineCore::init()
+{
+	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+	switch( EngineSetting::singleton().m_Api )
+	{
+		case GraphicApi::d3d11:
+			//GraphicDeviceManager::singleton().init<D3D11Device>();
+			//m_bValid = true;
+			break;
+
+		case GraphicApi::d3d12:
+			GraphicDeviceManager::singleton().init<D3D12Device>();
+			m_bValid = true;
+			break;
+
+		case GraphicApi::vulkan:
+			//GraphicDeviceManager::singleton().init<VulkanDevice>();
+			//m_bValid = true;
+			break;
+
+		default:break;
+	}
+	if( m_bValid ) m_pMainLoop = new std::thread(&EngineCore::mainLoop, this);
+	
+	return m_bValid;
+}
+
 void EngineCore::mainLoop()
 {
 	auto l_Start = std::chrono::high_resolution_clock::now();
@@ -235,6 +289,7 @@ void EngineCore::mainLoop()
 			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 			
 			m_pInput->pollEvent();
+			for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(l_Delta);
 			SceneManager::singleton().update(l_Delta);
 			SceneManager::singleton().render();
 		}

@@ -10,6 +10,10 @@
 namespace R
 {
 
+#pragma region SceneNode
+///
+// SceneNode
+//
 SceneNode::SceneNode(wxString a_Name)
 	: m_Name(a_Name)
 	, m_pParent(nullptr)
@@ -134,5 +138,12 @@ void SceneNode::remove(std::shared_ptr<EngineComponent> a_pComponent)
 	l_TypeIt->second.erase(l_ComponentIt);
 	if( l_TypeIt->second.empty() ) m_Components.erase(l_TypeIt);
 }
+#pragma endregion
+
+#pragma region Scene
+//
+// Scene
+//
+#pragma endregion
 
 }

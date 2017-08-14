@@ -50,6 +50,7 @@ public:
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
+	virtual void updateListener(float a_Delta){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
@@ -63,7 +64,19 @@ protected:
 	EngineComponent(std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~EngineComponent();
 
+	// listener
+	void addInputListener();
+	void removeInputListener();
+	void addUpdateListener();
+	void removeUpdateListener();
+
 private:
+	struct
+	{
+		unsigned int m_bInputListener : 1;
+		unsigned int m_bUpdateListener : 1;
+	} m_Flags;
+
 	wxString m_Name;
 	std::shared_ptr<SceneNode> m_pOwner;
 };
@@ -91,6 +104,7 @@ private:
 
 class EngineCore
 {
+	friend class EngineComponent;
 public:
 	static EngineCore& singleton();
 	
@@ -106,6 +120,12 @@ public:
 private:
 	EngineCore();
 	virtual ~EngineCore();
+	
+	// listener
+	void addInputListener(std::shared_ptr<EngineComponent> a_pListener);
+	void removeInputListener(std::shared_ptr<EngineComponent> a_pListener);
+	void addUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
+	void removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
 
 	bool init();
 	void mainLoop();
@@ -116,6 +136,7 @@ private:
 	InputMediator *m_pInput;
 	std::thread *m_pMainLoop;
 	std::set<EngineCanvas *> m_ManagedCanvas;
+	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
 	std::mutex m_CanvasLock;
 };
 

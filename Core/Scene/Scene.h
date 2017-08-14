@@ -11,6 +11,7 @@ namespace R
 
 class CameraComponent;
 class EngineComponent;
+class Scene;
 
 class SceneNode : public std::enable_shared_from_this<SceneNode>
 {
@@ -28,7 +29,7 @@ public:
 	void setTransform(glm::mat4x4 a_Transform);
 	void update(glm::mat4x4 a_ParentTranform);
 
-	wxString getNAme(){ return m_Name; }
+	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	const std::list< std::shared_ptr<SceneNode> >& getChildren(){ return m_Children; }
 	const std::shared_ptr<SceneNode> getParent(){ return m_pParent; }
@@ -43,9 +44,8 @@ public:
 		a_Output.resize(it->second.size());
 		std::copy(it->second.begin(), it->second.end(), a_Output.begin());
 	}
-
+	
 private:
-
 	void add(std::shared_ptr<EngineComponent> a_pComponent);
 	void remove(std::shared_ptr<EngineComponent> a_pComponent);
 
@@ -61,25 +61,27 @@ private:
 class Scene
 {
 public:
+	Scene();
+	virtual ~Scene();
+	static std::shared_ptr<Scene> create();
 
 	// file part
 	wxString getFilepath(){ return m_Filepath; }
 	void setFilepath(wxString a_Path){ m_Filepath = a_Path; }
 	bool load();
+	bool loadAsync(std::function<void> a_Callback);
 	bool save();
 
 	// update part
 	void update(float a_Delta);
 	void render();
-	
-private:
-	Scene();
-	virtual ~Scene();
 
+private:
 	wxString m_Filepath;
+	std::function<void()> m_LoadingCompleteCallback;
+
 	std::shared_ptr<SceneNode> m_pRoot;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
-	std::map< std::shared_ptr<EngineComponent>, std::vector< std::function<void(float)> > > m_UpdateCallback;
 };
 
 class SceneManager
@@ -87,7 +89,12 @@ class SceneManager
 public:
 	static SceneManager& singleton();
 
-	std::shared_ptr<Scene> create();
+	void pop(unsigned int a_ID);
+	void push(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
+	void replace(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
+
+	unsigned int newStack(std::shared_ptr<Scene> a_pStartScene);
+	void removeStack(unsigned int a_ID);
 
 	void update(float a_Delta);
 	void render();
@@ -96,7 +103,7 @@ private:
 	SceneManager();
 	virtual ~SceneManager();
 
-	std::set< std::shared_ptr<Scene> > m_Scene;
+	std::map<unsigned int, std::deque< std::shared_ptr<Scene> > > m_ActiveScene;
 };
 
 }
