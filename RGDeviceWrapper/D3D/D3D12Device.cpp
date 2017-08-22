@@ -502,11 +502,11 @@ void D3D12Commander::setRenderTargetWithBackBuffer(int a_DepthID, unsigned int a
 void D3D12Commander::setViewPort(int a_NumViewport, ...)
 {
 	D3D12GpuThread l_Thread = validateThisThread();
-	std::vector<glm::Viewport> l_Viewports(a_NumViewport);
+	std::vector<glm::viewport> l_Viewports(a_NumViewport);
 	{
 		va_list l_Arglist;
 		va_start(l_Arglist, a_NumViewport);
-		for( int i=0 ; i<a_NumViewport ; ++i ) l_Viewports[i] = va_arg(l_Arglist, glm::Viewport);
+		for( int i=0 ; i<a_NumViewport ; ++i ) l_Viewports[i] = va_arg(l_Arglist, glm::viewport);
 		va_end(l_Arglist);
 	}
 	
@@ -567,7 +567,7 @@ void D3D12Commander::flush(bool a_bToBackBuffer)
 	
 	if( a_bToBackBuffer )
 	{
-		glm::Viewport l_Viewport(0.0f, 0.0f, m_ScreenSize.x, m_ScreenSize.y, 0.0f, 1.0f);
+		glm::viewport l_Viewport(0.0f, 0.0f, m_ScreenSize.x, m_ScreenSize.y, 0.0f, 1.0f);
 		glm::ivec4 l_Scissor(0, 0, m_ScreenSize.x, m_ScreenSize.y);
 		m_PresentCopySource.second->IASetVertexBuffers(0, 1, &(m_pRefDevice->getQuadVertexBufferView()));
 		m_PresentCopySource.second->SetGraphicsRootDescriptorTable(m_CopySrcSlot, m_pRefDevice->getTextureGpuHandle(m_LastRenderTargetID, true));

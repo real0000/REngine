@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Model">
-      <UniqueIdentifier>{c73d1786-8375-49eb-87e8-edc942ebefea}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Scene">
       <UniqueIdentifier>{e1c3e040-e351-4189-968d-732e644a0772}</UniqueIdentifier>
     </Filter>
@@ -19,16 +16,13 @@
     <Filter Include="Scene\RenderPipeline">
       <UniqueIdentifier>{cbc5e677-6b1c-4513-a489-ffe155f94270}</UniqueIdentifier>
     </Filter>
+    <Filter Include="RenderObject">
+      <UniqueIdentifier>{c73d1786-8375-49eb-87e8-edc942ebefea}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core.h" />
     <ClInclude Include="REngine.h" />
-    <ClInclude Include="Model\Material.h">
-      <Filter>Model</Filter>
-    </ClInclude>
-    <ClInclude Include="Model\Model.h">
-      <Filter>Model</Filter>
-    </ClInclude>
     <ClInclude Include="Scene\Camera.h">
       <Filter>Scene</Filter>
     </ClInclude>
@@ -59,24 +53,24 @@
     <ClInclude Include="Scene\Graph\Octree.h">
       <Filter>Scene\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="Scene\Graph\SceneGraph.h">
-      <Filter>Scene\Graph</Filter>
-    </ClInclude>
     <ClInclude Include="Scene\RenderPipline\RenderPipline.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
     <ClInclude Include="Scene\RenderPipline\Deferred.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
+    <ClInclude Include="Scene\Graph\ScenePartition.h">
+      <Filter>Scene\Graph</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderObject\Material.h">
+      <Filter>RenderObject</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderObject\RenderObject.h">
+      <Filter>RenderObject</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
-    <ClCompile Include="Model\Material.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
-    <ClCompile Include="Model\Model.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
     <ClCompile Include="Scene\Camera.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
@@ -107,14 +101,20 @@
     <ClCompile Include="Scene\Graph\Octree.cpp">
       <Filter>Scene\Graph</Filter>
     </ClCompile>
-    <ClCompile Include="Scene\Graph\SceneGraph.cpp">
-      <Filter>Scene\Graph</Filter>
-    </ClCompile>
     <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp">
       <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
     <ClCompile Include="Scene\RenderPipline\Deferred.cpp">
       <Filter>Scene\RenderPipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Graph\ScenePartition.cpp">
+      <Filter>Scene\Graph</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderObject\Material.cpp">
+      <Filter>RenderObject</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderObject\RenderObject.cpp">
+      <Filter>RenderObject</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

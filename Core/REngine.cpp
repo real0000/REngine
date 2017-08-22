@@ -22,11 +22,14 @@ STRING_ENUM_CLASS_INST(GraphicApi)
 //
 // EngineComponent
 //
-EngineComponent::EngineComponent(std::shared_ptr<SceneNode> a_pOwner)
+EngineComponent::EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: m_Name(wxT(""))
-	, m_pOwner(a_pOwner)
+	, m_pMembers(new SharedSceneMember)
+
 {
-	m_pOwner->add(shared_from_this());
+	*m_pMembers = *a_pSharedMember;
+	m_pMembers->m_pSceneNode = a_pOwner;
+	a_pOwner->add(shared_from_this());
 	memset(&m_Flags, 0, sizeof(m_Flags));
 }
 
@@ -34,27 +37,54 @@ EngineComponent::~EngineComponent()
 {
 }
 
+std::shared_ptr<SceneNode> EngineComponent::getOwnerNode()
+{
+	return m_pMembers->m_pSceneNode;
+}
+
 void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 {
 	assert(a_pOwner);
-	m_pOwner->remove(shared_from_this());
-	m_pOwner = a_pOwner;
-	m_pOwner->add(shared_from_this());
+	
+	bool l_bTransformListener = 0 != m_Flags.m_bTransformListener;
+	removeTransformListener();
+
+	m_pMembers->m_pSceneNode->remove(shared_from_this());
+	m_pMembers->m_pSceneNode = a_pOwner;
+	m_pMembers->m_pSceneNode->add(shared_from_this());
+
+	if( l_bTransformListener )
+	{
+		addTransformListener();
+		transformListener(a_pOwner->getTransform());
+	}
 }
 
 void EngineComponent::remove()
 {
-	m_pOwner->remove(shared_from_this());
-	m_pOwner = nullptr;
-	removeInputListener();
-	removeUpdateListener();
+	m_pMembers->m_pSceneNode->remove(shared_from_this());
+	removeAllListener();
+	SAFE_DELETE(m_pMembers)
 }
 
 void EngineComponent::detach()
 {
-	m_pOwner = nullptr;
+	removeAllListener();
+	SAFE_DELETE(m_pMembers)
+}
+
+void EngineComponent::addAllListener()
+{
+	addInputListener();
+	addUpdateListener();
+	addTransformListener();
+}
+
+void EngineComponent::removeAllListener()
+{
 	removeInputListener();
 	removeUpdateListener();
+	removeTransformListener();
 }
 
 void EngineComponent::addInputListener()
@@ -83,6 +113,20 @@ void EngineComponent::removeUpdateListener()
 	if( 0 == m_Flags.m_bUpdateListener ) return;
 	EngineCore::singleton().removeUpdateListener(shared_from_this());
 	m_Flags.m_bUpdateListener = 0;
+}
+
+void EngineComponent::addTransformListener()
+{
+	if( 0 != m_Flags.m_bTransformListener ) return;
+	m_pMembers->m_pSceneNode->addTranformListener(shared_from_this());
+	m_Flags.m_bTransformListener = 1;
+}
+
+void EngineComponent::removeTransformListener()
+{
+	if( 0 == m_Flags.m_bTransformListener ) return;
+	m_pMembers->m_pSceneNode->removeTranformListener(shared_from_this());
+	m_Flags.m_bTransformListener = 0;
 }
 #pragma endregion
 

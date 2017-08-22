@@ -12,14 +12,38 @@ namespace R
 class CameraComponent;
 class EngineComponent;
 class Scene;
+class SceneNode;
+class ScenePartition;
+
+struct SharedSceneMember
+{
+	enum
+	{
+		GRAPH_STATIC_MODEL = 0,
+		GRAPH_STATIC_LIGHT,
+		GRAPH_DYNAMIC_MODEL,
+		GRAPH_DYNAMIC_LIGHT,
+
+		NUM_GRAPH_TYPE
+	};
+
+	SharedSceneMember();
+	~SharedSceneMember();
+
+	SharedSceneMember& operator=(const SharedSceneMember &a_Src);
+
+	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
+	std::shared_ptr<Scene> m_pScene;
+	std::shared_ptr<SceneNode> m_pSceneNode;
+};
 
 class SceneNode : public std::enable_shared_from_this<SceneNode>
 {
 	friend class EngineComponent;
 	friend class SceneNode;
 public:
-	SceneNode(wxString a_Name = wxT("NoName"));
-	virtual ~SceneNode();
+	virtual ~SceneNode();// don't call this method directly
+	static std::shared_ptr<SceneNode> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name = wxT("NoName"));
 
 	std::shared_ptr<SceneNode> addChild();
 	void destroy();
@@ -32,7 +56,8 @@ public:
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	const std::list< std::shared_ptr<SceneNode> >& getChildren(){ return m_Children; }
-	const std::shared_ptr<SceneNode> getParent(){ return m_pParent; }
+	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
+	glm::mat4x4& getTransform(){ return m_World; }
 
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector< std::shared_ptr<EngineComponent> > &a_Output);
@@ -46,24 +71,30 @@ public:
 	}
 	
 private:
+	SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name);
+
 	void add(std::shared_ptr<EngineComponent> a_pComponent);
 	void remove(std::shared_ptr<EngineComponent> a_pComponent);
+	void addTranformListener(std::shared_ptr<EngineComponent> a_pComponent);
+	void removeTranformListener(std::shared_ptr<EngineComponent> a_pComponent);
 
 	wxString m_Name;
 	glm::mat4x4 m_World;
 	glm::mat4x4 m_LocalTransform;
 
 	std::list< std::shared_ptr<SceneNode> > m_Children;
-	std::shared_ptr<SceneNode> m_pParent;
+	SharedSceneMember *m_pMembers;// scene node -> parent
+
+	std::list< std::shared_ptr<EngineComponent> > m_TransformListener;// use std::set instead ?
 	std::map<unsigned int, std::set< std::shared_ptr<EngineComponent> > > m_Components;
 };
 
-class Scene
+class Scene : public std::enable_shared_from_this<Scene>
 {
+	friend class Scene;
 public:
-	Scene();
-	virtual ~Scene();
 	static std::shared_ptr<Scene> create();
+	void destroy();
 
 	// file part
 	wxString getFilepath(){ return m_Filepath; }
@@ -73,14 +104,17 @@ public:
 	bool save();
 
 	// update part
-	void update(float a_Delta);
+	void update(float a_Delta);//for post processor
 	void render();
 
 private:
+	Scene();
+	virtual ~Scene();
+
 	wxString m_Filepath;
 	std::function<void()> m_LoadingCompleteCallback;
 
-	std::shared_ptr<SceneNode> m_pRoot;
+	SharedSceneMember *m_pMembers;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
 };
 

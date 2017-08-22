@@ -10,15 +10,48 @@
 namespace R
 {
 
+#pragma region SharedSceneMember
+//
+// SharedSceneMember
+//
+SharedSceneMember::SharedSceneMember()
+	: m_pScene(nullptr)
+	, m_pSceneNode(nullptr)
+{
+	memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
+}
+
+SharedSceneMember::~SharedSceneMember()
+{
+	memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
+	m_pScene = nullptr;
+	m_pSceneNode = nullptr;
+}
+
+SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
+{
+	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
+	m_pScene = a_Src.m_pScene;
+	m_pSceneNode = a_Src.m_pSceneNode;
+	return *this;
+}
+#pragma endregion
+
 #pragma region SceneNode
 ///
 // SceneNode
 //
-SceneNode::SceneNode(wxString a_Name)
-	: m_Name(a_Name)
-	, m_pParent(nullptr)
+std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 {
+	return std::shared_ptr<SceneNode>(new SceneNode(a_pSharedMember, a_pOwner, a_Name));
+}
 
+SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
+	: m_Name(a_Name)
+	, m_pMembers(new SharedSceneMember)
+{
+	*m_pMembers = *a_pSharedMember;
+	m_pMembers->m_pSceneNode = a_pOwner;
 }
 
 SceneNode::~SceneNode()
@@ -28,19 +61,19 @@ SceneNode::~SceneNode()
 void SceneNode::setTransform(glm::mat4x4 a_Transform)
 {
 	m_LocalTransform = a_Transform;
+	update(m_pMembers->m_pSceneNode->m_World);
 }
 
 std::shared_ptr<SceneNode> SceneNode::addChild()
 {
-	std::shared_ptr<SceneNode> l_pNewNode = std::shared_ptr<SceneNode>(new SceneNode());
+	std::shared_ptr<SceneNode> l_pNewNode = SceneNode::create(m_pMembers, shared_from_this());
 	m_Children.push_back(l_pNewNode);
-	l_pNewNode->m_pParent = shared_from_this();
 	return l_pNewNode;
 }
 
 void SceneNode::destroy()
 {
-	m_pParent = nullptr;
+	SAFE_DELETE(m_pMembers)
 	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
 	{
 		for( auto setIt = it->second.begin() ; setIt != it->second.end() ; ++setIt )
@@ -56,23 +89,23 @@ void SceneNode::destroy()
 
 void SceneNode::setParent(std::shared_ptr<SceneNode> a_pNewParent)
 {
-	if( a_pNewParent == m_pParent ) return;
+	if( a_pNewParent == m_pMembers->m_pSceneNode ) return;
 	assert( nullptr != a_pNewParent );
-	assert( nullptr != m_pParent );// don't do this to root node
+	assert( nullptr != m_pMembers->m_pSceneNode );// don't do this to root node
 	
-	auto it = m_pParent->m_Children.begin();
-	for( ; it != m_pParent->m_Children.end() ; ++it )
+	auto it = m_pMembers->m_pSceneNode->m_Children.begin();
+	for( ; it != m_pMembers->m_pSceneNode->m_Children.end() ; ++it )
 	{
 		if( (*it).get() == this )
 		{
-			m_pParent->m_Children.erase(it);
+			m_pMembers->m_pSceneNode->m_Children.erase(it);
 			break;
 		}
 	}
 
-	m_pParent = a_pNewParent;
-	m_pParent->m_Children.push_back(shared_from_this());
-	update(m_pParent->m_World);
+	m_pMembers->m_pSceneNode = a_pNewParent;
+	m_pMembers->m_pSceneNode->m_Children.push_back(shared_from_this());
+	update(m_pMembers->m_pSceneNode->m_World);
 }
 
 std::shared_ptr<SceneNode> SceneNode::find(wxString a_Name)
@@ -92,6 +125,7 @@ std::shared_ptr<SceneNode> SceneNode::find(wxString a_Name)
 void SceneNode::update(glm::mat4x4 a_ParentTranform)
 {
 	m_World = a_ParentTranform * m_LocalTransform;
+	for( auto it=m_TransformListener.begin() ; it!=m_TransformListener.end() ; ++it ) (*it)->transformListener(m_World);
 	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->update(m_World);
 }
 
@@ -137,6 +171,17 @@ void SceneNode::remove(std::shared_ptr<EngineComponent> a_pComponent)
 	assert(l_TypeIt->second.end() != l_ComponentIt);
 	l_TypeIt->second.erase(l_ComponentIt);
 	if( l_TypeIt->second.empty() ) m_Components.erase(l_TypeIt);
+}
+
+void SceneNode::addTranformListener(std::shared_ptr<EngineComponent> a_pComponent)
+{
+	m_TransformListener.push_back(a_pComponent);
+}
+
+void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pComponent)
+{
+	auto it = std::find(m_TransformListener.begin(), m_TransformListener.end(), a_pComponent);
+	m_TransformListener.erase(it);
 }
 #pragma endregion
 

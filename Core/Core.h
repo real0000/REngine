@@ -34,6 +34,7 @@ enum ComponentDefine
 };
 
 struct InputData;
+struct SharedSceneMember;
 class SceneNode;
 class EngineCanvas;
 class InputMediator;
@@ -42,43 +43,52 @@ class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
 public:
 	template<typename T>
-	static std::shared_ptr<T> create(std::shared_ptr<SceneNode> a_pOwner)
+	static std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	{
-		return std::shared_ptr<T>(new T(a_pOwner));
+		return std::shared_ptr<T>(new T(a_pSharedMember, a_pOwner));
 	}
 
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
+	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
-	std::shared_ptr<SceneNode> getOwnerNode(){ return m_pOwner; }
+	std::shared_ptr<SceneNode> getOwnerNode();
 	void setOwner(std::shared_ptr<SceneNode> a_pOwner);
 	void remove();
 
 	void detach();//for engine use, user should not call this method
 
 protected:
-	EngineComponent(std::shared_ptr<SceneNode> a_pOwner);
+	EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~EngineComponent();
 
 	// listener
+	void addAllListener();
+	void removeAllListener();
 	void addInputListener();
 	void removeInputListener();
 	void addUpdateListener();
 	void removeUpdateListener();
+	void addTransformListener();
+	void removeTransformListener();
+
+	//
+	SharedSceneMember* getSharedMember(){ return m_pMembers; }
 
 private:
 	struct
 	{
 		unsigned int m_bInputListener : 1;
 		unsigned int m_bUpdateListener : 1;
+		unsigned int m_bTransformListener : 1;
 	} m_Flags;
 
 	wxString m_Name;
-	std::shared_ptr<SceneNode> m_pOwner;
+	SharedSceneMember *m_pMembers;
 };
 
 class EngineSetting

@@ -125,7 +125,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommonUtil.cpp" />
-    <ClCompile Include="MathExtend.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonUtil.h" />

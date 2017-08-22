@@ -1,38 +1,43 @@
-// Model.h
+// RenderObject.h
 //
 // 2017/07/19 Ian Wu/Real0000
 //
 
-#ifndef _MODEL_H_
-#define _MODEL_H_
+#ifndef _RENDER_OBJECT_H_
+#define _RENDER_OBJECT_H_
 
 namespace R
 {
-
+	
+struct SharedSceneMember;
+class IndexBuffer;
 class Material;
 class SceneNode;
+class VertexBuffer;
 
-class ModelComponent : public EngineComponent
+class RenderableComponent : public EngineComponent
 {
 	friend class ModelFactory;
+	friend class RenderableComponent;
 public:
+	virtual ~RenderableComponent(); // don't call this method directly
+
 	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_pRefVtxBuffer; }
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_pRefIdxBuffer; }
 	std::pair<int, int> getIndexRange(){ return m_Range; }
-	glm::AABB& boundingBox(){}
-
+	glm::daabb& boundingBox(){ return m_BoundingBox; }
+	
 private:
-	ModelComponent(std::shared_ptr<SceneNode> a_pOwner);
-	virtual ~ModelComponent();
+	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
 	std::shared_ptr<VertexBuffer> m_pRefVtxBuffer;
 	std::shared_ptr<IndexBuffer> m_pRefIdxBuffer;
 	std::pair<int, int> m_Range;// index offset : count
-	glm::AABB m_BoundingBox;
+	glm::daabb m_BoundingBox;
 	std::map<unsigned int, std::set< std::shared_ptr<Material> > > m_MaterialSet;// render group id : [material ...]
 };
 
-class ModelFactory
+class RenderableComponentFactory
 {
 public:
 	static ModelFactory& singleton();
@@ -45,8 +50,8 @@ public:
 	void clearCache();
 
 private:
-	ModelFactory();
-	virtual ~ModelFactory();
+	RenderableComponentFactory();
+	virtual ~RenderableComponentFactory();
 
 	struct Instance
 	{

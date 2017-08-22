@@ -16,13 +16,21 @@
 
 #include "PhysicalModule.h"
 #include "StateMachine.h"
+
 #include "Input/InputMediator.h"
 #include "Input/KeyboardInput.h"
 #include "Input/MouseInput.h"
-#include "Model/Material.h"
-#include "Model/Model.h"
+
+#include "RenderObject/Material.h"
+#include "RenderObject/RenderObject.h"
+
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
+#include "Scene/Graph/Octree.h"
+#include "Scene/Graph/ScenePartition.h"
+#include "Scene/RenderPipline/Deferred.h"
+#include "Scene/RenderPipline/RenderPipline.h"
+
 #include "Texture/FrameTexture.h"
 #include "Texture/Texture.h"
 #include "Texture/TextureAtlas.h"
