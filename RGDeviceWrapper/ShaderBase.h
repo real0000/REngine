@@ -71,6 +71,7 @@ struct ProgramBlockDesc
 	~ProgramBlockDesc();
 
 	bool m_bReserved;
+	std::string m_Name;
 	unsigned int m_BlockSize;
 	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
 	RegisterInfo *m_pRegInfo;
@@ -89,35 +90,28 @@ public:
 	std::pair<int, int> shaderInUse(){ return m_ShaderInUse; }
 
 	std::map<std::string, ProgramTextureDesc *>& getTextureDesc(){ return m_TextureDesc; }
-	std::map<std::string, ProgramBlockDesc *>& getBlockDesc(){ return m_BlockDesc; }
-	std::vector<ProgramBlockDesc *>& getConstBlockDesc(){ return m_ConstantBlockDesc; }
-	std::vector<ProgramBlockDesc *>& getUavBlockDesc(){ return m_UavDesc; }
+	std::vector<ProgramBlockDesc *>& getBlockDesc(ShaderRegType::Key a_Type);// only ConstBuffer/Constant/UavBuffer valid
+
+	const std::map<std::string, int>& getParamIndexMap(){ return m_ParamIndexMap; }
+	const std::vector<std::string>& getReservedBlockName(){ return m_ReservedBlockNameList; }
 	
 protected:
-	ProgramBlockDesc* newConstBlockDesc()
-	{
-		m_ConstantBlockDesc.push_back(new ProgramBlockDesc());
-		return m_ConstantBlockDesc.back();
-	}
-	ProgramBlockDesc* newUavBlockDesc()
-	{
-		m_UavDesc.push_back(new ProgramBlockDesc());
-		m_UavDesc.back()->m_bReserved = true;
-		return m_UavDesc.back();
-	}
+	ProgramBlockDesc* newConstBlockDesc();
+	ProgramBlockDesc* newUavBlockDesc();
 	virtual void init(boost::property_tree::ptree &a_Root) = 0;
 	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 
 private:
-	void parseStructureDefineRoot(boost::property_tree::ptree &a_Root);
 	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
 	
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
-	std::map<std::string, ProgramBlockDesc *> m_BlockDesc;// const buffer
-	std::vector<ProgramBlockDesc *> m_ConstantBlockDesc, m_UavDesc;// 32bit constantss, uav
+	std::vector<ProgramBlockDesc *> m_BlockDesc[ShaderRegType::UavBuffer - ShaderRegType::ConstBuffer + 1];// const buffer, constant, uav
 	bool m_bCompute;
 	bool m_bIndexedDraw;
 	std::pair<int, int> m_ShaderInUse;
+
+	std::map<std::string, int> m_ParamIndexMap;// only parameter in not reserved block here, param name : block index
+	std::vector<std::string> m_ReservedBlockNameList;// only extern block here
 };
 
 //

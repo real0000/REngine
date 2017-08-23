@@ -15,6 +15,11 @@ namespace R
 //
 // MaterialBlock
 //
+std::shared_ptr<MaterialBlock> MaterialBlock::create(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot)
+{
+	return std::shared_ptr<MaterialBlock>(new MaterialBlock(a_Type, a_pDesc, a_NumSlot));
+}
+
 MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot)
 	: m_BindFunc(nullptr)
 	, m_FirstParam("")
@@ -119,16 +124,65 @@ std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
 }
 
 Material::Material(ShaderProgram *a_pRefProgram)
+	: m_pRefProgram(a_pRefProgram)
+	, m_bHide(false)
 {
+	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
+	{
+		auto &l_Block = m_pRefProgram->getBlockDesc((ShaderRegType::Key)i);
+		for( ProgramBlockDesc *l_pDesc : l_Block )
+		{
+			if( l_pDesc->m_bReserved )
+			{
+				m_ExternBlock.push_back(std::make_pair(nullptr, l_pDesc->m_pRegInfo->m_Slot));
+				continue;
+			}
+
+			auto l_pNewBlock = MaterialBlock::create((ShaderRegType::Key)i, l_pDesc);
+			m_OwnBlocks.push_back(std::make_pair(l_pNewBlock, l_pDesc->m_pRegInfo->m_Slot));
+		}
+	}
+
+	m_Textures.resize(a_pRefProgram->getTextureDesc().size(), nullptr);
 }
 
 Material::~Material()
 {
+	m_OwnBlocks.clear();
+	m_ExternBlock.clear();
+	m_Textures.clear();
 }
 
-void Material::setTexture(wxString a_Name, std::shared_ptr<TextureUnit> a_Texture)
+void Material::setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture)
 {
+	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
+	auto it = l_TextureSlotMap.find(a_Name);
+	if( l_TextureSlotMap.end() == it ) return;
+	m_Textures[it->second->m_pRegInfo->m_Slot] = a_pTexture;
+}
 
+void Material::setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock)
+{
+	assert(a_Idx < m_ExternBlock.size());
+	m_ExternBlock[a_Idx].first = a_pBlock;
+}
+
+void Material::bind(GraphicCommander *a_pBinder)
+{
+	for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i ) m_OwnBlocks[i].first->bind(a_pBinder, m_OwnBlocks[i].second);
+	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+	{
+		if( nullptr == m_ExternBlock[i].first ) continue;
+		m_ExternBlock[i].first->bind(a_pBinder, m_ExternBlock[i].second);
+	}
+	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
+	{
+		if( nullptr != m_Textures[i] ) continue;
+		//
+		// to do : add render target binding
+		//
+		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, false);
+	}
 }
 #pragma endregion
 

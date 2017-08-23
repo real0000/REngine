@@ -22,8 +22,9 @@ struct MaterialParam
 };
 class MaterialBlock
 {
+	friend class MaterialBlock;
 public:
-	MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot = 1);// ConstBuffer / Constant(a_NumSlot == 1) / UavBuffer
+	static std::shared_ptr<MaterialBlock> create(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot = 1);
 	virtual ~MaterialBlock();
 
 	template<typename T>
@@ -52,6 +53,8 @@ public:
 	void bind(GraphicCommander *a_pBinder, int a_Stage);
 
 private:
+	MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot);// ConstBuffer / Constant(a_NumSlot == 1) / UavBuffer
+
 	void bindConstant(GraphicCommander *a_pBinder, int a_Stage);// a_Stage unused
 	void bindConstBuffer(GraphicCommander *a_pBinder, int a_Stage);
 	void bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage);
@@ -68,13 +71,15 @@ private:
 
 class Material
 {
+	friend class Material;
 public:
-	Material(ShaderProgram *a_pRefProgram);
-	virtual ~Material();
 	static std::shared_ptr<Material> create(ShaderProgram *a_pRefProgram);
+	virtual ~Material();
 
 	ShaderProgram* getProgram(){ return m_pRefProgram; }
-	void setTexture(wxString a_Name, std::shared_ptr<TextureUnit> a_Texture);
+	void setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture);
+	void setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock);
+
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
@@ -95,11 +100,15 @@ public:
 	void setHide(bool a_bHide){ m_bHide = a_bHide; }
 	bool isHide(){ return m_bHide; }
 
+	void bind(GraphicCommander *a_pBinder);
+	// to do : add indirect draw method
+
 private:
+	Material(ShaderProgram *a_pRefProgram);
 
 	ShaderProgram *m_pRefProgram;
-	std::vector<MaterialBlock *> m_BlockList, m_OwnBlocks;
-	std::map<std::string, int> m_ParamIndexMap;// only own block here
+	std::vector< std::pair<std::shared_ptr<MaterialBlock>, int> > m_OwnBlocks, m_ExternBlock;// [block, stage] ... 
+	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 
 	bool m_bHide;
 };

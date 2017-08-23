@@ -244,7 +244,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		{
 			it->second->m_RootIndex = l_RegCollect.size();;
 			it->second->m_Slot = l_Slot;
-			l_TextuerMap[it->first]->m_pRegInfo = it->second;
 			m_RegMap[ShaderRegType::UavBuffer][it->first] = it->second;
 			
 			D3D12_ROOT_PARAMETER l_TempReg;
@@ -255,6 +254,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_RegCollect.push_back(l_TempReg);
 
 			ProgramBlockDesc *l_pNewBlock = newUavBlockDesc();
+			l_pNewBlock->m_Name = it->first;
 			l_pNewBlock->m_pRegInfo = it->second;
 			
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
@@ -277,7 +277,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		{
 			it->second->m_RootIndex = l_RegCollect.size();
 			it->second->m_Slot = l_Slot;
-			l_TextuerMap[it->first]->m_pRegInfo = it->second;
 			m_RegMap[ShaderRegType::ConstBuffer][it->first] = it->second;
 			
 			D3D12_ROOT_PARAMETER l_TempReg;
@@ -303,11 +302,13 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		if( l_ParamList.empty() ) continue;
 		char l_Temp[256];
 
-		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", l_Visibility);
-		snprintf(l_Temp, 256, "cbuffer Const32Block%d : register(b%d)\\\n{\\\n", l_Visibility, l_Slot);
-		strcat(l_Def, l_Temp);
-			 
+		snprintf(l_Temp, 256, "Const32[%d]", l_Visibility);
 		ProgramBlockDesc *l_pNewConstBlock = newConstBlockDesc();
+		l_pNewConstBlock->m_Name = l_Temp;
+
+		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", l_Visibility);
+		snprintf(l_Def, 1024, "cbuffer Const32Block%d : register(b%d)\\\n{\\\n", l_Visibility, l_Slot);
+
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
 			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
@@ -332,6 +333,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		}
 
 		strcat(l_Def, "}");
+		a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 
 		D3D12_ROOT_PARAMETER l_TempReg;
 		l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;

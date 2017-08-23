@@ -74,17 +74,18 @@ ShaderProgram::ShaderProgram()
 
 ShaderProgram::~ShaderProgram()
 {
+	m_ParamIndexMap.clear();
+	m_ReservedBlockNameList.clear();
+
 	for( auto it = m_TextureDesc.begin() ; it != m_TextureDesc.end() ; ++it ) delete it->second;
 	m_TextureDesc.clear();
 
-	for( auto it = m_BlockDesc.begin() ; it != m_BlockDesc.end() ; ++it ) delete it->second;
-	m_BlockDesc.clear();
-
-	for( unsigned int i=0 ; i<m_ConstantBlockDesc.size() ; ++i ) delete m_ConstantBlockDesc[i];
-	m_ConstantBlockDesc.clear();
-
-	for( unsigned int i=0 ; i<m_UavDesc.size() ; ++i ) delete m_UavDesc[i];
-	m_UavDesc.clear();
+	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
+	{
+		auto &l_Container = getBlockDesc((ShaderRegType::Key)i);
+		for( unsigned int j=0 ; j<l_Container.size() ; ++j ) delete l_Container[j];
+		l_Container.clear();
+	}
 }
 
 void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
@@ -132,10 +133,9 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 		if( ShaderRegType::toString(ShaderRegType::ConstBuffer) != it->first ) continue;
 
 		ProgramBlockDesc *l_pNewBlock = new ProgramBlockDesc();
-		std::string l_BlockName = it->second.get<std::string>("<xmlattr>.name");
-		assert(!l_BlockName.empty());
-		assert(m_BlockDesc.find(l_BlockName) == m_BlockDesc.end());
-		m_BlockDesc.insert(std::make_pair(l_BlockName, l_pNewBlock));
+		l_pNewBlock->m_Name = it->second.get<std::string>("<xmlattr>.name");
+		assert(!l_pNewBlock->m_Name.empty());
+		getBlockDesc(ShaderRegType::ConstBuffer).push_back(l_pNewBlock);
 
 		l_pNewBlock->m_bReserved = it->second.get("<xmlattr>.reserved", "false") == "true";
 
@@ -187,6 +187,49 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 	}
 
 	init(a_Root);
+
+	unsigned int l_OwnBlockIdx = 0;
+	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
+	{
+		auto &l_Block = getBlockDesc((ShaderRegType::Key)i);
+		for( ProgramBlockDesc *l_pDesc : l_Block )
+		{
+			if( l_pDesc->m_bReserved )
+			{
+				m_ReservedBlockNameList.push_back(l_pDesc->m_Name);
+				continue;
+			}
+
+			for( auto l_ParamIt = l_pDesc->m_ParamDesc.begin() ; l_ParamIt != l_pDesc->m_ParamDesc.end() ; ++l_ParamIt )
+			{
+				assert(m_ParamIndexMap.find(l_ParamIt->first) == m_ParamIndexMap.end());
+				m_ParamIndexMap[l_ParamIt->first] = l_OwnBlockIdx;
+			}
+			l_OwnBlockIdx++;
+		}
+	}
+}
+
+std::vector<ProgramBlockDesc *>& ShaderProgram::getBlockDesc(ShaderRegType::Key a_Type)
+{
+	unsigned int l_Idx = a_Type - ShaderRegType::ConstBuffer;
+	assert(l_Idx < 3);
+	return m_BlockDesc[l_Idx];
+}
+
+ProgramBlockDesc* ShaderProgram::newConstBlockDesc()
+{
+	auto &l_TargetContainer = getBlockDesc(ShaderRegType::Constant);
+	l_TargetContainer.push_back(new ProgramBlockDesc());
+	return l_TargetContainer.back();
+}
+
+ProgramBlockDesc* ShaderProgram::newUavBlockDesc()
+{
+	auto &l_TargetContainer = getBlockDesc(ShaderRegType::UavBuffer);
+	l_TargetContainer.push_back(new ProgramBlockDesc());
+	l_TargetContainer.back()->m_bReserved = true;
+	return l_TargetContainer.back();
 }
 
 void ShaderProgram::parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst)
