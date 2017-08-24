@@ -511,7 +511,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				if( i == ShaderStages::Compute ) continue;// draw shader won't have computer stage
 
 				char l_Buff[256];
-				snprintf(l_Buff, 256, "%s.<xmlattr>.file", ShaderStages::toString((ShaderStages::Key)i).c_str());
+				snprintf(l_Buff, 256, "%s.<xmlattr>.file", static_cast<const char*>(ShaderStages::toString((ShaderStages::Key)i).c_str()));
 				wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
 				
 				if( l_Filename.IsEmpty() ) l_ShaderUsage[i] = nullptr;
@@ -744,7 +744,7 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 	ID3D12Device *l_pDeviceInst = l_pRefDevice->getDeviceInst();
 	
 	char l_Buff[256];
-	snprintf(l_Buff, 256, "%s.<xmlattr>.file", ShaderStages::toString(ShaderStages::Compute).c_str());
+	snprintf(l_Buff, 256, "%s.<xmlattr>.file", static_cast<const char*>(ShaderStages::toString(ShaderStages::Compute).c_str()));
 	wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
 				
 	assert( !l_Filename.empty() );

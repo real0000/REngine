@@ -45,6 +45,8 @@ public:
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, unsigned int a_Width, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...);// void *[a_ArraySize]
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
+	std::shared_ptr<TextureUnit> createRenderTarget(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
+	std::shared_ptr<TextureUnit> createRenderTarget(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format);
 
 	void recycle(wxString a_Name);
 	std::shared_ptr<TextureUnit> getTexture(wxString a_Name);
@@ -54,9 +56,9 @@ private:
 	TextureManager();
 	virtual ~TextureManager();
 
-	std::shared_ptr<TextureUnit> packNewTextureUnit(wxString a_PresetName, std::shared_ptr<TextureUnit> a_pNewUnit);
 	void asyncFunc(std::shared_ptr<TextureUnit> a_Texutre, std::function<void(std::shared_ptr<TextureUnit>)> a_Callback);
 	void loadTextureFile(std::shared_ptr<TextureUnit> a_Target);
+	std::shared_ptr<TextureUnit> createUniqueTexture(wxString &a_Name);
 	
 	std::mutex m_FileLock;
 	std::map<wxString, std::shared_ptr<TextureUnit> > m_Textures;

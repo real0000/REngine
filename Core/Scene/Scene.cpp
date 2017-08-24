@@ -7,6 +7,9 @@
 #include "Core.h"
 #include "Scene.h"
 
+#include "Scene/Graph/NoPartition.h"
+#include "Scene/Graph/Octree.h"
+
 namespace R
 {
 
@@ -189,6 +192,126 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 // Scene
 //
+std::shared_ptr<Scene> Scene::create()
+{
+	return std::shared_ptr<Scene>(new Scene());
+}
+
+Scene::Scene()
+	: m_bLoading(false), m_LoadingProgress(0.0f), m_LoadingCompleteCallback(nullptr)
+	, m_pMembers(new SharedSceneMember)
+	, m_pCurrCamera(nullptr)
+{
+}
+
+Scene::~Scene()
+{
+}
+
+void Scene::destroy()
+{
+	clear();
+	SAFE_DELETE(m_pMembers)
+}
+
+void Scene::initEmpty()
+{
+	assert(!m_bLoading);
+	m_bLoading = true;
+	clear();
+
+	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
+}
+
+bool Scene::load(wxString a_Path)
+{
+	try
+	{
+		assert(!m_bLoading);
+		m_bLoading = true;
+		clear();
+
+		boost::property_tree::ptree l_XMLTree;
+		boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree);
+		assert( !l_XMLTree.empty() );
+
+		loadScenePartitionSetting(l_XMLTree.get_child("root.ScenePartition"));
+		loadRenderPipelineSetting(l_XMLTree.get_child("root.RenderPipeline"));
+
+		m_pMembers->m_pScene = shared_from_this();
+	}
+	catch( ... )
+	{
+		m_bLoading = false;
+		return false;
+	}
+
+	m_bLoading = false;
+	return true;
+}
+
+void Scene::loadAsync(wxString a_Path, std::function<void(bool)> a_Callback)
+{
+	m_LoadingCompleteCallback = a_Callback;
+	std::thread l_NewThread(&Scene::loadAsyncThread, this, a_Path);
+}
+
+bool Scene::save(wxString a_Path)
+{
+}
+
+void Scene::update(float a_Delta)
+{
+}
+
+void Scene::render()
+{
+	if( nullptr == m_pCurrCamera ) return;
+
+
+}
+
+void Scene::clear()
+{
+	m_LoadingProgress = 0.0f;
+	
+	if( nullptr != m_pMembers->m_pSceneNode ) m_pMembers->m_pSceneNode->destroy();
+	m_pMembers->m_pSceneNode = nullptr;
+	if( nullptr != m_pMembers->m_pGraphs[0] )
+	{
+		for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i )
+		{
+			m_pMembers->m_pGraphs[i]->clear();
+			delete m_pMembers->m_pGraphs[i];
+		}
+		memset(m_pMembers->m_pGraphs, NULL, sizeof(ScenePartition *) * SharedSceneMember::NUM_GRAPH_TYPE);
+	}
+
+	m_pCurrCamera = nullptr;
+}
+
+void Scene::loadAsyncThread(wxString a_Path)
+{
+	bool l_bSuccess = load(a_Path);
+	m_LoadingCompleteCallback(l_bSuccess);
+}
+
+void Scene::loadScenePartitionSetting(boost::property_tree::ptree &a_Node)
+{
+	boost::property_tree::ptree &l_Attr = a_Node.get_child("<xmlattr>");
+	switch( ScenePartitionType::fromString(l_Attr.get("type", "Octree")) )
+	{
+		case ScenePartitionType::None:{
+			for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new NoPartition();
+			}break;
+
+		case ScenePartitionType::Octree:{
+			double l_RootEdge = a_Node.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
+			double l_MinEdge = a_Node.get("MinEdge", DEFAULT_OCTREE_EDGE);
+			for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition(l_RootEdge, l_MinEdge);
+			}break;
+	}
+}
 #pragma endregion
 
 }

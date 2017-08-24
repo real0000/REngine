@@ -29,9 +29,6 @@
     <ClInclude Include="Scene\Scene.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Texture\FrameTexture.h">
-      <Filter>Texture</Filter>
-    </ClInclude>
     <ClInclude Include="Texture\Texture.h">
       <Filter>Texture</Filter>
     </ClInclude>
@@ -68,6 +65,9 @@
     <ClInclude Include="RenderObject\RenderObject.h">
       <Filter>RenderObject</Filter>
     </ClInclude>
+    <ClInclude Include="Scene\Graph\NoPartition.h">
+      <Filter>Scene\Graph</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -76,9 +76,6 @@
     </ClCompile>
     <ClCompile Include="Scene\Scene.cpp">
       <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Texture\FrameTexture.cpp">
-      <Filter>Texture</Filter>
     </ClCompile>
     <ClCompile Include="Texture\Texture.cpp">
       <Filter>Texture</Filter>
@@ -115,6 +112,9 @@
     </ClCompile>
     <ClCompile Include="RenderObject\RenderObject.cpp">
       <Filter>RenderObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\Graph\NoPartition.cpp">
+      <Filter>Scene\Graph</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

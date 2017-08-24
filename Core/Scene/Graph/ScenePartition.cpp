@@ -10,4 +10,6 @@
 namespace R
 {
 
+STRING_ENUM_CLASS_INST(ScenePartitionType)
+
 }

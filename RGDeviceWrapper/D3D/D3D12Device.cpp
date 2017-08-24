@@ -1259,7 +1259,7 @@ int D3D12Device::createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format
 	return l_Res;
 }
 
-int D3D12Device::createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize)
+int D3D12Device::createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
 {
 	assert(a_ArraySize > 0);
 	std::shared_ptr<RenderTargetBinder> l_pNewBinder = nullptr;
@@ -1269,7 +1269,7 @@ int D3D12Device::createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format
 								a_Format == PixelFormat::d32_float ||
 								a_Format == PixelFormat::d24_unorm_s8_uint ||
 								a_Format == PixelFormat::d16_unorm;
-	l_pNewBinder->m_TextureID = allocateTexture(glm::ivec3(a_Size.x, a_Size.y, a_ArraySize), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE2D, 1, l_bDepthStencilBuffer ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	l_pNewBinder->m_TextureID = allocateTexture(glm::ivec3(a_Size.x, a_Size.y, a_ArraySize), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE2D, 1, l_bDepthStencilBuffer ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, a_bCube);
 	l_pNewBinder->m_pRefBinder = m_ManagedTexture[l_pNewBinder->m_TextureID];
 	l_pNewBinder->m_pRefBinder->m_Type = l_bDepthStencilBuffer ? TEXTYPE_DEPTH_STENCIL_VIEW : TEXTYPE_RENDER_TARGET_VIEW;
 

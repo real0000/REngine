@@ -118,7 +118,7 @@ public:
 
 	// render target part
 	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;// 3d render target, use uav
-	virtual int createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1) = 0;// texture 2d array
+	virtual int createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false) = 0;// texture 2d array
 	virtual void freeRenderTarget(int a_ID) = 0;
 
 	// vertex, index buffer

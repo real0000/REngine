@@ -170,13 +170,13 @@
     <ClInclude Include="RenderObject\RenderObject.h" />
     <ClInclude Include="REngine.h" />
     <ClInclude Include="Scene\Camera.h" />
+    <ClInclude Include="Scene\Graph\NoPartition.h" />
     <ClInclude Include="Scene\Graph\Octree.h" />
     <ClInclude Include="Scene\Graph\ScenePartition.h" />
     <ClInclude Include="Scene\RenderPipline\Deferred.h" />
     <ClInclude Include="Scene\RenderPipline\RenderPipline.h" />
     <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="StateMachine.h" />
-    <ClInclude Include="Texture\FrameTexture.h" />
     <ClInclude Include="Texture\Texture.h" />
     <ClInclude Include="Texture\TextureAtlas.h" />
   </ItemGroup>
@@ -190,13 +190,13 @@
     <ClCompile Include="RenderObject\RenderObject.cpp" />
     <ClCompile Include="REngine.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />
+    <ClCompile Include="Scene\Graph\NoPartition.cpp" />
     <ClCompile Include="Scene\Graph\Octree.cpp" />
     <ClCompile Include="Scene\Graph\ScenePartition.cpp" />
     <ClCompile Include="Scene\RenderPipline\Deferred.cpp" />
     <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp" />
     <ClCompile Include="Scene\Scene.cpp" />
     <ClCompile Include="StateMachine.cpp" />
-    <ClCompile Include="Texture\FrameTexture.cpp" />
     <ClCompile Include="Texture\Texture.cpp" />
     <ClCompile Include="Texture\TextureAtlas.cpp" />
   </ItemGroup>

@@ -126,6 +126,7 @@ std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
 Material::Material(ShaderProgram *a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
 	, m_bHide(false)
+	, m_Stage(0)
 {
 	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
 	{
@@ -178,10 +179,9 @@ void Material::bind(GraphicCommander *a_pBinder)
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
 		if( nullptr != m_Textures[i] ) continue;
-		//
-		// to do : add render target binding
-		//
-		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, false);
+
+		TextureType l_Type = m_Textures[i]->getTextureType();
+		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type && TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type);
 	}
 }
 #pragma endregion

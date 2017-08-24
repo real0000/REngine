@@ -88,23 +88,21 @@ std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Filename, 
 
 std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, unsigned int a_Width, PixelFormat::Key a_Format, void *a_pInitData)
 {
-	std::shared_ptr<TextureUnit> l_pNewTexture = std::shared_ptr<TextureUnit>(new TextureUnit());
+	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
 	unsigned int l_TextureID = GDEVICE()->allocateTexture(a_Width, a_Format);
 
-	l_pNewTexture->setName(a_Name);
 	l_pNewTexture->setTextureID(l_TextureID);
 	l_pNewTexture->setReady();
 	if( nullptr != a_pInitData ) GDEVICE()->updateTexture(l_TextureID, 0, a_Width, 0, a_pInitData);
 
-	return packNewTextureUnit(a_Name, l_pNewTexture);
+	return l_pNewTexture;
 }
 
 std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...)
 {
-	std::shared_ptr<TextureUnit> l_pNewTexture = std::shared_ptr<TextureUnit>(new TextureUnit());
+	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
 	unsigned int l_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format, a_ArraySize, a_bCube);
 	
-	l_pNewTexture->setName(a_Name);
 	l_pNewTexture->setTextureID(l_TextureID);
 	l_pNewTexture->setReady();
 	
@@ -118,20 +116,39 @@ std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, glm:
 		GDEVICE()->updateTexture(l_TextureID, 0, a_Size, glm::zero<glm::ivec2>(), i, l_pInitData);
 	}
 	va_end(l_Arglist);
-	return packNewTextureUnit(a_Name, l_pNewTexture);
+	return l_pNewTexture;
 }
 
 std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData)
 {
-	std::shared_ptr<TextureUnit> l_pNewTexture = std::shared_ptr<TextureUnit>(new TextureUnit());
+	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
 	unsigned int l_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format);
 
-	l_pNewTexture->setName(a_Name);
 	l_pNewTexture->setTextureID(l_TextureID);
 	l_pNewTexture->setReady();
 	if( nullptr != a_pInitData ) GDEVICE()->updateTexture(l_TextureID, 0, a_Size, glm::zero<glm::ivec3>(), a_pInitData);
 
-	return packNewTextureUnit(a_Name, l_pNewTexture);
+	return l_pNewTexture;
+}
+
+std::shared_ptr<TextureUnit> TextureManager::createRenderTarget(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
+{
+	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
+	unsigned int l_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format, a_ArraySize, a_bCube);
+
+	l_pNewTexture->setTextureID(l_TextureID);
+	l_pNewTexture->setReady();
+	return l_pNewTexture;
+}
+
+std::shared_ptr<TextureUnit> TextureManager::createRenderTarget(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format)
+{
+	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
+	unsigned int l_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format);
+
+	l_pNewTexture->setTextureID(l_TextureID);
+	l_pNewTexture->setReady();
+	return l_pNewTexture;
 }
 
 void TextureManager::recycle(wxString a_Name)
@@ -153,24 +170,6 @@ std::shared_ptr<TextureUnit> TextureManager::getTexture(wxString a_Name)
 void TextureManager::clearCache()
 {
 	m_Textures.clear();
-}
-
-std::shared_ptr<TextureUnit> TextureManager::packNewTextureUnit(wxString a_PresetName, std::shared_ptr<TextureUnit> a_pNewUnit)
-{
-	if( m_Textures.end() != m_Textures.find(a_PresetName) )
-	{
-		unsigned int l_Serial = 0;
-		wxString l_NewName(wxString::Format(wxT("%s%d"), a_PresetName.c_str(), l_Serial++));
-		while( m_Textures.end() != m_Textures.find(l_NewName) )
-		{
-			l_NewName = wxString::Format(wxT("%s%d"), a_PresetName.c_str(), l_Serial++);
-		}
-		a_PresetName = l_NewName;
-	}
-
-	a_pNewUnit->setName(a_PresetName);
-	m_Textures.insert(std::make_pair(a_PresetName, a_pNewUnit));
-	return a_pNewUnit;
 }
 
 void TextureManager::asyncFunc(std::shared_ptr<TextureUnit> a_Texutre, std::function<void(std::shared_ptr<TextureUnit>)> a_Callback)
@@ -212,6 +211,25 @@ void TextureManager::loadTextureFile(std::shared_ptr<TextureUnit> a_pTarget)
 	a_pTarget->setTextureID(l_TextureID);
 	GDEVICE()->generateMipmap(l_TextureID);
 	a_pTarget->setReady();
+}
+
+std::shared_ptr<TextureUnit> TextureManager::createUniqueTexture(wxString &a_Name)
+{
+	std::lock_guard<std::mutex> l_FileLoadGuard(m_FileLock);
+	std::shared_ptr<TextureUnit> l_pNewTexture = std::shared_ptr<TextureUnit>(new TextureUnit());
+		
+	wxString l_NewName(a_Name);
+	auto it = m_Textures.find(l_NewName);
+	unsigned int l_Serial = 0;
+	while( m_Textures.end() != it )
+	{
+		l_NewName = (wxString::Format(wxT("%s%d"), a_Name, l_Serial));
+		it = m_Textures.find(l_NewName);
+		++l_Serial;
+	}
+	l_pNewTexture->setName(l_NewName);	
+	m_Textures.insert(std::make_pair(l_NewName, l_pNewTexture));
+	return l_pNewTexture;
 }
 #pragma endregion
 

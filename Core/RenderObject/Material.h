@@ -99,6 +99,8 @@ public:
 
 	void setHide(bool a_bHide){ m_bHide = a_bHide; }
 	bool isHide(){ return m_bHide; }
+	void setStage(unsigned int a_Stage){ m_Stage = a_Stage; }
+	unsigned int getStage(){ return m_Stage; }
 
 	void bind(GraphicCommander *a_pBinder);
 	// to do : add indirect draw method
@@ -111,6 +113,7 @@ private:
 	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 
 	bool m_bHide;
+	unsigned int m_Stage;
 };
 
 }

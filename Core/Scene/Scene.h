@@ -94,14 +94,16 @@ class Scene : public std::enable_shared_from_this<Scene>
 	friend class Scene;
 public:
 	static std::shared_ptr<Scene> create();
+	virtual ~Scene();
+
 	void destroy();
 
 	// file part
-	wxString getFilepath(){ return m_Filepath; }
-	void setFilepath(wxString a_Path){ m_Filepath = a_Path; }
-	bool load();
-	bool loadAsync(std::function<void> a_Callback);
-	bool save();
+	void initEmpty();
+	bool load(wxString a_Path);
+	void loadAsync(wxString a_Path, std::function<void(bool)> a_Callback);
+	bool save(wxString a_Path);
+	float getLoadingProgress(){ return m_LoadingProgress; }
 
 	// update part
 	void update(float a_Delta);//for post processor
@@ -109,10 +111,15 @@ public:
 
 private:
 	Scene();
-	virtual ~Scene();
 
-	wxString m_Filepath;
-	std::function<void()> m_LoadingCompleteCallback;
+	void clear();
+	void loadAsyncThread(wxString a_Path);
+	void loadScenePartitionSetting(boost::property_tree::ptree &a_Node);
+	void loadRenderPipelineSetting(boost::property_tree::ptree &a_Node);
+
+	bool m_bLoading;
+	float m_LoadingProgress;
+	std::function<void(bool)> m_LoadingCompleteCallback;
 
 	SharedSceneMember *m_pMembers;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;

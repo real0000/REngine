@@ -24,12 +24,12 @@ enum ComponentDefine
 {
 	// common component
 	COMPONENT_CAMERA = 0,
-	COMPONENT_MODEL_MESH,
-	//COMPONENT_MODEL_VOXEL_TERRAIN,
+	COMPONENT_MESH,
+	COMPONENT_OMNI_LIGHT,
+	COMPONENT_SPOT_LIGHT,
+	COMPONENT_DIR_LIGHT,
+	//COMPONENT_VOXEL_TERRAIN,
 
-	// scene manager
-	COMPONENT_BVH_NODE,
-	
 	CUSTOM_COMPONENT,// all custom component type id must >= this value
 };
 

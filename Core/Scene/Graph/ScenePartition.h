@@ -12,6 +12,10 @@ namespace R
 class CameraComponent;
 class RenderableComponent;
 
+STRING_ENUM_CLASS(ScenePartitionType,
+	None,
+	Octree)
+
 class ScenePartition
 {
 public:
