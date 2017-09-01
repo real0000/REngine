@@ -125,7 +125,6 @@ std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
 
 Material::Material(ShaderProgram *a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
-	, m_bHide(false)
 	, m_Stage(0)
 {
 	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )

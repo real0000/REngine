@@ -94,6 +94,9 @@ public:
 
 	const std::map<std::string, int>& getParamIndexMap(){ return m_ParamIndexMap; }
 	const std::vector<std::string>& getReservedBlockName(){ return m_ReservedBlockNameList; }
+
+	void setExtraFlag(int a_ID, bool a_bVal){ m_ExtraFlags[a_ID] = a_bVal; }
+	bool getExtraFlag(int a_ID){ return m_ExtraFlags[a_ID]; }
 	
 protected:
 	ProgramBlockDesc* newConstBlockDesc();
@@ -112,6 +115,7 @@ private:
 
 	std::map<std::string, int> m_ParamIndexMap;// only parameter in not reserved block here, param name : block index
 	std::vector<std::string> m_ReservedBlockNameList;// only extern block here
+	std::map<int, bool> m_ExtraFlags;
 };
 
 //

@@ -14,6 +14,11 @@ class GraphicCommander;
 class ShaderProgram;
 class TextureUnit;
 
+enum
+{
+	PROGRAM_FLAG_DEFAULT_PASS = 0,
+};
+
 struct MaterialParam
 {
 	std::vector<char *> m_pRefVal;
@@ -97,10 +102,9 @@ public:
 		return 	m_BlockList[it->second]->getParam(a_Name, a_Slot);
 	}
 
-	void setHide(bool a_bHide){ m_bHide = a_bHide; }
-	bool isHide(){ return m_bHide; }
 	void setStage(unsigned int a_Stage){ m_Stage = a_Stage; }
 	unsigned int getStage(){ return m_Stage; }
+	unsigned int isDefaultPass(){ return m_pRefProgram->getExtraFlag(PROGRAM_FLAG_DEFAULT_PASS); }
 
 	void bind(GraphicCommander *a_pBinder);
 	// to do : add indirect draw method
@@ -112,7 +116,6 @@ private:
 	std::vector< std::pair<std::shared_ptr<MaterialBlock>, int> > m_OwnBlocks, m_ExternBlock;// [block, stage] ... 
 	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 
-	bool m_bHide;
 	unsigned int m_Stage;
 };
 

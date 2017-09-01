@@ -109,6 +109,9 @@ public:
 	void update(float a_Delta);//for post processor
 	void render();
 
+	// misc
+	void batchDrawcall();
+
 private:
 	Scene();
 

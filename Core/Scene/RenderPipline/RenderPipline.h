@@ -11,33 +11,31 @@ namespace R
 
 struct SharedSceneMember;
 class CameraComponent;
+class Material;
+class RenderableComponent;
 
-enum
-{
-	RENDER_STAGE_Z_PREPASS = 0,
-	RENDER_STAGE_GBUFFER = 1000,
-	RENDER_STAGE_LIGHTUP = 2000,
-	RENDER_STAGE_FOWARD = 2000,
-	RENDER_STAGE_TRANSPARENT = 3000,
-};
+#define MATERIAL_INIT_CONTAINER_SIZE 1024
 
 class RenderPipeline
 {
 public:
-	RenderPipeline(SharedSceneMember *a_pMember);
+	RenderPipeline(SharedSceneMember *a_pSharedMember);
 	virtual ~RenderPipeline();
 
-	void setupVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera);
+	void clear();
+	void addStage(unsigned int a_Stage);
+	void removeStage(unsigned int a_Stage);
+	void render(std::shared_ptr<CameraComponent> a_pTargetCamera);
 
-	virtual void render(unsigned int a_Stage) = 0;
+	virtual void buildStaticCommand() = 0;
+	virtual void render(std::vector< std::shared_ptr<Material> > &a_Materials) = 0;
 
 protected:
-	SharedSceneMember* getSceneMember(){ return m_pMember; }
-
+	SharedSceneMember* getSharedMember(){ return m_pSharedMember; }
 
 private:
-	SharedSceneMember *m_pMember;
-
+	SharedSceneMember *m_pSharedMember;
+	std::set<unsigned int> m_Stages;
 };
 
 }
