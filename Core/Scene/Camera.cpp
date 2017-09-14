@@ -9,6 +9,7 @@
 
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
+#include "Scene/RenderPipline/RenderPipline.h"
 
 namespace R
 {
@@ -17,6 +18,13 @@ namespace R
 //
 // Camera
 //
+std::shared_ptr<CameraComponent> CameraComponent::create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+{
+	std::shared_ptr<CameraComponent> l_pNewCamera = std::shared_ptr<CameraComponent>(new CameraComponent(a_pSharedMember, a_pOwner));
+	a_pSharedMember->m_pRenderer->add(l_pNewCamera);
+	return l_pNewCamera;
+}
+
 CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: EngineComponent(a_pSharedMember, a_pOwner)
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)

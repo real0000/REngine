@@ -25,6 +25,8 @@ MouseInput::~MouseInput()
 	
 bool MouseInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 {
+	a_Output.m_DeviceName = getIdentify();
+
 	unsigned int l_Flag = getOwner()->getFlag();
 	switch( a_Event.type )
 	{

@@ -35,24 +35,20 @@ enum ComponentDefine
 
 struct InputData;
 struct SharedSceneMember;
+class GraphicCanvas;
 class SceneNode;
-class EngineCanvas;
 class InputMediator;
 
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
 public:
-	template<typename T>
-	static std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	{
-		return std::shared_ptr<T>(new T(a_pSharedMember, a_pOwner));
-	}
-
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
+
+	virtual void staticFlagChanged(){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
@@ -75,7 +71,7 @@ protected:
 	void removeUpdateListener();
 	void addTransformListener();
 	void removeTransformListener();
-
+	
 	//
 	SharedSceneMember* getSharedMember(){ return m_pMembers; }
 
@@ -119,10 +115,10 @@ public:
 	static EngineCore& singleton();
 	
 	// for normal game : 1 canvas with close button
-	EngineCanvas* createCanvas();
+	GraphicCanvas* createCanvas();
 	// for tool window
-	EngineCanvas* createCanvas(wxWindow *a_pParent);
-	void destroyCanvas(EngineCanvas *a_pCanvas);
+	GraphicCanvas* createCanvas(wxWindow *a_pParent);
+	void destroyCanvas(GraphicCanvas *a_pCanvas);
 
 	bool isShutdown();
 	void shutDown();
@@ -130,12 +126,6 @@ public:
 private:
 	EngineCore();
 	virtual ~EngineCore();
-	
-	// listener
-	void addInputListener(std::shared_ptr<EngineComponent> a_pListener);
-	void removeInputListener(std::shared_ptr<EngineComponent> a_pListener);
-	void addUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
-	void removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
 
 	bool init();
 	void mainLoop();
@@ -145,8 +135,7 @@ private:
 
 	InputMediator *m_pInput;
 	std::thread *m_pMainLoop;
-	std::set<EngineCanvas *> m_ManagedCanvas;
-	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
+	std::set<GraphicCanvas *> m_ManagedCanvas;
 	std::mutex m_CanvasLock;
 };
 

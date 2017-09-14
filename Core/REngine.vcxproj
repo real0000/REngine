@@ -160,7 +160,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Canvas.h" />
     <ClInclude Include="Core.h" />
     <ClInclude Include="Input\InputMediator.h" />
     <ClInclude Include="Input\KeyboardInput.h" />
@@ -181,7 +180,6 @@
     <ClInclude Include="Texture\TextureAtlas.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="Input\InputMediator.cpp" />
     <ClCompile Include="Input\KeyboardInput.cpp" />
     <ClCompile Include="Input\MouseInput.cpp" />

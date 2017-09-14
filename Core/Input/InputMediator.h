@@ -27,7 +27,7 @@ struct InputData
 {
 	InputData() : m_Key(0), m_Type(INPUTTYPE_UNDEFINED){}
 	~InputData(){}
-
+	
 	unsigned int m_Key;
 	union 
 	{
@@ -35,6 +35,7 @@ struct InputData
 		float m_Val[2];// 0.0f ~ 1.0f if analog
 	} m_Data;
 	wxString m_Text;// or key name
+	wxString m_DeviceName;
 	InputType m_Type;
 };
 
@@ -114,11 +115,7 @@ public:
 	void removeKey(int a_Define);
 	void mapKey(int a_Define, wxString a_DeviceType, wxString a_Key);
 	const std::set<int>& getDefinedKey(){ return m_DefinedKey; }
-
-	void addListener(std::shared_ptr<EngineComponent> a_pComponent);
-	void removeListener(std::shared_ptr<EngineComponent> a_pComponent);
-	void clearListener();
-	
+		
 	void setFlag(unsigned int a_Flag){ m_Flags = a_Flag; }
 	void toggleFlag(unsigned int a_Flag){ m_Flags ^= a_Flag; }
 	unsigned int getFlag(){ return m_Flags; }
@@ -129,13 +126,10 @@ private:
 	InputMediator(unsigned int a_Flag = ALLOW_KEYBOARD | ALLOW_MOUSE_BUTTON | ALLOW_MOUSE_MOVE | ALLOW_MOUSE_WHEEL | ALLOW_JOYSTICK | ALLOW_TOUCH | ALLOW_TOUCH_AS_MOUSE);
 	virtual ~InputMediator();
 
-	std::mutex m_Locker;
-	std::list< std::shared_ptr<EngineComponent> > m_Listener, m_ReadyListener;
-	std::set< std::shared_ptr<EngineComponent> > m_DroppedListener;
 	std::set<int> m_DefinedKey;
 		
 	std::vector<InputDeviceInterface *> m_InputMap;
-	std::list<InputData> m_Buffer;
+	std::vector<InputData> m_Buffer;
 	unsigned int m_Flags;
 };
 

@@ -6,7 +6,6 @@
 #include "CommonUtil.h"
 #include "RGDeviceWrapper.h"
 #include "Core.h"
-#include "Canvas.h"
 #include "Input/InputMediator.h"
 #include "Scene/Scene.h"
 
@@ -90,28 +89,28 @@ void EngineComponent::removeAllListener()
 void EngineComponent::addInputListener()
 {
 	if( 0 != m_Flags.m_bInputListener ) return;
-	EngineCore::singleton().addInputListener(shared_from_this());
+	m_pMembers->m_pScene->addInputListener(shared_from_this());
 	m_Flags.m_bInputListener = 1;
 }
 
 void EngineComponent::removeInputListener()
 {
 	if( 0 == m_Flags.m_bInputListener ) return;
-	EngineCore::singleton().removeInputListener(shared_from_this());
+	m_pMembers->m_pScene->removeInputListener(shared_from_this());
 	m_Flags.m_bInputListener = 0;
 }
 
 void EngineComponent::addUpdateListener()
 {
 	if( 0 != m_Flags.m_bUpdateListener ) return;
-	EngineCore::singleton().addUpdateListener(shared_from_this());
+	m_pMembers->m_pScene->addUpdateListener(shared_from_this());
 	m_Flags.m_bUpdateListener = 1;
 }
 
 void EngineComponent::removeUpdateListener()
 {
 	if( 0 == m_Flags.m_bUpdateListener ) return;
-	EngineCore::singleton().removeUpdateListener(shared_from_this());
+	m_pMembers->m_pScene->removeUpdateListener(shared_from_this());
 	m_Flags.m_bUpdateListener = 0;
 }
 
@@ -214,7 +213,7 @@ EngineCore::~EngineCore()
 	}
 }
 
-EngineCanvas* EngineCore::createCanvas()
+GraphicCanvas* EngineCore::createCanvas()
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
@@ -222,32 +221,32 @@ EngineCanvas* EngineCore::createCanvas()
 	wxFrame *l_pNewWindow = new wxFrame(NULL, wxID_ANY, EngineSetting::singleton().m_Title);
 	l_pNewWindow->Show();
 
-	EngineCanvas *l_pCanvas = new EngineCanvas(l_pNewWindow);
+	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->setFullScreen(EngineSetting::singleton().m_bFullScreen);
-	l_pCanvas->init();
+	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	
 	m_ManagedCanvas.insert(l_pCanvas);
 	return l_pCanvas;
 }
 
-EngineCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
+GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
-	EngineCanvas *l_pCanvas = new EngineCanvas(a_pParent);
-	l_pCanvas->init();
+	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(a_pParent, wxID_ANY);
+	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	m_ManagedCanvas.insert(l_pCanvas);
 	return l_pCanvas;
 }
 
-void EngineCore::destroyCanvas(EngineCanvas *a_pCanvas)
+void EngineCore::destroyCanvas(GraphicCanvas *a_pCanvas)
 {
 	if( !m_bValid ) return;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
-	a_pCanvas->getCommander()->flush();
+	GDEVICE()->wait();
 	m_ManagedCanvas.erase(a_pCanvas);
 	delete a_pCanvas;
 }
@@ -265,27 +264,6 @@ void EngineCore::shutDown()
 	for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) delete *it;
 	m_ManagedCanvas.clear();
 	SDL_Quit();
-}
-
-void EngineCore::addInputListener(std::shared_ptr<EngineComponent> a_pListener)
-{
-	m_pInput->addListener(a_pListener);
-}
-
-void EngineCore::removeInputListener(std::shared_ptr<EngineComponent> a_pListener)
-{
-	m_pInput->removeListener(a_pListener);
-}
-
-void EngineCore::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
-{
-	m_UpdateCallback.push_back(a_pListener);
-}
-
-void EngineCore::removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
-{
-	auto it = std::find(m_UpdateCallback.begin(), m_UpdateCallback.end(), a_pListener);
-	m_UpdateCallback.erase(it);
 }
 
 bool EngineCore::init()
@@ -333,7 +311,6 @@ void EngineCore::mainLoop()
 			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 			
 			m_pInput->pollEvent();
-			for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(l_Delta);
 			SceneManager::singleton().update(l_Delta);
 			SceneManager::singleton().render();
 		}

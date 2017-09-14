@@ -202,146 +202,23 @@ struct D3D12ThreadCommandData
 		, m_GraphicThread(nullptr, nullptr)
 		, m_ComputeThread(nullptr, nullptr)
 		, m_pCurrProgram(nullptr)
-		, m_RenderTargetID(-1)
 	{}
 
 	D3D12Commander::CmdComponent *m_pComponent;
 	D3D12GpuThread m_CurrThread, m_GraphicThread, m_ComputeThread;
 	HLSLProgram12 *m_pCurrProgram;
-	int m_RenderTargetID;
 };
 thread_local D3D12ThreadCommandData g_CmdThreadData;
 D3D12Commander::ComputeCmdComponent D3D12Commander::m_ComputeComponent;
 D3D12Commander::GraphicCmdComponent D3D12Commander::m_GraphicComponent;
 D3D12Commander::D3D12Commander(D3D12HeapManager *a_pHeapOwner)
-	: m_pSwapChain(nullptr)
-	, m_pDrawCmdQueue(nullptr), m_pBundleCmdQueue(nullptr)
-	, m_Handle(0)
-	, m_pFence(nullptr)
-	, m_pRefDevice(TYPED_GDEVICE(D3D12Device))
+	: m_pRefDevice(TYPED_GDEVICE(D3D12Device))
 	, m_pRefHeapOwner(a_pHeapOwner)
-	, m_LastRenderTargetID(-1), m_RenerderTargetLock(), m_CopySrcSlot(0), m_ScreenSize(1280, 720)
 {
-	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i ) m_PresentBundle[i] = std::make_pair(nullptr, nullptr);
-
-	memset(m_BackBuffer, 0, sizeof(unsigned int) * NUM_BACKBUFFER);
-	memset(m_pBackbufferRes, 0, sizeof(ID3D12Resource *) * NUM_BACKBUFFER);
 }
 
 D3D12Commander::~D3D12Commander()
 {
-	m_pRefDevice->waitForResourceUpdate();
-	m_pFence->wait();
-
-	SAFE_RELEASE(m_pDrawCmdQueue)
-	SAFE_RELEASE(m_pBundleCmdQueue)
-	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
-	{
-		SAFE_RELEASE(m_PresentBundle[i].first)
-		SAFE_RELEASE(m_PresentBundle[i].second)
-
-		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
-		SAFE_RELEASE(m_pBackbufferRes[i])
-	}
-	
-	SAFE_DELETE(m_pFence)
-	SAFE_RELEASE(m_pSwapChain)
-}
-
-void D3D12Commander::init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr)
-{
-	m_Handle = a_Handle;
-	ID3D12Device *l_pDevInst = m_pRefDevice->getDeviceInst();
-	IDXGIFactory4 *l_pDevFactory = m_pRefDevice->getDeviceFactory();
-
-	D3D12_COMMAND_QUEUE_DESC l_QueueDesc;
-	l_QueueDesc.NodeMask = 0;
-	l_QueueDesc.Priority = 0;
-	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	l_QueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	HRESULT l_Res = l_pDevInst->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pDrawCmdQueue));
-	assert(S_OK == l_Res);
-	
-	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_BUNDLE;
-	l_Res = l_pDevInst->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pBundleCmdQueue));
-	assert(S_OK == l_Res);
-
-	DXGI_SWAP_CHAIN_DESC l_SwapChainDesc;
-	l_SwapChainDesc.BufferCount = NUM_BACKBUFFER;
-	l_SwapChainDesc.BufferDesc.Width = a_Size.x;
-	l_SwapChainDesc.BufferDesc.Height = a_Size.y;
-	l_SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	l_SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	l_SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	l_SwapChainDesc.OutputWindow = (HWND)a_Handle;
-	l_SwapChainDesc.SampleDesc.Count = 1;
-	l_SwapChainDesc.Windowed = !a_bFullScr;
-	
-	IDXGISwapChain *l_pSwapChain = nullptr;
-	if( S_OK != l_pDevFactory->CreateSwapChain(m_pDrawCmdQueue, &l_SwapChainDesc, &l_pSwapChain) )
-	{
-		wxMessageBox(wxT("swap chain create failed"), wxT("D3D12Commander::init"));
-		return;
-	}
-	m_pSwapChain = (IDXGISwapChain3 *)l_pSwapChain;
-
-	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
-	{
-		if( S_OK != m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pBackbufferRes[i])) )
-		{
-			wxMessageBox(wxString::Format(wxT("can't get rtv[%d]"), i), wxT("D3D12Commander::init"));
-			return;
-		}
-
-		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], (D3D12_RENDER_TARGET_VIEW_DESC *)nullptr);
-	}
-	
-	l_Res = m_pRefDevice->getDeviceInst()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_PresentCopySource.first));
-	assert(S_OK == l_Res);
-	l_Res = m_pRefDevice->getDeviceInst()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_PresentCopySource.first, nullptr, IID_PPV_ARGS(&m_PresentCopySource.second));
-	assert(S_OK == l_Res);
-
-	const float l_Black[] = {0.0f, 0.0f, 0.0f, 0.0f};
-	HLSLProgram12 *l_pProgram = (HLSLProgram12 *)ProgramManager::singleton().getData(DefaultPrograms::Copy).get();
-	m_CopySrcSlot = l_pProgram->getTextureSlot(0);
-	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
-	{
-		HRESULT l_Res = m_pRefDevice->getDeviceInst()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_PresentBundle[i].first));
-		assert(S_OK == l_Res);
-		l_Res = m_pRefDevice->getDeviceInst()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_PresentBundle[i].first, nullptr, IID_PPV_ARGS(&m_PresentBundle[i].second));
-		assert(S_OK == l_Res);
-
-		D3D12_CPU_DESCRIPTOR_HANDLE l_BackBufferCpuHandle(m_pRefHeapOwner->getCpuHandle(m_BackBuffer[i]));
-
-		m_PresentBundle[i].first->Reset();
-		m_PresentBundle[i].second->Reset(m_PresentBundle[i].first, nullptr);
-
-		resourceTransition(m_PresentBundle[i].second, m_pBackbufferRes[i], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		m_PresentBundle[i].second->OMSetRenderTargets(1, &l_BackBufferCpuHandle, false, nullptr);
-		m_PresentBundle[i].second->ClearRenderTargetView(l_BackBufferCpuHandle, l_Black, 0, nullptr);
-		m_PresentBundle[i].second->SetGraphicsRootSignature(l_pProgram->getRegDesc());
-		m_PresentBundle[i].second->SetPipelineState(l_pProgram->getPipeline());
-		m_PresentBundle[i].second->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		m_PresentBundle[i].second->DrawInstanced(4, 1, 0, 0);
-
-		resourceTransition(m_PresentBundle[i].second, m_pBackbufferRes[i], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		m_PresentBundle[i].second->Close();
-	}
-
-	m_pFence = new D3D12Fence(m_pRefDevice->getDeviceInst(), m_pDrawCmdQueue);
-	m_ScreenSize = a_Size;
-}
-
-void D3D12Commander::resize(glm::ivec2 a_Size, bool a_bFullScr)
-{
-	m_pSwapChain = nullptr;
-	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
-	{
-		m_pBackbufferRes[i] = nullptr;
-		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
-	}
-
-	init(m_Handle, a_Size, a_bFullScr);
 }
 
 void D3D12Commander::useProgram(std::shared_ptr<ShaderProgram> a_pProgram)
@@ -438,10 +315,10 @@ void D3D12Commander::clearRenderTarget(int a_ID, glm::vec4 a_Color)
 	l_Thread.second->ClearRenderTargetView(m_pRefDevice->getRenderTargetCpuHandle(a_ID), (const float *)&a_Color, 0, nullptr);
 }
 
-void D3D12Commander::clearBackBuffer(int a_Idx, glm::vec4 a_Color)
+void D3D12Commander::clearBackBuffer(GraphicCanvas *a_pCanvas, glm::vec4 a_Color)
 {
 	D3D12GpuThread l_Thread = validateThisThread();
-	l_Thread.second->ClearRenderTargetView(m_pRefHeapOwner->getCpuHandle(m_BackBuffer[a_Idx]), (const float *)&a_Color, 0, nullptr);
+	l_Thread.second->ClearRenderTargetView(m_pRefHeapOwner->getCpuHandle(a_pCanvas->getBackBuffer()), (const float *)&a_Color, 0, nullptr);
 }
 
 void D3D12Commander::clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil)
@@ -489,13 +366,12 @@ void D3D12Commander::setRenderTarget(int a_DepthID, std::vector<int> &a_RederTar
 	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> l_RTVHandle(a_RederTargetIDList.size());
 	for( unsigned int i=0 ; i<a_RederTargetIDList.size() ; ++i ) l_RTVHandle[i] = m_pRefDevice->getRenderTargetCpuHandle(a_RederTargetIDList[i]);
 	l_Thread.second->OMSetRenderTargets(l_RTVHandle.size(), &(l_RTVHandle.front()), FALSE, -1 == a_DepthID ? nullptr : &(m_pRefDevice->getRenderTargetCpuHandle(a_DepthID)));
-	g_CmdThreadData.m_RenderTargetID = a_RederTargetIDList.front();
 }
 
-void D3D12Commander::setRenderTargetWithBackBuffer(int a_DepthID, unsigned int a_BackIdx)
+void D3D12Commander::setRenderTargetWithBackBuffer(int a_DepthID, GraphicCanvas *a_pCanvas)
 {
 	D3D12GpuThread l_Thread = validateThisThread();
-	D3D12_CPU_DESCRIPTOR_HANDLE l_RtvHandle(m_pRefHeapOwner->getCpuHandle(m_BackBuffer[a_BackIdx]));
+	D3D12_CPU_DESCRIPTOR_HANDLE l_RtvHandle(m_pRefHeapOwner->getCpuHandle(a_pCanvas->getBackBuffer()));
 	l_Thread.second->OMSetRenderTargets(1, &l_RtvHandle, FALSE, -1 == a_DepthID ? nullptr : &(m_pRefDevice->getRenderTargetCpuHandle(a_DepthID)));
 }
 
@@ -551,59 +427,12 @@ D3D12GpuThread D3D12Commander::validateThisThread()
 	return g_CmdThreadData.m_CurrThread;
 }
 
-void D3D12Commander::flush(bool a_bToBackBuffer)
-{
-	m_pFence->wait();
-
-	m_pRefDevice->waitForResourceUpdate();
-	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) m_pRefDevice->recycleThread(m_BusyThread[i], false);
-
-	m_BusyThread.resize(m_ReadyThread.size());
-	std::copy(m_ReadyThread.begin(), m_ReadyThread.end(), m_BusyThread.begin());
-	m_ReadyThread.clear();
-
-	std::vector<ID3D12CommandList *> l_CmdArray(m_BusyThread.size());
-	for( unsigned int i=0 ; i<m_BusyThread.size() ; ++i ) l_CmdArray[i] = m_BusyThread[i].second;
-	
-	if( a_bToBackBuffer )
-	{
-		glm::viewport l_Viewport(0.0f, 0.0f, m_ScreenSize.x, m_ScreenSize.y, 0.0f, 1.0f);
-		glm::ivec4 l_Scissor(0, 0, m_ScreenSize.x, m_ScreenSize.y);
-		m_PresentCopySource.second->IASetVertexBuffers(0, 1, &(m_pRefDevice->getQuadVertexBufferView()));
-		m_PresentCopySource.second->SetGraphicsRootDescriptorTable(m_CopySrcSlot, m_pRefDevice->getTextureGpuHandle(m_LastRenderTargetID, true));
-		m_PresentCopySource.second->RSSetViewports(1, (const D3D12_VIEWPORT *)&l_Viewport);
-		m_PresentCopySource.second->RSSetScissorRects(1, (const D3D12_RECT *)&l_Scissor);
-
-		l_CmdArray.push_back(m_PresentCopySource.second);
-		l_CmdArray.push_back(m_PresentBundle[m_pSwapChain->GetCurrentBackBufferIndex()].second);
-	}
-
-	m_pDrawCmdQueue->ExecuteCommandLists(l_CmdArray.size(), l_CmdArray.data());
-
-	m_pFence->signal();
-}
-
-void D3D12Commander::present()
-{
-	m_pRefDevice->waitForResourceUpdate();
-	m_pFence->wait();
-	
-	// to do : add fps setting
-	m_pSwapChain->Present(0, 0);
-
-	m_pFence->signal();
-	m_pFence->wait();
-}
-
 void D3D12Commander::threadEnd()
 {
 	if( nullptr != g_CmdThreadData.m_GraphicThread.first )
 	{
-		std::lock_guard<std::mutex> l_RenderTargetLocker(m_RenerderTargetLock);
-		if( -1 != g_CmdThreadData.m_RenderTargetID ) m_LastRenderTargetID = g_CmdThreadData.m_RenderTargetID;
-
 		g_CmdThreadData.m_GraphicThread.second->Close();
-		m_ReadyThread.push_back(g_CmdThreadData.m_GraphicThread);
+		m_pRefDevice->recycleThread(g_CmdThreadData.m_GraphicThread, false);
 	}
 
 	if( nullptr != g_CmdThreadData.m_ComputeThread.first )
@@ -614,7 +443,92 @@ void D3D12Commander::threadEnd()
 	g_CmdThreadData.m_ComputeThread = g_CmdThreadData.m_GraphicThread = g_CmdThreadData.m_CurrThread = std::make_pair(nullptr, nullptr);
 	g_CmdThreadData.m_pCurrProgram = nullptr;
 	g_CmdThreadData.m_pComponent = nullptr;
-	g_CmdThreadData.m_RenderTargetID = -1;
+}
+#pragma endregion
+
+#pragma region D3D12Canvas
+//
+// D3D12Canvas
+//
+D3D12Canvas::D3D12Canvas(D3D12HeapManager *a_pHeapOwner, wxWindow *a_pParent, wxWindowID a_ID)
+	: GraphicCanvas(a_pParent, a_ID)
+	, m_pRefHeapOwner(a_pHeapOwner)
+{
+	memset(m_BackBuffer, 0, sizeof(unsigned int) * NUM_BACKBUFFER);
+	memset(m_pBackbufferRes, 0, sizeof(ID3D12Resource *) * NUM_BACKBUFFER);
+}
+
+D3D12Canvas::~D3D12Canvas()
+{
+	GDEVICE()->wait();
+
+	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
+	{
+		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
+		SAFE_RELEASE(m_pBackbufferRes[i])
+	}
+	
+	SAFE_RELEASE(m_pSwapChain)
+}
+
+void D3D12Canvas::init(bool a_bFullScr)
+{
+	D3D12Device* l_pDevInteface = TYPED_GDEVICE(D3D12Device);
+	ID3D12Device *l_pDevInst = l_pDevInteface->getDeviceInst();
+	IDXGIFactory4 *l_pDevFactory = l_pDevInteface->getDeviceFactory();
+
+	DXGI_SWAP_CHAIN_DESC l_SwapChainDesc;
+	l_SwapChainDesc.BufferCount = NUM_BACKBUFFER;
+	l_SwapChainDesc.BufferDesc.Width = GetClientSize().x;
+	l_SwapChainDesc.BufferDesc.Height = GetClientSize().y;
+	l_SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	l_SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	l_SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	l_SwapChainDesc.OutputWindow = (HWND)GetHandle();
+	l_SwapChainDesc.SampleDesc.Count = 1;
+	l_SwapChainDesc.Windowed = !a_bFullScr;
+	
+	IDXGISwapChain *l_pSwapChain = nullptr;
+	if( S_OK != l_pDevFactory->CreateSwapChain(l_pDevInteface->getDrawCommandQueue(), &l_SwapChainDesc, &l_pSwapChain) )
+	{
+		wxMessageBox(wxT("swap chain create failed"), wxT("D3D12Commander::init"));
+		return;
+	}
+	m_pSwapChain = (IDXGISwapChain3 *)l_pSwapChain;
+
+	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
+	{
+		if( S_OK != m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pBackbufferRes[i])) )
+		{
+			wxMessageBox(wxString::Format(wxT("can't get rtv[%d]"), i), wxT("D3D12Commander::init"));
+			return;
+		}
+
+		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], (D3D12_RENDER_TARGET_VIEW_DESC *)nullptr);
+	}
+}
+
+void D3D12Canvas::present()
+{
+	// to do : add fps setting
+	m_pSwapChain->Present(0, 0);
+}
+
+unsigned int D3D12Canvas::getBackBuffer()
+{
+	return m_BackBuffer[m_pSwapChain->GetCurrentBackBufferIndex()];
+}
+
+void D3D12Canvas::resizeBackBuffer()
+{
+	m_pSwapChain = nullptr;
+	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
+	{
+		m_pBackbufferRes[i] = nullptr;
+		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
+	}
+
+	init(isFullScreen());
 }
 #pragma endregion
 
@@ -628,9 +542,9 @@ D3D12Device::D3D12Device()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
-	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr)
+	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr), m_pBundleCmdQueue(nullptr)
 	, m_IdleResThread(0)
-	, m_pResFence(nullptr), m_pComputeFence(nullptr)
+	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
 	, m_pResourceLoop(nullptr), m_bLooping(true)
 	, m_QuadBufferID(-1)
 {
@@ -646,6 +560,8 @@ D3D12Device::D3D12Device()
 
 D3D12Device::~D3D12Device()
 {
+	wait();
+
 	if( -1 != m_QuadBufferID ) freeVertexBuffer(m_QuadBufferID);
 	m_QuadBufferID = -1;
 
@@ -654,9 +570,12 @@ D3D12Device::~D3D12Device()
 	delete m_pResourceLoop;
 	if( nullptr != m_pComputeLoop ) m_pComputeLoop->join();
 	delete m_pComputeLoop;
+	if( nullptr != m_pComputeLoop ) m_pGraphicLoop->join();
+	delete m_pComputeLoop;
 
 	SAFE_DELETE(m_pResFence)
 	SAFE_DELETE(m_pComputeFence)
+	SAFE_DELETE(m_pGraphicFence)
 
 	SAFE_DELETE(m_pShaderResourceHeap);
 	SAFE_DELETE(m_pSamplerHeap);
@@ -673,6 +592,8 @@ D3D12Device::~D3D12Device()
 	SAFE_RELEASE(m_pGraphicInterface)
 	SAFE_RELEASE(m_pResCmdQueue)
 	SAFE_RELEASE(m_pComputeQueue)
+	SAFE_RELEASE(m_pDrawCmdQueue)
+	SAFE_RELEASE(m_pBundleCmdQueue)
 	
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
 	{
@@ -800,7 +721,19 @@ void D3D12Device::init()
 	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 	l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pComputeQueue));
 	assert(S_OK == l_Res);
+
+	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pDrawCmdQueue));
+	assert(S_OK == l_Res);
 	
+	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_BUNDLE;
+	l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pBundleCmdQueue));
+	assert(S_OK == l_Res);
+		
+	m_pResFence = new D3D12Fence(m_pDevice, m_pResCmdQueue);
+	m_pComputeFence = new D3D12Fence(m_pDevice, m_pComputeQueue);
+	m_pGraphicFence = new D3D12Fence(m_pDevice, m_pDrawCmdQueue);
+
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread(D3D12_COMMAND_LIST_TYPE_COPY);
 	m_ResThread[m_IdleResThread].first->Reset();
 	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
@@ -808,6 +741,7 @@ void D3D12Device::init()
 	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
 	m_pResourceLoop = new std::thread(&D3D12Device::resourceThread, this);
 	m_pComputeLoop = new std::thread(&D3D12Device::computeThread, this);
+	m_pGraphicLoop = new std::thread(&D3D12Device::graphicThread, this);
 
 	unsigned int l_NumCore = std::thread::hardware_concurrency();
 	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
@@ -818,9 +752,6 @@ void D3D12Device::init()
 		m_ComputeThread.push_back(newThread(D3D12_COMMAND_LIST_TYPE_COMPUTE));
 	}
 	
-	m_pResFence = new D3D12Fence(m_pDevice, m_pResCmdQueue);
-	m_pComputeFence = new D3D12Fence(m_pDevice, m_pComputeQueue);
-
 	// Create descriptor heaps.
 	{
 		m_pShaderResourceHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
@@ -844,9 +775,20 @@ GraphicCommander* D3D12Device::commanderFactory()
 	return new D3D12Commander(m_pRenderTargetHeap);
 }
 
+GraphicCanvas* D3D12Device::canvasFactory(wxWindow *a_pParent, wxWindowID a_ID)
+{
+	return new D3D12Canvas(m_pShaderResourceHeap, a_pParent, a_ID);
+}
+
 std::pair<int, int> D3D12Device::maxShaderModel()
 {
 	return std::make_pair(5, 1);//no version check for dx12
+}
+
+void D3D12Device::wait()
+{
+	waitForResourceUpdate();
+	while( !m_GraphicReadyThread.empty() || !m_GraphicBusyThread.empty() ) m_pGraphicFence->wait();
 }
 
 // convert part
@@ -1668,7 +1610,11 @@ void D3D12Device::recycleThread(D3D12GpuThread a_Thread, bool a_bCompute)
 		std::lock_guard<std::mutex> l_Guard(m_ComputeMutex);
 		m_ComputeReadyThread.push_back(a_Thread);
 	}
-	else m_GraphicThread.push_back(a_Thread);
+	else
+	{
+		std::lock_guard<std::mutex> l_Guard(m_ThreadMutex);
+		m_GraphicReadyThread.push_back(a_Thread);
+	}
 }
 
 void D3D12Device::waitForResourceUpdate()
@@ -1742,6 +1688,35 @@ void D3D12Device::computeThread()
 			std::lock_guard<std::mutex> l_Guard(m_ComputeMutex);
 			for( unsigned int i=0 ; i<m_ComputeBusyThread.size() ; ++i ) m_ComputeThread.push_back(m_ComputeBusyThread[i]);
 			m_ComputeBusyThread.clear();
+		}
+	}
+}
+
+void D3D12Device::graphicThread()
+{
+	while( m_bLooping )
+	{
+		while( m_GraphicReadyThread.empty() ) std::this_thread::yield();
+
+		{
+			std::lock_guard<std::mutex> l_Guard(m_ComputeMutex);
+			m_GraphicBusyThread.resize(m_GraphicReadyThread.size());
+			std::copy(m_GraphicReadyThread.begin(), m_GraphicReadyThread.end(), m_GraphicBusyThread.begin());
+			m_GraphicReadyThread.clear();
+
+			std::vector<ID3D12CommandList *> l_CmdArray(m_GraphicBusyThread.size());
+			#pragma	omp parallel for
+			for( int i=0 ; i<(int)l_CmdArray.size() ; ++i ) l_CmdArray[i] = m_GraphicBusyThread[i].second;
+			m_pDrawCmdQueue->ExecuteCommandLists(1, l_CmdArray.data());
+		}
+
+		m_pGraphicFence->signal();
+		m_pGraphicFence->wait();
+
+		{
+			std::lock_guard<std::mutex> l_Guard(m_ComputeMutex);
+			for( unsigned int i=0 ; i<m_GraphicBusyThread.size() ; ++i ) m_ComputeThread.push_back(m_GraphicBusyThread[i]);
+			m_GraphicBusyThread.clear();
 		}
 	}
 }

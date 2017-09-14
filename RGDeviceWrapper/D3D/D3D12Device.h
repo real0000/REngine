@@ -102,10 +102,6 @@ public:
 	D3D12Commander(D3D12HeapManager *a_pHeapOwner);
 	virtual ~D3D12Commander();
 
-	// canvas reference
-	virtual void init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr);
-	virtual void resize(glm::ivec2 a_Size, bool a_bFullScr);
-
 	// draw command
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram);
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
@@ -116,7 +112,7 @@ public:
 	virtual void bindConstBlock(int a_HeapID, int a_BlockStage);
 	virtual void bindUavBlock(int a_HeapID, int a_BlockStage);
 	virtual void clearRenderTarget(int a_ID, glm::vec4 a_Color);
-	virtual void clearBackBuffer(int a_Idx, glm::vec4 a_Color);
+	virtual void clearBackBuffer(GraphicCanvas *a_pCanvas, glm::vec4 a_Color);
 	virtual void clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx);
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx);
@@ -125,37 +121,39 @@ public:
 	
 	virtual void setTopology(Topology::Key a_Key);
 	virtual void setRenderTarget(int a_DepthID, std::vector<int> &a_RederTargetIDList);
-	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx);
+	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, GraphicCanvas *a_pCanvas);
 	virtual void setViewPort(int a_NumViewport, ...);// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
-
-	virtual void flush(bool a_bToBackBuffer = false);
-	virtual void present();
 
 private:
 	D3D12GpuThread validateThisThread();
 	void threadEnd();
+	
+	D3D12Device *m_pRefDevice;
+	D3D12HeapManager *m_pRefHeapOwner;
+		
+	static ComputeCmdComponent m_ComputeComponent;
+	static GraphicCmdComponent m_GraphicComponent;
+};
 
+class D3D12Canvas : public GraphicCanvas
+{
+public:
+	D3D12Canvas(D3D12HeapManager *a_pHeapOwner, wxWindow *a_pParent, wxWindowID a_ID);
+	virtual ~D3D12Canvas();
+
+	virtual void init(bool a_bFullScr);
+	virtual void present();
+	virtual unsigned int getBackBuffer();
+
+protected:
+	virtual void resizeBackBuffer();
+
+private:
+	D3D12HeapManager *m_pRefHeapOwner;
 	unsigned int m_BackBuffer[NUM_BACKBUFFER];
 	ID3D12Resource *m_pBackbufferRes[NUM_BACKBUFFER];
 	IDXGISwapChain3 *m_pSwapChain;
-	ID3D12CommandQueue *m_pDrawCmdQueue, *m_pBundleCmdQueue;// to do : add bundle support
-
-	WXWidget m_Handle;
-	D3D12Fence *m_pFence;
-
-	D3D12Device *m_pRefDevice;
-	D3D12HeapManager *m_pRefHeapOwner;
-	std::vector<D3D12GpuThread> m_ReadyThread, m_BusyThread;
-	D3D12GpuThread m_PresentBundle[NUM_BACKBUFFER], m_PresentCopySource;
-
-	int m_LastRenderTargetID;
-	std::mutex m_RenerderTargetLock;
-	unsigned int m_CopySrcSlot;
-	glm::ivec2 m_ScreenSize;
-	
-	static ComputeCmdComponent m_ComputeComponent;
-	static GraphicCmdComponent m_GraphicComponent;
 };
 
 class D3D12Device : public Dircet3DDevice
@@ -169,7 +167,9 @@ public:
 	virtual void initDevice(unsigned int a_DeviceID);
 	virtual void init();
 	virtual GraphicCommander* commanderFactory();
+	virtual GraphicCanvas* canvasFactory(wxWindow *a_pParent, wxWindowID a_ID);
 	virtual std::pair<int, int> maxShaderModel();
+	virtual void wait();
 	
 	// support flags
 	virtual bool supportExtraIndirectCommand(){ return true; }
@@ -239,6 +239,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW getQuadVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
+	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain creat
 
 	// thread part
 	D3D12GpuThread requestThread(bool a_bCompute);
@@ -248,6 +249,7 @@ public:
 private:
 	void resourceThread();
 	void computeThread();
+	void graphicThread();
 	ID3D12Resource* initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState = D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAGS a_Flag = D3D12_RESOURCE_FLAG_NONE);
 	void updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte);
 
@@ -348,16 +350,17 @@ private:
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
 	DXGI_SAMPLE_DESC m_MsaaSetting;
-	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue;
+	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue, *m_pBundleCmdQueue;// to do : add bundle support;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
 	unsigned int m_IdleResThread;
-	D3D12Fence *m_pResFence, *m_pComputeFence;
+	D3D12Fence *m_pResFence, *m_pComputeFence, *m_pGraphicFence;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
 	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
-	std::thread *m_pResourceLoop, *m_pComputeLoop;
+	std::thread *m_pResourceLoop, *m_pComputeLoop, *m_pGraphicLoop;
 	bool m_bLooping;
 
 	std::vector<D3D12GpuThread> m_ComputeReadyThread, m_ComputeBusyThread;
+	std::vector<D3D12GpuThread> m_GraphicReadyThread, m_GraphicBusyThread;
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
 	std::mutex m_ThreadMutex, m_ResourceMutex, m_ComputeMutex;
 

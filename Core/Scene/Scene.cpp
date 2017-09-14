@@ -7,8 +7,10 @@
 #include "Core.h"
 #include "Scene.h"
 
+#include "Scene/Camera.h"
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
+#include "Scene/RenderPipline/Deferred.h"
 
 namespace R
 {
@@ -18,7 +20,8 @@ namespace R
 // SharedSceneMember
 //
 SharedSceneMember::SharedSceneMember()
-	: m_pScene(nullptr)
+	: m_pRenderer(nullptr)
+	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
 	memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
@@ -34,6 +37,7 @@ SharedSceneMember::~SharedSceneMember()
 SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 {
 	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
+	m_pRenderer = a_Src.m_pRenderer;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
@@ -51,6 +55,7 @@ std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember,
 
 SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
+	, m_bStatic(false)
 	, m_pMembers(new SharedSceneMember)
 {
 	*m_pMembers = *a_pSharedMember;
@@ -132,6 +137,16 @@ void SceneNode::update(glm::mat4x4 a_ParentTranform)
 	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->update(m_World);
 }
 
+void SceneNode::setStatic(bool a_bStatic)
+{
+	if( a_bStatic == m_bStatic ) return;
+	m_bStatic = a_bStatic;
+	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
+	{
+		for( std::shared_ptr<EngineComponent> l_pComponent : it->second ) l_pComponent->staticFlagChanged();
+	}
+}
+
 std::shared_ptr<EngineComponent> SceneNode::getComponent(wxString a_Name)
 {
 	if( a_Name.empty() ) return nullptr;
@@ -206,6 +221,9 @@ Scene::Scene()
 
 Scene::~Scene()
 {
+	m_InputListener.clear();
+	m_ReadyInputListener.clear();
+	m_DroppedInputListener.clear();
 }
 
 void Scene::destroy()
@@ -219,8 +237,16 @@ void Scene::initEmpty()
 	assert(!m_bLoading);
 	m_bLoading = true;
 	clear();
-
+	
+	m_pMembers->m_pScene = shared_from_this();
 	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
+	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
+	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
+
+	m_pCurrCamera = CameraComponent::create(m_pMembers, m_pMembers->m_pSceneNode);
+	m_pCurrCamera->setName(wxT("DefaultCamera"));
+
+	m_bLoading = false;
 }
 
 bool Scene::load(wxString a_Path)
@@ -258,17 +284,100 @@ void Scene::loadAsync(wxString a_Path, std::function<void(bool)> a_Callback)
 
 bool Scene::save(wxString a_Path)
 {
+	return true;
+}
+
+void Scene::processInput(InputData &a_Data)
+{
+	{// do add/remove listener
+		std::lock_guard<std::mutex> l_Locker(m_InputLocker);
+		if( !m_DroppedInputListener.empty() )
+		{
+			for( auto it = m_DroppedInputListener.begin() ; it != m_DroppedInputListener.end() ; ++it )
+			{
+				auto l_ListenerIt = std::find(m_InputListener.begin(), m_InputListener.end(), *it);
+				m_InputListener.erase(l_ListenerIt);
+			}
+			m_DroppedInputListener.clear();
+		}
+
+		if( !m_ReadyInputListener.empty() )
+		{
+			for( auto it = m_ReadyInputListener.begin() ; it != m_ReadyInputListener.end() ; ++it ) m_InputListener.push_back(*it);
+			m_ReadyInputListener.clear();
+		}
+	}
 }
 
 void Scene::update(float a_Delta)
 {
+	for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(a_Delta);
 }
 
 void Scene::render()
 {
 	if( nullptr == m_pCurrCamera ) return;
+	m_pMembers->m_pRenderer->render();
+}
 
+void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	m_UpdateCallback.push_back(a_pListener);
+}
 
+void Scene::removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
+{
+	auto it = std::find(m_UpdateCallback.begin(), m_UpdateCallback.end(), a_pListener);
+	m_UpdateCallback.erase(it);
+}
+
+void Scene::addInputListener(std::shared_ptr<EngineComponent> a_pComponent)
+{
+	std::lock_guard<std::mutex> l_Locker(m_InputLocker);
+
+	auto it = std::find(m_InputListener.begin(), m_InputListener.end(), a_pComponent);
+	if( it != m_InputListener.end() ) return;
+	
+	auto it2 = std::find(m_ReadyInputListener.begin(), m_ReadyInputListener.end(), a_pComponent);
+	if( it2 != m_ReadyInputListener.end() ) return;
+
+	m_DroppedInputListener.erase(a_pComponent);
+	m_ReadyInputListener.push_back(a_pComponent);
+}
+
+void Scene::removeInputListener(std::shared_ptr<EngineComponent> a_pComponent)
+{
+	std::lock_guard<std::mutex> l_Locker(m_InputLocker);
+	
+	auto it = std::find(m_InputListener.begin(), m_InputListener.end(), a_pComponent);
+	if( it == m_InputListener.end() ) return;
+	
+	auto it2 = m_DroppedInputListener.find(a_pComponent);
+	if( it2 == m_DroppedInputListener.end() ) return;
+
+	it = std::find(m_ReadyInputListener.begin(), m_ReadyInputListener.end(), a_pComponent);
+	if( m_ReadyInputListener.end() == it ) m_ReadyInputListener.erase(it);
+	m_DroppedInputListener.insert(a_pComponent);
+}
+
+void Scene::clearInputListener()
+{
+	std::lock_guard<std::mutex> l_Locker(m_InputLocker);
+	
+	m_InputListener.clear();
+	m_ReadyInputListener.clear();
+	m_DroppedInputListener.clear();
+}
+
+void Scene::addRenderStage(unsigned int a_Stage)
+{
+	// maybe add mutex lock ?
+	m_RenderStages.insert(a_Stage);
+}
+
+void Scene::removeRenderStage(unsigned int a_Stage)
+{
+	m_RenderStages.erase(a_Stage);
 }
 
 void Scene::clear()

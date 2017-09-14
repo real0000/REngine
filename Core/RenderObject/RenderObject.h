@@ -26,8 +26,6 @@ public:
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_pRefIdxBuffer; }
 	std::pair<int, int> getIndexRange(){ return m_Range; }
 	glm::daabb& boundingBox(){ return m_BoundingBox; }
-	void setStatic(bool a_bStatic);
-	bool isStatic(){ return m_bStatic; }
 	
 private:
 	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
@@ -36,7 +34,6 @@ private:
 	std::shared_ptr<IndexBuffer> m_pRefIdxBuffer;
 	std::pair<int, int> m_Range;// index offset : count
 	glm::daabb m_BoundingBox;
-	bool m_bStatic;
 	std::map<unsigned int, std::set< std::shared_ptr<Material> > > m_MaterialSet;// render group id : [material ...]
 };
 

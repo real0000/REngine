@@ -44,6 +44,7 @@ public:
 		TETRAHEDRON,
 		CUBE,
 	};
+	static std::shared_ptr<CameraComponent> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~CameraComponent();// don't call this method directly
 	
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }

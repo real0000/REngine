@@ -46,6 +46,8 @@ void KeyboardInput::mapKey(int a_Define, wxString a_Key)
 
 bool KeyboardInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 {
+	a_Output.m_DeviceName = getIdentify();
+
 	unsigned int l_Flag = getOwner()->getFlag();
 	if( 0 == (l_Flag & InputMediator::ALLOW_KEYBOARD) ) return false;
 

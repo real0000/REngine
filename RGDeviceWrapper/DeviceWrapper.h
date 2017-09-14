@@ -11,6 +11,7 @@ namespace R
 class IndexBuffer;
 class ShaderProgram;
 class VertexBuffer;
+class GraphicCanvas;
 
 // must call use program after thread started
 class GraphicCommander
@@ -18,10 +19,6 @@ class GraphicCommander
 public:
 	GraphicCommander();
 	virtual ~GraphicCommander();
-
-	// canvas reference
-	virtual void init(WXWidget a_Handle, glm::ivec2 a_Size, bool a_bFullScr) = 0;
-	virtual void resize(glm::ivec2 a_Size, bool a_bFullScr) = 0;
 
 	// draw command
 	virtual void useProgram(unsigned int a_Key);
@@ -34,7 +31,7 @@ public:
 	virtual void bindConstBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void bindUavBlock(int a_ID, int a_BlockStage) = 0;
 	virtual void clearRenderTarget(int a_RTVHandle, glm::vec4 a_Color) = 0;
-	virtual void clearBackBuffer(int a_Idx, glm::vec4 a_Color) = 0;
+	virtual void clearBackBuffer(GraphicCanvas *a_pCanvas, glm::vec4 a_Color) = 0;
 	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil) = 0;
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
@@ -44,12 +41,9 @@ public:
 	virtual void setTopology(Topology::Key a_Key) = 0;
 	virtual void setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ...);
 	virtual void setRenderTarget(int a_DSVHandle, std::vector<int> &a_RTVHandle) = 0;
-	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, unsigned int a_BackIdx) = 0;
+	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, GraphicCanvas *a_pCanvas) = 0;
 	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
-
-	virtual void flush(bool a_bToBackBuffer = false) = 0;
-	virtual void present() = 0;
 };
 
 class GraphicCanvas : public wxWindow
@@ -58,18 +52,19 @@ public:
 	GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID);
 	virtual ~GraphicCanvas();
 
-	void init();
 	void setFullScreen(bool a_bFullScreen);
 	bool isFullScreen(){ return m_bFullScreen; }
-
-	void setResizeCallback(std::function<void(glm::ivec2)> a_Func){ m_ResizeCallback = a_Func; }
-	GraphicCommander* getCommander(){ return m_pCommander; }
 	
 	void onSize(wxSizeEvent &a_Event);
 
+	virtual void init(bool a_bFullScr) = 0;
+	virtual void present() = 0;
+	virtual unsigned int getBackBuffer() = 0;
+
+protected:
+	virtual void resizeBackBuffer() = 0;
+
 private:
-	GraphicCommander *m_pCommander;
-	std::function<void(glm::ivec2)> m_ResizeCallback;
 	bool m_bFullScreen;
 
 	DECLARE_EVENT_TABLE()
@@ -83,7 +78,9 @@ public:
 	virtual void initDevice(unsigned int a_DeviceID) = 0;
 	virtual void init() = 0;
 	virtual GraphicCommander* commanderFactory() = 0;
+	virtual GraphicCanvas* canvasFactory(wxWindow *a_pParent, wxWindowID a_ID) = 0;
 	virtual std::pair<int, int> maxShaderModel() = 0;
+	virtual void wait() = 0;
 
 	// support flags
 	virtual bool supportExtraIndirectCommand() = 0;

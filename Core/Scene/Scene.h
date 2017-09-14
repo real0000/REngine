@@ -9,8 +9,10 @@
 namespace R
 {
 
+struct InputData;
 class CameraComponent;
 class EngineComponent;
+class RenderPipeline;
 class Scene;
 class SceneNode;
 class ScenePartition;
@@ -31,8 +33,9 @@ struct SharedSceneMember
 	~SharedSceneMember();
 
 	SharedSceneMember& operator=(const SharedSceneMember &a_Src);
-
+	
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
+	RenderPipeline *m_pRenderer;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };
@@ -58,6 +61,8 @@ public:
 	const std::list< std::shared_ptr<SceneNode> >& getChildren(){ return m_Children; }
 	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
 	glm::mat4x4& getTransform(){ return m_World; }
+	void setStatic(bool a_bStatic);
+	bool isStatic(){ return m_bStatic; }
 
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector< std::shared_ptr<EngineComponent> > &a_Output);
@@ -81,6 +86,7 @@ private:
 	wxString m_Name;
 	glm::mat4x4 m_World;
 	glm::mat4x4 m_LocalTransform;
+	bool m_bStatic;
 
 	std::list< std::shared_ptr<SceneNode> > m_Children;
 	SharedSceneMember *m_pMembers;// scene node -> parent
@@ -106,11 +112,21 @@ public:
 	float getLoadingProgress(){ return m_LoadingProgress; }
 
 	// update part
-	void update(float a_Delta);//for post processor
+	void processInput(InputData &a_Data);
+	void update(float a_Delta);
 	void render();
+	
+	// listener
+	void addUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
+	void removeUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
+	void addInputListener(std::shared_ptr<EngineComponent> a_pComponent);
+	void removeInputListener(std::shared_ptr<EngineComponent> a_pComponent);
+	void clearInputListener();
 
 	// misc
-	void batchDrawcall();
+	void addRenderStage(unsigned int a_Stage);
+	void removeRenderStage(unsigned int a_Stage);
+	const std::set<unsigned int>& getRenderStage(){ return m_RenderStages; }
 
 private:
 	Scene();
@@ -126,6 +142,13 @@ private:
 
 	SharedSceneMember *m_pMembers;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
+	
+	std::mutex m_InputLocker;
+	std::list< std::shared_ptr<EngineComponent> > m_InputListener, m_ReadyInputListener;
+	std::set< std::shared_ptr<EngineComponent> > m_DroppedInputListener;
+	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
+
+	std::set<unsigned int> m_RenderStages;
 };
 
 class SceneManager
@@ -133,6 +156,7 @@ class SceneManager
 public:
 	static SceneManager& singleton();
 
+	// ID == stack id
 	void pop(unsigned int a_ID);
 	void push(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
 	void replace(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
@@ -140,6 +164,7 @@ public:
 	unsigned int newStack(std::shared_ptr<Scene> a_pStartScene);
 	void removeStack(unsigned int a_ID);
 
+	void processInput(InputData &a_Data);
 	void update(float a_Delta);
 	void render();
 

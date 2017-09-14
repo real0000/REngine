@@ -56,8 +56,6 @@ void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ..
 //
 GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	: wxWindow(a_pParent, a_ID)
-	, m_pCommander(nullptr)
-	, m_ResizeCallback(nullptr)
 	, m_bFullScreen(false)
 {
 	Layout();
@@ -66,41 +64,10 @@ GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 
 GraphicCanvas::~GraphicCanvas()
 {
-	SAFE_DELETE(m_pCommander)
-}
-
-void GraphicCanvas::init()
-{
-	m_pCommander = GDEVICE()->commanderFactory();
-	glm::ivec2 l_ScreenSize(GetClientSize().x, GetClientSize().y);
-	m_pCommander->init(GetHandle(), l_ScreenSize, m_bFullScreen);
-
-	if( m_bFullScreen )
-	{
-#ifdef WIN32
-		DEVMODE l_DevMode;
-		memset(&l_DevMode, 0, sizeof(DEVMODE));
-		l_DevMode.dmSize = sizeof(DEVMODE);
-		l_DevMode.dmPelsWidth = l_ScreenSize.x;
-		l_DevMode.dmPelsHeight = l_ScreenSize.y;
-		l_DevMode.dmBitsPerPel = 32;
-		l_DevMode.dmDisplayFrequency = 60;
-		l_DevMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
-
-		bool l_bSuccess = ChangeDisplaySettings(&l_DevMode, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL;
-		assert( l_bSuccess && "invalid display settings");
-#endif
-	}
 }
 
 void GraphicCanvas::setFullScreen(bool a_bFullScreen)
 {
-	if( nullptr == m_pCommander )
-	{
-		m_bFullScreen = a_bFullScreen;
-		return;
-	}
-
 	if( m_bFullScreen != a_bFullScreen )
 	{
 		m_bFullScreen = a_bFullScreen;
@@ -126,12 +93,10 @@ END_EVENT_TABLE()
 
 void GraphicCanvas::onSize(wxSizeEvent& event)
 {
-	if( nullptr == m_pCommander ) return;
 	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
 	
 	glm::ivec2 l_NewSize(GetClientSize().x, GetClientSize().y);
-	m_pCommander->resize(l_NewSize, m_bFullScreen);
-	if( nullptr != m_ResizeCallback ) m_ResizeCallback(l_NewSize);
+	resizeBackBuffer();
 }
 #pragma endregion
 
