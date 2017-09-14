@@ -112,6 +112,7 @@ public:
 	float getLoadingProgress(){ return m_LoadingProgress; }
 
 	// update part
+	void preprocessInput();
 	void processInput(InputData &a_Data);
 	void update(float a_Delta);
 	void render();
@@ -164,6 +165,7 @@ public:
 	unsigned int newStack(std::shared_ptr<Scene> a_pStartScene);
 	void removeStack(unsigned int a_ID);
 
+	void preprocessInput();// update input listener's
 	void processInput(InputData &a_Data);
 	void update(float a_Delta);
 	void render();

@@ -102,6 +102,7 @@ void InputMediator::pollEvent()
 		m_Buffer.erase(l_ListIt, m_Buffer.end());
 	}
 
+	SceneManager::singleton().preprocessInput();
 	for( auto l_InputIt = m_Buffer.begin() ; l_InputIt != m_Buffer.end() ; ++l_InputIt )
 	{
 		SceneManager::singleton().processInput(*l_InputIt);

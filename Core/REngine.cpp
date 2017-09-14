@@ -223,7 +223,6 @@ GraphicCanvas* EngineCore::createCanvas()
 
 	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
-	l_pCanvas->setFullScreen(EngineSetting::singleton().m_bFullScreen);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	
 	m_ManagedCanvas.insert(l_pCanvas);
@@ -300,6 +299,7 @@ void EngineCore::mainLoop()
 	{
 		auto l_Now = std::chrono::high_resolution_clock::now();
 		auto l_Delta = std::chrono::duration<double, std::milli>(l_Now - l_Start).count();
+		SceneManager::singleton().update(l_Delta);
 		if( l_Delta < 1000.0f/EngineSetting::singleton().m_FPS )
 		{
 			std::this_thread::yield();
@@ -308,10 +308,7 @@ void EngineCore::mainLoop()
 
 		l_Delta *= 0.001f;// to second
 		{
-			std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
-			
 			m_pInput->pollEvent();
-			SceneManager::singleton().update(l_Delta);
 			SceneManager::singleton().render();
 		}
 

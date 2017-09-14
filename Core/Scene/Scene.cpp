@@ -287,25 +287,32 @@ bool Scene::save(wxString a_Path)
 	return true;
 }
 
+void Scene::preprocessInput()
+{
+	// add/remove listener
+	std::lock_guard<std::mutex> l_Locker(m_InputLocker);
+	if( !m_DroppedInputListener.empty() )
+	{
+		for( auto it = m_DroppedInputListener.begin() ; it != m_DroppedInputListener.end() ; ++it )
+		{
+			auto l_ListenerIt = std::find(m_InputListener.begin(), m_InputListener.end(), *it);
+			m_InputListener.erase(l_ListenerIt);
+		}
+		m_DroppedInputListener.clear();
+	}
+
+	if( !m_ReadyInputListener.empty() )
+	{
+		for( auto it = m_ReadyInputListener.begin() ; it != m_ReadyInputListener.end() ; ++it ) m_InputListener.push_back(*it);
+		m_ReadyInputListener.clear();
+	}
+}
+
 void Scene::processInput(InputData &a_Data)
 {
-	{// do add/remove listener
-		std::lock_guard<std::mutex> l_Locker(m_InputLocker);
-		if( !m_DroppedInputListener.empty() )
-		{
-			for( auto it = m_DroppedInputListener.begin() ; it != m_DroppedInputListener.end() ; ++it )
-			{
-				auto l_ListenerIt = std::find(m_InputListener.begin(), m_InputListener.end(), *it);
-				m_InputListener.erase(l_ListenerIt);
-			}
-			m_DroppedInputListener.clear();
-		}
-
-		if( !m_ReadyInputListener.empty() )
-		{
-			for( auto it = m_ReadyInputListener.begin() ; it != m_ReadyInputListener.end() ; ++it ) m_InputListener.push_back(*it);
-			m_ReadyInputListener.clear();
-		}
+	for( auto it = m_InputListener.begin() ; it != m_InputListener.end() ; ++it )
+	{
+		if( (*it)->inputListener(a_Data) ) return;
 	}
 }
 
