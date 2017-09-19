@@ -24,6 +24,7 @@ struct MaterialParam
 	std::vector<char *> m_pRefVal;
 	unsigned int m_Byte;
 	ShaderParamType::Key m_Type;
+	ProgramParamDesc *m_pRefDesc;
 };
 class MaterialBlock
 {
@@ -31,6 +32,10 @@ class MaterialBlock
 public:
 	static std::shared_ptr<MaterialBlock> create(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot = 1);
 	virtual ~MaterialBlock();
+
+	// uav only
+	void extend(unsigned int a_Size);
+	void sync(bool a_bToGpu);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
@@ -55,6 +60,7 @@ public:
 		memcpy(&l_Res, it->second->m_pRefVal[a_Slot], it->second->m_Byte);
 		return l_Res;
 	}
+	char* getBlockPtr(unsigned int a_Slot);
 	void bind(GraphicCommander *a_pBinder, int a_Stage);
 
 private:

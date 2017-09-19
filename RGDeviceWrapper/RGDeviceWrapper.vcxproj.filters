@@ -65,6 +65,9 @@
     <Xml Include="Shaders\Copy.xml">
       <Filter>Shaders</Filter>
     </Xml>
+    <Xml Include="Shaders\BlockDefine.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GenerateMipmap2D.compute">

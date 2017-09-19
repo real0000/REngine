@@ -58,6 +58,7 @@ MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDes
 		MaterialParam *l_pNewParam = new MaterialParam();
 		l_pNewParam->m_Type = it->second->m_Type;
 		l_pNewParam->m_Byte = GDEVICE()->getParamAlignmentSize(l_pNewParam->m_Type);
+		l_pNewParam->m_pRefDesc = it->second;
 		for( unsigned int i=0 ; i<m_NumSlot ; ++i )
 		{
 			char *l_pTarget = m_pBuffer + it->second->m_Offset + i * m_BlockSize;
@@ -90,6 +91,32 @@ MaterialBlock::~MaterialBlock()
 
 	for( auto it = m_Params.begin() ; it != m_Params.end() ; ++it ) delete it->second;
 	m_Params.clear();
+}
+
+void MaterialBlock::extend(unsigned int a_Size)
+{
+	assert(ShaderRegType::UavBuffer == m_Type);
+	m_NumSlot += a_Size;
+	GDEVICE()->resizeUavBuffer(m_ID, m_pBuffer, m_NumSlot);
+	for( auto it = m_Params.begin() ; it != m_Params.end() ; ++it )
+	{
+		it->second->m_pRefVal.resize(m_NumSlot);
+		for( unsigned int i=0 ; i<m_NumSlot ; ++i )
+		{
+			it->second->m_pRefVal[i] = m_pBuffer + it->second->m_pRefDesc->m_Offset + i * m_BlockSize;
+		}
+	}
+}
+
+void MaterialBlock::sync(bool a_bToGpu)
+{
+	assert(ShaderRegType::UavBuffer == m_Type);
+	GDEVICE()->syncUavBuffer(a_bToGpu, 1, m_ID);
+}
+
+char* MaterialBlock::getBlockPtr(unsigned int a_Slot)
+{
+	return m_pBuffer + a_Slot * m_BlockSize;
 }
 
 void MaterialBlock::bind(GraphicCommander *a_pBinder, int a_Stage)

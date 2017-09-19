@@ -69,7 +69,7 @@ struct ProgramBlockDesc
 {
 	ProgramBlockDesc();
 	~ProgramBlockDesc();
-
+	
 	bool m_bReserved;
 	std::string m_Name;
 	unsigned int m_BlockSize;
@@ -100,9 +100,7 @@ public:
 	
 protected:
 	ProgramBlockDesc* newConstBlockDesc();
-	ProgramBlockDesc* newUavBlockDesc();
 	virtual void init(boost::property_tree::ptree &a_Root) = 0;
-	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 
 private:
 	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
@@ -126,6 +124,7 @@ class ProgramManagerComponent
 public:
 	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine) = 0;
 	virtual ShaderProgram* newProgram() = 0;
+	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 };
 
 // don't use clearCache method, ProgramManager will crash
@@ -138,14 +137,23 @@ public:
 	// call for program initial, DO NOT use this method directly
 	void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 
+	unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
+	ProgramBlockDesc* createBlockFromDesc(boost::property_tree::ptree &a_Node);
+	ProgramBlockDesc* createBlockFromDesc(std::string a_BlockName);// block defined in m_BlockDefineMap
+
 private:
 	ProgramManager();
 	virtual ~ProgramManager();
 
+	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
+
 	std::shared_ptr<ShaderProgram> allocator();
 	void loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path);
+	void initBlockDefine(wxString a_Filepath);
 	void initDefaultProgram();
 
+	boost::property_tree::ptree m_BlockDefineFile;
+	std::map<std::string, boost::property_tree::ptree*> m_BlockDefineMap;
 	static ProgramManagerComponent *m_pShaderComponent; 
 };
 

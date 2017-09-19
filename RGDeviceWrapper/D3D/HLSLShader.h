@@ -12,21 +12,10 @@
 namespace R
 {
 
-class HLSLProgram;
 class HLSLProgram12;
 class HLSLComponent;
 
-class HLSLProgram : public ShaderProgram
-{
-public:
-	HLSLProgram();
-	virtual ~HLSLProgram();
-
-protected:
-	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
-};
-
-class HLSLProgram12 : public HLSLProgram
+class HLSLProgram12 : public ShaderProgram
 {
 	friend class HLSLComponent;
 protected:
@@ -75,6 +64,7 @@ public:
 	
 	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 	virtual ShaderProgram* newProgram();
+	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
 
 private:
 	std::string getCompileTarget(ShaderStages::Key a_Stage, std::pair<int, int> a_Module);

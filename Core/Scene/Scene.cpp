@@ -21,6 +21,7 @@ namespace R
 //
 SharedSceneMember::SharedSceneMember()
 	: m_pRenderer(nullptr)
+	, m_pOmniLights(nullptr)
 	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
@@ -38,6 +39,7 @@ SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 {
 	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
 	m_pRenderer = a_Src.m_pRenderer;
+	m_pOmniLights = a_Src.m_pOmniLights;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
@@ -243,7 +245,7 @@ void Scene::initEmpty()
 	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
 	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
 
-	m_pCurrCamera = CameraComponent::create(m_pMembers, m_pMembers->m_pSceneNode);
+	m_pCurrCamera = EngineComponent::create<CameraComponent>(m_pMembers, m_pMembers->m_pSceneNode);
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
 
 	m_bLoading = false;
@@ -401,6 +403,12 @@ void Scene::clear()
 			delete m_pMembers->m_pGraphs[i];
 		}
 		memset(m_pMembers->m_pGraphs, NULL, sizeof(ScenePartition *) * SharedSceneMember::NUM_GRAPH_TYPE);
+	}
+	if( nullptr != m_pMembers->m_pRenderer )
+	{
+		m_pMembers->m_pRenderer->clear();
+		delete m_pMembers->m_pRenderer;
+		m_pMembers->m_pRenderer = nullptr;
 	}
 
 	m_pCurrCamera = nullptr;

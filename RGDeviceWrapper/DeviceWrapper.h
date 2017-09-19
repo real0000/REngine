@@ -82,8 +82,9 @@ public:
 	virtual std::pair<int, int> maxShaderModel() = 0;
 	virtual void wait() = 0;
 
-	// support flags
+	// support
 	virtual bool supportExtraIndirectCommand() = 0;
+	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 
 	// converter part( *::Key -> d3d, vulkan var )
 	virtual unsigned int getBlendKey(BlendKey::Key a_Key) = 0;

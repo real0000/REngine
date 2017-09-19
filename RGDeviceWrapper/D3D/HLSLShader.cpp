@@ -10,86 +10,6 @@
 namespace R
 {
 
-#pragma region HLSLProgram
-//
-// HLSLProgram
-//
-HLSLProgram::HLSLProgram()
-{
-}
-
-HLSLProgram::~HLSLProgram()
-{
-}
-
-unsigned int HLSLProgram::initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type)
-{
-	unsigned int l_Res = 0;
-	unsigned int l_LineSize = sizeof(float) * 4;
-	switch( a_Type )
-	{
-		case ShaderParamType::int1:
-		case ShaderParamType::float1:
-			l_Res = a_Offset;
-			a_Offset += sizeof(float);
-			break;
-
-		case ShaderParamType::int2:
-		case ShaderParamType::float2:{
-			int l_Size = sizeof(float) * 2;
-			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
-			{
-				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-				a_Offset = l_Res + l_Size;
-			}
-			else
-			{
-				l_Res = a_Offset;
-				a_Offset += l_Size;
-			}
-			}break;
-
-		case ShaderParamType::int3:
-		case ShaderParamType::float3:{
-			int l_Size = sizeof(float) * 3;
-			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
-			{
-				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-				a_Offset = l_Res + l_Size;
-			}
-			else
-			{
-				l_Res = a_Offset;
-				a_Offset += l_Size;
-			}
-			}break;
-
-		case ShaderParamType::int4:
-		case ShaderParamType::float4:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize;
-			break;
-
-		case ShaderParamType::float3x3:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize * 3;
-			break;
-
-		case ShaderParamType::float4x4:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize * 4;
-			break;
-
-		default:break;
-	}
-
-	return l_Res;
-}
-#pragma endregion
-
 #pragma region HLSLProgram12 
 //
 // HLSLProgram12 
@@ -235,6 +155,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 	// uav(storage)
 	l_Slot = 0;
+	std::vector<ProgramBlockDesc *> &l_UavBlockDesc = getBlockDesc(ShaderRegType::UavBuffer);
 	for( unsigned int l_Visibility = 0 ; l_Visibility < ShaderStages::NumStage ; ++l_Visibility )
 	{
 		std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[ShaderRegType::UavBuffer][l_Visibility];
@@ -253,8 +174,13 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 			l_RegCollect.push_back(l_TempReg);
 
-			ProgramBlockDesc *l_pNewBlock = newUavBlockDesc();
-			l_pNewBlock->m_Name = it->first;
+			std::string l_BlockName(it->first);	
+			auto l_UavIt = std::find_if(l_UavBlockDesc.begin(), l_UavBlockDesc.end(), [l_BlockName](ProgramBlockDesc *a_pDesc)->bool
+			{
+				return a_pDesc->m_Name == l_BlockName;
+			});
+			assert(l_UavIt != l_UavBlockDesc.end());
+			ProgramBlockDesc *l_pNewBlock = *l_UavIt;
 			l_pNewBlock->m_pRegInfo = it->second;
 			
 			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
@@ -313,7 +239,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		{
 			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
 			l_pNewParam->m_Type = l_ConstTypeMap[it->first];
-			l_pNewParam->m_Offset = initParamOffset(l_pNewConstBlock->m_BlockSize, l_pNewParam->m_Type);
+			l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_pNewConstBlock->m_BlockSize, l_pNewParam->m_Type);
 			unsigned int l_ParamSize = l_pNewConstBlock->m_BlockSize - l_pNewParam->m_Offset;
 			l_pNewParam->m_pDefault = new char[l_ParamSize];
 			memset(l_pNewParam->m_pDefault, 0, l_ParamSize);
@@ -863,6 +789,73 @@ ShaderProgram* HLSLComponent::newProgram()
 	else ;
 
 	return nullptr;
+}
+
+unsigned int HLSLComponent::calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type)
+{
+	unsigned int l_Res = 0;
+	unsigned int l_LineSize = sizeof(float) * 4;
+	switch( a_Type )
+	{
+		case ShaderParamType::int1:
+		case ShaderParamType::float1:
+			l_Res = a_Offset;
+			a_Offset += sizeof(float);
+			break;
+
+		case ShaderParamType::int2:
+		case ShaderParamType::float2:{
+			int l_Size = sizeof(float) * 2;
+			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
+			{
+				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+				a_Offset = l_Res + l_Size;
+			}
+			else
+			{
+				l_Res = a_Offset;
+				a_Offset += l_Size;
+			}
+			}break;
+
+		case ShaderParamType::int3:
+		case ShaderParamType::float3:{
+			int l_Size = sizeof(float) * 3;
+			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
+			{
+				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+				a_Offset = l_Res + l_Size;
+			}
+			else
+			{
+				l_Res = a_Offset;
+				a_Offset += l_Size;
+			}
+			}break;
+
+		case ShaderParamType::int4:
+		case ShaderParamType::float4:
+			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+			l_Res = a_Offset;
+			a_Offset += l_LineSize;
+			break;
+
+		case ShaderParamType::float3x3:
+			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+			l_Res = a_Offset;
+			a_Offset += l_LineSize * 3;
+			break;
+
+		case ShaderParamType::float4x4:
+			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+			l_Res = a_Offset;
+			a_Offset += l_LineSize * 4;
+			break;
+
+		default:break;
+	}
+
+	return l_Res;
 }
 
 std::string HLSLComponent::getCompileTarget(ShaderStages::Key a_Stage, std::pair<int, int> a_Module)

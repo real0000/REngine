@@ -24,7 +24,14 @@ public:
 	virtual void render();
 
 private:
-	//std::map< std::shared_ptr<CameraComponent>,  > m_CameraCache;
+	struct StaticCommand
+	{
+		// dynamic camera will be empty
+		// static models
+		// static lights
+	};
+	
+	std::map< std::shared_ptr<CameraComponent>, StaticCommand> m_CameraCmdCache;
 };
 
 }

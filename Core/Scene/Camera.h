@@ -14,7 +14,7 @@ class EngineComponent;
 
 class CameraComponent : public EngineComponent
 {
-	friend class CameraComponent;
+	friend class EngineComponent;
 public:
 	enum
 	{
@@ -44,9 +44,11 @@ public:
 		TETRAHEDRON,
 		CUBE,
 	};
-	static std::shared_ptr<CameraComponent> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~CameraComponent();// don't call this method directly
 	
+	virtual void start();
+	virtual void end();
+
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
 	virtual bool isHidden(){ return false; }
 

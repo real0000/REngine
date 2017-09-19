@@ -42,13 +42,29 @@ class InputMediator;
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
 public:
+	template<typename T>
+	static std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+	{
+		std::shared_ptr<T> l_pNewComponent = std::shared_ptr<T>(new T(a_pSharedMember, a_pOwner));
+		l_pNewComponent->start();
+		return l_pNewComponent;
+	}
+
+	template<typename T>
+	std::shared_ptr<T> shared_from_base()
+	{
+		return std::static_pointer_cast<T>(shared_from_this());
+	}
+	
+	virtual void start(){}
+	virtual void end(){}
+	virtual void staticFlagChanged(){}
+
 	virtual unsigned int typeID() = 0;
 	virtual bool isHidden() = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
-
-	virtual void staticFlagChanged(){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }

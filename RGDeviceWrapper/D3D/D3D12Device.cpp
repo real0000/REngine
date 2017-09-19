@@ -1462,6 +1462,9 @@ void D3D12Device::resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a
 	
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
 	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, nullptr, &l_UAVDesc);
+
+	std::vector<unsigned int> l_Temp(1, a_ID);
+	syncUavBuffer(true, l_Temp);
 }
 
 char* D3D12Device::getUavBufferContainer(int a_ID)

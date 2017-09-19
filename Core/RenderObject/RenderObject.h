@@ -20,19 +20,13 @@ class RenderableComponent : public EngineComponent
 	friend class ModelFactory;
 	friend class RenderableComponent;
 public:
+	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~RenderableComponent(); // don't call this method directly
-
-	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_pRefVtxBuffer; }
-	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_pRefIdxBuffer; }
-	std::pair<int, int> getIndexRange(){ return m_Range; }
+	
 	glm::daabb& boundingBox(){ return m_BoundingBox; }
 	
 private:
-	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
-	std::shared_ptr<VertexBuffer> m_pRefVtxBuffer;
-	std::shared_ptr<IndexBuffer> m_pRefIdxBuffer;
-	std::pair<int, int> m_Range;// index offset : count
 	glm::daabb m_BoundingBox;
 	std::map<unsigned int, std::set< std::shared_ptr<Material> > > m_MaterialSet;// render group id : [material ...]
 };

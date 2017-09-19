@@ -12,6 +12,7 @@ namespace R
 struct InputData;
 class CameraComponent;
 class EngineComponent;
+class OmniLights;
 class RenderPipeline;
 class Scene;
 class SceneNode;
@@ -36,6 +37,7 @@ struct SharedSceneMember
 	
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
 	RenderPipeline *m_pRenderer;
+	OmniLights *m_pOmniLights;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };

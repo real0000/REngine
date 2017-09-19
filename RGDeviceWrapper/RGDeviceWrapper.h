@@ -174,6 +174,7 @@ STRING_ENUM_CLASS(Topology,
 	point_patch_list_32)
 
 #define SHADER_PATH "Shaders/"
+#define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"
 STRING_ENUM_CLASS(DefaultPrograms,
 
 	// compute

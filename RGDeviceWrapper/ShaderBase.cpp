@@ -130,60 +130,12 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 	unsigned int l_ParamOffset = 0;
 	for( auto it = l_ParamSetting.begin() ; it != l_ParamSetting.end() ; ++it )
 	{
-		if( ShaderRegType::toString(ShaderRegType::ConstBuffer) != it->first ) continue;
+		ShaderRegType::Key l_RegType = ShaderRegType::fromString(it->first);
+		if( ShaderRegType::ConstBuffer != l_RegType || ShaderRegType::UavBuffer != l_RegType ) continue;
 
-		ProgramBlockDesc *l_pNewBlock = new ProgramBlockDesc();
-		l_pNewBlock->m_Name = it->second.get<std::string>("<xmlattr>.name");
-		assert(!l_pNewBlock->m_Name.empty());
-		getBlockDesc(ShaderRegType::ConstBuffer).push_back(l_pNewBlock);
-
-		l_pNewBlock->m_bReserved = it->second.get("<xmlattr>.reserved", "false") == "true";
-
-		l_ParamOffset = 0;
-		for( auto l_ParamIt = it->second.begin() ; l_ParamIt != it->second.end() ; ++l_ParamIt )
-		{
-			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
-
-			std::string l_ParamName(l_ParamIt->second.get<std::string>("<xmlattr>.name"));
-			assert( !l_ParamName.empty() );
-			l_pNewBlock->m_ParamDesc[l_ParamName] = l_pNewParam;
-
-			auto l_ParamAttr = l_ParamIt->second.get_child("<xmlattr>");
-			ShaderParamType::Key l_ParamType = ShaderParamType::fromString(l_ParamAttr.get<std::string>("type"));
-			unsigned int l_ParamSize = GDEVICE()->getParamAlignmentSize(l_ParamType);
-			unsigned int l_ArraySize = l_ParamAttr.get<unsigned int>("size", 1);
-			if( l_ArraySize > 1 )
-			{
-				for( unsigned int i=0 ; i<l_ArraySize ; ++i )
-				{	
-					std::string l_ArrayParam(wxString::Format(wxT("%s[%d]"), l_ParamName.c_str(), i).c_str());
-
-					ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
-					l_pNewBlock->m_ParamDesc[l_ArrayParam] = l_pNewParam;
-
-					l_pNewParam->m_Describe = l_ParamAttr.get<std::string>("desc", "");
-					l_pNewParam->m_Type = l_ParamType;
-					l_pNewParam->m_pDefault = new char[l_ParamSize];
-					parseInitValue(l_ParamType, l_ParamAttr, l_pNewParam->m_pDefault);
-
-					l_pNewParam->m_Offset = initParamOffset(l_ParamOffset, l_ParamType);
-				}
-			}
-			else
-			{
-				ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
-				l_pNewBlock->m_ParamDesc[l_ParamName] = l_pNewParam;
-
-				l_pNewParam->m_Describe = l_ParamAttr.get<std::string>("desc", "");
-				l_pNewParam->m_Type = l_ParamType;
-				l_pNewParam->m_pDefault = new char[l_ParamSize];
-				parseInitValue(l_ParamType, l_ParamAttr, l_pNewParam->m_pDefault);
-
-				l_pNewParam->m_Offset = initParamOffset(l_ParamOffset, l_ParamType);
-			}
-		}
-		if( 0 != (l_ParamOffset % (sizeof(float) * 4)) ) l_ParamOffset += sizeof(float) * 4 - (l_ParamOffset % (sizeof(float) * 4));
-		l_pNewBlock->m_BlockSize = l_ParamOffset;
+		ProgramBlockDesc *l_pNewBlock = ProgramManager::singleton().createBlockFromDesc(it->second);
+		getBlockDesc(l_RegType).push_back(l_pNewBlock);
+		l_pNewBlock->m_bReserved = ShaderRegType::UavBuffer || it->second.get("<xmlattr>.reserved", "false") == "true";
 	}
 
 	init(a_Root);
@@ -223,16 +175,135 @@ ProgramBlockDesc* ShaderProgram::newConstBlockDesc()
 	l_TargetContainer.push_back(new ProgramBlockDesc());
 	return l_TargetContainer.back();
 }
+#pragma endregion
 
-ProgramBlockDesc* ShaderProgram::newUavBlockDesc()
+#pragma region ProgramManager
+//
+// ProgramManager
+//
+ProgramManagerComponent* ProgramManager::m_pShaderComponent = nullptr;
+void ProgramManager::init(ProgramManagerComponent *a_pComponent)
 {
-	auto &l_TargetContainer = getBlockDesc(ShaderRegType::UavBuffer);
-	l_TargetContainer.push_back(new ProgramBlockDesc());
-	l_TargetContainer.back()->m_bReserved = true;
-	return l_TargetContainer.back();
+	assert(nullptr == m_pShaderComponent);
+	m_pShaderComponent = a_pComponent;
+	ProgramManager::singleton();// to init default program
 }
 
-void ShaderProgram::parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst)
+ProgramManager& ProgramManager::singleton()
+{
+	static ProgramManager s_Inst;
+	return s_Inst;
+}
+
+ProgramManager::ProgramManager()
+	: SearchPathSystem(std::bind(&ProgramManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&ProgramManager::allocator, this))
+{	
+	wxString l_Path(wxGetCwd());
+	l_Path.Replace("\\", "/");
+	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
+	addSearchPath(l_Path + SHADER_PATH);
+
+	initBlockDefine(l_Path + SHADER_PATH + SAHDER_BLOCK_DEFINE_FILE);
+	initDefaultProgram();
+}
+
+ProgramManager::~ProgramManager()
+{
+	m_BlockDefineMap.clear();
+	m_BlockDefineFile.clear();
+	SAFE_DELETE(m_pShaderComponent);
+}
+
+void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
+{
+	assert(nullptr != m_pShaderComponent);
+	return m_pShaderComponent->getShader(a_Filename, a_Stage, a_Module, a_ParamDefine);
+}
+
+unsigned int ProgramManager::calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type)
+{
+	assert(nullptr != m_pShaderComponent);
+	return m_pShaderComponent->calculateParamOffset(a_Offset, a_Type);
+}
+
+ProgramBlockDesc* ProgramManager::createBlockFromDesc(boost::property_tree::ptree &a_Node)
+{
+	ProgramBlockDesc *l_pNewBlock = new ProgramBlockDesc();
+	l_pNewBlock->m_Name = a_Node.get<std::string>("<xmlattr>.name");
+	assert(!l_pNewBlock->m_Name.empty());
+	
+	boost::property_tree::ptree *l_pTargetNode = nullptr;
+	{
+		for( auto l_ParamIt = a_Node.begin() ; l_ParamIt != a_Node.end() ; ++l_ParamIt )
+		{
+			if( "<xmlattr>" == l_ParamIt->first ) continue;
+			l_pTargetNode = &a_Node;
+			break;
+		}
+		if( nullptr == l_pTargetNode )
+		{
+			assert(m_BlockDefineMap.find(l_pNewBlock->m_Name) != m_BlockDefineMap.end());
+			l_pTargetNode = m_BlockDefineMap[l_pNewBlock->m_Name];
+		}
+	}
+
+	unsigned int l_ParamOffset = 0;
+	for( auto l_ParamIt = l_pTargetNode->begin() ; l_ParamIt != l_pTargetNode->end() ; ++l_ParamIt )
+	{
+		if( "<xmlattr>" == l_ParamIt->first ) continue;
+
+		ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
+
+		std::string l_ParamName(l_ParamIt->second.get<std::string>("<xmlattr>.name"));
+		assert( !l_ParamName.empty() );
+		l_pNewBlock->m_ParamDesc[l_ParamName] = l_pNewParam;
+
+		auto l_ParamAttr = l_ParamIt->second.get_child("<xmlattr>");
+		ShaderParamType::Key l_ParamType = ShaderParamType::fromString(l_ParamAttr.get<std::string>("type"));
+		unsigned int l_ParamSize = GDEVICE()->getParamAlignmentSize(l_ParamType);
+		unsigned int l_ArraySize = l_ParamAttr.get<unsigned int>("size", 1);
+		if( l_ArraySize > 1 )
+		{
+			for( unsigned int i=0 ; i<l_ArraySize ; ++i )
+			{	
+				std::string l_ArrayParam(wxString::Format(wxT("%s[%d]"), l_ParamName.c_str(), i).c_str());
+
+				ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
+				l_pNewBlock->m_ParamDesc[l_ArrayParam] = l_pNewParam;
+
+				l_pNewParam->m_Describe = l_ParamAttr.get<std::string>("desc", "");
+				l_pNewParam->m_Type = l_ParamType;
+				l_pNewParam->m_pDefault = new char[l_ParamSize];
+				parseInitValue(l_ParamType, l_ParamAttr, l_pNewParam->m_pDefault);
+
+				l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_ParamOffset, l_ParamType);
+			}
+		}
+		else
+		{
+			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
+			l_pNewBlock->m_ParamDesc[l_ParamName] = l_pNewParam;
+
+			l_pNewParam->m_Describe = l_ParamAttr.get<std::string>("desc", "");
+			l_pNewParam->m_Type = l_ParamType;
+			l_pNewParam->m_pDefault = new char[l_ParamSize];
+			parseInitValue(l_ParamType, l_ParamAttr, l_pNewParam->m_pDefault);
+
+			l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_ParamOffset, l_ParamType);
+		}
+	}
+	if( 0 != (l_ParamOffset % (sizeof(float) * 4)) ) l_ParamOffset += sizeof(float) * 4 - (l_ParamOffset % (sizeof(float) * 4));
+	l_pNewBlock->m_BlockSize = l_ParamOffset;
+	return l_pNewBlock;
+}
+
+ProgramBlockDesc* ProgramManager::createBlockFromDesc(std::string a_BlockName)
+{
+	assert(m_BlockDefineMap.find(a_BlockName) != m_BlockDefineMap.end());
+	return createBlockFromDesc(*(m_BlockDefineMap[a_BlockName]));
+}
+
+void ProgramManager::parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst)
 {
 	if( 0 == a_Src.count("init") ) 
 	{
@@ -300,47 +371,6 @@ void ShaderProgram::parseInitValue(ShaderParamType::Key a_Type, boost::property_
 			break;
 	}
 }
-#pragma endregion
-
-#pragma region ProgramManager
-//
-// ProgramManager
-//
-ProgramManagerComponent* ProgramManager::m_pShaderComponent = nullptr;
-void ProgramManager::init(ProgramManagerComponent *a_pComponent)
-{
-	assert(nullptr == m_pShaderComponent);
-	m_pShaderComponent = a_pComponent;
-	ProgramManager::singleton();// to init default program
-}
-
-ProgramManager& ProgramManager::singleton()
-{
-	static ProgramManager s_Inst;
-	return s_Inst;
-}
-
-ProgramManager::ProgramManager()
-	: SearchPathSystem(std::bind(&ProgramManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&ProgramManager::allocator, this))
-{	
-	wxString l_Path(wxGetCwd());
-	l_Path.Replace("\\", "/");
-	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
-	addSearchPath(l_Path + SHADER_PATH);
-
-	initDefaultProgram();
-}
-
-ProgramManager::~ProgramManager()
-{
-	SAFE_DELETE(m_pShaderComponent);
-}
-
-void* ProgramManager::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
-{
-	assert(nullptr != m_pShaderComponent);
-	return m_pShaderComponent->getShader(a_Filename, a_Stage, a_Module, a_ParamDefine);
-}
 
 std::shared_ptr<ShaderProgram> ProgramManager::allocator()
 {
@@ -353,6 +383,18 @@ void ProgramManager::loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a
 	boost::property_tree::xml_parser::read_xml((const char *)a_Path.c_str(), l_XMLTree);
 	assert( !l_XMLTree.empty() );
 	a_pInst->setup(l_XMLTree);
+}
+
+void ProgramManager::initBlockDefine(wxString a_Filepath)
+{
+	boost::property_tree::xml_parser::read_xml((const char *)a_Filepath.c_str(), m_BlockDefineFile);
+	assert( !m_BlockDefineFile.empty() );
+
+	boost::property_tree::ptree &l_Root = m_BlockDefineFile.get_child("root");
+	for( auto it = l_Root.begin() ; it != l_Root.end() ; ++it )
+	{
+		m_BlockDefineMap[it->second.get<std::string>("<xmlattr>.name")] = &it->second;
+	}
 }
 
 void ProgramManager::initDefaultProgram()

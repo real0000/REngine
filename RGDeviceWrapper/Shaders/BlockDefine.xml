@@ -1,0 +1,10 @@
+<root>
+  <UavBuffer name="OmniLight">
+    <Param name="m_Position" desc="" type="float3"/>
+    <Param name="m_Range" desc="" type="float1"/>
+    <Param name="m_Color" desc="" type="float3"/>
+    <Param name="m_Intensity" desc="" type="float1"/>
+    <Param name="m_ShadowMapUV" desc="" type="float2"/>
+    <Param name="m_ShadowMapProj" desc="" type="float4x4" size="4"/>
+  </UavBuffer>
+</root>

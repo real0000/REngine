@@ -43,9 +43,10 @@ std::shared_ptr<SceneNode> EngineComponent::getOwnerNode()
 
 void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 {
-	assert(a_pOwner);
+	assert(nullptr != a_pOwner);
 	
 	bool l_bTransformListener = 0 != m_Flags.m_bTransformListener;
+	bool l_bStaticChanged = m_pMembers->m_pSceneNode->isStatic() != a_pOwner->isStatic();
 	removeTransformListener();
 
 	m_pMembers->m_pSceneNode->remove(shared_from_this());
@@ -57,10 +58,12 @@ void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 		addTransformListener();
 		transformListener(a_pOwner->getTransform());
 	}
+	if( l_bStaticChanged ) staticFlagChanged();
 }
 
 void EngineComponent::remove()
 {
+	end();
 	m_pMembers->m_pSceneNode->remove(shared_from_this());
 	removeAllListener();
 	SAFE_DELETE(m_pMembers)
@@ -68,6 +71,7 @@ void EngineComponent::remove()
 
 void EngineComponent::detach()
 {
+	end();
 	removeAllListener();
 	SAFE_DELETE(m_pMembers)
 }
