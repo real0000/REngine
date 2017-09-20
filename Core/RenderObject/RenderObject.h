@@ -26,7 +26,6 @@ public:
 	glm::daabb& boundingBox(){ return m_BoundingBox; }
 	
 private:
-
 	glm::daabb m_BoundingBox;
 	std::map<unsigned int, std::set< std::shared_ptr<Material> > > m_MaterialSet;// render group id : [material ...]
 };

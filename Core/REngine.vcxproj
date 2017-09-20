@@ -166,7 +166,6 @@
     <ClInclude Include="Input\MouseInput.h" />
     <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="RenderObject\Light.h" />
-    <ClInclude Include="RenderObject\OmniLight.h" />
     <ClInclude Include="RenderObject\Material.h" />
     <ClInclude Include="RenderObject\RenderObject.h" />
     <ClInclude Include="REngine.h" />
@@ -188,7 +187,6 @@
     <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="RenderObject\Light.cpp" />
     <ClCompile Include="RenderObject\Material.cpp" />
-    <ClCompile Include="RenderObject\OmniLight.cpp" />
     <ClCompile Include="RenderObject\RenderObject.cpp" />
     <ClCompile Include="REngine.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />

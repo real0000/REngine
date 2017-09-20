@@ -67,9 +67,6 @@
     <ClInclude Include="Scene\Graph\NoPartition.h">
       <Filter>Scene\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="RenderObject\OmniLight.h">
-      <Filter>RenderObject</Filter>
-    </ClInclude>
     <ClInclude Include="RenderObject\Light.h">
       <Filter>RenderObject</Filter>
     </ClInclude>
@@ -119,9 +116,6 @@
     </ClCompile>
     <ClCompile Include="Scene\Graph\NoPartition.cpp">
       <Filter>Scene\Graph</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderObject\OmniLight.cpp">
-      <Filter>RenderObject</Filter>
     </ClCompile>
     <ClCompile Include="RenderObject\Light.cpp">
       <Filter>RenderObject</Filter>

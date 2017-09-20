@@ -11,12 +11,17 @@ namespace R
 
 struct InputData;
 class CameraComponent;
+class DirLight;
 class EngineComponent;
-class OmniLights;
+class OmniLight;
 class RenderPipeline;
 class Scene;
 class SceneNode;
 class ScenePartition;
+class SpotLight;
+
+template<typename T>
+class LightContainer;
 
 struct SharedSceneMember
 {
@@ -37,7 +42,9 @@ struct SharedSceneMember
 	
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
 	RenderPipeline *m_pRenderer;
-	OmniLights *m_pOmniLights;
+	LightContainer<DirLight> *m_pDirLights;
+	LightContainer<OmniLight> *m_pOmniLights;
+	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };

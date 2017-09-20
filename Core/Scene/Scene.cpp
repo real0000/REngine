@@ -21,7 +21,7 @@ namespace R
 //
 SharedSceneMember::SharedSceneMember()
 	: m_pRenderer(nullptr)
-	, m_pOmniLights(nullptr)
+	, m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
 	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
@@ -39,7 +39,9 @@ SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 {
 	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
 	m_pRenderer = a_Src.m_pRenderer;
+	m_pDirLights = a_Src.m_pDirLights;
 	m_pOmniLights = a_Src.m_pOmniLights;
+	m_pSpotLights = a_Src.m_pSpotLights;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
