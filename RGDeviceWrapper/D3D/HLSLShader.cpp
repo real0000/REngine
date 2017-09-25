@@ -54,6 +54,64 @@ std::pair<int, int> HLSLProgram12::getConstantSlot(std::string a_Name)
 	return std::make_pair(it->second->m_Slot, it->second->m_Offset);
 }
 
+void HLSLProgram12::assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput, VertexBuffer *a_pVtx)
+{
+	D3D12Device *l_pDeviceOwner = TYPED_GDEVICE(D3D12Device);
+
+	if( nullptr == a_pVtx )
+	{
+		for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
+		{
+			int l_BufferID = getNullVertex()->getBufferID(i);
+			memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
+			a_Offset += sizeof(D3D12_VERTEX_BUFFER_VIEW);
+		}
+	}
+	else
+	{
+		for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
+		{
+			int l_BufferID = a_pVtx->getBufferID(i);
+			if( -1 == l_BufferID ) l_BufferID = getNullVertex()->getBufferID(i);
+			memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
+			a_Offset += sizeof(D3D12_VERTEX_BUFFER_VIEW);
+		}
+	}
+}
+
+void HLSLProgram12::assignIndirectIndex(unsigned int &a_Offset, char *a_pOutput, IndexBuffer *a_pIndex)
+{
+	assert(nullptr != a_pIndex);
+	D3D12Device *l_pDeviceOwner = TYPED_GDEVICE(D3D12Device);
+	memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getIndexBufferView(a_pIndex->getBufferID())), sizeof(D3D12_INDEX_BUFFER_VIEW));
+	a_Offset += sizeof(D3D12_INDEX_BUFFER_VIEW);
+}
+
+void HLSLProgram12::assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList)
+{
+	D3D12Device *l_pDeviceOwner = TYPED_GDEVICE(D3D12Device);
+	std::function<D3D12_GPU_VIRTUAL_ADDRESS(int)> l_Func = nullptr;
+	if( ShaderRegType::ConstBuffer == a_Type ) l_Func = std::bind(&D3D12Device::getConstBufferGpuAddress, l_pDeviceOwner, std::placeholders::_1);
+	else l_Func = std::bind(&D3D12Device::getUnorderAccessBufferGpuAddress, l_pDeviceOwner, std::placeholders::_1);
+	
+	for( unsigned int i=0 ; i<a_IDList.size() ; ++i )
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS *l_pTarget = (D3D12_GPU_VIRTUAL_ADDRESS *)((char *)a_pOutput + a_Offset);
+		if( -1 == a_IDList[i] ) *l_pTarget = 0;
+		else *l_pTarget = l_Func(a_IDList[i]);
+	}
+}
+
+void HLSLProgram12::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance)
+{
+	D3D12_DRAW_INDEXED_ARGUMENTS *l_pArg = (D3D12_DRAW_INDEXED_ARGUMENTS *)(a_pOutput + a_Offset);
+	l_pArg->IndexCountPerInstance = a_IndexCount;
+    l_pArg->InstanceCount = a_InstanceCount;
+    l_pArg->StartIndexLocation = a_StartIndex;
+    l_pArg->BaseVertexLocation = a_BaseVertex;
+    l_pArg->StartInstanceLocation = a_StartInstance;
+}
+
 void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput)
 {
 	char l_DefName[256], l_Def[1024];
@@ -605,7 +663,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_VtxSlot.VertexBuffer.Slot = i;
 			l_IndirectCmdDesc.push_back(l_VtxSlot);
 
-			assignCmd(m_IndirectCmdSize, sizeof(D3D12_VERTEX_BUFFER_VIEW));
+			m_IndirectCmdSize += sizeof(D3D12_VERTEX_BUFFER_VIEW);
 		}
 
 		{
@@ -613,7 +671,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_IdxSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_INDEX_BUFFER_VIEW;
 			l_IndirectCmdDesc.push_back(l_IdxSlot);
 			
-			assignCmd(m_IndirectCmdSize, sizeof(D3D12_INDEX_BUFFER_VIEW));
+			m_IndirectCmdSize += sizeof(D3D12_INDEX_BUFFER_VIEW);
 		}
 
 		for( auto it = m_RegMap[ShaderRegType::Constant].begin() ; it != m_RegMap[ShaderRegType::Constant].end() ; ++it )
@@ -627,7 +685,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_SrvSlot.Constant.RootParameterIndex = it->second->m_RootIndex;
 			l_IndirectCmdDesc.push_back(l_SrvSlot);
 
-			assignCmd(m_IndirectCmdSize, sizeof(unsigned int));
+			m_IndirectCmdSize += sizeof(unsigned int);
 		}
 
 		for( auto it = m_RegMap[ShaderRegType::ConstBuffer].begin() ; it != m_RegMap[ShaderRegType::ConstBuffer].end() ; ++it )
@@ -639,7 +697,19 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second->m_RootIndex;
 			l_IndirectCmdDesc.push_back(l_CbvSlot);
 			
-			assignCmd(m_IndirectCmdSize, sizeof(D3D12_GPU_VIRTUAL_ADDRESS));
+			m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+		}
+		
+		for( auto it = m_RegMap[ShaderRegType::UavBuffer].begin() ; it != m_RegMap[ShaderRegType::UavBuffer].end() ; ++it )
+		{
+			if( it->second->m_bReserved ) continue;
+
+			D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
+			l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW;
+			l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second->m_RootIndex;
+			l_IndirectCmdDesc.push_back(l_CbvSlot);
+			
+			m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 		}
 
 		{// indirect draw command
@@ -647,7 +717,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_DrawCmd.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
 			l_IndirectCmdDesc.push_back(l_DrawCmd);
 			
-			assignCmd(m_IndirectCmdSize, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+			m_IndirectCmdSize += sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
 		}
 
 		D3D12_COMMAND_SIGNATURE_DESC l_CmdSignatureDesc = {};
@@ -684,12 +754,6 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 
 	HRESULT l_Res = l_pDeviceInst->CreateComputePipelineState(&l_PsoDesc, IID_PPV_ARGS(&m_pPipeline));
 	assert(S_OK == l_Res);
-}
-
-void HLSLProgram12::assignCmd(unsigned int &a_Offset, unsigned int a_Size)
-{
-	m_CmdAlignmentOffset.push_back(a_Offset);
-	a_Offset += a_Size;
 }
 #pragma endregion
 

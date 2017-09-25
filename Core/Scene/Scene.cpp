@@ -4,8 +4,13 @@
 //
 
 #include "CommonUtil.h"
+#include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Scene.h"
+
+#include "RenderObject/Light.h"
+#include "RenderObject/Material.h"
+#include "RenderObject/Mesh.h"
 
 #include "Scene/Camera.h"
 #include "Scene/Graph/NoPartition.h"
@@ -22,6 +27,7 @@ namespace R
 SharedSceneMember::SharedSceneMember()
 	: m_pRenderer(nullptr)
 	, m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
+	, m_pBatcher(nullptr)
 	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
@@ -42,6 +48,7 @@ SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 	m_pDirLights = a_Src.m_pDirLights;
 	m_pOmniLights = a_Src.m_pOmniLights;
 	m_pSpotLights = a_Src.m_pSpotLights;
+	m_pBatcher = a_Src.m_pBatcher;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
@@ -323,6 +330,12 @@ void Scene::processInput(InputData &a_Data)
 void Scene::update(float a_Delta)
 {
 	for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(a_Delta);
+
+	// flush uav resources
+	m_pMembers->m_pDirLights->flush();
+	m_pMembers->m_pOmniLights->flush();
+	m_pMembers->m_pSpotLights->flush();
+	m_pMembers->m_pBatcher->flush();
 }
 
 void Scene::render()

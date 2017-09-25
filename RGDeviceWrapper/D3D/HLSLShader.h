@@ -34,11 +34,16 @@ public:
 	int getConstBufferSlot(int a_Stage){ return (int)m_ConstStageMap.size() <= a_Stage ? -1 : (int)m_ConstStageMap[a_Stage]; }
 	int getUavSlot(int a_Stage){ return (int)m_UavStageMap.size() <= a_Stage ? -1 : (int)m_UavStageMap[a_Stage]; }
 
+	virtual unsigned int getIndirectCommandSize(){ return m_IndirectCmdSize; }
+	virtual void assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput, VertexBuffer *a_pVtx);
+	virtual void assignIndirectIndex(unsigned int &a_Offset, char *a_pOutput, IndexBuffer *a_pIndex);
+	virtual void assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList);
+	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance);
+
 private:
 	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput);
 	void initDrawShader(boost::property_tree::ptree &a_ShaderSetting, boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
 	void initComputeShader(boost::property_tree::ptree &a_Shaders, std::map<std::string, std::string> &a_ParamDefine);
-	void assignCmd(unsigned int &a_Offset, unsigned int a_Size);
 
 	ID3D12PipelineState *m_pPipeline;
 	ID3D12RootSignature *m_pRegisterDesc;
@@ -50,7 +55,6 @@ private:
 	std::vector<unsigned int> m_UavStageMap;// stage(u#) : root slot
 
 	unsigned int m_IndirectCmdSize;
-	std::vector<unsigned int> m_CmdAlignmentOffset;
 };
 
 class HLSLComponent : public ProgramManagerComponent, ID3DInclude

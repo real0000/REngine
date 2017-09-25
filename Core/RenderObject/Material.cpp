@@ -22,6 +22,7 @@ std::shared_ptr<MaterialBlock> MaterialBlock::create(ShaderRegType::Key a_Type, 
 
 MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot)
 	: m_BindFunc(nullptr)
+	, m_BlockName(a_pDesc->m_Name)
 	, m_FirstParam("")
 	, m_pBuffer(nullptr)
 	, m_BlockSize(a_pDesc->m_BlockSize)
@@ -153,6 +154,7 @@ std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
 Material::Material(ShaderProgram *a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
 	, m_Stage(0)
+	, m_bNeedRebatch(true), m_bNeedUavUpdate(true)
 {
 	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
 	{
@@ -180,28 +182,92 @@ Material::~Material()
 	m_Textures.clear();
 }
 
+std::shared_ptr<Material> Material::clone()
+{
+	std::shared_ptr<Material> l_pNewMaterial = Material::create(m_pRefProgram);
+
+	l_pNewMaterial->m_OwnBlocks.resize(m_OwnBlocks.size());
+	std::copy(m_OwnBlocks.begin(), m_OwnBlocks.end(), l_pNewMaterial->m_OwnBlocks.begin());
+	l_pNewMaterial->m_ExternBlock.resize(m_ExternBlock.size());
+	std::copy(m_ExternBlock.begin(), m_ExternBlock.end(), l_pNewMaterial->m_ExternBlock.begin());
+	l_pNewMaterial->m_OwnBlocks.resize(m_Textures.size());
+	std::copy(m_Textures.begin(), m_Textures.end(), l_pNewMaterial->m_Textures.begin());
+	l_pNewMaterial->m_Stage = m_Stage;
+
+	return l_pNewMaterial;
+}
+
 void Material::setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture)
 {
 	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
 	auto it = l_TextureSlotMap.find(a_Name);
 	if( l_TextureSlotMap.end() == it ) return;
 	m_Textures[it->second->m_pRegInfo->m_Slot] = a_pTexture;
+	m_bNeedRebatch = true;
 }
 
 void Material::setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock)
 {
 	assert(a_Idx < m_ExternBlock.size());
 	m_ExternBlock[a_Idx].first = a_pBlock;
+	m_bNeedUavUpdate = true;
 }
 
-void Material::bind(GraphicCommander *a_pBinder)
+bool Material::canBatch(std::shared_ptr<Material> a_Other)
 {
-	for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i ) m_OwnBlocks[i].first->bind(a_pBinder, m_OwnBlocks[i].second);
-	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+	if( m_pRefProgram != a_Other->m_pRefProgram || m_Stage != a_Other->m_Stage ) return false;
+
+	if( m_Textures.size() != a_Other->m_Textures.size() ) return false;
+	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
-		if( nullptr == m_ExternBlock[i].first ) continue;
-		m_ExternBlock[i].first->bind(a_pBinder, m_ExternBlock[i].second);
+		if( m_Textures[i] != a_Other->m_Textures[i] ) return false;
 	}
+	return true;
+}
+
+void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawInfo)
+{
+	unsigned int l_Offset = 0;
+
+	if( GDEVICE()->supportExtraIndirectCommand() )
+	{
+		m_pRefProgram->assignIndirectVertex(l_Offset, a_pOutput, a_pVtxBuffer.get());
+		m_pRefProgram->assignIndirectIndex(l_Offset, a_pOutput, a_pIndexBuffer.get());
+		for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i )
+		{
+			if( m_OwnBlocks[i].first->getType() != ShaderRegType::Constant ) continue;
+			memcpy(a_pOutput + l_Offset, m_OwnBlocks[i].first->getBlockPtr(0), m_OwnBlocks[i].first->getBlockSize());
+			l_Offset += m_OwnBlocks[i].first->getBlockSize();
+		}
+	
+		std::vector<int> l_IDList;
+		for( ShaderRegType::Key l_Type : {ShaderRegType::ConstBuffer, ShaderRegType::UavBuffer} )
+		{
+			auto &l_BlockNameMap = m_pRefProgram->getBlockIndexMap(l_Type);
+		
+			l_IDList.resize(l_BlockNameMap.size());
+			memset(l_IDList.data(), -1, sizeof(int) * l_IDList.size());
+			for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i )
+			{
+				if( l_Type != m_OwnBlocks[i].first->getType() ) continue;
+				auto it = l_BlockNameMap.find(m_OwnBlocks[i].first->getName());
+				l_IDList[it->second] = m_OwnBlocks[i].first->getID();
+			}
+			for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+			{
+				if( l_Type != m_ExternBlock[i].first->getType() ) continue;
+				auto it = l_BlockNameMap.find(m_ExternBlock[i].first->getName());
+				l_IDList[it->second] = m_ExternBlock[i].first->getID();
+			}
+			m_pRefProgram->assignIndirectBlock(l_Offset, a_pOutput, l_Type, l_IDList);
+		}
+	}
+	
+	m_pRefProgram->assignIndirectDrawComaand(l_Offset, a_pOutput, a_DrawInfo.first, 1, 0, a_DrawInfo.second, 0);
+}
+
+void Material::bindTexture(GraphicCommander *a_pBinder)
+{
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
 		if( nullptr != m_Textures[i] ) continue;
@@ -209,6 +275,22 @@ void Material::bind(GraphicCommander *a_pBinder)
 		TextureType l_Type = m_Textures[i]->getTextureType();
 		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type && TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type);
 	}
+}
+
+void Material::bindBlocks(GraphicCommander *a_pBinder)
+{
+	for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i ) m_OwnBlocks[i].first->bind(a_pBinder, m_OwnBlocks[i].second);
+	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+	{
+		if( nullptr == m_ExternBlock[i].first ) continue;
+		m_ExternBlock[i].first->bind(a_pBinder, m_ExternBlock[i].second);
+	}
+}
+
+void Material::bindAll(GraphicCommander *a_pBinder)
+{
+	bindBlocks(a_pBinder);
+	bindTexture(a_pBinder);
 }
 #pragma endregion
 

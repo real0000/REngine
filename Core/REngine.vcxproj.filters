@@ -70,6 +70,9 @@
     <ClInclude Include="RenderObject\Light.h">
       <Filter>RenderObject</Filter>
     </ClInclude>
+    <ClInclude Include="RenderObject\Mesh.h">
+      <Filter>RenderObject</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -118,6 +121,9 @@
       <Filter>Scene\Graph</Filter>
     </ClCompile>
     <ClCompile Include="RenderObject\Light.cpp">
+      <Filter>RenderObject</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderObject\Mesh.cpp">
       <Filter>RenderObject</Filter>
     </ClCompile>
   </ItemGroup>

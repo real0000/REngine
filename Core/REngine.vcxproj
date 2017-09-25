@@ -167,6 +167,7 @@
     <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="RenderObject\Light.h" />
     <ClInclude Include="RenderObject\Material.h" />
+    <ClInclude Include="RenderObject\Mesh.h" />
     <ClInclude Include="RenderObject\RenderObject.h" />
     <ClInclude Include="REngine.h" />
     <ClInclude Include="Scene\Camera.h" />
@@ -187,6 +188,7 @@
     <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="RenderObject\Light.cpp" />
     <ClCompile Include="RenderObject\Material.cpp" />
+    <ClCompile Include="RenderObject\Mesh.cpp" />
     <ClCompile Include="RenderObject\RenderObject.cpp" />
     <ClCompile Include="REngine.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />

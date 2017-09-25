@@ -66,10 +66,39 @@ ProgramBlockDesc::~ProgramBlockDesc()
 //
 // ShaderProgram
 // 
+VertexBuffer *ShaderProgram::m_pNullVtxBuffer = nullptr;
+int ShaderProgram::m_NullVtxRefCount = 0;
 ShaderProgram::ShaderProgram()
 	: m_bCompute(false)
 	, m_bIndexedDraw(true)
 {
+	if( nullptr == m_pNullVtxBuffer )
+	{
+		glm::vec3 l_Position(0.0f, 0.0f, 0.0f);
+		glm::vec4 l_Texcoord[4] = {glm::zero<glm::vec4>()};
+		glm::vec3 l_Normal(0.0f, 1.0f, 0.0f);
+		glm::vec3 l_Tangent(1.0f, 0.0f, 0.0f);
+		glm::vec3 l_Binormal(0.0f, 0.0f, 1.0f);
+		glm::ivec4 l_BoneID(0, 0, 0, 0);
+		glm::vec4 l_Weight(1.0f, 0.0f, 0.0f, 0.0f);
+		unsigned int l_Colors = 0xffffffff;
+		m_pNullVtxBuffer = new VertexBuffer();
+		m_pNullVtxBuffer->setName(wxT("null vertex buffer"));
+		m_pNullVtxBuffer->setNumVertex(1);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_POSITION, &l_Position);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD01, &l_Texcoord[0]);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD23, &l_Texcoord[1]);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD45, &l_Texcoord[2]);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD67, &l_Texcoord[3]);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_NORMAL, &l_Normal);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_TANGENT, &l_Tangent);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_BINORMAL, &l_Binormal);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_BONE, &l_BoneID);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_WEIGHT, &l_Weight);
+		m_pNullVtxBuffer->setVertex(VTXFLAG_COLOR, &l_Colors);
+		m_pNullVtxBuffer->init();
+	}
+	++m_NullVtxRefCount;
 }
 
 ShaderProgram::~ShaderProgram()
@@ -85,6 +114,12 @@ ShaderProgram::~ShaderProgram()
 		auto &l_Container = getBlockDesc((ShaderRegType::Key)i);
 		for( unsigned int j=0 ; j<l_Container.size() ; ++j ) delete l_Container[j];
 		l_Container.clear();
+	}
+	
+	--m_NullVtxRefCount;
+	if( 0 == m_NullVtxRefCount )
+	{
+		SAFE_DELETE(m_pNullVtxBuffer)
 	}
 }
 
@@ -160,6 +195,13 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 			l_OwnBlockIdx++;
 		}
 	}
+
+	{// init uav/const buffer name:index map(for indirect command assign)
+		std::vector<ProgramBlockDesc *> &l_ConstBuffers = getBlockDesc(ShaderRegType::ConstBuffer);
+		for( unsigned int i=0 ; i<l_ConstBuffers.size() ; ++i ) m_ConstBufferIndexMap.insert(std::make_pair(l_ConstBuffers[i]->m_Name, i));
+		std::vector<ProgramBlockDesc *> &l_UavBuffers = getBlockDesc(ShaderRegType::UavBuffer);
+		for( unsigned int i=0 ; i<l_UavBuffers.size() ; ++i ) m_UavBufferIndexMap.insert(std::make_pair(l_UavBuffers[i]->m_Name, i));
+	}
 }
 
 std::vector<ProgramBlockDesc *>& ShaderProgram::getBlockDesc(ShaderRegType::Key a_Type)
@@ -167,6 +209,12 @@ std::vector<ProgramBlockDesc *>& ShaderProgram::getBlockDesc(ShaderRegType::Key 
 	unsigned int l_Idx = a_Type - ShaderRegType::ConstBuffer;
 	assert(l_Idx < 3);
 	return m_BlockDesc[l_Idx];
+}
+
+const std::map<std::string, int>& ShaderProgram::getBlockIndexMap(ShaderRegType::Key a_Type)
+{
+	assert(ShaderRegType::ConstBuffer == a_Type || ShaderRegType::UavBuffer == a_Type);
+	return ShaderRegType::ConstBuffer == a_Type ? m_ConstBufferIndexMap : m_UavBufferIndexMap;
 }
 
 ProgramBlockDesc* ShaderProgram::newConstBlockDesc()

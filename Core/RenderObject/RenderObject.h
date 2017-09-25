@@ -11,13 +11,11 @@ namespace R
 	
 struct SharedSceneMember;
 class IndexBuffer;
-class Material;
 class SceneNode;
 class VertexBuffer;
 
 class RenderableComponent : public EngineComponent
 {
-	friend class ModelFactory;
 	friend class RenderableComponent;
 public:
 	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
@@ -27,15 +25,14 @@ public:
 	
 private:
 	glm::daabb m_BoundingBox;
-	std::map<unsigned int, std::set< std::shared_ptr<Material> > > m_MaterialSet;// render group id : [material ...]
 };
 
-class RenderableComponentFactory
+class ModelComponentFactory
 {
 public:
-	static ModelFactory& singleton();
+	static ModelComponentFactory& singleton();
 
-	std::shared_ptr<EngineComponent> createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::shared_ptr<Material> a_pMateral, bool a_bAsync);
+	std::shared_ptr<EngineComponent> createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, bool a_bAsync);
 	std::shared_ptr<EngineComponent> createSphere(std::shared_ptr<SceneNode> a_pOwner);
 	std::shared_ptr<EngineComponent> createBox(std::shared_ptr<SceneNode> a_pOwner);
 	//std::shared_ptr<EngineComponent> createVoxelTerrain(std::shared_ptr<SceneNode> a_pOwner, glm::ivec3 a_Size);
@@ -43,14 +40,14 @@ public:
 	void clearCache();
 
 private:
-	RenderableComponentFactory();
-	virtual ~RenderableComponentFactory();
+	ModelComponentFactory();
+	virtual ~ModelComponentFactory();
 
 	struct Instance
 	{
 		std::shared_ptr<VertexBuffer> m_pVtxBuffer;
 		std::shared_ptr<IndexBuffer> m_pIdxBuffer;
-		std::map<wxString, std::map<int, int> > m_Meshes;
+		std::map<wxString, std::map<int, int> > m_Meshes;// mesh name : {(index count : base vertex)...}
 	};
 	std::map<wxString, std::shared_ptr<Instance> > m_FileCache;
 

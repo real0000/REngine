@@ -1337,6 +1337,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getUnorderAccessBufferGpuHandle(int a_I
 	return m_pShaderResourceHeap->getGpuHandle(m_ManagedUavBuffer[a_ID]->m_HeapID);
 }
 
+D3D12_GPU_VIRTUAL_ADDRESS D3D12Device::getConstBufferGpuAddress(int a_ID)
+{
+	return m_ManagedConstBuffer[a_ID]->m_pResource->GetGPUVirtualAddress();
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS D3D12Device::getUnorderAccessBufferGpuAddress(int a_ID)
+{
+	return m_ManagedUavBuffer[a_ID]->m_pResource->GetGPUVirtualAddress();
+}
+
 D3D12_VERTEX_BUFFER_VIEW D3D12Device::getVertexBufferView(int a_ID)
 {
 	return m_ManagedVertexBuffer[a_ID]->m_VtxView;
@@ -1463,8 +1473,7 @@ void D3D12Device::resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
 	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, nullptr, &l_UAVDesc);
 
-	std::vector<unsigned int> l_Temp(1, a_ID);
-	syncUavBuffer(true, l_Temp);
+	GraphicDevice::syncUavBuffer(true, 1u, a_ID);
 }
 
 char* D3D12Device::getUavBufferContainer(int a_ID)

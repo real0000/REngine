@@ -93,13 +93,24 @@ public:
 	std::vector<ProgramBlockDesc *>& getBlockDesc(ShaderRegType::Key a_Type);// only ConstBuffer/Constant/UavBuffer valid
 
 	const std::map<std::string, int>& getParamIndexMap(){ return m_ParamIndexMap; }
+	const std::map<std::string, int>& getBlockIndexMap(ShaderRegType::Key a_Type);// const buffer/ uav only
 	const std::vector<std::string>& getReservedBlockName(){ return m_ReservedBlockNameList; }
 
 	void setExtraFlag(int a_ID, bool a_bVal){ m_ExtraFlags[a_ID] = a_bVal; }
 	bool getExtraFlag(int a_ID){ return m_ExtraFlags[a_ID]; }
+
+	// vertex -> index -> constant -> const buffer -> uav buffer -> draw command
+	virtual unsigned int getIndirectCommandSize() = 0;
+	virtual void assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput, VertexBuffer *a_pVtx) = 0;
+	virtual void assignIndirectIndex(unsigned int &a_Offset, char *a_pOutput, IndexBuffer *a_pIndex) = 0;
+	// use memcpy instead
+	//virtual void assignIndirectConstant(unsigned int &a_Size, char *a_pOutput, char *a_pSrc, unsigned int a_SizeInf)
+	virtual void assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList) = 0;
+	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance) = 0;
 	
 protected:
 	ProgramBlockDesc* newConstBlockDesc();
+	VertexBuffer* getNullVertex(){ return m_pNullVtxBuffer; }
 	virtual void init(boost::property_tree::ptree &a_Root) = 0;
 
 private:
@@ -112,8 +123,12 @@ private:
 	std::pair<int, int> m_ShaderInUse;
 
 	std::map<std::string, int> m_ParamIndexMap;// only parameter in not reserved block here, param name : block index
+	std::map<std::string, int> m_ConstBufferIndexMap, m_UavBufferIndexMap;
 	std::vector<std::string> m_ReservedBlockNameList;// only extern block here
 	std::map<int, bool> m_ExtraFlags;
+
+	static VertexBuffer *m_pNullVtxBuffer;
+	static int m_NullVtxRefCount;
 };
 
 //

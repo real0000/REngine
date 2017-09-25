@@ -13,6 +13,7 @@ struct InputData;
 class CameraComponent;
 class DirLight;
 class EngineComponent;
+class MeshBatcher;
 class OmniLight;
 class RenderPipeline;
 class Scene;
@@ -45,6 +46,7 @@ struct SharedSceneMember
 	LightContainer<DirLight> *m_pDirLights;
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
+	MeshBatcher *m_pBatcher;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };

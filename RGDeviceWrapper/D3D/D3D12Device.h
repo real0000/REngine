@@ -236,6 +236,8 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
+	D3D12_GPU_VIRTUAL_ADDRESS getConstBufferGpuAddress(int a_ID);
+	D3D12_GPU_VIRTUAL_ADDRESS getUnorderAccessBufferGpuAddress(int a_ID);
 	D3D12_VERTEX_BUFFER_VIEW getVertexBufferView(int a_ID);
 	D3D12_VERTEX_BUFFER_VIEW getQuadVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
