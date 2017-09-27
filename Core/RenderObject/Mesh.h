@@ -16,7 +16,7 @@ class MeshBatcher;
 
 class RenderableMesh : public RenderableComponent
 {
-	friend EngineComponent;
+	friend class EngineComponent;
 	friend class MeshBatcher;
 public:
 	virtual ~RenderableMesh();
@@ -26,6 +26,8 @@ public:
 	virtual void staticFlagChanged();
 	virtual void updateListener(float a_Delta);
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+
+	virtual unsigned int typeID(){ return COMPONENT_MESH; }
 	virtual bool isHidden(){ return m_bHidden; }
 	void setHidden(bool a_bHidden);
 
