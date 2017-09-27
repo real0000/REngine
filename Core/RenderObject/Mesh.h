@@ -34,6 +34,7 @@ public:
 	std::shared_ptr<Material> getMaterial(){ return m_pMaterial; }
 	std::shared_ptr<VertexBuffer> getVtxBuffer(){ return m_pVtxBuffer; }
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_pIndexBuffer; }
+	int getCommandID(){ return m_CommandID; }
 
 private:
 	RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode);
@@ -50,6 +51,8 @@ private:
 	int m_BatchID, m_CommandID;
 	bool m_bHidden;
 	glm::vec3 m_BaseBounding;
+
+	bool m_bValidCheckRequired;
 };
 
 class MeshBatcher

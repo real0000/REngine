@@ -14,6 +14,7 @@ class CameraComponent;
 class DirLight;
 class EngineComponent;
 class MeshBatcher;
+class ModelComponentFactory;
 class OmniLight;
 class RenderPipeline;
 class Scene;
@@ -47,6 +48,7 @@ struct SharedSceneMember
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	MeshBatcher *m_pBatcher;
+	ModelComponentFactory *m_pModelFactory;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };

@@ -35,12 +35,13 @@ public:
 	wxString getName(){ return m_NodeName; }
 	glm::mat4x4 getTransform(){ return m_Transform; }
 	std::vector<unsigned int>& getRefMesh(){ return m_RefMesh; }
+	std::vector<ModelNode *> getChildren(){ return m_Children; }
 
 private:
     ModelNode *m_pParent;
     wxString m_NodeName;
     glm::mat4x4 m_Transform;
-    std::vector<ModelNode *> m_Children;//index
+    std::vector<ModelNode *> m_Children;
     std::vector<unsigned int> m_RefMesh;//index
 };
 
@@ -103,7 +104,7 @@ public:
 
 private:
     std::vector<Meshes *> m_Meshes;
-	ModelNode * m_pRootNode;
+	ModelNode *m_pRootNode;
 };
 
 class ModelManager : public SearchPathSystem<ModelData>

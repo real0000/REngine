@@ -26,6 +26,7 @@ RenderableMesh::RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<Sce
 	, m_BatchID(-1), m_CommandID(-1)
 	, m_bHidden(false)
 	, m_BaseBounding(1.0f, 1.0f, 1.0f)
+	, m_bValidCheckRequired(true)
 {
 	m_Flag.m_bNeedRebatch = false;
 	m_Flag.m_bNeedUavSync = false;
@@ -76,7 +77,15 @@ void RenderableMesh::staticFlagChanged()
 
 void RenderableMesh::updateListener(float a_Delta)
 {
-	if( nullptr == m_pMaterial ) return ;
+	if( m_bValidCheckRequired )
+	{
+		if( nullptr == m_pMaterial ||
+			nullptr == m_pVtxBuffer ||
+			nullptr == m_pIndexBuffer ||
+			!m_pVtxBuffer->valid() ||
+			!m_pIndexBuffer->valid()) return ;
+		m_bValidCheckRequired = false;
+	}
 
 	if( GDEVICE()->supportExtraIndirectCommand() )
 	{
@@ -138,6 +147,10 @@ void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std
 	decomposeTRS(getSharedMember()->m_pSceneNode->getTransform(), l_Trans, l_Scale, l_Rot);
 	boundingBox().m_Center = l_Trans;
 	boundingBox().m_Size = l_Scale * m_BaseBounding;
+	
+	SharedSceneMember *l_pMembers = getSharedMember();
+	ScenePartition *l_pGraphOwner = l_pMembers->m_pSceneNode->isStatic() ? l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL] : l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL];
+	l_pGraphOwner->update(shared_from_base<RenderableMesh>());
 
 	if( !GDEVICE()->supportExtraIndirectCommand() )
 	{
@@ -148,6 +161,12 @@ void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std
 	{
 		m_Flag.m_bNeedUavSync = true;	
 	}
+
+	m_bValidCheckRequired = nullptr == m_pMaterial ||
+							nullptr == m_pVtxBuffer ||
+							nullptr == m_pIndexBuffer ||
+							!m_pVtxBuffer->valid() ||
+							!m_pIndexBuffer->valid();
 }
 
 void RenderableMesh::setMaterial(std::shared_ptr<Material> a_pMaterial)
@@ -173,6 +192,12 @@ void RenderableMesh::setMaterial(std::shared_ptr<Material> a_pMaterial)
 		m_Flag.m_bNeedUavSync = true;
 	}
 	m_pMaterial = a_pMaterial;
+	
+	m_bValidCheckRequired = nullptr == m_pMaterial ||
+							nullptr == m_pVtxBuffer ||
+							nullptr == m_pIndexBuffer ||
+							!m_pVtxBuffer->valid() ||
+							!m_pIndexBuffer->valid();
 }
 #pragma endregion
 
