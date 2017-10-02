@@ -29,10 +29,9 @@ struct SharedSceneMember
 {
 	enum
 	{
-		GRAPH_STATIC_MODEL = 0,
-		GRAPH_STATIC_LIGHT,
-		GRAPH_DYNAMIC_MODEL,
-		GRAPH_DYNAMIC_LIGHT,
+		GRAPH_MESH = 0,
+		GRAPH_LIGHT,
+		GRAPH_CAMERA,
 
 		NUM_GRAPH_TYPE
 	};
@@ -74,8 +73,6 @@ public:
 	const std::list< std::shared_ptr<SceneNode> >& getChildren(){ return m_Children; }
 	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
 	glm::mat4x4& getTransform(){ return m_World; }
-	void setStatic(bool a_bStatic);
-	bool isStatic(){ return m_bStatic; }
 
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector< std::shared_ptr<EngineComponent> > &a_Output);
@@ -99,7 +96,6 @@ private:
 	wxString m_Name;
 	glm::mat4x4 m_World;
 	glm::mat4x4 m_LocalTransform;
-	bool m_bStatic;
 
 	std::list< std::shared_ptr<SceneNode> > m_Children;
 	SharedSceneMember *m_pMembers;// scene node -> parent

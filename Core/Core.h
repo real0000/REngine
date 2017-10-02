@@ -58,16 +58,17 @@ public:
 	
 	virtual void start(){}
 	virtual void end(){}
-	virtual void staticFlagChanged(){}
+	virtual void hiddenFlagChanged(){}
 
 	virtual unsigned int typeID() = 0;
-	virtual bool isHidden() = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
+	bool isHidden(){ return m_bHidden; }
+	void setHidden(bool a_bHidden);
 	std::shared_ptr<SceneNode> getOwnerNode();
 	void setOwner(std::shared_ptr<SceneNode> a_pOwner);
 	void remove();
@@ -99,6 +100,7 @@ private:
 		unsigned int m_bTransformListener : 1;
 	} m_Flags;
 
+	bool m_bHidden;
 	wxString m_Name;
 	SharedSceneMember *m_pMembers;
 };

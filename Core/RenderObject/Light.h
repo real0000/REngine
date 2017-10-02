@@ -11,6 +11,7 @@
 namespace R
 {
 	
+class CameraComponent;
 class MaterialBlock;
 class SceneNode;
 
@@ -23,14 +24,8 @@ public:
 	
 	virtual void start();
 	virtual void end();
-	virtual void staticFlagChanged();
+	virtual void hiddenFlagChanged();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
-	
-	virtual bool isHidden(){ return m_bHidden; }
-	void setHidden(bool a_bHidden);
-
-private:
-	bool m_bHidden;
 };
 
 template<typename T>
@@ -158,6 +153,8 @@ private:
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
+
+	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 // use OmniLights::create to create this class instance
@@ -202,6 +199,8 @@ private:
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
+	
+	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 // use SpotLights::create to create this class instance
@@ -250,6 +249,8 @@ private:
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
+	
+	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 }

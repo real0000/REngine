@@ -6,13 +6,15 @@
 #ifndef _CAMERA_H_
 #define _CAMERA_H_
 
+#include "RenderObject/RenderObject.h"
+
 namespace R
 {
 	
 struct SharedSceneMember;
-class EngineComponent;
+class TextureUnit;
 
-class CameraComponent : public EngineComponent
+class CameraComponent : public RenderableComponent
 {
 	friend class EngineComponent;
 public:
@@ -48,9 +50,9 @@ public:
 	
 	virtual void start();
 	virtual void end();
+	virtual void hiddenFlagChanged();
 
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
-	virtual bool isHidden(){ return false; }
 
 	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far);
     void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far);
@@ -77,6 +79,7 @@ private:
 	CameraType m_Type;
 	
 	glm::frustumface m_Frustum;
+	std::shared_ptr<TextureUnit> m_RenderTarget;
 };
 
 }

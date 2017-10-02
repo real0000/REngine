@@ -68,7 +68,6 @@ std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember,
 
 SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
-	, m_bStatic(false)
 	, m_pMembers(new SharedSceneMember)
 {
 	*m_pMembers = *a_pSharedMember;
@@ -148,16 +147,6 @@ void SceneNode::update(glm::mat4x4 a_ParentTranform)
 	m_World = a_ParentTranform * m_LocalTransform;
 	for( auto it=m_TransformListener.begin() ; it!=m_TransformListener.end() ; ++it ) (*it)->transformListener(m_World);
 	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->update(m_World);
-}
-
-void SceneNode::setStatic(bool a_bStatic)
-{
-	if( a_bStatic == m_bStatic ) return;
-	m_bStatic = a_bStatic;
-	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
-	{
-		for( std::shared_ptr<EngineComponent> l_pComponent : it->second ) l_pComponent->staticFlagChanged();
-	}
 }
 
 std::shared_ptr<EngineComponent> SceneNode::getComponent(wxString a_Name)
@@ -343,7 +332,12 @@ void Scene::update(float a_Delta)
 void Scene::render()
 {
 	if( nullptr == m_pCurrCamera ) return;
-	m_pMembers->m_pRenderer->render();
+
+	//
+	// to do : update shadow map, enviroment map ... etc
+	//
+
+	m_pMembers->m_pRenderer->render(m_pCurrCamera);
 }
 
 void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
@@ -423,7 +417,6 @@ void Scene::clear()
 	}
 	if( nullptr != m_pMembers->m_pRenderer )
 	{
-		m_pMembers->m_pRenderer->clear();
 		delete m_pMembers->m_pRenderer;
 		m_pMembers->m_pRenderer = nullptr;
 	}

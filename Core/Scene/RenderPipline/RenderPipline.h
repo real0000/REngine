@@ -22,11 +22,7 @@ public:
 	RenderPipeline(SharedSceneMember *a_pSharedMember);
 	virtual ~RenderPipeline();
 
-	virtual void add(std::shared_ptr<CameraComponent> a_pCamera) = 0;
-	virtual void remove(std::shared_ptr<CameraComponent> a_pCamera) = 0;
-	virtual void clear() = 0;
-	virtual void buildStaticCommand() = 0;
-	virtual void render() = 0;
+	virtual void render(std::shared_ptr<CameraComponent> a_pCamera) = 0;
 
 protected:
 	SharedSceneMember* getSharedMember(){ return m_pSharedMember; }

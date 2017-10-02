@@ -19,10 +19,10 @@ namespace R
 // Camera
 //
 CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: EngineComponent(a_pSharedMember, a_pOwner)
+	: RenderableComponent(a_pSharedMember, a_pOwner)
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)
 {
-	addUpdateListener();
+	addTransformListener();
 	calView();
 }
 
@@ -32,12 +32,29 @@ CameraComponent::~CameraComponent()
 
 void CameraComponent::start()
 {
-	getSharedMember()->m_pRenderer->add(shared_from_base<CameraComponent>());
+	auto l_pThis = shared_from_base<CameraComponent>();
+	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(l_pThis);
 }
 
 void CameraComponent::end()
 {
-	getSharedMember()->m_pRenderer->remove(shared_from_base<CameraComponent>());
+	auto l_pThis = shared_from_base<CameraComponent>();
+	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(l_pThis);
+}
+
+void CameraComponent::hiddenFlagChanged()
+{
+	ScenePartition *l_pGraphOwner = getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA];
+	if( isHidden() )
+	{
+		l_pGraphOwner->remove(shared_from_base<CameraComponent>());
+		removeTransformListener();
+	}
+	else
+	{
+		l_pGraphOwner->add(shared_from_base<CameraComponent>());
+		addTransformListener();
+	}
 }
 
 void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far)
@@ -71,6 +88,16 @@ void CameraComponent::setCubeView(float a_Range)
 void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
 {
 	calView();
+	
+	SharedSceneMember *l_pMember = getSharedMember();
+	auto l_pThis = shared_from_base<CameraComponent>();
+	if( !isHidden() )
+	{
+		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
+		if( TETRAHEDRON == m_Type || CUBE == m_Type ) boundingBox().m_Size = glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w);
+		else boundingBox().m_Size = glm::one<glm::vec3>();
+		l_pMember->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->update(l_pThis);
+	}
 }
 
 void CameraComponent::calView()
@@ -105,7 +132,7 @@ void CameraComponent::calProjection()
 		//case TETRAHEDRON:
 		//case CUBE:
 		default:break;
-	} 
+	}
 	calViewProjection();
 }
 

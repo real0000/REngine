@@ -22,18 +22,26 @@ STRING_ENUM_CLASS_INST(GraphicApi)
 // EngineComponent
 //
 EngineComponent::EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: m_Name(wxT(""))
+	: m_bHidden(false)
+	, m_Name(wxT(""))
 	, m_pMembers(new SharedSceneMember)
 
 {
 	*m_pMembers = *a_pSharedMember;
 	m_pMembers->m_pSceneNode = a_pOwner;
-	a_pOwner->add(shared_from_this());
+	if( nullptr != a_pOwner ) a_pOwner->add(shared_from_this());
 	memset(&m_Flags, 0, sizeof(m_Flags));
 }
 
 EngineComponent::~EngineComponent()
 {
+}
+
+void EngineComponent::setHidden(bool a_bHidden)
+{
+	if( a_bHidden == m_bHidden ) return ;
+	m_bHidden = a_bHidden;
+	hiddenFlagChanged();
 }
 
 std::shared_ptr<SceneNode> EngineComponent::getOwnerNode()
@@ -46,7 +54,6 @@ void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 	assert(nullptr != a_pOwner);
 	
 	bool l_bTransformListener = 0 != m_Flags.m_bTransformListener;
-	bool l_bStaticChanged = m_pMembers->m_pSceneNode->isStatic() != a_pOwner->isStatic();
 	removeTransformListener();
 
 	m_pMembers->m_pSceneNode->remove(shared_from_this());
@@ -58,7 +65,6 @@ void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 		addTransformListener();
 		transformListener(a_pOwner->getTransform());
 	}
-	if( l_bStaticChanged ) staticFlagChanged();
 }
 
 void EngineComponent::remove()

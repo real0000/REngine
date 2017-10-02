@@ -10,28 +10,18 @@
 
 namespace R
 {
+class TextureUnit;
 
 class DeferredRenderer : public RenderPipeline
 {
 public:
 	DeferredRenderer(SharedSceneMember *a_pSharedMember);
 	virtual ~DeferredRenderer();
-	
-	virtual void add(std::shared_ptr<CameraComponent> a_pCamera);
-	virtual void remove(std::shared_ptr<CameraComponent> a_pCamera);
-	virtual void clear();
-	virtual void buildStaticCommand();
-	virtual void render();
+
+	virtual void render(std::shared_ptr<CameraComponent> a_pCamera);
 
 private:
-	struct StaticCommand
-	{
-		// dynamic camera will be empty
-		// static models
-		// static lights
-	};
-	
-	std::map< std::shared_ptr<CameraComponent>, StaticCommand> m_CameraCmdCache;
+	std::set< std::shared_ptr<CameraComponent> > m_CameraCmdCache;
 };
 
 }

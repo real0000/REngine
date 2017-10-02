@@ -24,7 +24,6 @@ RenderableMesh::RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<Sce
 	, m_pVtxBuffer(nullptr), m_pIndexBuffer(nullptr), m_DrawParam(0, 0)
 	, m_pMaterial(nullptr)
 	, m_BatchID(-1), m_CommandID(-1)
-	, m_bHidden(false)
 	, m_BaseBounding(1.0f, 1.0f, 1.0f)
 	, m_bValidCheckRequired(true)
 {
@@ -40,9 +39,7 @@ RenderableMesh::~RenderableMesh()
 
 void RenderableMesh::start()
 {
-	SharedSceneMember *l_pMembers = getSharedMember();
-	ScenePartition *l_pGraphOwner = l_pMembers->m_pSceneNode->isStatic() ? l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL] : l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL];
-	l_pGraphOwner->add(shared_from_base<RenderableMesh>());
+	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
 }
 
 void RenderableMesh::end()
@@ -51,28 +48,27 @@ void RenderableMesh::end()
 	m_pIndexBuffer = nullptr;
 	m_pMaterial = nullptr;
 
-	if( m_bHidden ) return;
-
+	if( isHidden() ) return;
+	
 	SharedSceneMember *l_pMembers = getSharedMember();
-	ScenePartition *l_pGraphOwner = l_pMembers->m_pSceneNode->isStatic() ? l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL] : l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL];
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
 
-	l_pGraphOwner->remove(l_pThis);
-	getSharedMember()->m_pBatcher->remove(l_pThis);
+	l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_MESH]->remove(l_pThis);
+	l_pMembers->m_pBatcher->remove(l_pThis);
 }
 
-void RenderableMesh::staticFlagChanged()
+void RenderableMesh::hiddenFlagChanged()
 {
-	if( m_bHidden ) return;
-
-	SharedSceneMember *l_pMembers = getSharedMember();
-	std::pair<ScenePartition *, ScenePartition *> l_pOldNew = l_pMembers->m_pSceneNode->isStatic() ?
-		std::make_pair(l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL], l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL]) :
-		std::make_pair(l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL], l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL]);
-
-	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
-	l_pOldNew.first->remove(l_pThis);
-	l_pOldNew.second->add(l_pThis);
+	if( isHidden() )
+	{
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->remove(shared_from_base<RenderableMesh>());
+		removeTransformListener();
+	}
+	else
+	{
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
+		addTransformListener();
+	}
 }
 
 void RenderableMesh::updateListener(float a_Delta)
@@ -116,25 +112,6 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Size = l_Scale * m_BaseBounding;
 }
 
-void RenderableMesh::setHidden(bool a_bHidden)
-{
-	if( m_bHidden == a_bHidden ) return;
-
-	m_bHidden = a_bHidden;
-	SharedSceneMember *l_pMembers = getSharedMember();
-	ScenePartition *l_pGraphOwner = l_pMembers->m_pSceneNode->isStatic() ? l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL] : l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL];
-	if( m_bHidden )
-	{
-		l_pGraphOwner->remove(shared_from_base<RenderableMesh>());
-		removeTransformListener();
-	}
-	else
-	{
-		l_pGraphOwner->add(shared_from_base<RenderableMesh>());
-		addTransformListener();
-	}
-}
-
 void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawParam, glm::vec3 a_BoxSize)
 {
 	m_BaseBounding = a_BoxSize;
@@ -148,9 +125,7 @@ void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std
 	boundingBox().m_Center = l_Trans;
 	boundingBox().m_Size = l_Scale * m_BaseBounding;
 	
-	SharedSceneMember *l_pMembers = getSharedMember();
-	ScenePartition *l_pGraphOwner = l_pMembers->m_pSceneNode->isStatic() ? l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MODEL] : l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_DYNAMIC_MODEL];
-	l_pGraphOwner->update(shared_from_base<RenderableMesh>());
+	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->update(shared_from_base<RenderableMesh>());
 
 	if( !GDEVICE()->supportExtraIndirectCommand() )
 	{

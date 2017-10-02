@@ -23,25 +23,8 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 DeferredRenderer::~DeferredRenderer()
 {
 }
-	
-void DeferredRenderer::add(std::shared_ptr<CameraComponent> a_pCamera)
-{
-	
-}
 
-void DeferredRenderer::remove(std::shared_ptr<CameraComponent> a_pCamera)
-{
-}
-
-void DeferredRenderer::clear()
-{
-}
-
-void DeferredRenderer::buildStaticCommand()
-{
-}
-
-void DeferredRenderer::render()
+void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 {
 }
 #pragma endregion
