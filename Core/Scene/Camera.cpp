@@ -44,15 +44,14 @@ void CameraComponent::end()
 
 void CameraComponent::hiddenFlagChanged()
 {
-	ScenePartition *l_pGraphOwner = getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA];
 	if( isHidden() )
 	{
-		l_pGraphOwner->remove(shared_from_base<CameraComponent>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(shared_from_base<CameraComponent>());
 		removeTransformListener();
 	}
 	else
 	{
-		l_pGraphOwner->add(shared_from_base<CameraComponent>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(shared_from_base<CameraComponent>());
 		addTransformListener();
 	}
 }

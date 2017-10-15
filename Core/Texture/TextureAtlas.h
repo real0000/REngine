@@ -12,28 +12,30 @@ namespace R
 {
 
 class TextureManager;
-/*
-class TextureAtlas
+class TextureUnit;
+
+// to do : split algorithm to uniq class
+class RenderTextureAtlas
 {
 public:
 	struct NodeID
 	{
+		NodeID() : m_Index(0), m_ID(0), m_Offset(0, 0), m_Size(0, 0){}
+
 		unsigned int m_Index;
 		unsigned int m_ID;
 		glm::ivec2 m_Offset;
 		glm::ivec2 m_Size;
 	};
 
-	TextureAtlas(unsigned int a_Size, unsigned int a_InitArraySize = 1, PixelFormat::Key a_Format = PixelFormat::rgba8_unorm);
-	virtual ~TextureAtlas();
+	RenderTextureAtlas(glm::ivec2 a_Size, PixelFormat::Key a_Format = PixelFormat::rgba8_unorm, unsigned int a_InitArraySize = 1, bool a_bCube = false);
+	virtual ~RenderTextureAtlas();
 
-	bool allocate(unsigned int a_Width, unsigned int a_Heigth, glm::vec4 &a_Output);
-	void release(unsigned int a_NodeID);
-	void updateBuffer(void *a_pData, unsigned int a_OffsetX, unsigned int a_OffsetY, int a_Width, int a_Height);// nullptr means cleanup
-	void updateBuffer(void *a_pData, glm::ivec2 a_Offset, glm::ivec2 a_Size);
-	bool empty();
+	void allocate(glm::ivec2 a_Size, NodeID &a_Output);
+	void release(NodeID &a_Region);
 	
-	TextureUnitPtr getTexture(){ return m_pTexture; }
+	std::shared_ptr<TextureUnit> getTexture(){ return m_pTexture; }
+	void setExtendSize(unsigned int a_Extend);
 
 private:
 	struct SplitNode
@@ -49,15 +51,16 @@ private:
 		bool m_bUsed;
 	};
 
-	bool insertNode(SplitNode *a_pNode, unsigned int a_Width, unsigned int a_Height, glm::vec4 &a_Output, unsigned int &a_NodeID);
+	bool insertNode(SplitNode *a_pNode, glm::ivec2 a_Size, NodeID &a_Output);
 	
-	SplitNode *m_pRoot;
-	TextureUnitPtr m_pTexture;//Texture2DArray
-	char *m_pUpdateBuffer;
+	std::vector<SplitNode *> m_Roots;
+	std::shared_ptr<TextureUnit> m_pTexture;
+	glm::ivec2 m_MaxSize;
 	unsigned int m_Serial;
 	unsigned int m_CurrArraySize;
 	unsigned int m_ExtendSize;
-};*/
+	bool m_bCube;
+};
 
 }
 

@@ -79,7 +79,6 @@ private:
 	CameraType m_Type;
 	
 	glm::frustumface m_Frustum;
-	std::shared_ptr<TextureUnit> m_RenderTarget;
 };
 
 }
