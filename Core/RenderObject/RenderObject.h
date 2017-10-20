@@ -24,6 +24,8 @@ public:
 	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~RenderableComponent(); // don't call this method directly
 	
+	virtual void setShadowed(bool a_bShadow) = 0;
+	virtual bool getShadowed() = 0;
 	glm::daabb& boundingBox(){ return m_BoundingBox; }
 	
 private:

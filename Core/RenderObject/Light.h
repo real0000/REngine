@@ -128,6 +128,9 @@ public:
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_DIR_LIGHT; }
 
+	virtual void setShadowed(bool a_bShadow);
+	virtual bool getShadowed();
+
 	void setColor(glm::vec3 a_Color);
 	glm::vec3 getColor();
 	void setIntensity(float a_Intensity);
@@ -148,6 +151,7 @@ private:
 		glm::vec3 m_Direction;
 		int m_Layer;
 		glm::mat4x4 m_ShadowMapProj;
+		int m_bCastShadow;
 	};
 	DirLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
@@ -168,6 +172,9 @@ public:
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_OMNI_LIGHT; }
+	
+	virtual void setShadowed(bool a_bShadow);
+	virtual bool getShadowed();
 
 	glm::vec3 getPosition();
 	float getRange();
@@ -192,7 +199,7 @@ private:
 		float m_Intensity;
 		glm::vec2 m_ShadowMapUV;
 		int m_Layer;
-		float m_Padding1;
+		int m_bCastShadow;
 		glm::mat4x4 m_ShadowMapProj[4];
 	};
 	OmniLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
@@ -214,6 +221,9 @@ public:
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_SPOT_LIGHT; }
+	
+	virtual void setShadowed(bool a_bShadow);
+	virtual bool getShadowed();
 
 	glm::vec3 getPosition();
 	float getRange();
@@ -242,7 +252,7 @@ private:
 		float m_Angle;
 		glm::vec2 m_ShadowMapUV;
 		int m_Layer;
-		float m_Padding1;
+		int m_bCastShadow;
 		glm::mat4x4 m_ShadowMapProj;
 	};
 	SpotLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);

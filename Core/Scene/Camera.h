@@ -52,6 +52,8 @@ public:
 	virtual void end();
 	virtual void hiddenFlagChanged();
 
+	virtual void setShadowed(bool a_bShadow){}
+	virtual bool getShadowed(){ return false; }
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
 
 	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far);

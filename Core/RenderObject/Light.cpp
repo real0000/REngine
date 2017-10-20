@@ -89,6 +89,19 @@ void DirLight::transformListener(glm::mat4x4 &a_NewTransform)
 	Light::transformListener(a_NewTransform);
 }
 
+void DirLight::setShadowed(bool a_bShadow)
+{
+	assert(nullptr != m_pRefParam);
+	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
+	getSharedMember()->m_pDirLights->setDirty();
+}
+
+bool DirLight::getShadowed()
+{
+	assert(nullptr != m_pRefParam);
+	return 0 != m_pRefParam->m_bCastShadow;
+}
+
 void DirLight::setColor(glm::vec3 a_Color)
 {
 	assert(nullptr != m_pRefParam);
@@ -187,6 +200,19 @@ void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
 	getSharedMember()->m_pOmniLights->setDirty();
 
 	Light::transformListener(a_NewTransform);
+}
+
+void OmniLight::setShadowed(bool a_bShadow)
+{
+	assert(nullptr != m_pRefParam);
+	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
+	getSharedMember()->m_pOmniLights->setDirty();
+}
+
+bool OmniLight::getShadowed()
+{
+	assert(nullptr != m_pRefParam);
+	return 0 != m_pRefParam->m_bCastShadow;
 }
 
 glm::vec3 OmniLight::getPosition()
@@ -305,6 +331,20 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 	getSharedMember()->m_pSpotLights->setDirty();
 
 	Light::transformListener(a_NewTransform);
+}
+
+
+void SpotLight::setShadowed(bool a_bShadow)
+{
+	assert(nullptr != m_pRefParam);
+	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
+	getSharedMember()->m_pSpotLights->setDirty();
+}
+
+bool SpotLight::getShadowed()
+{
+	assert(nullptr != m_pRefParam);
+	return 0 != m_pRefParam->m_bCastShadow;
 }
 
 glm::vec3 SpotLight::getPosition()

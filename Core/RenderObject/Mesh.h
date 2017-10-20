@@ -29,6 +29,9 @@ public:
 
 	virtual unsigned int typeID(){ return COMPONENT_MESH; }
 
+	virtual void setShadowed(bool a_bShadow);
+	virtual bool getShadowed();
+
 	virtual void setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawParam, glm::vec3 a_BoxSize);
 	virtual void setMaterial(std::shared_ptr<Material> a_pMaterial);
 	std::shared_ptr<Material> getMaterial(){ return m_pMaterial; }
@@ -43,6 +46,7 @@ private:
 	{
 		unsigned char m_bNeedRebatch : 1;// include index
 		unsigned char m_bNeedUavSync : 1;
+		unsigned char m_bFlagUpdated : 1;
 	} m_Flag;
 	std::shared_ptr<VertexBuffer> m_pVtxBuffer;
 	std::shared_ptr<IndexBuffer> m_pIndexBuffer;
@@ -51,6 +55,7 @@ private:
 	int m_BatchID, m_CommandID;
 	glm::vec3 m_BaseBounding;
 
+	bool m_bShadowed;
 	bool m_bValidCheckRequired;
 };
 
@@ -82,7 +87,7 @@ private:
 	struct CommandUnit
 	{
 		unsigned int m_Offset;
-		unsigned int m_Flag;
+		unsigned int m_Flags;
 	};
 public:
 	MeshBatcher();
@@ -91,6 +96,7 @@ public:
 	void batch(std::shared_ptr<RenderableMesh> a_pMesh);
 	void remove(std::shared_ptr<RenderableMesh> a_pMesh);
 	void update(std::shared_ptr<RenderableMesh> a_pMesh);
+	void setFlag(std::shared_ptr<RenderableMesh> a_pMesh, unsigned int a_Flag);
 
 	void flush();
 

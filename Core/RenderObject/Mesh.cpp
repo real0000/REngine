@@ -25,10 +25,12 @@ RenderableMesh::RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<Sce
 	, m_pMaterial(nullptr)
 	, m_BatchID(-1), m_CommandID(-1)
 	, m_BaseBounding(1.0f, 1.0f, 1.0f)
+	, m_bShadowed(true)
 	, m_bValidCheckRequired(true)
 {
 	m_Flag.m_bNeedRebatch = false;
 	m_Flag.m_bNeedUavSync = false;
+	m_Flag.m_bFlagUpdated = false;
 
 	addTransformListener();
 }
@@ -100,6 +102,13 @@ void RenderableMesh::updateListener(float a_Delta)
 		getSharedMember()->m_pBatcher->update(shared_from_base<RenderableMesh>());
 		m_Flag.m_bNeedUavSync = false;
 	}
+	if( m_Flag.m_bFlagUpdated )
+	{
+		unsigned int l_Flag = 0;
+		if( m_bShadowed ) l_Flag |= 0x00000001 << 0;
+		getSharedMember()->m_pBatcher->setFlag(shared_from_base<RenderableMesh>(), l_Flag);
+		m_Flag.m_bFlagUpdated = false;
+	}
 }
 
 void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
@@ -110,6 +119,17 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 
 	boundingBox().m_Center = l_Trans;
 	boundingBox().m_Size = l_Scale * m_BaseBounding;
+}
+
+void RenderableMesh::setShadowed(bool a_bShadow)
+{
+	if( m_bShadowed == a_bShadow ) return;
+	m_bShadowed = a_bShadow;
+}
+
+bool RenderableMesh::getShadowed()
+{
+	return m_bShadowed;
 }
 
 void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawParam, glm::vec3 a_BoxSize)
@@ -388,11 +408,20 @@ void MeshBatcher::remove(std::shared_ptr<RenderableMesh> a_pMesh)
 void MeshBatcher::update(std::shared_ptr<RenderableMesh> a_pMesh)
 {
 	CommandUnit *l_pCmdOffset = getCommandUnit(a_pMesh->m_CommandID);
-	if( nullptr != l_pCmdOffset ) return;
+	if( nullptr == l_pCmdOffset ) return;
 
 	char *l_pBuffer = getCommandPoolPtr(l_pCmdOffset->m_Offset);
 	a_pMesh->m_pMaterial->assignIndirectCommand(l_pBuffer, a_pMesh->m_pVtxBuffer, a_pMesh->m_pIndexBuffer, a_pMesh->m_DrawParam);
 	m_pCommandPool->m_bDirty = true;
+}
+
+void MeshBatcher::setFlag(std::shared_ptr<RenderableMesh> a_pMesh, unsigned int a_Flag)
+{
+	CommandUnit *l_pCmdOffset = getCommandUnit(a_pMesh->m_CommandID);
+	if( nullptr == l_pCmdOffset ) return;
+
+	l_pCmdOffset->m_Flags = a_Flag;
+	m_pCmdUnitPool->m_bDirty = true;
 }
 
 void MeshBatcher::flush()

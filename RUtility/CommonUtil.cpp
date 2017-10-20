@@ -298,6 +298,211 @@ unsigned int getPixelSize(PixelFormat::Key a_Key)
 	return 0;
 }
 
+#pragma region ImageAtlas
+#pragma region ImageAtlas::SplitNode
+//
+// ImageAtlas::SplitNode
+//
+ImageAtlas::SplitNode::SplitNode()
+	: m_Parent(-1), m_Left(-1), m_Right(-1)
+	, m_bUsed(false)
+	, m_pRefPool(nullptr)
+{
+	memset(&m_NodeInfo, 0, sizeof(NodeInfo));
+}
+
+ImageAtlas::SplitNode::~SplitNode()
+{
+}
+
+void ImageAtlas::SplitNode::release()
+{
+	if( -1 != m_Left ) (*m_pRefPool)[m_Left]->release();
+	if( -1 != m_Right ) (*m_pRefPool)[m_Right]->release();
+	m_pRefPool->release(m_NodeInfo.m_ID);
+}
+#pragma endregion
+
+//
+// ImageAtlas
+//
+ImageAtlas::ImageAtlas(glm::ivec2 a_Size, unsigned int a_InitArraySize)
+	: m_NodePool(true)
+	, m_MaxSize(a_Size)
+	, m_CurrArraySize(a_InitArraySize)
+	, m_ExtendSize(1)
+
+{
+	BIND_DEFAULT_ALLOCATOR(SplitNode, m_NodePool);
+
+	for( unsigned int i=0 ; i<m_CurrArraySize ; ++i )
+	{
+		std::shared_ptr<SplitNode> l_pNode = nullptr;
+		unsigned int l_ID = m_NodePool.retain(&l_pNode);
+		m_Roots.push_back(l_ID);
+		l_pNode->m_NodeInfo.m_Size = a_Size;
+		l_pNode->m_NodeInfo.m_Index = i;
+		l_pNode->m_NodeInfo.m_ID = 0;
+		l_pNode->m_NodeInfo.m_Offset = glm::zero<glm::ivec2>();
+	}
+}
+
+ImageAtlas::~ImageAtlas()
+{
+	m_NodePool.clear();
+	m_Roots.clear();
+}
+
+unsigned int ImageAtlas::allocate(glm::ivec2 a_Size)
+{
+	assert(a_Size.x <= m_MaxSize.x && a_Size.y <= m_MaxSize.y);
+
+	bool l_bFound = false;
+	unsigned int l_Res = 0;
+	for( unsigned int i=0 ; i<m_Roots.size() ; ++i )
+	{
+		if( insertNode(m_Roots[i], a_Size, l_Res) )
+		{
+			l_bFound = true;
+			break;
+		}
+	}
+
+	if( l_bFound ) return l_Res;
+
+	m_CurrArraySize += m_ExtendSize;
+	for( unsigned int i=0 ; i<m_ExtendSize ; ++i )
+	{
+		std::shared_ptr<SplitNode> l_pNode = nullptr;
+		unsigned int l_ID = m_NodePool.retain(&l_pNode);
+		m_Roots.push_back(l_ID);
+
+		l_pNode->m_bUsed = false;
+		l_pNode->m_Left = -1;
+		l_pNode->m_Right = -1;
+		l_pNode->m_Parent = -1;
+		l_pNode->m_pRefPool = &m_NodePool;
+
+		l_pNode->m_NodeInfo.m_Size = m_MaxSize;
+		l_pNode->m_NodeInfo.m_Index = m_Roots.size() - 1;
+		l_pNode->m_NodeInfo.m_ID = l_ID;
+		l_pNode->m_NodeInfo.m_Offset = glm::zero<glm::ivec2>();
+	}
+	insertNode(m_Roots[m_Roots.size() - m_ExtendSize], a_Size, l_Res);
+	return l_Res;
+}
+
+void ImageAtlas::release(unsigned int a_ID)
+{
+	std::shared_ptr<SplitNode> l_pNode = m_NodePool[a_ID];
+	if( -1 == l_pNode->m_Parent )
+	{
+		l_pNode->m_bUsed = false;
+		if( -1 != l_pNode->m_Left ) m_NodePool.release(l_pNode->m_Left);
+		if( -1 != l_pNode->m_Right ) m_NodePool.release(l_pNode->m_Right);
+		l_pNode->m_Left = l_pNode->m_Right = -1;
+		return;
+	}
+
+	std::shared_ptr<SplitNode> l_pParent = m_NodePool[l_pNode->m_Parent];
+
+	if( l_pNode->m_NodeInfo.m_ID == l_pParent->m_Left  ) l_pParent->m_Left = -1;
+	else l_pParent->m_Right = -1;
+ 
+	l_pNode->release();
+
+	if( -1 == l_pParent->m_Left && -1 == l_pParent->m_Right ) release(l_pParent->m_NodeInfo.m_ID);
+}
+
+void ImageAtlas::releaseAll()
+{
+	for( unsigned int i=0 ; i<m_Roots.size() ; ++i ) release(m_Roots[i]);
+}
+
+ImageAtlas::NodeInfo& ImageAtlas::getInfo(int a_ID)
+{
+	return m_NodePool[a_ID]->m_NodeInfo;
+}
+
+void ImageAtlas::setExtendSize(unsigned int a_Extend)
+{
+	assert(a_Extend >= 1);
+	m_ExtendSize = a_Extend;
+}
+
+bool ImageAtlas::insertNode(unsigned int a_ID, glm::ivec2 a_Size, unsigned int &a_Output)
+{
+	std::shared_ptr<SplitNode> l_pNode = m_NodePool[a_ID];
+	if( -1 != l_pNode->m_Left || -1 != l_pNode->m_Right )
+    {
+		if( insertNode(l_pNode->m_Left, a_Size, a_Output) ) return true;
+		return insertNode(l_pNode->m_Right, a_Size, a_Output);
+    }
+    else
+    {
+		if( l_pNode->m_bUsed ) return false;
+        
+        if( l_pNode->m_NodeInfo.m_Size.x < a_Size.x || l_pNode->m_NodeInfo.m_Size.y < a_Size.y ) return false;
+        if( l_pNode->m_NodeInfo.m_Size.x == a_Size.x && l_pNode->m_NodeInfo.m_Size.y == a_Size.y )
+        {
+			l_pNode->m_bUsed = true;
+			a_Output = l_pNode->m_NodeInfo.m_ID;
+
+            return true;
+        }
+        
+        std::shared_ptr<SplitNode> l_pLeft = nullptr;
+		unsigned int l_TempID = m_NodePool.retain(&l_pLeft);
+		l_pNode->m_Left = l_TempID;
+		l_pLeft->m_bUsed = false;
+		l_pLeft->m_Parent = l_pNode->m_NodeInfo.m_ID;
+		l_pLeft->m_Left = l_pLeft->m_Right = -1;
+		l_pLeft->m_pRefPool = &m_NodePool;
+		l_pLeft->m_NodeInfo.m_ID = l_TempID;
+		l_pLeft->m_NodeInfo.m_Index = l_pNode->m_NodeInfo.m_Index;
+
+		std::shared_ptr<SplitNode> l_pRight = nullptr;
+		l_TempID = m_NodePool.retain(&l_pRight);
+		l_pNode->m_Right = l_TempID;
+		l_pLeft->m_bUsed = false;
+		l_pLeft->m_Parent = l_pNode->m_NodeInfo.m_ID;
+		l_pLeft->m_Left = l_pLeft->m_Right = -1;
+		l_pLeft->m_pRefPool = &m_NodePool;
+		l_pLeft->m_NodeInfo.m_ID = l_TempID;
+		l_pLeft->m_NodeInfo.m_Index = l_pNode->m_NodeInfo.m_Index;
+
+		unsigned int l_DeltaWidth = l_pNode->m_NodeInfo.m_Size.x - a_Size.x;
+        unsigned int l_DeltaHeight = l_pNode->m_NodeInfo.m_Size.y - a_Size.y;
+        if( l_DeltaWidth < l_DeltaHeight )
+        {
+            l_pLeft->m_NodeInfo.m_Offset = l_pNode->m_NodeInfo.m_Offset;
+            l_pLeft->m_NodeInfo.m_Size.x = l_pNode->m_NodeInfo.m_Size.x;
+            l_pLeft->m_NodeInfo.m_Size.y = a_Size.y;
+            
+            l_pRight->m_NodeInfo.m_Offset.x = l_pNode->m_NodeInfo.m_Offset.x;
+            l_pRight->m_NodeInfo.m_Offset.y = l_pNode->m_NodeInfo.m_Offset.y + a_Size.y;
+            l_pRight->m_NodeInfo.m_Size.x = l_pNode->m_NodeInfo.m_Size.x;
+            l_pRight->m_NodeInfo.m_Size.y = l_pNode->m_NodeInfo.m_Size.y - a_Size.y;
+        }
+        else
+        {
+            l_pLeft->m_NodeInfo.m_Offset = l_pNode->m_NodeInfo.m_Offset;
+            l_pLeft->m_NodeInfo.m_Size.x = a_Size.x;
+            l_pLeft->m_NodeInfo.m_Size.y = l_pNode->m_NodeInfo.m_Size.y;
+            
+            l_pRight->m_NodeInfo.m_Offset.x = l_pNode->m_NodeInfo.m_Offset.x + a_Size.x;
+            l_pRight->m_NodeInfo.m_Offset.y = l_pNode->m_NodeInfo.m_Offset.y;
+            l_pRight->m_NodeInfo.m_Size.x = l_pNode->m_NodeInfo.m_Size.x - a_Size.x;
+            l_pRight->m_NodeInfo.m_Size.y = l_pNode->m_NodeInfo.m_Size.y;
+        }
+        
+        return insertNode(l_pNode->m_Left, a_Size, a_Output);
+    }
+
+    return false;
+}
+#pragma endregion
+
 #pragma region ThreadEventCallback
 //
 // ThreadEventCallback

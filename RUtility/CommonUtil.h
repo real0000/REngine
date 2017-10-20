@@ -448,6 +448,56 @@ private:
 	std::mutex m_Locker;
 };
 
+class ImageAtlas
+{
+public:
+	struct NodeInfo
+	{
+		NodeInfo() : m_Index(0), m_ID(0), m_Offset(0, 0), m_Size(0, 0){}
+
+		unsigned int m_Index;
+		unsigned int m_ID;
+		glm::ivec2 m_Offset;
+		glm::ivec2 m_Size;
+	};
+
+	ImageAtlas(glm::ivec2 a_Size, unsigned int a_InitArraySize);
+	virtual ~ImageAtlas();
+
+	unsigned int allocate(glm::ivec2 a_Size);
+	void release(unsigned int a_ID);
+	void releaseAll();
+
+	NodeInfo& getInfo(int a_ID);
+	glm::ivec2 getMaxSize(){ return m_MaxSize; }
+	unsigned int getArraySize(){ return m_CurrArraySize; }
+	void setExtendSize(unsigned int a_Extend);
+
+private:
+	struct SplitNode
+	{
+		SplitNode();
+		~SplitNode();
+
+		void release();
+			    
+		int m_Parent;
+		int m_Left, m_Right;
+		NodeInfo m_NodeInfo;
+		bool m_bUsed;
+
+		SerializedObjectPool<SplitNode> *m_pRefPool;
+	};
+
+	bool insertNode(unsigned int a_Node, glm::ivec2 a_Size, unsigned int &a_Output);
+	
+	SerializedObjectPool<SplitNode> m_NodePool;
+	std::vector<unsigned int> m_Roots;
+	glm::ivec2 m_MaxSize;
+	unsigned int m_CurrArraySize;
+	unsigned int m_ExtendSize;
+};
+
 class ThreadEventCallback
 {
 public:
