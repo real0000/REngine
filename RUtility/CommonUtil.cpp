@@ -88,8 +88,7 @@ wxString getRelativePath(wxString a_ParentPath, wxString a_File)
 			break;
 	}
 	
-	for( unsigned int i=0 ; i<l_ParentToken.size() ; i++ )
-		l_Res += wxT("../");
+	for( unsigned int i=0 ; i<l_ParentToken.size() ; i++ ) l_Res += wxT("../");
 	for( unsigned int i=0 ; i<l_FileToken.size() ; i++ )
 	{
 		l_Res += l_FileToken[i];

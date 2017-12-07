@@ -167,6 +167,7 @@ EngineSetting::EngineSetting()
 	m_DefaultSize.y = l_IniFile.get("Graphic.DefaultHeight", 720);
 	m_bFullScreen = l_IniFile.get("Graphic.FullScreen", false);
 	m_FPS = l_IniFile.get("Graphic.FPS", 60);
+	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 2048);
 }
 
 EngineSetting::~EngineSetting()
@@ -183,7 +184,8 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.Width", m_DefaultSize.x);
 	l_IniFile.put("Graphic.Height", m_DefaultSize.y);
 	l_IniFile.put("Graphic.FullScreen", m_bFullScreen);
-	l_IniFile.put("Graphic.FPS", 60);
+	l_IniFile.put("Graphic.FPS", m_FPS);
+	l_IniFile.put("Graphic.ShadowMapSize", m_ShadowMapSize);
 
 	boost::property_tree::ini_parser::write_ini(CONIFG_FILE, l_IniFile);
 }

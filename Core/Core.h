@@ -120,6 +120,7 @@ public:
 	glm::ivec2 m_DefaultSize;
 	bool m_bFullScreen;
 	unsigned int m_FPS;
+	unsigned int m_ShadowMapSize;
 
 private:
 	EngineSetting();

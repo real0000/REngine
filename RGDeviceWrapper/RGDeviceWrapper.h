@@ -184,6 +184,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 
 	// draw
 	Copy,
+	ShadowMap,
 
 	num_default_program)
 

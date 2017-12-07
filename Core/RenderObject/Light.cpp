@@ -5,6 +5,7 @@
 
 #include "CommonUtil.h"
 #include "Core.h"
+#include "Scene/Camera.h"
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
 
@@ -19,6 +20,7 @@ namespace R
 //
 Light::Light(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
+	, m_pShadowCamera(EngineComponent::create<CameraComponent>(a_pSharedMember, nullptr))
 {
 }
 
@@ -33,6 +35,7 @@ void Light::start()
 
 void Light::end()
 {
+	m_pShadowCamera = nullptr;
 	if( isHidden() ) return;
 
 	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
@@ -199,6 +202,8 @@ void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Size = glm::vec3(m_pRefParam->m_Range, m_pRefParam->m_Range, m_pRefParam->m_Range);
 	getSharedMember()->m_pOmniLights->setDirty();
 
+	getShadowCamera()->setCubeView(a_NewTransform);
+
 	Light::transformListener(a_NewTransform);
 }
 
@@ -253,7 +258,7 @@ float OmniLight::getIntensity()
 	return m_pRefParam->m_Intensity;
 }
 
-void OmniLight::setShadowMapUV(glm::vec2 a_UV, int a_Layer)
+void OmniLight::setShadowMapUV(glm::vec4 a_UV, int a_Layer)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapUV = a_UV;
@@ -261,7 +266,7 @@ void OmniLight::setShadowMapUV(glm::vec2 a_UV, int a_Layer)
 	getSharedMember()->m_pOmniLights->setDirty();
 }
 
-glm::vec2 OmniLight::getShadowMapUV()
+glm::vec4 OmniLight::getShadowMapUV()
 {
 	assert(nullptr != m_pRefParam);
 	return m_pRefParam->m_ShadowMapUV;
@@ -329,6 +334,8 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Size = glm::vec3(l_Size, l_Size, l_Size);
 	boundingBox().m_Center = m_pRefParam->m_Position + m_pRefParam->m_Direction * 0.5f * m_pRefParam->m_Range;
 	getSharedMember()->m_pSpotLights->setDirty();
+	
+	getShadowCamera()->setPerspectiveView(m_pRefParam->m_Angle, 1.0f, 0.01f, m_pRefParam->m_Range, a_NewTransform);
 
 	Light::transformListener(a_NewTransform);
 }
@@ -397,7 +404,7 @@ float SpotLight::getAngle()
 	return m_pRefParam->m_Angle;
 }
 
-void SpotLight::setShadowMapUV(glm::vec2 a_UV, int a_Layer)
+void SpotLight::setShadowMapUV(glm::vec4 a_UV, int a_Layer)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapUV = a_UV;
@@ -405,7 +412,7 @@ void SpotLight::setShadowMapUV(glm::vec2 a_UV, int a_Layer)
 	getSharedMember()->m_pSpotLights->setDirty();
 }
 
-glm::vec2 SpotLight::getShadowMapUV()
+glm::vec4 SpotLight::getShadowMapUV()
 {
 	assert(nullptr != m_pRefParam);
 	return m_pRefParam->m_ShadowMapUV;

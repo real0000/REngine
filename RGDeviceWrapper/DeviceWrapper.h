@@ -20,6 +20,10 @@ public:
 	GraphicCommander();
 	virtual ~GraphicCommander();
 
+	// command init/sending
+	virtual void begin(bool a_bCompute) = 0;
+	virtual void end() = 0;
+
 	// draw command
 	virtual void useProgram(unsigned int a_Key);
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram) = 0;
@@ -84,7 +88,6 @@ public:
 
 	// support
 	virtual bool supportExtraIndirectCommand() = 0;
-	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
 
 	// converter part( *::Key -> d3d, vulkan var )
 	virtual unsigned int getBlendKey(BlendKey::Key a_Key) = 0;
@@ -138,8 +141,10 @@ public:
 	// uav part
 	virtual unsigned int requestUavBuffer(char* &a_pOutputBuff, unsigned int a_UnitSize, unsigned int a_ElementCount) = 0;
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount) = 0;
-	virtual char* getUavBufferContainer(int a_BuffID) = 0;
-	virtual void* getUavBufferResource(int a_BuffID) = 0;
+	virtual char* getUavBufferContainer(int a_ID) = 0;
+	virtual void* getUavBufferResource(int a_ID) = 0;
+	virtual int getUavBufferCounter(int a_ID) = 0;
+	virtual void setUavBufferCounter(int a_ID, int a_Val) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end

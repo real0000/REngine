@@ -232,7 +232,7 @@ void ImageData::loadDDS(wxString a_Filepath)
     if ((header->ddspf.flags & DDS_FOURCC) &&
         (MAKEFOURCC('D', 'X', '1', '0') == header->ddspf.fourCC))
     {
-        auto d3d10ext = (DDS_HEADER_DXT10*)((const char*)header + sizeof(DDS_HEADER));
+        auto d3d10ext = (DDS_HEADER_DXT10 *)((const char*)header + sizeof(DDS_HEADER));
 
         arraySize = d3d10ext->arraySize;
         if (arraySize == 0)
@@ -385,7 +385,7 @@ void ImageData::loadDDS(wxString a_Filepath)
                 nullptr
             );
 
-			m_RefSurfacePtr.push_back((unsigned char *)pSrcBits);
+			m_RefSurfacePtr.push_back(const_cast<unsigned char *>(pSrcBits));
             if (pSrcBits + (NumBytes*d) > pEndBits)
             {
 				clear();

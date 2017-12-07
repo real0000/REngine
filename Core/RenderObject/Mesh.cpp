@@ -125,6 +125,7 @@ void RenderableMesh::setShadowed(bool a_bShadow)
 {
 	if( m_bShadowed == a_bShadow ) return;
 	m_bShadowed = a_bShadow;
+	m_Flag.m_bFlagUpdated = true;
 }
 
 bool RenderableMesh::getShadowed()
@@ -456,7 +457,7 @@ void MeshBatcher::freeCommandOffset(int a_Slot)
 MeshBatcher::CommandUnit* MeshBatcher::getCommandUnit(int a_Slot)
 {
 	if( -1 == a_Slot ) return nullptr;
-	return (MeshBatcher::CommandUnit *)(m_pCmdUnitPool->m_pBuffer + sizeof(MeshBatcher::CommandUnit));
+	return reinterpret_cast<MeshBatcher::CommandUnit *>(m_pCmdUnitPool->m_pBuffer + sizeof(MeshBatcher::CommandUnit) * a_Slot);
 }
 
 char* MeshBatcher::getCommandPoolPtr(int a_Offset)

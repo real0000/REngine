@@ -79,6 +79,9 @@
     <None Include="Shaders\Quad.vertex">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\VertexTransfer.vertex">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\GenerateMipmap1D.compute">

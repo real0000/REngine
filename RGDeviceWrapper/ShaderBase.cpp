@@ -362,7 +362,7 @@ void ProgramManager::parseInitValue(ShaderParamType::Key a_Type, boost::property
 	switch( a_Type )
 	{
 		case ShaderParamType::int1:
-			*(int *)a_pDst = a_Src.get<int>("init");
+			*reinterpret_cast<int *>(a_pDst) = a_Src.get<int>("init");
 			break;
 
 		case ShaderParamType::int2:
@@ -381,7 +381,7 @@ void ProgramManager::parseInitValue(ShaderParamType::Key a_Type, boost::property
 			break;
 
 		case ShaderParamType::float1:
-			*(float *)a_pDst = a_Src.get<float>("init");
+			*reinterpret_cast<float *>(a_pDst) = a_Src.get<float>("init");
 			break;
 						
 		case ShaderParamType::float2:
@@ -428,14 +428,14 @@ std::shared_ptr<ShaderProgram> ProgramManager::allocator()
 void ProgramManager::loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path)
 {
 	boost::property_tree::ptree l_XMLTree;
-	boost::property_tree::xml_parser::read_xml((const char *)a_Path.c_str(), l_XMLTree);
+	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree);
 	assert( !l_XMLTree.empty() );
 	a_pInst->setup(l_XMLTree);
 }
 
 void ProgramManager::initBlockDefine(wxString a_Filepath)
 {
-	boost::property_tree::xml_parser::read_xml((const char *)a_Filepath.c_str(), m_BlockDefineFile);
+	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Filepath.c_str()), m_BlockDefineFile);
 	assert( !m_BlockDefineFile.empty() );
 
 	boost::property_tree::ptree &l_Root = m_BlockDefineFile.get_child("root");

@@ -1,0 +1,41 @@
+#include "stdInclude.h"
+
+VS_Output main(VS_Input l_Input)
+{
+	VS_Output l_Output;
+	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD) ) l_Output.m_UV = l_Input.m_UV;
+	if( 0 != (m_VtxFlag & VTXFLAG_COLOR) ) l_Output.m_Color = l_Input.m_Color;
+
+	float4x4 l_WorldTransform;
+	if( 0 != (m_VtxFlag & USE_SKIN) )
+	{
+		l_WorldTransform = m_World[l_Input.m_BoneID.x] * l_Input.m_Weight.x
+						+ m_World[l_Input.m_BoneID.y] * l_Input.m_Weight.y
+						+ m_World[l_Input.m_BoneID.z] * l_Input.m_Weight.z
+						+ m_World[l_Input.m_BoneID.w] * l_Input.m_Weight.w;
+	}
+	else l_WorldTransform = m_World[0];
+
+	if( 0 != (m_VtxFlag & VTXFLAG_NORMAL) )
+	{
+		l_Output.m_Normal = mul(float4(l_Input.m_Normal, 0.0), l_WorldTransform);
+		if( 0 != (m_VtxFlag & USE_NORMAL_TEXTURE ) )
+		{
+			l_Output.m_Tangent = mul(float4(l_Input.m_Tangent, 0.0), l_WorldTransform);
+			l_Output.m_Binormal = mul(float4(l_Input.m_Binormal, 0.0), l_WorldTransform);
+		}
+	}
+
+	l_Output.m_Position = float4(l_Input.m_Position, 1.0);
+	if( 0 != (m_VtxFlag & USE_WORLD_MAT) )
+	{
+		l_Output.m_Position = mul(l_Output.m_Position, l_WorldTransform);
+	}
+
+	if( 0 == (m_VtxFlag & WITHOUT_VP_MAT) )
+	{
+		l_Output.m_Position = mul(float4(l_Output.m_Position.xyz, 1.0), m_ViewProjection);
+	}
+
+	return l_Output;
+}

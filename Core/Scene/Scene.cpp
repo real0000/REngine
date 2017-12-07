@@ -323,9 +323,9 @@ void Scene::update(float a_Delta)
 	for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(a_Delta);
 
 	// flush uav resources
-	m_pMembers->m_pDirLights->flush();
-	m_pMembers->m_pOmniLights->flush();
-	m_pMembers->m_pSpotLights->flush();
+	//m_pMembers->m_pDirLights->flush(); flush after shadow map info updated
+	//m_pMembers->m_pOmniLights->flush();
+	//m_pMembers->m_pSpotLights->flush();
 	m_pMembers->m_pBatcher->flush();
 }
 
@@ -387,17 +387,6 @@ void Scene::clearInputListener()
 	m_InputListener.clear();
 	m_ReadyInputListener.clear();
 	m_DroppedInputListener.clear();
-}
-
-void Scene::addRenderStage(unsigned int a_Stage)
-{
-	// maybe add mutex lock ?
-	m_RenderStages.insert(a_Stage);
-}
-
-void Scene::removeRenderStage(unsigned int a_Stage)
-{
-	m_RenderStages.erase(a_Stage);
 }
 
 void Scene::clear()

@@ -41,6 +41,7 @@ unsigned int RenderTextureAtlas::allocate(glm::ivec2 a_Size)
 	if( l_PrevSize != m_Atlas.getArraySize() )
 	{
 		PixelFormat::Key l_Format = m_pTexture->getTextureFormat();
+		m_pTexture->release();
 		m_pTexture = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlas"), m_Atlas.getMaxSize(), l_Format, m_Atlas.getArraySize(), m_bCube);
 	}
 	return l_Res;

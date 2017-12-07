@@ -14,7 +14,7 @@ class CameraComponent;
 class Material;
 class RenderableComponent;
 
-#define MATERIAL_INIT_CONTAINER_SIZE 1024
+#define INIT_CONTAINER_SIZE 1024// general setting
 
 class RenderPipeline
 {

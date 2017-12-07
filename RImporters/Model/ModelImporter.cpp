@@ -176,7 +176,7 @@ void ModelData::init(wxString a_Filepath)
                 switch( l_pNodeAttr->GetAttributeType() )
                 {
                     case FbxNodeAttribute::eMesh:{
-                        FbxMesh *l_pMesh = (FbxMesh *)l_pNodeAttr;
+                        FbxMesh *l_pMesh = static_cast<FbxMesh *>(l_pNodeAttr);
 
                         unsigned int l_MeshIdx = 0;
                         auto l_MeshIt = l_MeshMap.find(l_pMesh);
@@ -289,7 +289,7 @@ void ModelData::init(wxString a_Filepath)
 			if( FbxDeformer::eSkin != l_pDefornmer->GetDeformerType() ) continue;
 
 			l_pDstMesh->m_bHasBone	= true;
-			FbxSkin *l_pSkin = (FbxSkin *)l_pDefornmer;
+			FbxSkin *l_pSkin = static_cast<FbxSkin *>(l_pDefornmer);
 			for( int j=0 ; j<l_pSkin->GetClusterCount() ; ++j )
 			{
 				FbxCluster *l_pCluster = l_pSkin->GetCluster(j);

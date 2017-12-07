@@ -23,7 +23,7 @@ CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)
 {
 	addTransformListener();
-	calView();
+	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
 }
 
 CameraComponent::~CameraComponent()
@@ -56,37 +56,43 @@ void CameraComponent::hiddenFlagChanged()
 	}
 }
 
-void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far)
+void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);
     m_Type = ORTHO;
-	calProjection();
+	calProjection(a_Transform);
 }
     
-void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far)
+void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, a_Far);
     m_Type = PERSPECTIVE;
-	calProjection();
+	calProjection(a_Transform);
 }
 
-void CameraComponent::setTetrahedonView(float a_Range)
+void CameraComponent::setTetrahedonView(glm::mat4x4 &a_Transform)
 {
-	m_ViewParam = glm::vec4(120.0f, 1.0f, 0.01f, a_Range);
 	m_Type = TETRAHEDRON;
-	calViewProjection();
+	calViewProjection(a_Transform);
 }
 
-void CameraComponent::setCubeView(float a_Range)
+void CameraComponent::setCubeView(glm::mat4x4 &a_Transform)
 {
-	m_ViewParam = glm::vec4(90.0f, 1.0f, 0.01f, a_Range);
 	m_Type = CUBE;
-	calViewProjection();
+	calViewProjection(a_Transform);
+}
+
+void CameraComponent::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
+{
+	assert(m_Type == ORTHO || m_Type == PERSPECTIVE);
+	a_Eye = glm::vec3(m_Matrices[VIEW][0][3], m_Matrices[VIEW][1][3], m_Matrices[VIEW][2][3]);
+	a_Dir = glm::normalize(glm::vec3(m_Matrices[VIEW][0][2], m_Matrices[VIEW][1][2], m_Matrices[VIEW][2][2]));
+	a_Up  = glm::normalize(glm::vec3(m_Matrices[VIEW][0][1], m_Matrices[VIEW][1][1], m_Matrices[VIEW][2][1]));
 }
 
 void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
 {
-	calView();
+	calView(a_NewTransform);
 	
 	SharedSceneMember *l_pMember = getSharedMember();
 	auto l_pThis = shared_from_base<CameraComponent>();
@@ -99,7 +105,7 @@ void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
 	}
 }
 
-void CameraComponent::calView()
+void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 {
 	switch( m_Type )
 	{
@@ -113,10 +119,10 @@ void CameraComponent::calView()
 		//case CUBE:
 		default:break;
 	}
-	calViewProjection();
+	calViewProjection(a_NewTransform);
 }
 
-void CameraComponent::calProjection()
+void CameraComponent::calProjection(glm::mat4x4 &a_NewTransform)
 {
     switch( m_Type )
 	{
@@ -132,10 +138,10 @@ void CameraComponent::calProjection()
 		//case CUBE:
 		default:break;
 	}
-	calViewProjection();
+	calViewProjection(a_NewTransform);
 }
 
-void CameraComponent::calViewProjection()
+void CameraComponent::calViewProjection(glm::mat4x4 &a_NewTransform)
 {
 	switch( m_Type )
 	{
@@ -146,8 +152,12 @@ void CameraComponent::calViewProjection()
 			}break;
 
 		case TETRAHEDRON:{
-			glm::mat4x4 l_World(getSharedMember()->m_pSceneNode->getTransform());
-			glm::vec3 l_Eye(l_World[0][3], l_World[1][3], l_World[2][3]);
+			glm::vec3 l_Eye, l_Scale;
+			glm::quat l_Rot;
+			decomposeTRS(a_NewTransform, l_Eye, l_Scale, l_Rot);
+
+			m_ViewParam = glm::vec4(120.0f, 1.0f, 0.01f, std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z));
+			(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
 			glm::mat4x4 l_Projection(glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w));
 
 			//
@@ -159,15 +169,19 @@ void CameraComponent::calViewProjection()
 			}break;
 
 		case CUBE:{
-			glm::mat4x4 l_World(getSharedMember()->m_pSceneNode->getTransform());
-			glm::vec3 l_Eye(l_World[0][3], l_World[1][3], l_World[2][3]);
+			glm::vec3 l_Eye, l_Scale;
+			glm::quat l_Rot;
+			decomposeTRS(a_NewTransform, l_Eye, l_Scale, l_Rot);
+			
+			m_ViewParam = glm::vec4(90.0f, 1.0f, 0.01f, std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z));
 			glm::mat4x4 l_Projection(glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w));
-			m_Matrices[CUBEMAP_POSITIVE_X] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(m_ViewParam.w, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_X] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(-m_ViewParam.w, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_POSITIVE_Y] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(0.0f, m_ViewParam.w, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_Y] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(0.0f, -m_ViewParam.w, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			m_Matrices[CUBEMAP_POSITIVE_Z] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(0.0f, 0.0f, m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_Z] = l_Projection * glm::lookAt(l_Eye, l_Eye + glm::vec3(0.0f, 0.0f, -m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
+			
+			m_Matrices[CUBEMAP_POSITIVE_X] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x + m_ViewParam.w, l_Eye.y, l_Eye.z), glm::vec3(0.0f, 1.0f, 0.0f));
+			m_Matrices[CUBEMAP_NEGATIVE_X] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x - m_ViewParam.w, l_Eye.y, l_Eye.z), glm::vec3(0.0f, 1.0f, 0.0f));
+			m_Matrices[CUBEMAP_POSITIVE_Y] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y + m_ViewParam.w, l_Eye.z), glm::vec3(0.0f, 0.0f, -1.0f));
+			m_Matrices[CUBEMAP_NEGATIVE_Y] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y - m_ViewParam.w, l_Eye.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			m_Matrices[CUBEMAP_POSITIVE_Z] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y, l_Eye.z + m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
+			m_Matrices[CUBEMAP_NEGATIVE_Z] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y, l_Eye.z - m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
 			
 			glm::aabb l_Box(l_Eye, glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w) * 2.0f);
 			m_Frustum.fromAABB(l_Box);

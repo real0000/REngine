@@ -63,7 +63,7 @@ void HLSLProgram12::assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput
 		for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
 		{
 			int l_BufferID = getNullVertex()->getBufferID(i);
-			memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
+			memcpy(static_cast<char *>(a_pOutput) + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
 			a_Offset += sizeof(D3D12_VERTEX_BUFFER_VIEW);
 		}
 	}
@@ -73,7 +73,7 @@ void HLSLProgram12::assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput
 		{
 			int l_BufferID = a_pVtx->getBufferID(i);
 			if( -1 == l_BufferID ) l_BufferID = getNullVertex()->getBufferID(i);
-			memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
+			memcpy(static_cast<char *>(a_pOutput) + a_Offset, &(l_pDeviceOwner->getVertexBufferView(l_BufferID)), sizeof(D3D12_VERTEX_BUFFER_VIEW));
 			a_Offset += sizeof(D3D12_VERTEX_BUFFER_VIEW);
 		}
 	}
@@ -83,7 +83,7 @@ void HLSLProgram12::assignIndirectIndex(unsigned int &a_Offset, char *a_pOutput,
 {
 	assert(nullptr != a_pIndex);
 	D3D12Device *l_pDeviceOwner = TYPED_GDEVICE(D3D12Device);
-	memcpy((char *)a_pOutput + a_Offset, &(l_pDeviceOwner->getIndexBufferView(a_pIndex->getBufferID())), sizeof(D3D12_INDEX_BUFFER_VIEW));
+	memcpy(static_cast<char *>(a_pOutput) + a_Offset, &(l_pDeviceOwner->getIndexBufferView(a_pIndex->getBufferID())), sizeof(D3D12_INDEX_BUFFER_VIEW));
 	a_Offset += sizeof(D3D12_INDEX_BUFFER_VIEW);
 }
 
@@ -96,7 +96,7 @@ void HLSLProgram12::assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput,
 	
 	for( unsigned int i=0 ; i<a_IDList.size() ; ++i )
 	{
-		D3D12_GPU_VIRTUAL_ADDRESS *l_pTarget = (D3D12_GPU_VIRTUAL_ADDRESS *)((char *)a_pOutput + a_Offset);
+		D3D12_GPU_VIRTUAL_ADDRESS *l_pTarget = reinterpret_cast<D3D12_GPU_VIRTUAL_ADDRESS *>((char *)a_pOutput + a_Offset);
 		if( -1 == a_IDList[i] ) *l_pTarget = 0;
 		else *l_pTarget = l_Func(a_IDList[i]);
 	}
@@ -104,7 +104,7 @@ void HLSLProgram12::assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput,
 
 void HLSLProgram12::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance)
 {
-	D3D12_DRAW_INDEXED_ARGUMENTS *l_pArg = (D3D12_DRAW_INDEXED_ARGUMENTS *)(a_pOutput + a_Offset);
+	D3D12_DRAW_INDEXED_ARGUMENTS *l_pArg = reinterpret_cast<D3D12_DRAW_INDEXED_ARGUMENTS *>(a_pOutput + a_Offset);
 	l_pArg->IndexCountPerInstance = a_IndexCount;
     l_pArg->InstanceCount = a_InstanceCount;
     l_pArg->StartIndexLocation = a_StartIndex;
@@ -499,7 +499,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
 				
 				if( l_Filename.IsEmpty() ) l_ShaderUsage[i] = nullptr;
-				else l_ShaderUsage[i] = (ID3DBlob *)ProgramManager::singleton().getShader(l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine);
+				else l_ShaderUsage[i] = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine));
 			}
 
 			ID3DBlob *l_pShader = l_ShaderUsage[ShaderStages::Vertex];
@@ -745,7 +745,7 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 				
 	assert( !l_Filename.empty() );
 	a_ParamDefine.insert(std::make_pair("COMPUTE_SHADER", "1"));
-	ID3DBlob *l_pBinaryCode = (ID3DBlob *)ProgramManager::singleton().getShader(l_Filename, ShaderStages::Compute, shaderInUse(), a_ParamDefine);
+	ID3DBlob *l_pBinaryCode = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(l_Filename, ShaderStages::Compute, shaderInUse(), a_ParamDefine));
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC l_PsoDesc = {};
 	l_PsoDesc.pRootSignature = m_pRegisterDesc;
@@ -798,7 +798,7 @@ HRESULT __stdcall HLSLComponent::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFile
 
 HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
 {
-	char *l_pBuff = (char*)a_pData;
+	char *l_pBuff = const_cast<char*>(static_cast<const char *>(a_pData));
     delete[] l_pBuff;
     return S_OK;
 }

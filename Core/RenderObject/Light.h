@@ -26,6 +26,15 @@ public:
 	virtual void end();
 	virtual void hiddenFlagChanged();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+
+	virtual unsigned int getID() = 0;
+
+	std::shared_ptr<CameraComponent> getShadowCamera(){ return m_pShadowCamera; }
+	std::vector<unsigned int>& getShadowMapIndex(){ return m_ShadowMapMeshIdx; }
+
+private:
+	std::shared_ptr<CameraComponent> m_pShadowCamera;
+	std::vector<unsigned int> m_ShadowMapMeshIdx;
 };
 
 template<typename T>
@@ -65,7 +74,7 @@ public:
 		std::shared_ptr<OmniLight> l_pTarget = nullptr;
 		unsigned int l_ID = m_Lights.retain(&l_pTarget);
 		l_pTarget->m_ID = l_ID;
-		l_pTarget->m_pRefParam = (OmniLight::Data *)m_pLightData->getBlockPtr(l_ID);
+		l_pTarget->m_pRefParam = static_cast<OmniLight::Data *>(m_pLightData->getBlockPtr(l_ID));
 		l_pTarget->setHidden(false);
 		l_pTarget->addTransformListener();
 		return l_pTarget;
@@ -141,7 +150,7 @@ public:
 	void setShadowMapProjection(glm::mat4x4 a_Matrix);
 	glm::mat4x4 getShadowMapProjection();
 
-	unsigned int getID();
+	virtual unsigned int getID();
 
 private:
 	struct Data
@@ -157,8 +166,6 @@ private:
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
-
-	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 // use OmniLights::create to create this class instance
@@ -182,13 +189,13 @@ public:
 	glm::vec3 getColor();
 	void setIntensity(float a_Intensity);
 	float getIntensity();
-	void setShadowMapUV(glm::vec2 a_UV, int a_Layer);
-	glm::vec2 getShadowMapUV();
+	void setShadowMapUV(glm::vec4 a_UV, int a_Layer);
+	glm::vec4 getShadowMapUV();
 	int getShadowMapLayer();
 	void setShadowMapProjection(glm::mat4x4 a_Matrix, unsigned int a_Index);
 	glm::mat4x4 getShadowMapProjection(unsigned int a_Index);
 
-	unsigned int getID();
+	virtual unsigned int getID();
 
 private:
 	struct Data
@@ -197,17 +204,16 @@ private:
 		float m_Range;
 		glm::vec3 m_Color;
 		float m_Intensity;
-		glm::vec2 m_ShadowMapUV;
+		glm::vec4 m_ShadowMapUV;
 		int m_Layer;
 		int m_bCastShadow;
+		glm::vec2 m_Padding1;
 		glm::mat4x4 m_ShadowMapProj[4];
 	};
 	OmniLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
-	
-	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 // use SpotLights::create to create this class instance
@@ -233,13 +239,13 @@ public:
 	float getIntensity();
 	glm::vec3 getDirection();
 	float getAngle();
-	void setShadowMapUV(glm::vec2 a_UV, int a_Layer);
-	glm::vec2 getShadowMapUV();
+	void setShadowMapUV(glm::vec4 a_UV, int a_Layer);
+	glm::vec4 getShadowMapUV();
 	int getShadowMapLayer();
 	void setShadowMapProjection(glm::mat4x4 a_Matrix);
 	glm::mat4x4 getShadowMapProjection();
 
-	unsigned int getID();
+	virtual unsigned int getID();
 
 private:
 	struct Data
@@ -250,17 +256,16 @@ private:
 		float m_Intensity;
 		glm::vec3 m_Direction;
 		float m_Angle;
-		glm::vec2 m_ShadowMapUV;
+		glm::vec4 m_ShadowMapUV;
 		int m_Layer;
 		int m_bCastShadow;
+		glm::vec2 m_Padding1;
 		glm::mat4x4 m_ShadowMapProj;
 	};
 	SpotLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
-	
-	std::shared_ptr<CameraComponent> m_ShadowCamera;
 };
 
 }

@@ -56,13 +56,14 @@ public:
 	virtual bool getShadowed(){ return false; }
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
 
-	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far);
-    void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far);
-	void setTetrahedonView(float a_Range);// implement later...
-	void setCubeView(float a_Range);
+	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform);
+    void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far, glm::mat4x4 &a_Transform);
+	void setTetrahedonView(glm::mat4x4 &a_Transform);// implement later...
+	void setCubeView(glm::mat4x4 &a_Transform);
 	glm::vec4 getViewParam(){ return m_ViewParam; }
 	CameraType getCameraType(){ return m_Type; }
 	
+	void getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up);
 	glm::mat4x4* getMatrix(unsigned int a_ID){ assert( a_ID < NUM_MATRIX ); return &(m_Matrices[a_ID]); }
 	glm::mat4x4* getMatrix(){ return m_Matrices; }
 	glm::frustumface& getFrustum(){ return m_Frustum; }
@@ -72,9 +73,9 @@ public:
 private:
 	CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
-	void calView();
-	void calProjection();
-	void calViewProjection();
+	void calView(glm::mat4x4 &a_NewTransform);
+	void calProjection(glm::mat4x4 &a_NewTransform);
+	void calViewProjection(glm::mat4x4 &a_NewTransform);
 
 	glm::mat4x4 m_Matrices[NUM_MATRIX];
 	glm::vec4 m_ViewParam;

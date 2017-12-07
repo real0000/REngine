@@ -206,7 +206,7 @@ public:										\
 	}										\
 	static wxString toString(Key a_Key)		\
 	{										\
-		return m_Strings[(unsigned int)a_Key];\
+		return m_Strings[static_cast<unsigned int>(a_Key)];\
 	}										\
 private:									\
 	static void initMap()					\

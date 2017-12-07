@@ -25,6 +25,9 @@ public:
 	void releaseAll();
 	
 	std::shared_ptr<TextureUnit> getTexture(){ return m_pTexture; }
+	ImageAtlas::NodeInfo& getInfo(int a_ID){ return m_Atlas.getInfo(a_ID); }
+	glm::ivec2 getMaxSize(){ return m_Atlas.getMaxSize(); }
+	unsigned int getArraySize(){ return m_Atlas.getArraySize(); }
 	void setExtendSize(unsigned int a_Extend);
 
 private:

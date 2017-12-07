@@ -6,6 +6,7 @@
 #ifndef _D3D12DEVICE_H_
 #define _D3D12DEVICE_H_
 
+#include <unordered_map>
 #include "D3DDevice.h"
 
 namespace R
@@ -14,6 +15,7 @@ namespace R
 class D3D12HeapManager;
 class D3D12Commander;
 class D3D12Device;
+class HLSLProgram12;
 
 #define D3D12_NUM_COPY_THREAD 2
 typedef std::pair<ID3D12CommandAllocator *, ID3D12GraphicsCommandList *> D3D12GpuThread;
@@ -102,6 +104,10 @@ public:
 	D3D12Commander(D3D12HeapManager *a_pHeapOwner);
 	virtual ~D3D12Commander();
 
+	// command init/sending
+	virtual void begin(bool a_bConmpute);
+	virtual void end();
+
 	// draw command
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram);
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
@@ -126,12 +132,18 @@ public:
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
 
 private:
-	D3D12GpuThread validateThisThread();
-	void threadEnd();
-	
 	D3D12Device *m_pRefDevice;
 	D3D12HeapManager *m_pRefHeapOwner;
-		
+	
+	// command state
+	bool m_bCompute;
+	CmdComponent *m_pComponent;
+	D3D12GpuThread m_CurrThread;
+	HLSLProgram12 *m_pCurrProgram;
+
+	// resource state
+	std::unordered_map<ID3D12Resource*, std::pair<int, int> > m_ResourceState;//resource, origin state, current state
+
 	static ComputeCmdComponent m_ComputeComponent;
 	static GraphicCmdComponent m_GraphicComponent;
 };
@@ -173,7 +185,6 @@ public:
 	
 	// support
 	virtual bool supportExtraIndirectCommand(){ return true; }
-	virtual unsigned int initParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
 
 	// converter part( *::Key -> d3d, vulkan var )
 	virtual unsigned int getBlendKey(BlendKey::Key a_Key);
@@ -225,6 +236,8 @@ public:
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount);
 	virtual char* getUavBufferContainer(int a_ID);
 	virtual void* getUavBufferResource(int a_ID);
+	virtual int getUavBufferCounter(int a_ID);
+	virtual void setUavBufferCounter(int a_ID, int a_Val);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList);
 	virtual void freeUavBuffer(int a_ID);
@@ -234,6 +247,7 @@ public:
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
 	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, bool a_bRenderTarget);
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID);
+	ID3D12Resource* getRenderTargetResource(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getConstBufferGpuAddress(int a_ID);
@@ -242,7 +256,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW getQuadVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
-	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain creat
+	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain create
 
 	// thread part
 	D3D12GpuThread requestThread(bool a_bCompute);
@@ -318,6 +332,8 @@ private:
 
 		unsigned int m_ElementSize;
 		unsigned int m_ElementCount;
+		int m_CounterID;
+		int *m_pCounterVal;
 	};
 	struct ReadBackBuffer
 	{

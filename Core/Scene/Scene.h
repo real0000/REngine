@@ -133,10 +133,7 @@ public:
 	void removeInputListener(std::shared_ptr<EngineComponent> a_pComponent);
 	void clearInputListener();
 
-	// misc
-	void addRenderStage(unsigned int a_Stage);
-	void removeRenderStage(unsigned int a_Stage);
-	const std::set<unsigned int>& getRenderStage(){ return m_RenderStages; }
+	// misc;
 
 private:
 	Scene();
@@ -157,8 +154,6 @@ private:
 	std::list< std::shared_ptr<EngineComponent> > m_InputListener, m_ReadyInputListener;
 	std::set< std::shared_ptr<EngineComponent> > m_DroppedInputListener;
 	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
-
-	std::set<unsigned int> m_RenderStages;
 };
 
 class SceneManager
