@@ -76,7 +76,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 			auto l_pLight = l_Lights[i]->shared_from_base<Light>();
 			if( l_pLight->getShadowed() )
 			{
-				l_LightCmdThread.push_back(std::thread(&DeferredRenderer::setupShadow, this, l_pLight, l_Meshes));
+				l_LightCmdThread.emplace_back(std::thread(&DeferredRenderer::setupShadow, this, l_pLight->getShadowCamera(), l_pLight, l_Meshes));
 				++l_ShadowedLights;
 			}
 		}
@@ -94,6 +94,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 			m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), m_pShadowMap->getMaxSize(), PixelFormat::d32_float, m_pShadowMap->getArraySize());
 		}
 
+		// add required command execute thread
 		while( m_ShadowCommands.size() <= l_ShadowedLights ) m_ShadowCommands.push_back(GDEVICE()->commanderFactory());
 
 		m_pCmdInit->begin(false);
@@ -112,17 +113,32 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 		for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
 		{
 			auto l_pLight = l_Lights[i]->shared_from_base<Light>();
-			if( l_pLight->getShadowed() ) l_LightCmdThread.push_back(std::thread(&DeferredRenderer::drawShadow, this, l_pLight, l_Meshes));
+			if( l_pLight->getShadowed() ) l_LightCmdThread.emplace_back(std::thread(&DeferredRenderer::drawShadow, this, l_pLight, l_Meshes));
 		}
 		for( unsigned int i=0 ; i<l_LightCmdThread.size() ; ++i ) l_LightCmdThread[i].join();
 	}
 
-	unsigned int l_StageID = static_cast<RenderableMesh *>(l_Meshes.front().get())->getMaterial()->getStage();
-	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
-	{
+	{// graphic step, divide by stage
+		
+		
+		unsigned int l_CurrIdx = 0;
+		unsigned int l_StageID = static_cast<RenderableMesh *>(l_Meshes.front().get())->getMaterial()->getStage();
+		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
+		{
+			if( l_StageID != static_cast<RenderableMesh *>(l_Meshes[i].get())->getMaterial()->getStage() )
+			{
+				drawMesh(l_Meshes, l_CurrIdx, i);
+				l_CurrIdx = i;
+			}
+			else if( i + 1 == l_Meshes.size() )
+			{
+				drawMesh(l_Meshes, l_CurrIdx, i + 1);
+				l_CurrIdx = i;
+			}
+		}
+
 		
 	}
-
 }
 
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh)
@@ -208,8 +224,6 @@ void DeferredRenderer::drawShadow(std::shared_ptr<Light> &a_Light, std::vector< 
 			glm::viewport l_Viewport(0.0f, 0.0f, l_ShadowMapSize, l_ShadowMapSize, 0.0f, 1.0f);
 			l_pCmdList->setViewPort(1, l_Viewport);
 			l_pCmdList->setScissor(1, glm::ivec4(0, 0, l_Viewport.m_Size.x, l_Viewport.m_Size.y));
-
-
 			}break;
 
 		case COMPONENT_OMNI_LIGHT:{
@@ -234,8 +248,6 @@ void DeferredRenderer::drawShadow(std::shared_ptr<Light> &a_Light, std::vector< 
 			l_Viewport.m_Size.y *= l_ShadowMapUV.w;
 			l_pCmdList->setViewPort(1, l_Viewport);
 			l_pCmdList->setScissor(1, glm::ivec4(l_Viewport.m_Start.x, l_Viewport.m_Start.y, l_Viewport.m_Start.x + l_Viewport.m_Size.x, l_Viewport.m_Start.y + l_Viewport.m_Size.y));
-
-
 			}break;
 	}
 
@@ -257,7 +269,7 @@ unsigned int DeferredRenderer::calculateShadowMapRegion(std::shared_ptr<CameraCo
 		glm::vec3 l_Eye, l_Dir, l_Up;
 		a_pCamera->getCameraParam(l_Eye, l_Dir, l_Up);
 		l_SliceLength = glm::dot(l_Sphere.m_Center - l_Eye, l_Dir) * tan(a_pCamera->getViewParam().x * 0.5f);
-		if( a_pCamera->getViewParam().y < 1.0f ) l_SliceLength * a_pCamera->getViewParam().y;
+		if( a_pCamera->getViewParam().y < 1.0f ) l_SliceLength *= a_pCamera->getViewParam().y;
 		l_SliceLength *= 2.0f;
 	}
 
@@ -307,6 +319,13 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 		default: break;
 	}
 	assert(false && "invalid light type");
+}
+
+void DeferredRenderer::drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
+{
+	for( unsigned int i=a_Start ; i<a_End ; ++i )
+	{
+	}
 }
 #pragma endregion
 

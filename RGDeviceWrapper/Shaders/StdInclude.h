@@ -17,6 +17,7 @@
 #define USE_SKIN			0x20000
 #define USE_NORMAL_TEXTURE	0x40000
 #define WITHOUT_VP_MAT		0x80000
+#define USE_TESSELLATION	0x100000
 
 #ifdef COMPUTE_SHADER
 
@@ -24,7 +25,7 @@
 	struct VS_CommonInput
 	{
 		float3 m_Position : POSITION0;
-		float4 m_Texcoord0 : TEXCOORD0;
+		float4 m_Texcoord01 : TEXCOORD0;
 		float4 m_Texcoord23 : TEXCOORD1;
 		float4 m_Texcoord45 : TEXCOORD2;
 		float4 m_Texcoord67 : TEXCOORD3;
@@ -34,6 +35,12 @@
 		int4 m_BoneID : BLENDINDICES0;
 		float4 m_Weight : BLENDWEIGHT0;
 		float4 m_Color : COLOR0;
+	};
+
+	struct HS_TriangleFactor
+	{
+		float3 m_Edges : SV_TessFactor;
+		float inside : SV_InsideTessFactor;
 	};
 
 	struct PS_CommonInput

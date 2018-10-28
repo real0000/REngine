@@ -14,11 +14,6 @@ class GraphicCommander;
 class ShaderProgram;
 class TextureUnit;
 
-enum
-{
-	PROGRAM_FLAG_DEFAULT_PASS = 0,
-};
-
 struct MaterialParam
 {
 	std::vector<char *> m_pRefVal;
@@ -124,7 +119,6 @@ public:
 		m_bNeedRebatch = true;
 	}
 	unsigned int getStage(){ return m_Stage; }
-	unsigned int isDefaultPass(){ return m_pRefProgram->getExtraFlag(PROGRAM_FLAG_DEFAULT_PASS); }
 
 	// only valid if supportExtraIndirectCommand is true
 	bool canBatch(std::shared_ptr<Material> a_Other);

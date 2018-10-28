@@ -1,9 +1,12 @@
 #include "stdInclude.h"
 
-VS_Output main(VS_Input l_Input)
+VS_Output main(VS_CommonInput l_Input)
 {
-	VS_Output l_Output;
-	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD) ) l_Output.m_UV = l_Input.m_UV;
+	VS_CommonInput l_Output;
+	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD01) ) l_Output.m_Texcoord01 = l_Input.m_Texcoord01;
+	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD23) ) l_Output.m_Texcoord23 = l_Input.m_Texcoord23;
+	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD45) ) l_Output.m_Texcoord45 = l_Input.m_Texcoord45;
+	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD67) ) l_Output.m_Texcoord67 = l_Input.m_Texcoord67;
 	if( 0 != (m_VtxFlag & VTXFLAG_COLOR) ) l_Output.m_Color = l_Input.m_Color;
 
 	float4x4 l_WorldTransform;
@@ -32,7 +35,7 @@ VS_Output main(VS_Input l_Input)
 		l_Output.m_Position = mul(l_Output.m_Position, l_WorldTransform);
 	}
 
-	if( 0 == (m_VtxFlag & WITHOUT_VP_MAT) )
+	if( 0 == (m_VtxFlag & WITHOUT_VP_MAT) || 0 != (m_VtxFlag & USE_TESSELLATION) )
 	{
 		l_Output.m_Position = mul(float4(l_Output.m_Position.xyz, 1.0), m_ViewProjection);
 	}

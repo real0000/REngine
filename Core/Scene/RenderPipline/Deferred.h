@@ -32,6 +32,8 @@ private:
 	unsigned int calculateShadowMapRegion(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
 
+	void drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
+
 	struct ObjectIndexBuffer
 	{
 		int m_UavId;
