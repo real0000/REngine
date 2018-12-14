@@ -33,6 +33,9 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_ShadowCmdIdx(0)
 {
 	m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
+	m_pGBuffer[GBUFFER_COLOR] = TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferColor"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba8_unorm);
+	m_pGBuffer[GBUFFER_NORMAL]= TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferNormal"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba8_snorm);
+	m_pGBuffer[GBUFFER_DEPTH] = TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferDepth"), EngineSetting::singleton().m_DefaultSize, PixelFormat::d24_unorm_s8_uint);
 
 	m_LightIdxUav.m_UavId = GDEVICE()->requestUavBuffer(m_LightIdxUav.m_pBuffer, sizeof(LightInfo), INIT_CONTAINER_SIZE);
 	m_LightIdxUav.m_UavSize = INIT_CONTAINER_SIZE;
@@ -119,21 +122,43 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 	}
 
 	{// graphic step, divide by stage
-		
-		
+		m_pCmdInit->begin(false);
+
+		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
+		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), GBUFFER_COUNT - 1
+			, m_pGBuffer[GBUFFER_COLOR]->getTextureID()
+			, m_pGBuffer[GBUFFER_NORMAL]->getTextureID());
+		m_pCmdInit->setViewPort(1, l_Viewport);
+		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
+
+		for( unsigned int i=0 ; i<GBUFFER_COUNT - 1 ; ++i )
+		{
+			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		}
+		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), true, 1.0f, false, 0);
+
+		m_pCmdInit->end();
+
 		unsigned int l_CurrIdx = 0;
 		unsigned int l_StageID = static_cast<RenderableMesh *>(l_Meshes.front().get())->getMaterial()->getStage();
 		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
 		{
-			if( l_StageID != static_cast<RenderableMesh *>(l_Meshes[i].get())->getMaterial()->getStage() )
+			unsigned int l_CurrStageID = static_cast<RenderableMesh *>(l_Meshes[i].get())->getMaterial()->getStage();
+			if( l_StageID != l_CurrStageID )
 			{
 				drawMesh(l_Meshes, l_CurrIdx, i);
+				l_StageID = l_CurrStageID;
 				l_CurrIdx = i;
 			}
 			else if( i + 1 == l_Meshes.size() )
 			{
 				drawMesh(l_Meshes, l_CurrIdx, i + 1);
 				l_CurrIdx = i;
+			}
+			
+			if( l_CurrStageID > OPAQUE_STAGE_END )
+			{
+				break;
 			}
 		}
 

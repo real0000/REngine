@@ -15,6 +15,7 @@ class Material;
 class RenderableComponent;
 
 #define INIT_CONTAINER_SIZE 1024// general setting
+#define OPAQUE_STAGE_END 1000
 
 class RenderPipeline
 {

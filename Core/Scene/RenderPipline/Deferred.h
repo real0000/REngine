@@ -17,6 +17,16 @@ class Light;
 
 class DeferredRenderer : public RenderPipeline
 {
+private:
+	enum
+	{
+		GBUFFER_COLOR = 0,
+		GBUFFER_NORMAL,
+
+		GBUFFER_DEPTH,
+
+		GBUFFER_COUNT, 
+	};
 public:
 	DeferredRenderer(SharedSceneMember *a_pSharedMember);
 	virtual ~DeferredRenderer();
@@ -56,6 +66,7 @@ private:
 	// shadow map variable
 	RenderTextureAtlas *m_pShadowMap;
 	std::shared_ptr<TextureUnit> m_pShadowMapDepth;
+	std::shared_ptr<TextureUnit> m_pGBuffer[GBUFFER_COUNT];
 	unsigned int m_ShadowCmdIdx;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::vector<ObjectIndexBuffer> m_ShadowMapIndirectBuffer;

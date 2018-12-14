@@ -1312,7 +1312,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getTextureGpuHandle(int a_ID, bool a_bR
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12Device::getRenderTargetCpuHandle(int a_ID)
 {
-	return m_pRenderTargetHeap->getCpuHandle(a_ID);
+	return m_pRenderTargetHeap->getCpuHandle(m_ManagedRenderTarget[a_ID]->m_HeapID);
 }
 
 ID3D12Resource* D3D12Device::getRenderTargetResource(int a_ID)
