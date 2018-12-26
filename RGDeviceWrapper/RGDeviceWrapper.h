@@ -182,6 +182,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	GenerateMipmap1D,
 	GenerateMipmap2D,
 	GenerateMipmap3D,
+	TiledLightIntersection,
 
 	// draw
 	Copy,

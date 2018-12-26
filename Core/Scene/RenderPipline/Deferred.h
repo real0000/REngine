@@ -20,8 +20,12 @@ class DeferredRenderer : public RenderPipeline
 private:
 	enum
 	{
-		GBUFFER_COLOR = 0,
-		GBUFFER_NORMAL,
+		GBUFFER_NORMAL = 0,
+		GBUFFER_MATERIAL,
+		GBUFFER_DIFFUSE,
+		GBUFFER_MASK,
+		GBUFFER_FACTOR,
+		GBUFFER_MOTIONBLUR,
 
 		GBUFFER_DEPTH,
 
@@ -66,11 +70,16 @@ private:
 	// shadow map variable
 	RenderTextureAtlas *m_pShadowMap;
 	std::shared_ptr<TextureUnit> m_pShadowMapDepth;
-	std::shared_ptr<TextureUnit> m_pGBuffer[GBUFFER_COUNT];
 	unsigned int m_ShadowCmdIdx;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::vector<ObjectIndexBuffer> m_ShadowMapIndirectBuffer;
 	std::mutex m_ShadowMapLock;
+	
+	// gbuffer varibles
+	glm::ivec2 m_TileDim;
+	std::shared_ptr<TextureUnit> m_pGBuffer[GBUFFER_COUNT];
+	std::shared_ptr<TextureUnit> m_pFrameBuffer;
+	ObjectIndexBuffer m_TileBoundingFlagUav, m_TileBoundingUav;
 };
 
 }

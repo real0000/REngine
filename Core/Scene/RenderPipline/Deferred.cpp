@@ -31,11 +31,24 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_ExtendSize(INIT_CONTAINER_SIZE)
 	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::r32_float))
 	, m_ShadowCmdIdx(0)
+	, m_TileDim(0, 0)
 {
 	m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
-	m_pGBuffer[GBUFFER_COLOR] = TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferColor"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba8_unorm);
-	m_pGBuffer[GBUFFER_NORMAL]= TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferNormal"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba8_snorm);
-	m_pGBuffer[GBUFFER_DEPTH] = TextureManager::singleton().createRenderTarget(wxT("DefferredGBufferDepth"), EngineSetting::singleton().m_DefaultSize, PixelFormat::d24_unorm_s8_uint);
+
+	const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
+		{wxT("DefferredGBufferNormal"), PixelFormat::rgba8_snorm},
+		{wxT("DefferredGBufferMaterial"), PixelFormat::rgba8_uint},
+		{wxT("DefferredGBufferDiffuse"), PixelFormat::rgba8_unorm},
+		{wxT("DefferredGBufferMask"), PixelFormat::rgba8_unorm},
+		{wxT("DefferredGBufferFactor"), PixelFormat::rgba8_unorm},
+		{wxT("DefferredGBufferMotionBlur"), PixelFormat::rg16_float},
+		{wxT("DefferredGBufferDepth"), PixelFormat::d24_unorm_s8_uint},
+		};
+	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
+	{
+		m_pGBuffer[i]= TextureManager::singleton().createRenderTarget(c_GBufferDef[i].first, EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
+	}
+	m_pFrameBuffer = TextureManager::singleton().createRenderTarget(wxT("DefferredFrame"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
 	m_LightIdxUav.m_UavId = GDEVICE()->requestUavBuffer(m_LightIdxUav.m_pBuffer, sizeof(LightInfo), INIT_CONTAINER_SIZE);
 	m_LightIdxUav.m_UavSize = INIT_CONTAINER_SIZE;
@@ -44,10 +57,21 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	m_MeshIdxUav.m_UavSize = INIT_CONTAINER_SIZE;
 
 	m_pCmdInit = GDEVICE()->commanderFactory();
+
+	m_TileDim.x = std::ceil(EngineSetting::singleton().m_DefaultSize.x / EngineSetting::singleton().m_TileSize);
+	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
+
+	m_TileBoundingFlagUav.m_UavId = GDEVICE()->requestUavBuffer(m_TileBoundingFlagUav.m_pBuffer, sizeof(unsigned int), INIT_LIGHT_SIZE / sizeof(unsigned int));
+	m_TileBoundingFlagUav.m_UavSize = INIT_LIGHT_SIZE / sizeof(unsigned int);
+	m_TileBoundingUav.m_UavId = GDEVICE()->requestUavBuffer(m_TileBoundingUav.m_pBuffer, sizeof(unsigned int), m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE);
+	m_TileBoundingUav.m_UavSize = m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE;
 }
 
 DeferredRenderer::~DeferredRenderer()
 {
+	m_pFrameBuffer->release();
+	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_pGBuffer[i]->release();
+
 	m_pShadowMapDepth->release();
 	SAFE_DELETE(m_pShadowMap)
 
@@ -59,6 +83,8 @@ DeferredRenderer::~DeferredRenderer()
 
 	GDEVICE()->freeUavBuffer(m_LightIdxUav.m_UavId);
 	GDEVICE()->freeUavBuffer(m_MeshIdxUav.m_UavId);
+	GDEVICE()->freeUavBuffer(m_TileBoundingFlagUav.m_UavId);
+	GDEVICE()->freeUavBuffer(m_TileBoundingUav.m_UavId);
 }
 
 void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
@@ -126,8 +152,12 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 
 		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
 		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), GBUFFER_COUNT - 1
-			, m_pGBuffer[GBUFFER_COLOR]->getTextureID()
-			, m_pGBuffer[GBUFFER_NORMAL]->getTextureID());
+			, m_pGBuffer[GBUFFER_NORMAL]->getTextureID()
+			, m_pGBuffer[GBUFFER_MATERIAL]->getTextureID()
+			, m_pGBuffer[GBUFFER_DIFFUSE]->getTextureID()
+			, m_pGBuffer[GBUFFER_MASK]->getTextureID()
+			, m_pGBuffer[GBUFFER_FACTOR]->getTextureID()
+			, m_pGBuffer[GBUFFER_MOTIONBLUR]->getTextureID());
 		m_pCmdInit->setViewPort(1, l_Viewport);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
 
@@ -156,13 +186,16 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 				l_CurrIdx = i;
 			}
 			
-			if( l_CurrStageID > OPAQUE_STAGE_END )
-			{
-				break;
-			}
+			if( l_CurrStageID > OPAQUE_STAGE_END ) break;
 		}
 
-		
+		m_pCmdInit->begin(false);
+
+		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), 1, m_pFrameBuffer->getTextureID());
+		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_pCmdInit->bindTexture(m_pGBuffer[i]->getTextureID(), i, true);
+
+		m_pCmdInit->end();
 	}
 }
 

@@ -1,0 +1,6 @@
+#include <StdInclude.h>
+
+[numthreads(1, 1, 1 )]
+void TiledLightIntersection(uint3 a_ThreadID : SV_DispatchThreadID)
+{
+}

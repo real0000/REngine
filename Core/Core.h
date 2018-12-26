@@ -121,6 +121,7 @@ public:
 	bool m_bFullScreen;
 	unsigned int m_FPS;
 	unsigned int m_ShadowMapSize;
+	float m_TileSize;
 
 private:
 	EngineSetting();

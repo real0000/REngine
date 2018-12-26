@@ -155,6 +155,7 @@ EngineSetting::EngineSetting()
 	, m_DefaultSize(1280, 720)
 	, m_bFullScreen(false)
 	, m_FPS(60)
+	, m_TileSize(16.0f)
 {
 	boost::property_tree::ptree l_IniFile;
 	boost::property_tree::ini_parser::read_ini(CONIFG_FILE, l_IniFile);
@@ -168,6 +169,7 @@ EngineSetting::EngineSetting()
 	m_bFullScreen = l_IniFile.get("Graphic.FullScreen", false);
 	m_FPS = l_IniFile.get("Graphic.FPS", 60);
 	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 2048);
+	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 }
 
 EngineSetting::~EngineSetting()

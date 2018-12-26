@@ -90,5 +90,8 @@
     <FxCompile Include="Shaders\GenerateMipmap3D.compute">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\TiledLightIntersection.compute">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
