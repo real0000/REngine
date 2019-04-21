@@ -68,6 +68,15 @@
     <Xml Include="Shaders\BlockDefine.xml">
       <Filter>Shaders</Filter>
     </Xml>
+    <Xml Include="Shaders\GenerateMinmaxDepth.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\TiledLightIntersection.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\TiledDeferredLighting.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GenerateMipmap2D.compute">
@@ -82,6 +91,9 @@
     <None Include="Shaders\VertexTransfer.vertex">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\TiledDeferredLighting.pixel">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\GenerateMipmap1D.compute">
@@ -91,6 +103,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\TiledLightIntersection.compute">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMinmaxDepth.compute">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

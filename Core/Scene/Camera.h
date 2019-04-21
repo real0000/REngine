@@ -10,8 +10,9 @@
 
 namespace R
 {
-	
+
 struct SharedSceneMember;
+class MaterialBlock;
 class TextureUnit;
 
 class CameraComponent : public RenderableComponent
@@ -24,6 +25,7 @@ public:
 		PROJECTION,
 		VIEWPROJECTION,
 		INVERTVIEW,
+		INVERTVIEWPROJECTION,
 
 		TETRAHEDRON_0 = 0,
 		TETRAHEDRON_1,
@@ -66,6 +68,7 @@ public:
 	void getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up);
 	glm::mat4x4* getMatrix(unsigned int a_ID){ assert( a_ID < NUM_MATRIX ); return &(m_Matrices[a_ID]); }
 	glm::mat4x4* getMatrix(){ return m_Matrices; }
+	std::shared_ptr<MaterialBlock> getMaterialBlock(){ return m_pCameraBlock; }
 	glm::frustumface& getFrustum(){ return m_Frustum; }
 
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
@@ -82,6 +85,7 @@ private:
 	CameraType m_Type;
 	
 	glm::frustumface m_Frustum;
+	std::shared_ptr<MaterialBlock> m_pCameraBlock;
 };
 
 }

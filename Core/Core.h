@@ -122,6 +122,7 @@ public:
 	unsigned int m_FPS;
 	unsigned int m_ShadowMapSize;
 	float m_TileSize;
+	unsigned int m_NumRenderCommandList;
 
 private:
 	EngineSetting();

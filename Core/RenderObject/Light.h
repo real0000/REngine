@@ -79,6 +79,8 @@ public:
 		l_pTarget->addTransformListener();
 		return l_pTarget;
 	}
+
+	std::shared_ptr<MaterialBlock> getMaterialBlock(){ return m_pLightData; }
 	
 	void recycle(std::shared_ptr<T> a_pLight)
 	{

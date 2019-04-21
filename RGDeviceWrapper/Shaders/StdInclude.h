@@ -19,6 +19,10 @@
 #define WITHOUT_VP_MAT		0x80000
 #define USE_TESSELLATION	0x100000
 
+#define LIGHT_TYPE_OMNI	2
+#define LIGHT_TYPE_SPOT	3
+#define LIGHT_TYPE_DIR	4
+
 #ifdef COMPUTE_SHADER
 
 #else
@@ -62,15 +66,6 @@
 		float2 m_Target5 : SV_TARGET5;// motion blur
 	};
 	
-	struct CameraBuffer
-	{
-		float4x4 m_View;
-		float4x4 m_Projection;
-		float4x4 m_ViewProjection;
-		float4x4 m_InvView;
-		float4 m_CameraParam;// screen width, screen height, near, far
-	};
-
 	float3 encodeNormal(float3 a_Normal)
 	{
 		return a_Normal * 0.5 + 0.5;
@@ -89,14 +84,6 @@
 		return float3(l_Res.xyz / l_Res.w);
 	}
 #endif
-
-// for 32-bit constant block
-auto_bind_constant32_block0;
-auto_bind_constant32_block1;
-auto_bind_constant32_block2;
-auto_bind_constant32_block3;
-auto_bind_constant32_block4;
-auto_bind_constant32_block5;
 
 // static samplers
 SamplerState s_LinearSampler : register(s0);

@@ -114,13 +114,6 @@ void HLSLProgram12::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pO
 
 void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput)
 {
-	char l_DefName[256], l_Def[1024];
-	for( unsigned int i=0 ; i<ShaderStages::NumStage ; ++i )
-	{
-		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", i);
-		a_ParamOutput.insert(std::make_pair(l_DefName, ""));
-	}
-
 	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
 	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::UavBuffer+1][ShaderStages::NumStage];
 	{
@@ -167,7 +160,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	// srv
 	unsigned int l_Slot = 0;
 	{
-		const ShaderRegType::Key c_SrvSerial[] = {ShaderRegType::Srv2D, ShaderRegType::Srv3D, ShaderRegType::Srv2DArray}; 
+		const ShaderRegType::Key c_SrvSerial[] = {ShaderRegType::Srv2D, ShaderRegType::Srv3D, ShaderRegType::Srv2DArray, ShaderRegType::SrvCube, ShaderRegType::SrvCubeArray}; 
 		const unsigned int c_NumType = sizeof(c_SrvSerial) / sizeof(const ShaderRegType::Key);
 		for( unsigned int i=0 ; i<c_NumType ; ++i )
 		{
@@ -188,7 +181,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					m_RegMap[l_Type][it->first] = it->second;
 
 					l_TempRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-					l_TempRange.NumDescriptors = l_Type == ShaderRegType::Srv2DArray ? TEXTURE_ARRAY_SIZE : 1;
+					l_TempRange.NumDescriptors = (l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE : 1;
 					l_TempRange.BaseShaderRegister = l_Slot;
 					l_TempRange.RegisterSpace = 0;
 					l_TempRange.OffsetInDescriptorsFromTableStart = 0;
@@ -200,9 +193,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 					l_RegCollect.push_back(l_TempReg);
 
-					snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
-					snprintf(l_DefName, 256, ":register(t%d)", l_Slot);
-					a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 					m_TextureStageMap.push_back(l_Slot);
 
 					++l_Slot;
@@ -241,9 +231,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			ProgramBlockDesc *l_pNewBlock = *l_UavIt;
 			l_pNewBlock->m_pRegInfo = it->second;
 			
-			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
-			snprintf(l_Def, 1024, ":register(u%d)", l_Slot);
-			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 			m_UavStageMap.push_back(l_Slot);
 
 			++l_Slot;
@@ -270,9 +257,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 			l_RegCollect.push_back(l_TempReg);
 
-			snprintf(l_DefName, 256, "auto_bind_%s", it->first.c_str());
-			snprintf(l_Def, 1024, ":register(b%d)", l_Slot);
-			a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 			m_ConstStageMap.push_back(l_Slot);
 
 			++l_Slot;
@@ -290,9 +274,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		ProgramBlockDesc *l_pNewConstBlock = newConstBlockDesc();
 		l_pNewConstBlock->m_Name = l_Temp;
 
-		snprintf(l_DefName, 256, "auto_bind_constant32_block%d", l_Visibility);
-		snprintf(l_Def, 1024, "cbuffer Const32Block%d : register(b%d)\\\n{\\\n", l_Visibility, l_Slot);
-
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
 			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
@@ -309,15 +290,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			it->second->m_Offset = l_pNewParam->m_Offset;
 			it->second->m_Size = l_ParamSize;
 			m_RegMap[ShaderRegType::Constant][it->first] = it->second;
-
-			std::string l_TypeStr(ShaderParamType::toString(l_pNewParam->m_Type).c_str());
-			if( l_TypeStr.back() == '1' ) l_TypeStr.pop_back();
-			snprintf(l_Temp, 256, "\t%s %s;\\\n", l_TypeStr.c_str(), it->first.c_str());
-			strcat(l_Def, l_Temp);
 		}
-
-		strcat(l_Def, "}");
-		a_ParamOutput.insert(std::make_pair(l_DefName, l_Def));
 
 		D3D12_ROOT_PARAMETER l_TempReg;
 		l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -488,8 +461,8 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		l_PsoDesc.SampleDesc.Count = atoi(a_ShaderSetting.get("<xmlattr>.sampleCount", "1").c_str());
 		l_PsoDesc.SampleDesc.Quality = atoi(a_ShaderSetting.get("<xmlattr>.sampleQuality", "0").c_str());
 		
+		std::map<unsigned int, ID3DBlob *> l_ShaderUsage;
 		{// compile shader code
-			std::map<unsigned int, ID3DBlob *> l_ShaderUsage;
 			for( unsigned int i=0 ; i<ShaderStages::NumStage ; ++i )
 			{
 				if( i == ShaderStages::Compute ) continue;// draw shader won't have computer stage
@@ -499,7 +472,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
 				
 				if( l_Filename.IsEmpty() ) l_ShaderUsage[i] = nullptr;
-				else l_ShaderUsage[i] = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine));
+				else l_ShaderUsage[i] = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(this, l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine));
 			}
 
 			ID3DBlob *l_pShader = l_ShaderUsage[ShaderStages::Vertex];
@@ -645,6 +618,9 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		}
 
 		HRESULT l_Res = l_pDeviceInst->CreateGraphicsPipelineState(&l_PsoDesc, IID_PPV_ARGS(&m_pPipeline));
+		for( auto it = l_ShaderUsage.begin() ; it != l_ShaderUsage.end() ; ++it ) SAFE_RELEASE(it->second)
+		l_ShaderUsage.clear();
+
 		if( S_OK != l_Res )
 		{
 			wxMessageBox(wxT("Failed to create pipline object"), wxT("D3D12HLSLComponent::initDrawShader"));
@@ -745,7 +721,7 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 				
 	assert( !l_Filename.empty() );
 	a_ParamDefine.insert(std::make_pair("COMPUTE_SHADER", "1"));
-	ID3DBlob *l_pBinaryCode = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(l_Filename, ShaderStages::Compute, shaderInUse(), a_ParamDefine));
+	ID3DBlob *l_pBinaryCode = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(this, l_Filename, ShaderStages::Compute, shaderInUse(), a_ParamDefine));
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC l_PsoDesc = {};
 	l_PsoDesc.pRootSignature = m_pRegisterDesc;
@@ -754,6 +730,7 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 
 	HRESULT l_Res = l_pDeviceInst->CreateComputePipelineState(&l_PsoDesc, IID_PPV_ARGS(&m_pPipeline));
 	assert(S_OK == l_Res);
+	SAFE_RELEASE(l_pBinaryCode)
 }
 #pragma endregion
 
@@ -767,12 +744,22 @@ HLSLComponent::HLSLComponent()
 
 HLSLComponent::~HLSLComponent()
 {
-	for( auto it = m_ShaderMap.begin() ; it != m_ShaderMap.end() ; ++it ){ SAFE_RELEASE(it->second) }
-	m_ShaderMap.clear();
 }
 	
 HRESULT __stdcall HLSLComponent::Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes)
 {
+	if( 0 == strcmp("autoBinder.h", pFileName) )
+	{
+		char *l_pFileBuff = new char[m_ParamDefine.length() + 1];
+		l_pFileBuff[m_ParamDefine.length()] = '\0';
+		strcpy(l_pFileBuff, m_ParamDefine.c_str());
+
+		*ppData = l_pFileBuff;
+		*pBytes = m_ParamDefine.length();
+
+		return S_OK;
+	}
+
 	wxString l_Filepath(ProgramManager::singleton().findFullPath(pFileName));
 
 	wxFile l_File;
@@ -803,11 +790,10 @@ HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
     return S_OK;
 }
 
-void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
+void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
 	wxString l_ShaderName(ProgramManager::singleton().findFullPath(a_Filename));
-	auto it = m_ShaderMap.find(l_ShaderName);
-	if( m_ShaderMap.end() != it ) return it->second;
+	setupParamDefine(a_pProgrom, a_Stage);
 
 	D3D_SHADER_MACRO *l_Macros = nullptr;
 	if( !a_ParamDefine.empty() )
@@ -843,7 +829,6 @@ void* HLSLComponent::getShader(wxString a_Filename, ShaderStages::Key a_Stage, s
 		SAFE_RELEASE(l_pErrorMsg)
 	}
 	
-	m_ShaderMap.insert(std::make_pair(l_ShaderName, l_pShader));
 	return l_pShader;
 }
 
@@ -855,68 +840,77 @@ ShaderProgram* HLSLComponent::newProgram()
 	return nullptr;
 }
 
-unsigned int HLSLComponent::calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type)
+unsigned int HLSLComponent::calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize)
 {
 	unsigned int l_Res = 0;
 	unsigned int l_LineSize = sizeof(float) * 4;
-	switch( a_Type )
+	if( a_ArraySize > 1 )
 	{
-		case ShaderParamType::int1:
-		case ShaderParamType::float1:
-			l_Res = a_Offset;
-			a_Offset += sizeof(float);
-			break;
-
-		case ShaderParamType::int2:
-		case ShaderParamType::float2:{
-			int l_Size = sizeof(float) * 2;
-			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
-			{
-				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-				a_Offset = l_Res + l_Size;
-			}
-			else
-			{
+		if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+		l_Res = a_Offset;
+		a_Offset += a_ArraySize * l_LineSize;
+	}
+	else
+	{
+		switch( a_Type )
+		{
+			case ShaderParamType::int1:
+			case ShaderParamType::float1:
 				l_Res = a_Offset;
-				a_Offset += l_Size;
-			}
-			}break;
+				a_Offset += sizeof(float) * a_ArraySize;
+				break;
 
-		case ShaderParamType::int3:
-		case ShaderParamType::float3:{
-			int l_Size = sizeof(float) * 3;
-			if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
-			{
-				l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-				a_Offset = l_Res + l_Size;
-			}
-			else
-			{
+			case ShaderParamType::int2:
+			case ShaderParamType::float2:{
+				int l_Size = sizeof(float) * 2;
+				if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
+				{
+					l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+					a_Offset = l_Res + l_Size;
+				}
+				else
+				{
+					l_Res = a_Offset;
+					a_Offset += l_Size;
+				}
+				}break;
+
+			case ShaderParamType::int3:
+			case ShaderParamType::float3:{
+				int l_Size = sizeof(float) * 3;
+				if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
+				{
+					l_Res = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+					a_Offset = l_Res + l_Size;
+				}
+				else
+				{
+					l_Res = a_Offset;
+					a_Offset += l_Size;
+				}
+				}break;
+
+			case ShaderParamType::int4:
+			case ShaderParamType::float4:
+				if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
 				l_Res = a_Offset;
-				a_Offset += l_Size;
-			}
-			}break;
+				a_Offset += l_LineSize;
+				break;
 
-		case ShaderParamType::int4:
-		case ShaderParamType::float4:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize;
-			break;
+			case ShaderParamType::float3x3:
+				if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+				l_Res = a_Offset;
+				a_Offset += l_LineSize * 3;
+				break;
 
-		case ShaderParamType::float3x3:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize * 3;
-			break;
+			case ShaderParamType::float4x4:
+				if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
+				l_Res = a_Offset;
+				a_Offset += l_LineSize * 4;
+				break;
 
-		case ShaderParamType::float4x4:
-			if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;
-			l_Res = a_Offset;
-			a_Offset += l_LineSize * 4;
-			break;
-
-		default:break;
+			default:break;
+		}
 	}
 
 	return l_Res;
@@ -940,6 +934,88 @@ std::string HLSLComponent::getCompileTarget(ShaderStages::Key a_Stage, std::pair
 	char l_Buff[8];
 	snprintf(l_Buff, 8, "%d_%d", a_Module.first, a_Module.second);
 	return l_Res + l_Buff;
+}
+
+void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Key a_Stage)
+{
+	char l_Buff[256];
+	bool l_bWriteValid = a_Stage == ShaderStages::Fragment || a_Stage == ShaderStages::Compute;
+	m_ParamDefine.clear();
+
+	const ShaderRegType::Key c_Keys[] = {ShaderRegType::ConstBuffer, ShaderRegType::Constant};
+	for each( ShaderRegType::Key l_Key in c_Keys )
+	{
+		std::vector<ProgramBlockDesc *> &l_Blocks = a_pProgrom->getBlockDesc(l_Key);
+		for( unsigned int i=0 ; i<l_Blocks.size() ; ++i )
+		{
+			ProgramBlockDesc *l_pBlock = l_Blocks[i];
+			snprintf(l_Buff, 256, "cbuffer %s : register(b%d) {\n", l_pBlock->m_Name.c_str(), l_pBlock->m_pRegInfo->m_Slot);
+			m_ParamDefine += l_Buff;
+
+			for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
+			{
+				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s %s[%d];\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
+				else snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				m_ParamDefine += l_Buff;
+			}
+
+			m_ParamDefine += "};\n\n";
+		}
+	}
+
+	std::vector<ProgramBlockDesc *> &l_UavBlocks = a_pProgrom->getBlockDesc(ShaderRegType::UavBuffer);
+	for( unsigned int i=0 ; i<l_UavBlocks.size() ; ++i )
+	{
+		ProgramBlockDesc *l_pBlock = l_UavBlocks[i];
+		if( l_pBlock->m_StructureName.empty() ) l_pBlock->m_StructureName = "UAV" + l_pBlock->m_Name.substr(l_pBlock->m_Name.find_first_of('_'));
+		m_ParamDefine += "struct "+ l_pBlock->m_StructureName + " {\n";
+
+		for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
+		{
+			snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+			m_ParamDefine += l_Buff;
+		}
+		m_ParamDefine += "};\n";
+		
+		std::string l_FormatStr = (l_bWriteValid && l_pBlock->m_bWrite) ?
+			"RWStructuredBuffer<%s> : register(u%d);\n\n" : "StructuredBuffer<%s> : register(u%d);\n\n";
+		snprintf(l_Buff, 256, l_FormatStr.c_str(), l_pBlock->m_StructureName.c_str(), l_pBlock->m_pRegInfo->m_Slot);
+		m_ParamDefine += l_Buff;
+	}
+
+	std::map<std::string, ProgramTextureDesc *> &l_TextureDesc = a_pProgrom->getTextureDesc();
+	for( auto it=l_TextureDesc.begin() ; it!=l_TextureDesc.end() ; ++it )
+	{
+		std::string l_TypeStr("");
+		switch( it->second->m_pRegInfo->m_Type )
+		{
+			case ShaderRegType::Srv2D:		l_TypeStr = "Texture2D"; break;
+			case ShaderRegType::Srv2DArray: l_TypeStr = "Texture2DArray"; break;
+			case ShaderRegType::Srv3D:		l_TypeStr = "Texture3D"; break;
+			case ShaderRegType::SrvCube:
+				l_TypeStr = "TextureCube";
+				assert(!it->second->m_bWrite);
+				break;
+
+			case ShaderRegType::SrvCubeArray:
+				l_TypeStr= "TextureCubeArray";
+				assert(!it->second->m_bWrite);
+				break;
+
+			default:break;
+		}
+
+		if( it->second->m_bWrite && l_bWriteValid )
+		{
+			snprintf(l_Buff, 256, "RW%s<%s> %s : register(t%d);\n", l_TypeStr.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
+			m_ParamDefine += l_Buff;
+		}
+		else
+		{
+			snprintf(l_Buff, 256, "%s %s : register(t%d);\n", l_TypeStr.c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
+			m_ParamDefine += l_Buff;
+		}
+	}
 }
 #pragma endregion
 

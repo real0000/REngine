@@ -17,6 +17,8 @@ class ProgramManager;
 STRING_ENUM_CLASS(ShaderRegType,
 	Srv2D,
 	Srv2DArray,
+	SrvCube,
+	SrvCubeArray,
 	Srv3D,
 	ConstBuffer,
 	Constant,
@@ -50,6 +52,8 @@ struct ProgramTextureDesc
 	~ProgramTextureDesc();
 
 	wxString m_Describe;
+	bool m_bWrite;
+	ShaderParamType::Key m_Type;// if write is true, default float4
 	RegisterInfo *m_pRegInfo;
 };
 
@@ -59,6 +63,7 @@ struct ProgramParamDesc
 	~ProgramParamDesc();
 
 	wxString m_Describe;
+	unsigned int m_ArraySize;
 	unsigned int m_Offset;
 	ShaderParamType::Key m_Type;
 	char *m_pDefault;
@@ -71,6 +76,8 @@ struct ProgramBlockDesc
 	~ProgramBlockDesc();
 	
 	bool m_bReserved;
+	bool m_bWrite;// for uav
+	std::string m_StructureName;// for uav
 	std::string m_Name;
 	unsigned int m_BlockSize;
 	std::map<std::string, ProgramParamDesc *> m_ParamDesc;
@@ -137,9 +144,9 @@ private:
 class ProgramManagerComponent
 {
 public:
-	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine) = 0;
+	virtual void* getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine) = 0;
 	virtual ShaderProgram* newProgram() = 0;
-	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type) = 0;
+	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize = 1) = 0;
 };
 
 // don't use clearCache method, ProgramManager will crash
@@ -150,9 +157,9 @@ public:
 	static ProgramManager& singleton();
 
 	// call for program initial, DO NOT use this method directly
-	void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
+	void* getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 
-	unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
+	unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize = 1);
 	ProgramBlockDesc* createBlockFromDesc(boost::property_tree::ptree &a_Node);
 	ProgramBlockDesc* createBlockFromDesc(std::string a_BlockName);// block defined in m_BlockDefineMap
 

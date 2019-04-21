@@ -66,14 +66,15 @@ public:
 	HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID *ppData, UINT *pBytes);
 	HRESULT __stdcall Close(LPCVOID a_pData);
 	
-	virtual void* getShader(wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
+	virtual void* getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 	virtual ShaderProgram* newProgram();
-	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type);
+	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize = 1);
 
 private:
 	std::string getCompileTarget(ShaderStages::Key a_Stage, std::pair<int, int> a_Module);
+	void setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Key a_Stage);
 
-	std::map<wxString, ID3DBlob*> m_ShaderMap;
+	std::string m_ParamDefine;
 };
 
 }

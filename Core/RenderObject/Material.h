@@ -33,7 +33,7 @@ public:
 	void sync(bool a_bToGpu);
 
 	template<typename T>
-	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
+	void setParam(std::string a_Name, unsigned int a_Slot, T& a_Param)
 	{
 		assert(a_Slot < m_NumSlot);
 
@@ -85,21 +85,22 @@ class Material
 {
 	friend class Material;
 public:
-	static std::shared_ptr<Material> create(ShaderProgram *a_pRefProgram);
+	static std::shared_ptr<Material> create(std::shared_ptr<ShaderProgram> a_pRefProgram);
 	virtual ~Material();
 
 	std::shared_ptr<Material> clone();
+	std::shared_ptr<MaterialBlock> createExternalBlock(ShaderRegType::Key a_Type, std::string a_Name, unsigned int a_NumSlot = 1);
 
-	ShaderProgram* getProgram(){ return m_pRefProgram; }
+	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
 	void setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture);
 	void setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
-		auto it = m_ParamIndexMap.find(a_Name);
-		if( m_ParamIndexMap.end() == it ) return;
-		m_BlockList[it->second]->setParam(a_Name, a_Slot);
+		auto it = m_pRefProgram->getParamIndexMap().find(a_Name);
+		if( m_pRefProgram->getParamIndexMap().end() == it ) return;
+		m_OwnBlocks[it->second].first->setParam(a_Name, a_Slot, a_Param);
 		m_bNeedUavUpdate = true;
 	}
 	template<typename T>
@@ -107,9 +108,9 @@ public:
 	{
 		T l_Empty;
 
-		auto it = m_ParamIndexMap.find(a_Name);
-		if( m_ParamIndexMap.end() == it ) return l_Empty;
-		return 	m_BlockList[it->second]->getParam(a_Name, a_Slot);
+		auto it = m_pRefProgram->getParamIndexMap().find(a_Name);
+		if( m_pRefProgram->getParamIndexMap().end() == it ) return l_Empty;
+		return 	m_OwnBlocks[it->second].first->getParam(a_Name, a_Slot);
 	}
 
 	void setStage(unsigned int a_Stage)
@@ -134,9 +135,9 @@ public:
 	void syncEnd(){ m_bNeedRebatch = m_bNeedUavUpdate = false; }
 
 private:
-	Material(ShaderProgram *a_pRefProgram);
+	Material(std::shared_ptr<ShaderProgram> a_pRefProgram);
 
-	ShaderProgram *m_pRefProgram;
+	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::pair<std::shared_ptr<MaterialBlock>, int> > m_OwnBlocks, m_ExternBlock;// [block, stage] ... 
 	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 

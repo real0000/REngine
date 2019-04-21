@@ -28,11 +28,27 @@ namespace R
 DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	: RenderPipeline(a_pSharedMember)
 	, m_pCmdInit(nullptr)
+	, m_LightIdx(nullptr), m_MeshIdx(nullptr)
 	, m_ExtendSize(INIT_CONTAINER_SIZE)
 	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::r32_float))
 	, m_ShadowCmdIdx(0)
 	, m_TileDim(0, 0)
+	, m_pFrameBuffer(nullptr)
+	, m_pDepthMinmax(nullptr)
+	, m_MinmaxStepCount(1)
+	, m_pLightIndexMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection)))
+	, m_pDeferredLightMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting)))
+	, m_pQuad(std::shared_ptr<VertexBuffer>(new VertexBuffer()))
 {
+	const glm::vec3 c_QuadVtx[] = {
+		glm::vec3(-1.0f, 1.0f, 0.0f),
+		glm::vec3(-1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(1.0f, -1.0f, 0.0f)};
+	m_pQuad->setNumVertex(4);
+	m_pQuad->setVertex(VTXSLOT_POSITION, (void *)c_QuadVtx);
+	m_pQuad->init();
+
 	m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
 
 	const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
@@ -46,29 +62,44 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 		};
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		m_pGBuffer[i]= TextureManager::singleton().createRenderTarget(c_GBufferDef[i].first, EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
+		m_pGBuffer[i] = TextureManager::singleton().createRenderTarget(c_GBufferDef[i].first, EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
+
+		char l_Buff[8];
+		snprintf(l_Buff, 8, "GBuff%d", i);
+		m_pDeferredLightMat->setTexture(l_Buff, m_pGBuffer[i]);
 	}
 	m_pFrameBuffer = TextureManager::singleton().createRenderTarget(wxT("DefferredFrame"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
-	m_LightIdxUav.m_UavId = GDEVICE()->requestUavBuffer(m_LightIdxUav.m_pBuffer, sizeof(LightInfo), INIT_CONTAINER_SIZE);
-	m_LightIdxUav.m_UavSize = INIT_CONTAINER_SIZE;
-	
-	m_MeshIdxUav.m_UavId = GDEVICE()->requestUavBuffer(m_MeshIdxUav.m_pBuffer, sizeof(MeshInfo), INIT_CONTAINER_SIZE);
-	m_MeshIdxUav.m_UavSize = INIT_CONTAINER_SIZE;
+	m_LightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
+	m_MeshIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 4);// use packed int
 
 	m_pCmdInit = GDEVICE()->commanderFactory();
 
 	m_TileDim.x = std::ceil(EngineSetting::singleton().m_DefaultSize.x / EngineSetting::singleton().m_TileSize);
 	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
+	m_pDepthMinmax = TextureManager::singleton().createTexture(wxT("DefferredDepthMinmax"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float, 1, false, nullptr);
+	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
+	m_TiledValidLightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
 
-	m_TileBoundingFlagUav.m_UavId = GDEVICE()->requestUavBuffer(m_TileBoundingFlagUav.m_pBuffer, sizeof(unsigned int), INIT_LIGHT_SIZE / sizeof(unsigned int));
-	m_TileBoundingFlagUav.m_UavSize = INIT_LIGHT_SIZE / sizeof(unsigned int);
-	m_TileBoundingUav.m_UavId = GDEVICE()->requestUavBuffer(m_TileBoundingUav.m_pBuffer, sizeof(unsigned int), m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE);
-	m_TileBoundingUav.m_UavSize = m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE;
+	m_pLightIndexMat->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / EngineSetting::singleton().m_DefaultSize.x, 1.0f / EngineSetting::singleton().m_DefaultSize.y));
+	m_pLightIndexMat->setParam<int>("c_MipmapLevel", 0, (int)m_MinmaxStepCount);
+	m_pLightIndexMat->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
+	
+	const std::map<std::string, int> &l_UavBuffMap = m_pLightIndexMat->getProgram()->getBlockIndexMap(ShaderRegType::UavBuffer);
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SrcLights")->second, m_LightIdx);
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_DstLights")->second, m_TiledValidLightIdx);
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_OmniLight")->second, this->getSharedMember()->m_pOmniLights->getMaterialBlock());
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SpotLight")->second, this->getSharedMember()->m_pSpotLights->getMaterialBlock());
+
+
+	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
+	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
 }
 
 DeferredRenderer::~DeferredRenderer()
 {
+	m_pQuad = nullptr;
+	m_pDepthMinmax->release();
 	m_pFrameBuffer->release();
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_pGBuffer[i]->release();
 
@@ -79,12 +110,15 @@ DeferredRenderer::~DeferredRenderer()
 	m_ShadowCommands.clear();
 
 	SAFE_DELETE(m_pCmdInit);
+	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) SAFE_DELETE(m_DrawCommand[i])
+	m_DrawCommand.clear();
 	// add memset ?
 
-	GDEVICE()->freeUavBuffer(m_LightIdxUav.m_UavId);
-	GDEVICE()->freeUavBuffer(m_MeshIdxUav.m_UavId);
-	GDEVICE()->freeUavBuffer(m_TileBoundingFlagUav.m_UavId);
-	GDEVICE()->freeUavBuffer(m_TileBoundingUav.m_UavId);
+	m_pDeferredLightMat = nullptr;
+	m_pLightIndexMat = nullptr;
+	m_LightIdx = nullptr;
+	m_MeshIdx = nullptr;
+	m_TiledValidLightIdx = nullptr;
 }
 
 void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
@@ -148,6 +182,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 	}
 
 	{// graphic step, divide by stage
+		//bind gbuffer
 		m_pCmdInit->begin(false);
 
 		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
@@ -169,33 +204,54 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 
 		m_pCmdInit->end();
 
+		// draw gbuffer
 		unsigned int l_CurrIdx = 0;
-		unsigned int l_StageID = static_cast<RenderableMesh *>(l_Meshes.front().get())->getMaterial()->getStage();
-		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
-		{
-			unsigned int l_CurrStageID = static_cast<RenderableMesh *>(l_Meshes[i].get())->getMaterial()->getStage();
-			if( l_StageID != l_CurrStageID )
-			{
-				drawMesh(l_Meshes, l_CurrIdx, i);
-				l_StageID = l_CurrStageID;
-				l_CurrIdx = i;
-			}
-			else if( i + 1 == l_Meshes.size() )
-			{
-				drawMesh(l_Meshes, l_CurrIdx, i + 1);
-				l_CurrIdx = i;
-			}
+		drawOpaqueMesh(l_Meshes, l_CurrIdx);
+		
+		{// copy depth data
+			m_pCmdInit->begin(false);
 			
-			if( l_CurrStageID > OPAQUE_STAGE_END ) break;
-		}
+			m_pCmdInit->useProgram(DefaultPrograms::Copy);
+			m_pCmdInit->bindVertex(m_pQuad.get());
+			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), 0, true);
+			m_pCmdInit->setRenderTarget(-1, 1, m_pDepthMinmax);
+			m_pCmdInit->drawVertex(4, 0);
 
+			m_pCmdInit->end();
+		}
+		// do fence ?
+
+		GDEVICE()->generateMipmap(m_pDepthMinmax->getTextureID(), m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth));
+
+		m_pCmdInit->begin(true);
+		
+		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
+		const std::map<std::string, int> &l_ConstBuffMap = m_pLightIndexMat->getProgram()->getBlockIndexMap(ShaderRegType::ConstBuffer);
+		m_pLightIndexMat->setBlock(l_ConstBuffMap.find("g_Camera")->second, a_pCamera->getMaterialBlock());
+		m_pLightIndexMat->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
+		m_pLightIndexMat->bindAll(m_pCmdInit);
+		m_pCmdInit->compute(m_TileDim.x, m_TileDim.y);
+
+		m_pCmdInit->end();
+
+		// bind frame buffer
 		m_pCmdInit->begin(false);
 
 		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), 1, m_pFrameBuffer->getTextureID());
 		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-		for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_pCmdInit->bindTexture(m_pGBuffer[i]->getTextureID(), i, true);
+		m_pCmdInit->bindVertex(m_pQuad.get());
+		m_pDeferredLightMat->bindAll(m_pCmdInit);
+		m_pCmdInit->drawVertex(4, 0);
 
 		m_pCmdInit->end();
+
+		// draw frame buffer
+		drawOpaqueMesh(l_Meshes, l_CurrIdx);
+
+		// draw transparent objects
+		if( l_CurrIdx < l_Meshes.size() ) drawMesh(l_Meshes, l_CurrIdx, l_Meshes.size() - 1);
+
+		// to do : draw post process ?
 	}
 }
 
@@ -213,40 +269,44 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<CameraComponent> a_pCame
 			return l_pThis->getMaterial()->getStage() > l_pOther->getMaterial()->getStage();
 		});
 	
-	if( (int)a_Light.size() >= m_LightIdxUav.m_UavSize )
+	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )
 	{
-		m_LightIdxUav.m_UavSize = ((a_Light.size() / m_ExtendSize) + 1) * m_ExtendSize;
-		GDEVICE()->resizeUavBuffer(m_LightIdxUav.m_UavId, m_LightIdxUav.m_pBuffer, m_LightIdxUav.m_UavSize);
+		m_LightIdx->extend(m_ExtendSize / 2);
 	}
 
-	if( (int)a_Mesh.size() >= m_MeshIdxUav.m_UavSize )
+	if( (int)a_Mesh.size() >= m_MeshIdx->getBlockSize() / sizeof(unsigned int) )
 	{
-		m_MeshIdxUav.m_UavSize = ((a_Mesh.size() / m_ExtendSize) + 1) * m_ExtendSize;
-		GDEVICE()->resizeUavBuffer(m_MeshIdxUav.m_UavId, m_MeshIdxUav.m_pBuffer, m_MeshIdxUav.m_UavSize);
+		m_MeshIdx->extend(m_ExtendSize / sizeof(unsigned int));
 	}
 	return true;
 }
 
 void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh)
 {
+	struct LightInfo
+	{
+		unsigned int m_Index;
+		unsigned int m_Type;
+	};
+
+	char *l_pBuff = m_LightIdx->getBlockPtr(0);
 	for( unsigned int i=0 ; i<a_Light.size() ; ++i )
 	{
-		LightInfo *l_pTarget = reinterpret_cast<LightInfo *>(m_LightIdxUav.m_pBuffer + sizeof(LightInfo) * i);
+		LightInfo *l_pTarget = reinterpret_cast<LightInfo *>(l_pBuff + sizeof(LightInfo) * i);
 		Light *l_pLight = reinterpret_cast<Light *>(a_Light[i].get());
 		l_pTarget->m_Index = l_pLight->getID();
 		l_pTarget->m_Type = l_pLight->typeID();
 	}
-	GDEVICE()->setUavBufferCounter(m_LightIdxUav.m_UavId, a_Light.size());
+	m_LightIdx->sync(true);
 
+	l_pBuff = m_MeshIdx->getBlockPtr(0);
 	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
 	{
-		MeshInfo *l_pTarget = reinterpret_cast<MeshInfo *>(m_MeshIdxUav.m_pBuffer + sizeof(MeshInfo) * i);
+		unsigned int *l_pTarget = reinterpret_cast<unsigned int*>(l_pBuff + sizeof(unsigned int) * i);
 		RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh *>(a_Mesh[i].get());
-		l_pTarget->m_Index = l_pMesh->getCommandID();
+		*l_pTarget = l_pMesh->getCommandID();
 	}
-	GDEVICE()->setUavBufferCounter(m_MeshIdxUav.m_UavId, a_Mesh.size());
-
-	GDEVICE()->syncUavBuffer(true, 2, m_MeshIdxUav.m_UavId, m_LightIdxUav.m_UavId);
+	m_MeshIdx->sync(true);
 }
 
 void DeferredRenderer::setupShadow(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh)
@@ -379,10 +439,53 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 	assert(false && "invalid light type");
 }
 
+void DeferredRenderer::drawOpaqueMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
+{
+	a_OpaqueEnd = 0;
+	unsigned int l_StageID = static_cast<RenderableMesh *>(a_Mesh.front().get())->getMaterial()->getStage();
+	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
+	{
+		unsigned int l_CurrStageID = static_cast<RenderableMesh *>(a_Mesh[i].get())->getMaterial()->getStage();
+		if( l_StageID != l_CurrStageID )
+		{
+			drawMesh(a_Mesh, a_OpaqueEnd, i);
+			l_StageID = l_CurrStageID;
+			a_OpaqueEnd = i;
+		}
+		else if( i + 1 == a_Mesh.size() )
+		{
+			drawMesh(a_Mesh, a_OpaqueEnd, i + 1);
+			a_OpaqueEnd = i;
+		}
+			
+		if( l_CurrStageID > OPAQUE_STAGE_END ) return ;
+	}
+}
+
 void DeferredRenderer::drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
 {
-	for( unsigned int i=a_Start ; i<a_End ; ++i )
+	unsigned int l_CommandCount = m_DrawCommand.size();
+
+	#pragma omp parallel for
+	for( unsigned int i=0 ; i<l_CommandCount ; ++i )
 	{
+		GraphicCommander *l_pCommandList = m_DrawCommand[i];
+		unsigned int l_Start = a_Start+i;
+		if( l_Start >= a_End ) continue;
+
+		l_pCommandList->begin(true);
+		for( unsigned int j=a_Start+i ; j<a_End ; j+=l_CommandCount )
+		{
+			RenderableMesh *l_pMesh = static_cast<RenderableMesh *>(a_Mesh[j].get());
+			std::shared_ptr<Material> l_pMaterial = l_pMesh->getMaterial();
+
+			l_pCommandList->useProgram(l_pMaterial->getProgram());
+			l_pCommandList->bindVertex(l_pMesh->getVtxBuffer().get());
+			l_pCommandList->bindIndex(l_pMesh->getIndexBuffer().get());
+			l_pMesh->getMaterial()->bindAll(l_pCommandList);
+			l_pCommandList->drawElement(0, l_pMesh->getIndexBuffer()->getNumIndicies(), 0);
+		}
+		l_pCommandList->end();
 	}
 }
 #pragma endregion

@@ -155,7 +155,9 @@ EngineSetting::EngineSetting()
 	, m_DefaultSize(1280, 720)
 	, m_bFullScreen(false)
 	, m_FPS(60)
+	, m_ShadowMapSize(2048)
 	, m_TileSize(16.0f)
+	, m_NumRenderCommandList(20)
 {
 	boost::property_tree::ptree l_IniFile;
 	boost::property_tree::ini_parser::read_ini(CONIFG_FILE, l_IniFile);
@@ -170,6 +172,7 @@ EngineSetting::EngineSetting()
 	m_FPS = l_IniFile.get("Graphic.FPS", 60);
 	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 2048);
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
+	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
 }
 
 EngineSetting::~EngineSetting()
@@ -188,6 +191,8 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.FullScreen", m_bFullScreen);
 	l_IniFile.put("Graphic.FPS", m_FPS);
 	l_IniFile.put("Graphic.ShadowMapSize", m_ShadowMapSize);
+	l_IniFile.put("Graphic.TileSize", m_TileSize);
+	l_IniFile.put("Graphic.NumRenderCommandList", m_NumRenderCommandList);
 
 	boost::property_tree::ini_parser::write_ini(CONIFG_FILE, l_IniFile);
 }

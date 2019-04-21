@@ -46,25 +46,11 @@ private:
 	unsigned int calculateShadowMapRegion(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
 
+	void drawOpaqueMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd);
 	void drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
 
-	struct ObjectIndexBuffer
-	{
-		int m_UavId;
-		char *m_pBuffer;
-		int m_UavSize;
-	};
-	struct LightInfo
-	{
-		unsigned int m_Index;
-		unsigned int m_Type;
-	};
-	struct MeshInfo
-	{
-		unsigned int m_Index;
-	};
 	GraphicCommander *m_pCmdInit;
-	ObjectIndexBuffer m_LightIdxUav, m_MeshIdxUav;
+	std::shared_ptr<MaterialBlock> m_LightIdx, m_MeshIdx;
 	unsigned int m_ExtendSize;//maybe add to engine setting?
 
 	// shadow map variable
@@ -72,14 +58,21 @@ private:
 	std::shared_ptr<TextureUnit> m_pShadowMapDepth;
 	unsigned int m_ShadowCmdIdx;
 	std::vector<GraphicCommander *> m_ShadowCommands;
-	std::vector<ObjectIndexBuffer> m_ShadowMapIndirectBuffer;
+	std::vector< std::shared_ptr<MaterialBlock> > m_ShadowMapIndirectBuffer;
 	std::mutex m_ShadowMapLock;
 	
 	// gbuffer varibles
 	glm::ivec2 m_TileDim;
 	std::shared_ptr<TextureUnit> m_pGBuffer[GBUFFER_COUNT];
 	std::shared_ptr<TextureUnit> m_pFrameBuffer;
-	ObjectIndexBuffer m_TileBoundingFlagUav, m_TileBoundingUav;
+	std::shared_ptr<TextureUnit> m_pDepthMinmax;
+	unsigned int m_MinmaxStepCount;
+	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
+	std::vector<GraphicCommander *> m_DrawCommand;
+	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat;
+	 
+	// general
+	std::shared_ptr<VertexBuffer> m_pQuad;
 };
 
 }

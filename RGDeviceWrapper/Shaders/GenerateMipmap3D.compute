@@ -1,7 +1,5 @@
 #include <StdInclude.h>
-
-Texture3D<float4> g_SrcTexture auto_bind_g_SrcTexture;
-RWTexture3D<float4> g_DstTexture auto_bind_g_DstTexture;
+#include "autoBinder.h"
 
 [numthreads(1, 1, 1 )]
 void GenerateMipMaps(uint3 a_ThreadID : SV_DispatchThreadID)

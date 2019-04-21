@@ -4,9 +4,11 @@
 //
 
 #include "CommonUtil.h"
+#include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Camera.h"
 
+#include "RenderObject/Material.h"
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
 #include "Scene/RenderPipline/RenderPipline.h"
@@ -21,13 +23,21 @@ namespace R
 CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)
+	, m_pCameraBlock(nullptr)
 {
 	addTransformListener();
 	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
+
+	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly);
+
+	auto l_BlockDescVec = l_pProgram->getBlockDesc(ShaderRegType::ConstBuffer);
+	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_Name == "CameraBuffer"; });
+	m_pCameraBlock = MaterialBlock::create(ShaderRegType::ConstBuffer, *l_BlockDescIt);
 }
 
 CameraComponent::~CameraComponent()
 {
+	m_pCameraBlock = nullptr;
 }
 
 void CameraComponent::start()
@@ -59,6 +69,8 @@ void CameraComponent::hiddenFlagChanged()
 void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);
+	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
+
     m_Type = ORTHO;
 	calProjection(a_Transform);
 }
@@ -66,6 +78,7 @@ void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, 
 void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, a_Far);
+	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
     m_Type = PERSPECTIVE;
 	calProjection(a_Transform);
 }
@@ -113,6 +126,9 @@ void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 		case PERSPECTIVE:
 			m_Matrices[INVERTVIEW] = getSharedMember()->m_pSceneNode->getTransform();
 			m_Matrices[VIEW] = glm::inverse(m_Matrices[INVERTVIEW]);
+
+			m_pCameraBlock->setParam("m_View", 0, m_Matrices[VIEW]);
+			m_pCameraBlock->setParam("m_InvView", 0, m_Matrices[INVERTVIEW]);
 			break;
 
 		//case TETRAHEDRON:
@@ -128,10 +144,12 @@ void CameraComponent::calProjection(glm::mat4x4 &a_NewTransform)
 	{
 		case ORTHO:
 			m_Matrices[PROJECTION] = glm::ortho(m_ViewParam.x * -0.5f, m_ViewParam.x * 0.5f, m_ViewParam.y * -0.5f, m_ViewParam.y * 0.5f, m_ViewParam.z, m_ViewParam.w);
+			m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 			break;
 
 		case PERSPECTIVE:
 			m_Matrices[PROJECTION] = glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w);
+			m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 			break;
 
 		//case TETRAHEDRON:
@@ -148,7 +166,11 @@ void CameraComponent::calViewProjection(glm::mat4x4 &a_NewTransform)
 		case ORTHO:
 		case PERSPECTIVE:{
 			m_Matrices[VIEWPROJECTION] = m_Matrices[PROJECTION] * m_Matrices[VIEW];
+			m_Matrices[INVERTVIEWPROJECTION] = glm::inverse(m_Matrices[VIEWPROJECTION]);
 			m_Frustum.fromViewProjection(m_Matrices[VIEWPROJECTION]);
+
+			m_pCameraBlock->setParam("m_ViewProjection", 0, m_Matrices[VIEWPROJECTION]);
+			m_pCameraBlock->setParam("m_InvViewProjection", 0, m_Matrices[INVERTVIEWPROJECTION]);
 			}break;
 
 		case TETRAHEDRON:{

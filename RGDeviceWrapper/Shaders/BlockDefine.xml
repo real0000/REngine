@@ -1,4 +1,18 @@
 <root>
+  <ConstBuffer name="CameraBuffer">
+    <Param name="m_View" desc="" type="float4x4"/>
+    <Param name="m_Projection" desc="" type="float4x4"/>
+    <Param name="m_ViewProjection" desc="" type="float4x4"/>
+    <Param name="m_InvView" desc="" type="float4x4"/>
+    <Param name="m_InvViewProjection" desc="" type="float4x4"/>
+    <Param name="m_CameraParam" desc="" type="float4"/>
+  </ConstBuffer>
+  <UavBuffer name="PackedInt">
+    <Param name="m_Params" desc="" type="int4"/>
+  </UavBuffer>
+  <UavBuffer name="PackedFloat">
+    <Param name="m_Params" desc="" type="float4"/>
+  </UavBuffer>
   <UavBuffer name="DirLight">
     <Param name="m_Color" desc="" type="float3"/>
     <Param name="m_Intensity" desc="" type="float1"/>

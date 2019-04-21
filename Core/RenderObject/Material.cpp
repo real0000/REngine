@@ -146,12 +146,12 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 //
 // Material
 //
-std::shared_ptr<Material> Material::create(ShaderProgram *a_pRefProgram)
+std::shared_ptr<Material> Material::create(std::shared_ptr<ShaderProgram> a_pRefProgram)
 {
 	return std::shared_ptr<Material>(new Material(a_pRefProgram));
 }
 
-Material::Material(ShaderProgram *a_pRefProgram)
+Material::Material(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
 	, m_Stage(0)
 	, m_bNeedRebatch(true), m_bNeedUavUpdate(true)
@@ -177,6 +177,7 @@ Material::Material(ShaderProgram *a_pRefProgram)
 
 Material::~Material()
 {
+	m_pRefProgram = nullptr;
 	m_OwnBlocks.clear();
 	m_ExternBlock.clear();
 	m_Textures.clear();
@@ -195,6 +196,14 @@ std::shared_ptr<Material> Material::clone()
 	l_pNewMaterial->m_Stage = m_Stage;
 
 	return l_pNewMaterial;
+}
+
+std::shared_ptr<MaterialBlock> Material::createExternalBlock(ShaderRegType::Key a_Type, std::string a_Name, unsigned int a_NumSlot)
+{
+	std::vector<ProgramBlockDesc *> &l_DescList = m_pRefProgram->getBlockDesc(a_Type);
+	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return a_Name == a_pDesc->m_Name; });
+	if( l_DescList.end() == it ) return nullptr;
+	return MaterialBlock::create(a_Type, *it, a_NumSlot);
 }
 
 void Material::setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture)

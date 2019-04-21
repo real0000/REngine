@@ -1025,7 +1025,7 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData, 0xff);
 }
 
-void D3D12Device::generateMipmap(int a_ID)
+void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram)
 {
 	D3D12GpuThread l_Thread = requestThread(true);
 	l_Thread.first->Reset();
@@ -1034,14 +1034,13 @@ void D3D12Device::generateMipmap(int a_ID)
 	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
 	assert(nullptr != l_pTargetBinder);
 
-	HLSLProgram12 *l_pProgram = nullptr;
+	HLSLProgram12 *l_pProgram = static_cast<HLSLProgram12 *>(a_pProgram.get());
 	unsigned int l_NumConst = 0;
 	std::function<D3D12_UNORDERED_ACCESS_VIEW_DESC(unsigned int)> l_UavStructFunc = nullptr;
 	std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
 	switch( l_pTargetBinder->m_Type )
 	{
 		case TEXTYPE_SIMPLE_1D:
-			l_pProgram = static_cast<HLSLProgram12 *>(ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap1D).get());
 			l_NumConst = 1;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
@@ -1061,7 +1060,6 @@ void D3D12Device::generateMipmap(int a_ID)
 			break;
 
 		case TEXTYPE_SIMPLE_2D:
-			l_pProgram = static_cast<HLSLProgram12 *>(ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D).get());
 			l_NumConst = 2;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
@@ -1081,7 +1079,6 @@ void D3D12Device::generateMipmap(int a_ID)
 			break;
 
 		case TEXTYPE_SIMPLE_3D:
-			l_pProgram = static_cast<HLSLProgram12 *>(ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap3D).get());
 			l_NumConst = 3;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
@@ -1111,7 +1108,8 @@ void D3D12Device::generateMipmap(int a_ID)
 	unsigned int l_T0 = l_pProgram->getTextureSlot(0);
 	unsigned int l_U0 = l_pProgram->getUavSlot(0);
 
-	for( int i=1 ; i<(int)l_pTargetBinder->m_MipmapLevels ; ++i )
+	int l_NumStep = 0 == a_Level ? l_pTargetBinder->m_MipmapLevels : a_Level;
+	for( int i=1 ; i<(int)l_NumStep ; ++i )
 	{
 		l_Dim = glm::max(l_Dim / 2, glm::ivec3(1, 1, 1));
 		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, i);

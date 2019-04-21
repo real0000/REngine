@@ -183,10 +183,13 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	GenerateMipmap2D,
 	GenerateMipmap3D,
 	TiledLightIntersection,
+	GenerateMinmaxDepth,
 
 	// draw
 	Copy,
 	ShadowMap,
+	TextureOnly,
+	TiledDeferredLighting,
 
 	num_default_program)
 
