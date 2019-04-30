@@ -107,8 +107,8 @@ private:
 class Scene : public std::enable_shared_from_this<Scene>
 {
 	friend class Scene;
+	friend class SceneManager;
 public:
-	static std::shared_ptr<Scene> create();
 	virtual ~Scene();
 
 	void destroy();
@@ -124,7 +124,7 @@ public:
 	void preprocessInput();
 	void processInput(InputData &a_Data);
 	void update(float a_Delta);
-	void render();
+	void render(std::shared_ptr<GraphicCanvas> a_pCanvas);
 	
 	// listener
 	void addUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
@@ -134,6 +134,8 @@ public:
 	void clearInputListener();
 
 	// misc;
+	void pause(){ m_bActivate = false; }
+	void resume(){ m_bActivate = true; }
 
 private:
 	Scene();
@@ -154,23 +156,21 @@ private:
 	std::list< std::shared_ptr<EngineComponent> > m_InputListener, m_ReadyInputListener;
 	std::set< std::shared_ptr<EngineComponent> > m_DroppedInputListener;
 	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
+	bool m_bActivate;
 };
 
 class SceneManager
 {
 public:
 	static SceneManager& singleton();
+	std::shared_ptr<Scene> create(wxString a_Name);
 
-	// ID == stack id
-	void pop(unsigned int a_ID);
-	void push(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
-	void replace(unsigned int a_ID, std::shared_ptr<Scene> a_pScene);
+	void setMainScene(std::shared_ptr<GraphicCanvas> a_pCanvas, std::shared_ptr<Scene> a_pScene);
+	void dropScene(wxString a_Name);
+	std::shared_ptr<Scene> getScene(wxString a_Name);
 
-	unsigned int newStack(std::shared_ptr<Scene> a_pStartScene);
-	void removeStack(unsigned int a_ID);
-
-	void preprocessInput();// update input listener's
-	void processInput(InputData &a_Data);
+	// focused main scene only
+	void processInput(std::vector<InputData *> &a_Data);
 	void update(float a_Delta);
 	void render();
 
@@ -178,7 +178,8 @@ private:
 	SceneManager();
 	virtual ~SceneManager();
 
-	std::map<unsigned int, std::deque< std::shared_ptr<Scene> > > m_ActiveScene;
+	std::map<std::shared_ptr<Scene>, std::shared_ptr<GraphicCanvas> > m_CanvasMainScene;
+	std::map<wxString, std::shared_ptr<Scene> > m_SceneMap;
 };
 
 }

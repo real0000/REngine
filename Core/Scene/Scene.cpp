@@ -209,15 +209,11 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 // Scene
 //
-std::shared_ptr<Scene> Scene::create()
-{
-	return std::shared_ptr<Scene>(new Scene());
-}
-
 Scene::Scene()
 	: m_bLoading(false), m_LoadingProgress(0.0f), m_LoadingCompleteCallback(nullptr)
 	, m_pMembers(new SharedSceneMember)
 	, m_pCurrCamera(nullptr)
+	, m_bActivate(true)
 {
 }
 
@@ -329,7 +325,7 @@ void Scene::update(float a_Delta)
 	m_pMembers->m_pBatcher->flush();
 }
 
-void Scene::render()
+void Scene::render(std::shared_ptr<GraphicCanvas> a_pCanvas)
 {
 	if( nullptr == m_pCurrCamera ) return;
 
@@ -337,7 +333,7 @@ void Scene::render()
 	// to do : update shadow map, enviroment map ... etc
 	//
 
-	m_pMembers->m_pRenderer->render(m_pCurrCamera);
+	m_pMembers->m_pRenderer->render(m_pCurrCamera, a_pCanvas);
 }
 
 void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
@@ -435,6 +431,90 @@ void Scene::loadScenePartitionSetting(boost::property_tree::ptree &a_Node)
 			}break;
 	}
 }
+
+void Scene::loadRenderPipelineSetting(boost::property_tree::ptree &a_Node)
+{
+}
 #pragma endregion
+
+#pragma region SceneManager
+//
+// SceneManager
+//
+SceneManager& SceneManager::singleton()
+{
+	static SceneManager s_Inst;
+	return s_Inst;
+}
+
+std::shared_ptr<Scene> SceneManager::create(wxString a_Name)
+{
+	assert(m_SceneMap.end() == m_SceneMap.find(a_Name));
+	std::shared_ptr<Scene> l_pNewScene = std::shared_ptr<Scene>(new Scene());
+	m_SceneMap.insert(std::make_pair(a_Name, l_pNewScene));
+	return l_pNewScene;
+}
+
+SceneManager::SceneManager()
+{
+}
+
+SceneManager::~SceneManager()
+{
+	m_CanvasMainScene.clear();
+	m_SceneMap.clear();
+}
+
+void SceneManager::setMainScene(std::shared_ptr<GraphicCanvas> a_pCanvas, std::shared_ptr<Scene> a_pScene)
+{
+	assert(nullptr != a_pScene);
+	m_CanvasMainScene[a_pScene] = a_pCanvas;
+}
+
+void SceneManager::dropScene(wxString a_Name)
+{
+	auto it = m_SceneMap.find(a_Name);
+	if( m_SceneMap.end() == it ) return;
+
+	m_CanvasMainScene.erase(it->second);
+	m_SceneMap.erase(it);
+}
+
+std::shared_ptr<Scene> SceneManager::getScene(wxString a_Name)
+{
+	auto it = m_SceneMap.find(a_Name);
+	if( m_SceneMap.end() == it ) return nullptr;
+	return it->second;
+}
+
+void SceneManager::processInput(std::vector<InputData *> &a_Data)
+{
+	for( auto it = m_CanvasMainScene.begin() ; it != m_CanvasMainScene.end() ; ++it )
+	{
+		if( !it->second->HasFocus() || !it->first->m_bActivate ) continue;
+		it->first->preprocessInput();
+		for( unsigned int i=0 ; i<a_Data.size() ; ++i ) it->first->processInput(*a_Data[i]);
+	}
+}
+
+void SceneManager::update(float a_Delta)
+{
+	for( auto it = m_SceneMap.begin() ; it != m_SceneMap.end() ; ++it )
+	{
+		if( !it->second->m_bActivate ) continue;
+		it->second->update(a_Delta);
+	}
+}
+
+void SceneManager::render()
+{
+	for( auto it = m_SceneMap.begin() ; it != m_SceneMap.end() ; ++it )
+	{
+		if( !it->second->m_bActivate ) continue;
+
+		auto l_CanvasIt = m_CanvasMainScene.find(it->second);
+		it->second->render(l_CanvasIt == m_CanvasMainScene.end() ? nullptr : l_CanvasIt->second);
+	}
+}
 
 }

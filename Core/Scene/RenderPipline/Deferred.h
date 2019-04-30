@@ -35,7 +35,7 @@ public:
 	DeferredRenderer(SharedSceneMember *a_pSharedMember);
 	virtual ~DeferredRenderer();
 
-	virtual void render(std::shared_ptr<CameraComponent> a_pCamera);
+	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<GraphicCanvas> a_pCanvas);
 
 private:
 	bool setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
@@ -69,7 +69,7 @@ private:
 	unsigned int m_MinmaxStepCount;
 	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
 	std::vector<GraphicCommander *> m_DrawCommand;
-	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat;
+	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
 	 
 	// general
 	std::shared_ptr<VertexBuffer> m_pQuad;

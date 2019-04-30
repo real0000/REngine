@@ -32,7 +32,7 @@ struct InputData
 	union 
 	{
 		bool m_bDown;
-		float m_Val[2];// 0.0f ~ 1.0f if analog
+		float m_Val[2];
 	} m_Data;
 	wxString m_Text;// or key name
 	wxString m_DeviceName;
@@ -126,10 +126,13 @@ private:
 	InputMediator(unsigned int a_Flag = ALLOW_KEYBOARD | ALLOW_MOUSE_BUTTON | ALLOW_MOUSE_MOVE | ALLOW_MOUSE_WHEEL | ALLOW_JOYSTICK | ALLOW_TOUCH | ALLOW_TOUCH_AS_MOUSE);
 	virtual ~InputMediator();
 
+	InputData* requestData();
+
 	std::set<int> m_DefinedKey;
+	std::deque<InputData *> m_Pool;
 		
 	std::vector<InputDeviceInterface *> m_InputMap;
-	std::vector<InputData> m_Buffer;
+	std::vector<InputData *> m_Buffer;
 	unsigned int m_Flags;
 };
 

@@ -130,7 +130,7 @@ struct tray
 	template<typename AABBType>
     bool intersectAABB(AABBType a_AABB, T &a_OutLength)
 	{
-		tPlane<T> l_Plans[6] = {Plane(1.0, 0.0, 0.0, -a_AABB.getMaxX()),
+		tplane<T> l_Plans[6] = {Plane(1.0, 0.0, 0.0, -a_AABB.getMaxX()),
 							Plane(1.0, 0.0, 0.0, -a_AABB.getMinX()),
 							Plane(0.0, 1.0, 0.0, -a_AABB.getMaxY()),
 							Plane(0.0, 1.0, 0.0, -a_AABB.getMinY()),
@@ -175,8 +175,8 @@ struct tray
 
 		tvec4<T> l_NewOrigin(l_Inverse * tvec4<T>(m_Origin.x, m_Origin.y, m_Origin.z, 1.0));
 		tvec4<T> l_NewDir(l_Inverse * tvec4<T>(m_Direction, 0.0));
-		tRay<T> l_Temp(l_NewOrigin.x, l_NewOrigin.y, l_NewOrigin.z, l_NewDir.x, l_NewDir.y, l_NewDir.z);
-		return l_Temp.intersect(tAABB<T>(tvec3<T>(0.0, 0.0, 0.0), a_OBB.m_Size), a_OutLength);
+		tray<T> l_Temp(l_NewOrigin.x, l_NewOrigin.y, l_NewOrigin.z, l_NewDir.x, l_NewDir.y, l_NewDir.z);
+		return l_Temp.intersect(taabb<T>(tvec3<T>(0.0, 0.0, 0.0), a_OBB.m_Size), a_OutLength);
 	}
 
 	bool intersect(obb a_OBB, T &a_OutLength)

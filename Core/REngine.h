@@ -31,7 +31,6 @@
 #include "Scene/RenderPipline/Deferred.h"
 #include "Scene/RenderPipline/RenderPipline.h"
 
-#include "Texture/FrameTexture.h"
 #include "Texture/Texture.h"
 #include "Texture/TextureAtlas.h"
 

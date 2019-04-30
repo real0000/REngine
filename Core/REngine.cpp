@@ -232,7 +232,7 @@ EngineCore::~EngineCore()
 	}
 }
 
-GraphicCanvas* EngineCore::createCanvas()
+std::shared_ptr<GraphicCanvas> EngineCore::createCanvas()
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
@@ -240,33 +240,20 @@ GraphicCanvas* EngineCore::createCanvas()
 	wxFrame *l_pNewWindow = new wxFrame(NULL, wxID_ANY, EngineSetting::singleton().m_Title);
 	l_pNewWindow->Show();
 
-	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
+	std::shared_ptr<GraphicCanvas> l_pCanvas = std::shared_ptr<GraphicCanvas>(GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY));
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
-	
-	m_ManagedCanvas.insert(l_pCanvas);
 	return l_pCanvas;
 }
 
-GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
+std::shared_ptr<GraphicCanvas> EngineCore::createCanvas(wxWindow *a_pParent)
 {
 	if( !m_bValid ) return nullptr;
 	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
-	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(a_pParent, wxID_ANY);
+	std::shared_ptr<GraphicCanvas> l_pCanvas = std::shared_ptr<GraphicCanvas>(GDEVICE()->canvasFactory(a_pParent, wxID_ANY));
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
-	m_ManagedCanvas.insert(l_pCanvas);
 	return l_pCanvas;
-}
-
-void EngineCore::destroyCanvas(GraphicCanvas *a_pCanvas)
-{
-	if( !m_bValid ) return;
-	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
-
-	GDEVICE()->wait();
-	m_ManagedCanvas.erase(a_pCanvas);
-	delete a_pCanvas;
 }
 
 bool EngineCore::isShutdown()
@@ -279,8 +266,6 @@ void EngineCore::shutDown()
 	m_bShutdown = true;
 	m_bValid = false;
 	m_pMainLoop->join();
-	for( auto it = m_ManagedCanvas.begin() ; it != m_ManagedCanvas.end() ; ++it ) delete *it;
-	m_ManagedCanvas.clear();
 	SDL_Quit();
 }
 

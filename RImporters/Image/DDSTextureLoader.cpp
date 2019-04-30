@@ -394,9 +394,9 @@ void ImageData::loadDDS(wxString a_Filepath)
 
             pSrcBits += NumBytes * d;
 
-            w = std::max(w >> 1, 1u);
-            h = std::max(h >> 1, 1u);
-            d = std::max(d >> 1, 1u);
+            w = std::max<unsigned int>(w >> 1, 1u);
+            h = std::max<unsigned int>(h >> 1, 1u);
+            d = std::max<unsigned int>(d >> 1, 1u);
         }
     }
 	if( TEXTYPE_SIMPLE_2D == m_Type && 1 != arraySize )

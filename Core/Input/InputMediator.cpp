@@ -47,6 +47,12 @@ InputMediator::~InputMediator()
 {
 	for( unsigned int i=0 ; i<m_InputMap.size() ; ++i ) delete m_InputMap[i];
 	m_InputMap.clear();
+
+	while( !m_Pool.empty() )
+	{
+		delete m_Pool.front();
+		m_Pool.pop_front();
+	}
 }
 
 void InputMediator::addKey(int a_Define)
@@ -78,36 +84,45 @@ void InputMediator::mapKey(int a_Define, wxString a_DeviceType, wxString a_Key)
 void InputMediator::pollEvent()
 {
 	SDL_Event l_Event;
-	InputData l_Data;
 	while( SDL_PollEvent(&l_Event) )
 	{
-		l_Data.m_Type = INPUTTYPE_UNDEFINED;
+		InputData *l_pData = requestData();
+		l_pData->m_Type = INPUTTYPE_UNDEFINED;
 		for( unsigned int i=0 ; i<m_InputMap.size() ; ++i )
 		{
-			if( m_InputMap[i]->processEvent(l_Event, l_Data) ) break;
+			if( m_InputMap[i]->processEvent(l_Event, *l_pData) ) break;
 		}
-		if( INPUTTYPE_UNDEFINED != l_Data.m_Type ) m_Buffer.push_back(l_Data);
+		if( INPUTTYPE_UNDEFINED != l_pData->m_Type ) m_Buffer.push_back(l_pData);
+		else m_Pool.push_back(l_pData);
 	}
 
 	if( 0 != (m_Flags & SIMPLE_MODE) )
 	{
-		std::sort(m_Buffer.begin(), m_Buffer.end(), [](const InputData &a_Left, const InputData &a_Right)
+		std::sort(m_Buffer.begin(), m_Buffer.end(), [](const InputData *a_pLeft, const InputData *a_pRight)
 		{
-		   return a_Left.m_Key < a_Right.m_Key;
+		   return a_pLeft->m_Key < a_pRight->m_Key;
 		});
-		auto l_ListIt = std::unique(m_Buffer.begin(), m_Buffer.end(), [](const InputData &a_Left, const InputData &a_Right)
+		auto l_ListIt = std::unique(m_Buffer.begin(), m_Buffer.end(), [](const InputData *a_pLeft, const InputData *a_pRight)
 		{
-			return a_Left.m_Key == a_Right.m_Key;
+			return a_pLeft->m_Key == a_pRight->m_Key;
 		});
+		for( auto it = l_ListIt ; it != m_Buffer.end() ; ++it ) m_Pool.push_back(*it);
 		m_Buffer.erase(l_ListIt, m_Buffer.end());
 	}
 
-	SceneManager::singleton().preprocessInput();
-	for( auto l_InputIt = m_Buffer.begin() ; l_InputIt != m_Buffer.end() ; ++l_InputIt )
-	{
-		SceneManager::singleton().processInput(*l_InputIt);
-	}
+	SceneManager::singleton().processInput(m_Buffer);
+	
+	for( unsigned int i=0 ; i<m_Buffer.size() ; ++i ) m_Pool.push_back(m_Buffer[i]);
 	m_Buffer.clear();
+}
+
+InputData* InputMediator::requestData()
+{
+	if( m_Pool.empty() ) return new InputData();
+
+	InputData *l_pRes = m_Pool.front();
+	m_Pool.pop_front();
+	return l_pRes;
 }
 #pragma endregion
 

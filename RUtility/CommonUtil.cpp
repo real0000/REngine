@@ -132,7 +132,7 @@ wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath)
 	return l_Res;
 }
 
-void showOpenGLErrorCode(wxString a_StepInfo)
+/*void showOpenGLErrorCode(wxString a_StepInfo)
 {
 #ifdef _DEBUG
 	GLenum l_ErrorCode = glGetError();
@@ -143,7 +143,7 @@ void showOpenGLErrorCode(wxString a_StepInfo)
 		wxMessageBox(a_StepInfo + l_Buff);
 	}
 #endif
-}
+}*/
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut)
 {

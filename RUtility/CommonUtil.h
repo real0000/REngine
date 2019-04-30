@@ -60,7 +60,7 @@ wxString getFileExt(wxString a_File);
 wxString getFilePath(wxString a_File);
 wxString getRelativePath(wxString a_ParentPath, wxString a_File);
 wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath);
-void showOpenGLErrorCode(wxString a_StepInfo);
+//void showOpenGLErrorCode(wxString a_StepInfo);
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut);
 

@@ -38,6 +38,7 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_MinmaxStepCount(1)
 	, m_pLightIndexMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection)))
 	, m_pDeferredLightMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting)))
+	, m_pCopyMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::Copy)))
 	, m_pQuad(std::shared_ptr<VertexBuffer>(new VertexBuffer()))
 {
 	const glm::vec3 c_QuadVtx[] = {
@@ -91,6 +92,7 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_OmniLight")->second, this->getSharedMember()->m_pOmniLights->getMaterialBlock());
 	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SpotLight")->second, this->getSharedMember()->m_pSpotLights->getMaterialBlock());
 
+	m_pCopyMat->setTexture("m_SrcTex", m_pFrameBuffer);
 
 	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
@@ -121,7 +123,7 @@ DeferredRenderer::~DeferredRenderer()
 	m_TiledValidLightIdx = nullptr;
 }
 
-void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
+void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<GraphicCanvas> a_pCanvas)
 {
 	std::vector< std::shared_ptr<RenderableComponent> > l_Lights, l_Meshes;
 	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) ) return;
@@ -251,7 +253,18 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera)
 		// draw transparent objects
 		if( l_CurrIdx < l_Meshes.size() ) drawMesh(l_Meshes, l_CurrIdx, l_Meshes.size() - 1);
 
-		// to do : draw post process ?
+		if( nullptr != a_pCanvas )
+		{
+			// to do : draw post process ?
+
+			// temp : copy only
+			m_pCmdInit->begin(false);
+			m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas.get());
+			m_pCmdInit->bindVertex(m_pQuad.get());
+			m_pCopyMat->bindAll(m_pCmdInit);
+			m_pCmdInit->drawVertex(4, 0);
+			m_pCmdInit->end();
+		}
 	}
 }
 

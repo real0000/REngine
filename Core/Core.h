@@ -136,10 +136,9 @@ public:
 	static EngineCore& singleton();
 	
 	// for normal game : 1 canvas with close button
-	GraphicCanvas* createCanvas();
+	std::shared_ptr<GraphicCanvas> createCanvas();
 	// for tool window
-	GraphicCanvas* createCanvas(wxWindow *a_pParent);
-	void destroyCanvas(GraphicCanvas *a_pCanvas);
+	std::shared_ptr<GraphicCanvas> createCanvas(wxWindow *a_pParent);
 
 	bool isShutdown();
 	void shutDown();
@@ -156,7 +155,6 @@ private:
 
 	InputMediator *m_pInput;
 	std::thread *m_pMainLoop;
-	std::set<GraphicCanvas *> m_ManagedCanvas;
 	std::mutex m_CanvasLock;
 };
 
