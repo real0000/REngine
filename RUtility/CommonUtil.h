@@ -34,7 +34,7 @@
 #include <stdarg.h>
 
 #define GLM_FORCE_RADIANS
-#include "vld.h"
+//#include "vld.h"
 #include "glm.hpp"
 #include "gtc/constants.hpp"
 #include "gtx/quaternion.hpp"
@@ -206,6 +206,7 @@ public:										\
 	}										\
 	static wxString toString(Key a_Key)		\
 	{										\
+		if( m_StringMap.empty() ) initMap();\
 		return m_Strings[static_cast<unsigned int>(a_Key)];\
 	}										\
 private:									\
@@ -217,9 +218,8 @@ private:									\
 		{									\
 			if( l_Src[i] == wxT(',') ) l_Src[i] = wxT(' ');\
 		}									\
-		std::vector<wxString> l_Items;		\
-		splitString(wxT(' '), l_Src, l_Items);\
-		for( unsigned int i=0 ; i<l_Items.size() ; ++i ) m_StringMap[l_Items[i]] = l_KeyList[i];\
+		splitString(wxT(' '), l_Src, m_Strings);\
+		for( unsigned int i=0 ; i<m_Strings.size() ; ++i ) m_StringMap[m_Strings[i]] = l_KeyList[i];\
 	}										\
 	static std::vector<wxString> m_Strings;\
 	static std::map<wxString, Key> m_StringMap;\
@@ -231,8 +231,7 @@ std::map<wxString, classname::Key> classname::m_StringMap;
 
 enum TextureType
 {
-	TEXTYPE_SIMPLE_1D = 0,
-	TEXTYPE_SIMPLE_2D,
+	TEXTYPE_SIMPLE_2D = 0,
 	TEXTYPE_SIMPLE_2D_ARRAY,
 	TEXTYPE_SIMPLE_CUBE,
 	TEXTYPE_SIMPLE_CUBE_ARRAY,

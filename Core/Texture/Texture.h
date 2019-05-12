@@ -42,7 +42,6 @@ public:
 	static TextureManager& singleton();
 	
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Filename, bool a_bAsync = false, std::function<void(std::shared_ptr<TextureUnit>)> a_Callback = nullptr);
-	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, unsigned int a_Width, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...);// void *[a_ArraySize]
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
 	std::shared_ptr<TextureUnit> createRenderTarget(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);

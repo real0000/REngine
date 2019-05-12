@@ -76,13 +76,13 @@
 		return a_EncNormal * 2.0 - 1.0;
 	}
 
-	float3 getWorldPosition(float a_Depth, float2 a_ViewPos)
+	/*float3 getWorldPosition(float a_Depth, float2 a_ViewPos)
 	{
 		double4 l_Res = float4(a_ViewPos, a_Depth, 1.0) * float4(2.0, 2.0, 2.0, 1.0) - float4(1.0, 1.0, 1.0, 0.0);
 		l_Res = mul(m_InvViewProjection, l_Res);
     
 		return float3(l_Res.xyz / l_Res.w);
-	}
+	}*/
 #endif
 
 // static samplers

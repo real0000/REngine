@@ -1,12 +1,13 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
     <Constant name="c_PixelSize" type="float2" reserved="true"/>
-    <UavBuffer name="g_DstTexture"/>
+    <Srv2D name="g_DstTexture" write="true" type="float2"/>
     <Srv2D name="g_SrcTexture" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Compute file="GenerateMinmaxDepth.compute">
+        c_PixelSize, g_DstTexture, g_SrcTexture
       </Compute>
     </Model_5_1>
   </Shaders>

@@ -465,7 +465,7 @@ void D3D12Canvas::init(bool a_bFullScr)
 	ID3D12Device *l_pDevInst = l_pDevInteface->getDeviceInst();
 	IDXGIFactory4 *l_pDevFactory = l_pDevInteface->getDeviceFactory();
 
-	DXGI_SWAP_CHAIN_DESC l_SwapChainDesc;
+	DXGI_SWAP_CHAIN_DESC l_SwapChainDesc = {};
 	l_SwapChainDesc.BufferCount = NUM_BACKBUFFER;
 	l_SwapChainDesc.BufferDesc.Width = GetClientSize().x;
 	l_SwapChainDesc.BufferDesc.Height = GetClientSize().y;
@@ -474,6 +474,8 @@ void D3D12Canvas::init(bool a_bFullScr)
 	l_SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	l_SwapChainDesc.OutputWindow = (HWND)GetHandle();
 	l_SwapChainDesc.SampleDesc.Count = 1;
+	l_SwapChainDesc.SampleDesc.Quality = 0;
+	
 	l_SwapChainDesc.Windowed = !a_bFullScr;
 	
 	IDXGISwapChain *l_pSwapChain = nullptr;
@@ -494,6 +496,7 @@ void D3D12Canvas::init(bool a_bFullScr)
 
 		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], static_cast<D3D12_RENDER_TARGET_VIEW_DESC *>(nullptr));
 	}
+	setInitialed();
 }
 
 void D3D12Canvas::present()
@@ -530,7 +533,7 @@ D3D12Device::D3D12Device()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
-	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr), m_pBundleCmdQueue(nullptr)
+	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
 	, m_IdleResThread(0)
 	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
 	, m_pResourceLoop(nullptr), m_bLooping(true)
@@ -581,7 +584,6 @@ D3D12Device::~D3D12Device()
 	SAFE_RELEASE(m_pResCmdQueue)
 	SAFE_RELEASE(m_pComputeQueue)
 	SAFE_RELEASE(m_pDrawCmdQueue)
-	SAFE_RELEASE(m_pBundleCmdQueue)
 	
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i )
 	{
@@ -651,22 +653,21 @@ void D3D12Device::initDevice(unsigned int a_DeviceID)
 
 	IDXGIAdapter1 *l_pTargetAdapter = nullptr;
 	l_Res = S_OK;
-	unsigned int l_Idx = 0;
-	while( S_OK == l_Res )
+	for( unsigned int i=0 ; S_OK == l_Res ; ++i )
 	{
-		l_Res = m_pGraphicInterface->EnumAdapters1(l_Idx, &l_pTargetAdapter);
-		++l_Idx;
+		l_Res = m_pGraphicInterface->EnumAdapters1(i, &l_pTargetAdapter);
 		if( S_OK == l_Res )
 		{
 			DXGI_ADAPTER_DESC1 l_Desc;
 			l_pTargetAdapter->GetDesc1(&l_Desc);
-			l_pTargetAdapter->Release();
 			if( l_Desc.DeviceId == a_DeviceID ) break;
+			l_pTargetAdapter->Release();
 		}
 	}
 	assert(S_OK == l_Res);// means adapter not found
 
 	l_Res = D3D12CreateDevice(l_pTargetAdapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_pDevice));
+	l_pTargetAdapter->Release();
 	
 	if(S_OK != l_Res) wxMessageBox(wxT("device init failed"), wxT("D3D12Device::initDevice"));
 }
@@ -684,7 +685,6 @@ void D3D12Device::init()
 	}
 #endif
 
-	ProgramManager::singleton().init(new HLSLComponent());
 	if( m_DeviceMap.empty() ) initDeviceMap();
 	if( nullptr == m_pDevice )
 	{
@@ -713,20 +713,24 @@ void D3D12Device::init()
 	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pDrawCmdQueue));
 	assert(S_OK == l_Res);
-	
-	l_QueueDesc.Type = D3D12_COMMAND_LIST_TYPE_BUNDLE;
-	l_Res = m_pDevice->CreateCommandQueue(&l_QueueDesc, IID_PPV_ARGS(&m_pBundleCmdQueue));
-	assert(S_OK == l_Res);
 		
 	m_pResFence = new D3D12Fence(m_pDevice, m_pResCmdQueue);
 	m_pComputeFence = new D3D12Fence(m_pDevice, m_pComputeQueue);
 	m_pGraphicFence = new D3D12Fence(m_pDevice, m_pDrawCmdQueue);
 
+	// Create descriptor heaps.
+	{
+		m_pShaderResourceHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 16, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	}
+
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread(D3D12_COMMAND_LIST_TYPE_COPY);
-	m_ResThread[m_IdleResThread].first->Reset();
-	m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+	//m_ResThread[m_IdleResThread].first->Reset();
+	//m_ResThread[m_IdleResThread].second->Reset(m_ResThread[m_IdleResThread].first, nullptr);
+	//ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
+	//m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
 	m_pResourceLoop = new std::thread(&D3D12Device::resourceThread, this);
 	m_pComputeLoop = new std::thread(&D3D12Device::computeThread, this);
 	m_pGraphicLoop = new std::thread(&D3D12Device::graphicThread, this);
@@ -740,14 +744,6 @@ void D3D12Device::init()
 		m_ComputeThread.push_back(newThread(D3D12_COMMAND_LIST_TYPE_COMPUTE));
 	}
 	
-	// Create descriptor heaps.
-	{
-		m_pShaderResourceHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 16, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	}
-
 	const glm::vec3 c_QuadVtx[] =
 	{
 		glm::vec3(-1.0f, 1.0f, 0.0f),
@@ -756,6 +752,7 @@ void D3D12Device::init()
 		glm::vec3(1.0f, -1.0f, 0.0f)
 	};
 	m_QuadBufferID = requestVertexBuffer((void *)c_QuadVtx, VTXSLOT_POSITION, 4);
+	ProgramManager::init(new HLSLComponent());
 }
 
 GraphicCommander* D3D12Device::commanderFactory()
@@ -765,7 +762,7 @@ GraphicCommander* D3D12Device::commanderFactory()
 
 GraphicCanvas* D3D12Device::canvasFactory(wxWindow *a_pParent, wxWindowID a_ID)
 {
-	return new D3D12Canvas(m_pShaderResourceHeap, a_pParent, a_ID);
+	return new D3D12Canvas(m_pRenderTargetHeap, a_pParent, a_ID);
 }
 
 std::pair<int, int> D3D12Device::maxShaderModel()
@@ -964,13 +961,6 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 }
 
 // texture part
-int D3D12Device::allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format)
-{
-	assert(a_Size >= MIN_TEXTURE_SIZE);
-	unsigned int l_MipmapLevel = std::log2(a_Size) + 1;
-	return allocateTexture(glm::ivec3(a_Size, 1, 1), a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE1D, l_MipmapLevel, 0);
-}
-
 int D3D12Device::allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
 {
 	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE);
@@ -983,18 +973,6 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format)
 	assert(a_Size.x >= MIN_TEXTURE_SIZE && a_Size.y >= MIN_TEXTURE_SIZE && a_Size.z >= MIN_TEXTURE_SIZE);
 	unsigned int l_MipmapLevel = std::log2(std::max(std::max(a_Size.x, a_Size.y), a_Size.z)) + 1;
 	return allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, l_MipmapLevel, 0);
-}
-
-void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData)
-{
-#ifdef _DEBUG
-	std::shared_ptr<TextureBinder> l_pTargetTexture = m_ManagedTexture[a_ID];
-	assert(nullptr != l_pTargetTexture);
-	assert(TEXTYPE_SIMPLE_1D == l_pTargetTexture->m_Type);
-	assert(a_Size >= 1);
-	assert(a_Offset < ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel) && a_Offset + a_Size <= ((unsigned int)l_pTargetTexture->m_Size.x >> a_MipmapLevel));
-#endif
-	updateTexture(a_ID, a_MipmapLevel, glm::ivec3(a_Size, 1, 1), glm::ivec3(a_Offset, 0, 0), a_pSrcData, 0xff);
 }
 
 void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
@@ -1040,25 +1018,6 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 	std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
 	switch( l_pTargetBinder->m_Type )
 	{
-		case TEXTYPE_SIMPLE_1D:
-			l_NumConst = 1;
-			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
-			{
-				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
-				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
-				l_Desc.Texture1D.MipSlice = a_MipLevel;
-				return l_Desc;
-			};
-			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
-			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
-				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-				l_Desc.Texture1D.MipLevels = 1;
-				l_Desc.Texture1D.MostDetailedMip = a_MipLevel;
-				return l_Desc;
-			};
-			break;
-
 		case TEXTYPE_SIMPLE_2D:
 			l_NumConst = 2;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
@@ -1791,10 +1750,6 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 	l_pNewBinder->m_Format = a_Format;
 	switch( a_Dim )
 	{
-		case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
-			l_pNewBinder->m_Type = TEXTYPE_SIMPLE_1D;
-			break;
-
 		case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
 			if( 1 == a_Size.z ) l_pNewBinder->m_Type = TEXTYPE_SIMPLE_2D;
 			else if( a_bCube ) l_pNewBinder->m_Type = a_Size.z == 6 ? TEXTYPE_SIMPLE_CUBE : TEXTYPE_SIMPLE_CUBE_ARRAY;
@@ -1877,14 +1832,9 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 		bool l_bUseMsaa = 1 == m_MsaaSetting.Count && 0 == m_MsaaSetting.Quality;
 		switch( l_pNewBinder->m_Type )
 		{
-			case TEXTYPE_SIMPLE_1D:
-				l_SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-				l_SrvDesc.Texture1D.MipLevels = a_MipmapLevel;
-				l_SrvDesc.Texture1D.MostDetailedMip = 0;
-				l_SrvDesc.Texture1D.ResourceMinLODClamp = 0.0f;
-				break;
-
 			case TEXTYPE_SIMPLE_2D:
+			case TEXTYPE_RENDER_TARGET_VIEW:
+			case TEXTYPE_DEPTH_STENCIL_VIEW:
 				if( !l_bUseMsaa )
 				{
 					l_SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -2006,10 +1956,6 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 		l_Res = l_pUploader->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
 		switch( l_pTargetTexture->m_Type )
 		{
-			case TEXTYPE_SIMPLE_1D:{
-				memcpy(l_pDataBegin + a_Offset.x, a_pSrcData, a_Size.x * l_PixelSize);
-				}break;
-
 			case TEXTYPE_SIMPLE_2D:{
 				#pragma	omp parallel for
 				for( int y=0 ; y<a_Size.y ; ++y )

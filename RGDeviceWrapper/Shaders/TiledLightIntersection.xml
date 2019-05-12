@@ -1,14 +1,14 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
-    <Constant name="c_PixelSize" type="float3" reserved="false"/>
+    <Constant name="c_PixelSize" type="float2" reserved="false"/>
     <Constant name="c_MipmapLevel" type="int1" reserved="false"/>
     <Constant name="c_TileCount" type="int2" reserved="false"/>
     <Constant name="c_NumLight" type="int1" reserved="false"/>
     <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
     <UavBuffer name="g_SrcLights" preDef="PackedInt" write="false"/>
     <UavBuffer name="g_DstLights" preDef="PackedInt" write="true"/>
-    <UavBuffer name="g_OmniLight" preDef="OmniLight" write="false"/>
-    <UavBuffer name="g_SpotLight" preDef="SpotLight" write="false"/>
+    <UavBuffer name="g_OmniLights" preDef="OmniLight" write="false"/>
+    <UavBuffer name="g_SpotLights" preDef="SpotLight" write="false"/>
     <Srv2D name="g_MinMapTexture" desc="" write="false" type="float4" reserved="true"/>
   </ParamList>
   <Shaders>

@@ -322,7 +322,7 @@ void Scene::update(float a_Delta)
 	//m_pMembers->m_pDirLights->flush(); flush after shadow map info updated
 	//m_pMembers->m_pOmniLights->flush();
 	//m_pMembers->m_pSpotLights->flush();
-	m_pMembers->m_pBatcher->flush();
+	//m_pMembers->m_pBatcher->flush();
 }
 
 void Scene::render(std::shared_ptr<GraphicCanvas> a_pCanvas)

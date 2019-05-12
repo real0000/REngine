@@ -2,7 +2,7 @@
 #include "autoBinder.h"
 
 [numthreads(1, 1, 1 )]
-void GenerateMipMaps(uint3 a_ThreadID : SV_DispatchThreadID)
+void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
     float2 l_Color1 = g_SrcTexture.SampleLevel(s_LinearSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 0.0)), 0);
 	float2 l_Color2 = g_SrcTexture.SampleLevel(s_LinearSampler, c_PixelSize * (a_ThreadID.xy + float2(1.0, 0.0)), 0);

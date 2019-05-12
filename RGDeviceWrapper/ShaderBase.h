@@ -156,7 +156,9 @@ public:
 	static void init(ProgramManagerComponent *a_pComponent);
 	static ProgramManager& singleton();
 
-	// call for program initial, DO NOT use this method directly
+	// call for program initial, DO NOT use these method directly
+	void initBlockDefine(wxString a_Filepath);
+	void initDefaultProgram();
 	void* getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine);
 
 	unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize = 1);
@@ -171,8 +173,6 @@ private:
 
 	std::shared_ptr<ShaderProgram> allocator();
 	void loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path);
-	void initBlockDefine(wxString a_Filepath);
-	void initDefaultProgram();
 
 	boost::property_tree::ptree m_BlockDefineFile;
 	std::map<std::string, boost::property_tree::ptree*> m_BlockDefineMap;

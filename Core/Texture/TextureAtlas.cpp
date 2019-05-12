@@ -19,9 +19,8 @@ RenderTextureAtlas::RenderTextureAtlas(glm::ivec2 a_Size, PixelFormat::Key a_For
 	: m_Atlas(a_Size, a_InitArraySize)
 	, m_pTexture(nullptr)
 	, m_bCube(a_bCube)
-
 {
-	assert(!m_bCube && 0 == (a_InitArraySize % 6));
+	assert(!m_bCube || 0 == (a_InitArraySize % 6));
 	if( m_bCube ) m_Atlas.setExtendSize(6);
 
 	assert(a_Size.x >= 64 && a_Size.y >= 64);

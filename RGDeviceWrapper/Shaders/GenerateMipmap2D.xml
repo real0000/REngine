@@ -1,7 +1,7 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
     <Constant name="c_PixelSize" type="float2" reserved="true"/>
-    <UavBuffer name="g_DstTexture"/>
+    <Srv2D name="g_DstTexture" write="true" type="float4"/>
     <Srv2D name="g_SrcTexture" desc="" reserved="true"/>
   </ParamList>
   <Shaders>

@@ -179,7 +179,6 @@ STRING_ENUM_CLASS(Topology,
 STRING_ENUM_CLASS(DefaultPrograms,
 
 	// compute
-	GenerateMipmap1D,
 	GenerateMipmap2D,
 	GenerateMipmap3D,
 	TiledLightIntersection,

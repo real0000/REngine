@@ -116,6 +116,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 {
 	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
 	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::UavBuffer+1][ShaderStages::NumStage];
+	std::map<RegisterInfo *, bool> l_RWSrv;
 	{
 		std::map<std::string, D3D12_SHADER_VISIBILITY> l_RegVisibleMaps;
 		for( auto it = a_ShaderDesc.begin() ; it != a_ShaderDesc.end() ; ++it )
@@ -124,7 +125,10 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			unsigned int l_VisibleFlag = ShaderStages::fromString(it->first);
 			
 			std::string l_UsedParam(it->second.get("", ""));
-			std::replace_if(l_UsedParam.begin(), l_UsedParam.end(), [](char a_Char){ return !isgraph((int)a_Char); }, ' ');
+			std::replace_if(l_UsedParam.begin(), l_UsedParam.end(), [](char a_Char)
+			{
+				return (a_Char < '0' || a_Char > '9') && (a_Char < 'a' || a_Char > 'z') && (a_Char < 'A' || a_Char > 'Z') && a_Char != '_';
+			}, ' ');
 			std::vector<wxString> l_ParamList;
 			splitString(' ', l_UsedParam, l_ParamList);
 
@@ -146,6 +150,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			RegisterInfo *l_pNewInfo = new RegisterInfo();
 			l_pNewInfo->m_bReserved = (it->second.get("<xmlattr>.reserved", "false") == "true") || l_RegType == ShaderRegType::UavBuffer;
 			l_pNewInfo->m_Type = l_RegType;
+			if( l_RegType >= ShaderRegType::Srv2D && l_RegType <= ShaderRegType::Srv3D ) l_RWSrv[l_pNewInfo] = it->second.get("<xmlattr>.write", "false") == "true";
 			l_TargetMap.insert(std::make_pair(l_Name, l_pNewInfo));
 
 			if( ShaderRegType::Constant == l_RegType ) l_ConstTypeMap[l_Name] = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type"));
@@ -153,12 +158,13 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	}
 
 	std::vector<D3D12_ROOT_PARAMETER> l_RegCollect;
-	std::vector<D3D12_DESCRIPTOR_RANGE> l_RegRangeCollect;
+	std::vector<D3D12_DESCRIPTOR_RANGE *> l_RegRangeCollect;
 	std::map<ShaderRegType::Key, std::vector<std::string> > l_TempRegCount;
 	std::map<std::string, ProgramTextureDesc *> &l_TextuerMap = getTextureDesc();
 
 	// srv
 	unsigned int l_Slot = 0;
+	unsigned int l_UavSlot = 0;
 	{
 		const ShaderRegType::Key c_SrvSerial[] = {ShaderRegType::Srv2D, ShaderRegType::Srv3D, ShaderRegType::Srv2DArray, ShaderRegType::SrvCube, ShaderRegType::SrvCubeArray}; 
 		const unsigned int c_NumType = sizeof(c_SrvSerial) / sizeof(const ShaderRegType::Key);
@@ -170,39 +176,41 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 				std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[l_Type][l_Visibility];
 				if( l_ParamList.empty() ) continue;
 				
-				D3D12_ROOT_PARAMETER l_TempReg;
-				D3D12_DESCRIPTOR_RANGE l_TempRange;
-
 				for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 				{
-					it->second->m_RootIndex = l_RegCollect.size();;
-					it->second->m_Slot = l_Slot;
+					bool l_bWrite = l_RWSrv[it->second];
+					unsigned int &l_TargetSlot = l_bWrite ? l_UavSlot : l_Slot;
+
+					it->second->m_RootIndex = l_RegCollect.size();
+					it->second->m_Slot = l_TargetSlot;
 					l_TextuerMap[it->first]->m_pRegInfo = it->second;
 					m_RegMap[l_Type][it->first] = it->second;
 
-					l_TempRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-					l_TempRange.NumDescriptors = (l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE : 1;
-					l_TempRange.BaseShaderRegister = l_Slot;
-					l_TempRange.RegisterSpace = 0;
-					l_TempRange.OffsetInDescriptorsFromTableStart = 0;
-					l_RegRangeCollect.push_back(l_TempRange);
+					l_RegCollect.push_back({});
 					
-					l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-					l_TempReg.DescriptorTable.NumDescriptorRanges = 1;
-					l_TempReg.DescriptorTable.pDescriptorRanges = &(l_RegRangeCollect.back());
-					l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
-					l_RegCollect.push_back(l_TempReg);
+					l_RegRangeCollect.push_back(new D3D12_DESCRIPTOR_RANGE());
+					*l_RegRangeCollect.back() = {};
 
-					m_TextureStageMap.push_back(l_Slot);
+					l_RegRangeCollect.back()->RangeType = l_bWrite ? D3D12_DESCRIPTOR_RANGE_TYPE_UAV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+					l_RegRangeCollect.back()->NumDescriptors = (l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE : 1;
+					l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
+					l_RegRangeCollect.back()->RegisterSpace = 0;
+					l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
+					
+					l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+					l_RegCollect.back().DescriptorTable.NumDescriptorRanges = 1;
+					l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
+					l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 
-					++l_Slot;
+					(l_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(l_TargetSlot);
+
+					++l_TargetSlot;
 				}
 			}
 		}
 	}
 
 	// uav(storage)
-	l_Slot = 0;
 	std::vector<ProgramBlockDesc *> &l_UavBlockDesc = getBlockDesc(ShaderRegType::UavBuffer);
 	for( unsigned int l_Visibility = 0 ; l_Visibility < ShaderStages::NumStage ; ++l_Visibility )
 	{
@@ -212,15 +220,14 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
 			it->second->m_RootIndex = l_RegCollect.size();;
-			it->second->m_Slot = l_Slot;
+			it->second->m_Slot = l_UavSlot;
 			m_RegMap[ShaderRegType::UavBuffer][it->first] = it->second;
 			
-			D3D12_ROOT_PARAMETER l_TempReg;
-			l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
-			l_TempReg.Descriptor.ShaderRegister = l_Slot;
-			l_TempReg.Descriptor.RegisterSpace = 0;
-			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
-			l_RegCollect.push_back(l_TempReg);
+			l_RegCollect.push_back({});
+			l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+			l_RegCollect.back().Descriptor.ShaderRegister = l_UavSlot;
+			l_RegCollect.back().Descriptor.RegisterSpace = 0;
+			l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 
 			std::string l_BlockName(it->first);	
 			auto l_UavIt = std::find_if(l_UavBlockDesc.begin(), l_UavBlockDesc.end(), [l_BlockName](ProgramBlockDesc *a_pDesc)->bool
@@ -231,14 +238,15 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			ProgramBlockDesc *l_pNewBlock = *l_UavIt;
 			l_pNewBlock->m_pRegInfo = it->second;
 			
-			m_UavStageMap.push_back(l_Slot);
+			m_UavStageMap.push_back(l_UavSlot);
 
-			++l_Slot;
+			++l_UavSlot;
 		}
 	}
 
 	// const buffer
 	l_Slot = 0;
+	std::vector<ProgramBlockDesc *> &l_ConstBufferBlockDesc = getBlockDesc(ShaderRegType::ConstBuffer);
 	for( unsigned int l_Visibility = 0 ; l_Visibility < ShaderStages::NumStage ; ++l_Visibility )
 	{
 		std::map<std::string, RegisterInfo *> &l_ParamList = l_ParamMap[ShaderRegType::ConstBuffer][l_Visibility];
@@ -250,12 +258,20 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			it->second->m_Slot = l_Slot;
 			m_RegMap[ShaderRegType::ConstBuffer][it->first] = it->second;
 			
-			D3D12_ROOT_PARAMETER l_TempReg;
-			l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-			l_TempReg.Descriptor.ShaderRegister = l_Slot;
-			l_TempReg.Descriptor.RegisterSpace = 0;
-			l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
-			l_RegCollect.push_back(l_TempReg);
+			l_RegCollect.push_back({});
+			l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+			l_RegCollect.back().Descriptor.ShaderRegister = l_Slot;
+			l_RegCollect.back().Descriptor.RegisterSpace = 0;
+			l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
+
+			std::string l_BlockName(it->first);	
+			auto l_ConstBuffIt = std::find_if(l_ConstBufferBlockDesc.begin(), l_ConstBufferBlockDesc.end(), [l_BlockName](ProgramBlockDesc *a_pDesc)->bool
+			{
+				return a_pDesc->m_Name == l_BlockName;
+			});
+			assert(l_ConstBuffIt != l_ConstBufferBlockDesc.end());
+			ProgramBlockDesc *l_pNewBlock = *l_ConstBuffIt;
+			l_pNewBlock->m_pRegInfo = it->second;
 
 			m_ConstStageMap.push_back(l_Slot);
 
@@ -270,9 +286,11 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		if( l_ParamList.empty() ) continue;
 		char l_Temp[256];
 
-		snprintf(l_Temp, 256, "Const32[%d]", l_Visibility);
+		snprintf(l_Temp, 256, "Const32_%d", l_Visibility);
 		ProgramBlockDesc *l_pNewConstBlock = newConstBlockDesc();
 		l_pNewConstBlock->m_Name = l_Temp;
+		l_pNewConstBlock->m_pRegInfo = new RegisterInfo();
+		l_pNewConstBlock->m_pRegInfo->m_Slot = l_Slot;
 
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
@@ -292,13 +310,12 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			m_RegMap[ShaderRegType::Constant][it->first] = it->second;
 		}
 
-		D3D12_ROOT_PARAMETER l_TempReg;
-		l_TempReg.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		l_TempReg.Constants.ShaderRegister = l_Slot;
-		l_TempReg.Constants.RegisterSpace = 0;
-		l_TempReg.Constants.Num32BitValues = l_pNewConstBlock->m_BlockSize / 4;
-		l_TempReg.ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
-		l_RegCollect.push_back(l_TempReg);
+		l_RegCollect.push_back({});
+		l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		l_RegCollect.back().Constants.ShaderRegister = l_Slot;
+		l_RegCollect.back().Constants.RegisterSpace = 0;
+		l_RegCollect.back().Constants.Num32BitValues = l_pNewConstBlock->m_BlockSize / 4;
+		l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 		
 		++l_Slot;
 	}
@@ -350,6 +367,8 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	ID3DBlob *l_BinSignature = nullptr;
 	ID3DBlob *l_Error = nullptr;
 	D3D12SerializeRootSignature(&l_RegisterDesc, D3D_ROOT_SIGNATURE_VERSION_1, &l_BinSignature, &l_Error);
+	for( unsigned int i=0 ; i<l_RegRangeCollect.size() ; ++i ) delete l_RegRangeCollect[i];
+	l_RegRangeCollect.clear();
 	if( nullptr != l_Error )
 	{
 		wxMessageBox(wxString::Format(wxT("Failed to compile shader :\n%s"), static_cast<const char *>(l_Error->GetBufferPointer())), wxT("HLSLProgram::initRegister"));
@@ -441,10 +460,10 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		
 		const D3D12_INPUT_ELEMENT_DESC c_InputLayout[] = {
 			{"POSITION"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_POSITION	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD0"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD01, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD1"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD23, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD2"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD45, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD3"	, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD67, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD01, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 1, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD23, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 2, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD45, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 3, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD67, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"NORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_NORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"TANGENT"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TANGENT	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"BINORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_BINORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -469,7 +488,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 
 				char l_Buff[256];
 				snprintf(l_Buff, 256, "%s.<xmlattr>.file", static_cast<const char*>(ShaderStages::toString((ShaderStages::Key)i).c_str()));
-				wxString l_Filename(a_Shaders.get<std::string>(l_Buff));
+				wxString l_Filename(a_Shaders.get<std::string>(l_Buff, ""));
 				
 				if( l_Filename.IsEmpty() ) l_ShaderUsage[i] = nullptr;
 				else l_ShaderUsage[i] = static_cast<ID3DBlob *>(ProgramManager::singleton().getShader(this, l_Filename, (ShaderStages::Key)i, shaderInUse(), a_ParamDefine));
@@ -587,17 +606,37 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				sscanf(l_StencilAttr.get("writeMask", "ff").c_str(), "%x", &l_Mask);
 				l_PsoDesc.DepthStencilState.StencilWriteMask = (unsigned char)l_Mask;
 
-				boost::property_tree::ptree &l_FrontAttr = l_StencilAttr.get_child("DepthStencil.Stencil.Front.<xmlattr>");
-				l_PsoDesc.DepthStencilState.FrontFace.StencilFunc = (D3D12_COMPARISON_FUNC)l_pRefDevice->getComapreFunc(CompareFunc::fromString(l_FrontAttr.get("func", "always")));
-				l_PsoDesc.DepthStencilState.FrontFace.StencilDepthFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr.get("depthFailOP", "keep")));
-				l_PsoDesc.DepthStencilState.FrontFace.StencilPassOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr.get("passOP", "keep")));
-				l_PsoDesc.DepthStencilState.FrontFace.StencilFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr.get("failOP", "keep")));
+				boost::optional<boost::property_tree::ptree&> l_FrontAttr = l_StencilAttr.get_child_optional("DepthStencil.Stencil.Front.<xmlattr>");
+				if( !l_FrontAttr )
+				{
+					l_PsoDesc.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+					l_PsoDesc.DepthStencilState.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+					l_PsoDesc.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+					l_PsoDesc.DepthStencilState.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+				}
+				else
+				{
+					l_PsoDesc.DepthStencilState.FrontFace.StencilFunc = (D3D12_COMPARISON_FUNC)l_pRefDevice->getComapreFunc(CompareFunc::fromString(l_FrontAttr->get("func", "always")));
+					l_PsoDesc.DepthStencilState.FrontFace.StencilDepthFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr->get("depthFailOP", "keep")));
+					l_PsoDesc.DepthStencilState.FrontFace.StencilPassOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr->get("passOP", "keep")));
+					l_PsoDesc.DepthStencilState.FrontFace.StencilFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_FrontAttr->get("failOP", "keep")));
+				}
 
-				boost::property_tree::ptree &l_BackAttr = l_StencilAttr.get_child("DepthStencil.Stencil.Back.<xmlattr>");
-				l_PsoDesc.DepthStencilState.BackFace.StencilFunc = (D3D12_COMPARISON_FUNC)l_pRefDevice->getComapreFunc(CompareFunc::fromString(l_BackAttr.get("func", "always")));
-				l_PsoDesc.DepthStencilState.BackFace.StencilDepthFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr.get("depthFailOP", "keep")));
-				l_PsoDesc.DepthStencilState.BackFace.StencilPassOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr.get("passOP", "keep")));
-				l_PsoDesc.DepthStencilState.BackFace.StencilFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr.get("failOP", "keep")));
+				boost::optional<boost::property_tree::ptree&> l_BackAttr = l_StencilAttr.get_child_optional("DepthStencil.Stencil.Back.<xmlattr>");
+				if( !l_BackAttr )
+				{
+					l_PsoDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+					l_PsoDesc.DepthStencilState.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+					l_PsoDesc.DepthStencilState.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+					l_PsoDesc.DepthStencilState.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+				}
+				else
+				{
+					l_PsoDesc.DepthStencilState.BackFace.StencilFunc = (D3D12_COMPARISON_FUNC)l_pRefDevice->getComapreFunc(CompareFunc::fromString(l_BackAttr->get("func", "always")));
+					l_PsoDesc.DepthStencilState.BackFace.StencilDepthFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr->get("depthFailOP", "keep")));
+					l_PsoDesc.DepthStencilState.BackFace.StencilPassOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr->get("passOP", "keep")));
+					l_PsoDesc.DepthStencilState.BackFace.StencilFailOp = (D3D12_STENCIL_OP)l_pRefDevice->getStencilOP(StencilOP::fromString(l_BackAttr->get("failOP", "keep")));
+				}
 			}
 		}
 
@@ -608,6 +647,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			std::vector<DXGI_FORMAT> l_RTFmtList;
 			for( auto l_RTElement = l_RenderTargetRoot.begin() ; l_RTElement != l_RenderTargetRoot.end() ; ++l_RTElement )
 			{
+				if( "<xmlattr>" == l_RTElement->first ) continue;
 				l_RTFmtList.push_back((DXGI_FORMAT)l_pRefDevice->getPixelFormat(PixelFormat::fromString(l_RTElement->first)));
 			}
 
@@ -701,7 +741,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		l_CmdSignatureDesc.NumArgumentDescs = l_IndirectCmdDesc.size();
 		l_CmdSignatureDesc.ByteStride = m_IndirectCmdSize;
 
-		HRESULT l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, m_pRegisterDesc, IID_PPV_ARGS(&m_pIndirectFmt));
+		HRESULT l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, nullptr, IID_PPV_ARGS(&m_pIndirectFmt));//m_pRegisterDesc
 		if( S_OK != l_Res )
 		{
 			wxMessageBox(wxT("command signature init failed"), wxT("HLSLProgram::init"));
@@ -727,7 +767,7 @@ void HLSLProgram12::initComputeShader(boost::property_tree::ptree &a_Shaders, st
 	l_PsoDesc.pRootSignature = m_pRegisterDesc;
 	l_PsoDesc.CS.pShaderBytecode = l_pBinaryCode->GetBufferPointer();
 	l_PsoDesc.CS.BytecodeLength = l_pBinaryCode->GetBufferSize();
-
+	
 	HRESULT l_Res = l_pDeviceInst->CreateComputePipelineState(&l_PsoDesc, IID_PPV_ARGS(&m_pPipeline));
 	assert(S_OK == l_Res);
 	SAFE_RELEASE(l_pBinaryCode)
@@ -798,13 +838,15 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 	D3D_SHADER_MACRO *l_Macros = nullptr;
 	if( !a_ParamDefine.empty() )
 	{
-		new D3D_SHADER_MACRO[a_ParamDefine.size()];
+		l_Macros = new D3D_SHADER_MACRO[a_ParamDefine.size() + 1];
 		unsigned int l_Idx = 0;
 		for( auto it = a_ParamDefine.begin() ; it != a_ParamDefine.end() ; ++it, ++l_Idx )
 		{
 			l_Macros[l_Idx].Name = it->first.c_str();
 			l_Macros[l_Idx].Definition = it->second.c_str();
 		}
+		l_Macros[a_ParamDefine.size()].Name = nullptr;
+		l_Macros[a_ParamDefine.size()].Definition = nullptr;
 	}
 	
 	ID3DBlob *l_pShader = nullptr, *l_pErrorMsg = nullptr;
@@ -964,22 +1006,25 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 	}
 
 	std::vector<ProgramBlockDesc *> &l_UavBlocks = a_pProgrom->getBlockDesc(ShaderRegType::UavBuffer);
+	std::set<std::string> l_StructDefined;
 	for( unsigned int i=0 ; i<l_UavBlocks.size() ; ++i )
 	{
 		ProgramBlockDesc *l_pBlock = l_UavBlocks[i];
 		if( l_pBlock->m_StructureName.empty() ) l_pBlock->m_StructureName = "UAV" + l_pBlock->m_Name.substr(l_pBlock->m_Name.find_first_of('_'));
-		m_ParamDefine += "struct "+ l_pBlock->m_StructureName + " {\n";
-
-		for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
+		if( l_StructDefined.end() == l_StructDefined.find(l_pBlock->m_StructureName) )
 		{
-			snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
-			m_ParamDefine += l_Buff;
+			l_StructDefined.insert(l_pBlock->m_StructureName);
+			m_ParamDefine += "struct "+ l_pBlock->m_StructureName + " {\n";
+
+			for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
+			{
+				snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				m_ParamDefine += l_Buff;
+			}
+			m_ParamDefine += "};\n";
 		}
-		m_ParamDefine += "};\n";
 		
-		std::string l_FormatStr = (l_bWriteValid && l_pBlock->m_bWrite) ?
-			"RWStructuredBuffer<%s> : register(u%d);\n\n" : "StructuredBuffer<%s> : register(u%d);\n\n";
-		snprintf(l_Buff, 256, l_FormatStr.c_str(), l_pBlock->m_StructureName.c_str(), l_pBlock->m_pRegInfo->m_Slot);
+		snprintf(l_Buff, 256, "RWStructuredBuffer<%s> %s : register(u%d);\n\n", l_pBlock->m_StructureName.c_str(), l_pBlock->m_Name.c_str(), l_pBlock->m_pRegInfo->m_Slot);
 		m_ParamDefine += l_Buff;
 	}
 
@@ -1007,7 +1052,7 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 
 		if( it->second->m_bWrite && l_bWriteValid )
 		{
-			snprintf(l_Buff, 256, "RW%s<%s> %s : register(t%d);\n", l_TypeStr.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
+			snprintf(l_Buff, 256, "RW%s<%s> %s : register(u%d);\n", l_TypeStr.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
 			m_ParamDefine += l_Buff;
 		}
 		else

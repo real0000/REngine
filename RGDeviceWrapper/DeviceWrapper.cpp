@@ -57,6 +57,7 @@ void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ..
 GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	: wxWindow(a_pParent, a_ID)
 	, m_bFullScreen(false)
+	, m_bInitialed(false)
 {
 	Layout();
 	Fit();
@@ -93,10 +94,16 @@ END_EVENT_TABLE()
 
 void GraphicCanvas::onSize(wxSizeEvent& event)
 {
+	if( !m_bInitialed ) return;
 	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
 	
 	glm::ivec2 l_NewSize(GetClientSize().x, GetClientSize().y);
 	resizeBackBuffer();
+}
+
+void GraphicCanvas::setInitialed()
+{
+	m_bInitialed = true;
 }
 #pragma endregion
 

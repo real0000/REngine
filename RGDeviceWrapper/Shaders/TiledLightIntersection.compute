@@ -3,8 +3,8 @@
 
 void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt, float2 a_MinMax)
 {
-	float4 l_Near = mul(float4(a_ScreenPt.x, a_ScreenPt.y, l_MinMax.x, 1.0), m_InvViewProjection);
-	float4 l_Far = mul(float4(a_ScreenPt.x, a_ScreenPt.y, l_MinMax.y, 1.0), m_InvViewProjection);
+	float4 l_Near = mul(float4(a_ScreenPt.x, a_ScreenPt.y, a_MinMax.x, 1.0), m_InvViewProjection);
+	float4 l_Far = mul(float4(a_ScreenPt.x, a_ScreenPt.y, a_MinMax.y, 1.0), m_InvViewProjection);
 	l_Near = l_Near / l_Near.w;
 	l_Far = l_Far / l_Far.w;
 	a_Max = max(a_Max, l_Near.xyz);
@@ -14,14 +14,14 @@ void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt,
 }
 
 [numthreads(1, 1, 1)]
-void TiledLightIntersection(uint3 a_ThreadID : SV_DispatchThreadID)
+void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	float2 l_Texcoord = c_PixelSize * a_ThreadID.xy;
-	float2 l_MinMax = g_MinMapTexture.SampleLevel(s_LinearSampler, l_Texcoord, c_MipmapLevel);
+	float2 l_MinMax = g_MinMapTexture.SampleLevel(s_LinearSampler, l_Texcoord, c_MipmapLevel).xy;
 	float2 l_Center = a_ThreadID.xy / c_TileCount * float2(2.0, -2.0) + float2(-1.0, 1.0);
 	float2 l_Offset = 0.5 / c_TileCount;
 
-	float3 l_BoxMin = float3(3.402823466e+38F);
+	float3 l_BoxMin = float3(3.402823466e+38F, 3.402823466e+38F, 3.402823466e+38F);
 	float3 l_BoxMax = -l_BoxMin;
 	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x + l_Offset.x, l_Center.y + l_Offset.y), l_MinMax);
 	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x - l_Offset.x, l_Center.y + l_Offset.y), l_MinMax);
@@ -29,38 +29,45 @@ void TiledLightIntersection(uint3 a_ThreadID : SV_DispatchThreadID)
 	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x + l_Offset.x, l_Center.y - l_Offset.y), l_MinMax);
 
 	int l_IdxOffset = c_NumLight * (a_ThreadID.y * c_TileCount.x + a_ThreadID.x);
-	int l_TileLight = 0;
+	int l_TileLight = 1;
 	float3 l_BoxCenter = (l_BoxMin + l_BoxMax) * 0.5;
 	float3 l_BoxSize = (l_BoxMax - l_BoxMin) * 0.5;
 	for( int i=0 ; i<c_NumLight ; ++i )
 	{
-		if( LIGHT_TYPE_OMNI == g_SrcLights[i].y )
+		int l_SrcIdx = g_SrcLights[i/2].m_Params[(i%2)*2];
+		int l_SrcType = g_SrcLights[i/2].m_Params[(i%2)*2 + 1];
+		int l_DstIdx = (l_TileLight + l_IdxOffset) / 2;
+		int l_DstTypeIdx = ((l_TileLight + l_IdxOffset) % 2) * 2;
+		if( LIGHT_TYPE_OMNI == l_SrcType )
 		{
-			OmniLight l_Light = g_OmniLightList[g_SrcLights[i].x];
+			OmniLight l_Light = g_OmniLights[l_SrcIdx];
 			float3 l_Dist = abs(l_Light.m_Position - l_BoxCenter);
 			if( l_Dist.x < l_Light.m_Range + l_BoxSize.x && l_Dist.y < l_Light.m_Range + l_BoxSize.y && l_Dist.z < l_Light.m_Range + l_BoxSize.z )
 			{
 				++l_TileLight;
-				g_DstLights[l_TileLight + l_IdxOffset] = g_SrcLights[i];
+				g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
+				g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
 			}
 		}
-		else if( LIGHT_TYPE_SPOT == g_SrcLights[i].y )
+		else if( LIGHT_TYPE_SPOT == l_SrcType )
 		{	
-			SpotLight l_Light = g_SpotLightList[g_SrcLights[i].x];
+			SpotLight l_Light = g_SpotLights[l_SrcIdx];
 			//float3 l_SpotCenter = l_Light.m_Position + 0.5 * l_Light.m_Range * l_Light.m_Direction;
 			// to do : write own corn-aabb intersection
 			float3 l_Dist = abs(l_Light.m_Position - l_BoxCenter);
 			if( l_Dist.x < l_Light.m_Range + l_BoxSize.x && l_Dist.y < l_Light.m_Range + l_BoxSize.y && l_Dist.z < l_Light.m_Range + l_BoxSize.z )
 			{
 				++l_TileLight;
-				g_DstLights[l_TileLight + l_IdxOffset] = g_SrcLights[i];
+				g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
+				g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
 			}
 		}
 		else
 		{
 			++l_TileLight;
-			g_DstLights[l_TileLight + l_IdxOffset] = g_SrcLights[i];
+			g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
+			g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
 		}
 	}
-	g_DstLights[l_IdxOffset].x = l_TileLight;
+	g_DstLights[l_IdxOffset/2].m_Params[0].x = l_TileLight;
 }

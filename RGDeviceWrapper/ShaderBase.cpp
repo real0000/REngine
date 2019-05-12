@@ -90,17 +90,17 @@ ShaderProgram::ShaderProgram()
 		m_pNullVtxBuffer = new VertexBuffer();
 		m_pNullVtxBuffer->setName(wxT("null vertex buffer"));
 		m_pNullVtxBuffer->setNumVertex(1);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_POSITION, &l_Position);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD01, &l_Texcoord[0]);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD23, &l_Texcoord[1]);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD45, &l_Texcoord[2]);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_TEXCOORD67, &l_Texcoord[3]);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_NORMAL, &l_Normal);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_TANGENT, &l_Tangent);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_BINORMAL, &l_Binormal);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_BONE, &l_BoneID);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_WEIGHT, &l_Weight);
-		m_pNullVtxBuffer->setVertex(VTXFLAG_COLOR, &l_Colors);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_POSITION, &l_Position);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_TEXCOORD01, &l_Texcoord[0]);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_TEXCOORD23, &l_Texcoord[1]);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_TEXCOORD45, &l_Texcoord[2]);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_TEXCOORD67, &l_Texcoord[3]);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_NORMAL, &l_Normal);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_TANGENT, &l_Tangent);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_BINORMAL, &l_Binormal);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_BONE, &l_BoneID);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_WEIGHT, &l_Weight);
+		m_pNullVtxBuffer->setVertex(VTXSLOT_COLOR, &l_Colors);
 		m_pNullVtxBuffer->init();
 	}
 	++m_NullVtxRefCount;
@@ -188,7 +188,7 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 				std::string l_Name(it->second.get<std::string>("<xmlattr>.name"));
 				ProgramTextureDesc *l_pNewTexture = new ProgramTextureDesc();
 				l_pNewTexture->m_bWrite = it->second.get("<xmlattr>.write", "false") == "true";
-				l_pNewTexture->m_Type = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type"));
+				l_pNewTexture->m_Type = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type", "float4"));
 				l_pNewTexture->m_Describe = it->second.get("<xmlattr>.desc", "");
 
 				assert(m_TextureDesc.end() == m_TextureDesc.find(l_Name));
@@ -261,7 +261,13 @@ void ProgramManager::init(ProgramManagerComponent *a_pComponent)
 {
 	assert(nullptr == m_pShaderComponent);
 	m_pShaderComponent = a_pComponent;
-	ProgramManager::singleton();// to init default program
+
+	wxString l_Path(wxGetCwd());
+	l_Path.Replace("\\", "/");
+	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
+	ProgramManager::singleton().addSearchPath(l_Path + SHADER_PATH);
+	ProgramManager::singleton().initBlockDefine(l_Path + SHADER_PATH + SAHDER_BLOCK_DEFINE_FILE);
+	ProgramManager::singleton().initDefaultProgram();
 }
 
 ProgramManager& ProgramManager::singleton()
@@ -273,13 +279,6 @@ ProgramManager& ProgramManager::singleton()
 ProgramManager::ProgramManager()
 	: SearchPathSystem(std::bind(&ProgramManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&ProgramManager::allocator, this))
 {	
-	wxString l_Path(wxGetCwd());
-	l_Path.Replace("\\", "/");
-	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
-	addSearchPath(l_Path + SHADER_PATH);
-
-	initBlockDefine(l_Path + SHADER_PATH + SAHDER_BLOCK_DEFINE_FILE);
-	initDefaultProgram();
 }
 
 ProgramManager::~ProgramManager()

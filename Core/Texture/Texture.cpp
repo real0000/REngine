@@ -86,18 +86,6 @@ std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Filename, 
 	return l_pNewTexture;
 }
 
-std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, unsigned int a_Width, PixelFormat::Key a_Format, void *a_pInitData)
-{
-	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
-	unsigned int l_TextureID = GDEVICE()->allocateTexture(a_Width, a_Format);
-
-	l_pNewTexture->setTextureID(l_TextureID);
-	l_pNewTexture->setReady();
-	if( nullptr != a_pInitData ) GDEVICE()->updateTexture(l_TextureID, 0, a_Width, 0, a_pInitData);
-
-	return l_pNewTexture;
-}
-
 std::shared_ptr<TextureUnit> TextureManager::createTexture(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...)
 {
 	std::shared_ptr<TextureUnit> l_pNewTexture = createUniqueTexture(a_Name);
@@ -186,12 +174,6 @@ void TextureManager::loadTextureFile(std::shared_ptr<TextureUnit> a_pTarget)
 	std::shared_ptr<ShaderProgram> l_pProgram = nullptr;
 	switch( l_pImageData->getType() )
 	{
-		case TEXTYPE_SIMPLE_1D:{
-			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap1D);
-			l_TextureID = GDEVICE()->allocateTexture(l_Dim.x, l_pImageData->getFormat());
-			GDEVICE()->updateTexture(l_TextureID, 0, l_Dim.x, 0, l_pImageData->getPixels(0));
-			}break;
-
 		case TEXTYPE_SIMPLE_2D:{
 			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
 			l_TextureID = GDEVICE()->allocateTexture(glm::ivec2(l_Dim.x, l_Dim.y), l_pImageData->getFormat());

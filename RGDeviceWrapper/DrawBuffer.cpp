@@ -79,7 +79,7 @@ void VertexBuffer::setVertex(unsigned int a_Slot, void *a_pSrc)
 void VertexBuffer::setNumVertex(unsigned int a_NumVtx)
 {
 	assert(nullptr != m_pInitVal);
-	assert(0 == a_NumVtx);
+	assert(0 != a_NumVtx);
 	m_pInitVal->m_NumVtx = a_NumVtx;
 }
 

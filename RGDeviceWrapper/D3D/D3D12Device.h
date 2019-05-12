@@ -197,10 +197,8 @@ public:
 	virtual unsigned int getTopology(Topology::Key a_Key);
 
 	// texture part
-	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format);
 	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
 	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format);
-	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData);
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
 	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
@@ -369,7 +367,7 @@ private:
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
 	DXGI_SAMPLE_DESC m_MsaaSetting;
-	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue, *m_pBundleCmdQueue;// to do : add bundle support;
+	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue;// to do : add bundle support;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
 	unsigned int m_IdleResThread;
 	D3D12Fence *m_pResFence, *m_pComputeFence, *m_pGraphicFence;

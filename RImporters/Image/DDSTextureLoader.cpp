@@ -272,25 +272,15 @@ void ImageData::loadDDS(wxString a_Filepath)
 
         switch (d3d10ext->resourceDimension)
         {
-        case DDS_DIMENSION_TEXTURE1D:
-            // D3DX writes 1D textures with a fixed Height of 1
-            if ((header->flags & DDS_HEIGHT) && m_Dim.y != 1)
-            {
-				clear();
-                return ;
-            }
-            m_Dim.y = m_Dim.z = 1;
-			m_Type = TEXTYPE_SIMPLE_1D;
-            break;
-
         case DDS_DIMENSION_TEXTURE2D:
             if (d3d10ext->miscFlag & MISC_FLAG_TEXTURECUBE)
             {
                 arraySize *= 6;
                 isCubeMap = true;
+				m_Type = TEXTYPE_SIMPLE_CUBE;
             }
+			else m_Type = TEXTYPE_SIMPLE_2D;
             m_Dim.z = 1;
-			//m_Type = TEXTYPE_SIMPLE_2D;
             break;
 
         case DDS_DIMENSION_TEXTURE3D:
@@ -359,7 +349,7 @@ void ImageData::loadDDS(wxString a_Filepath)
     size_t rowBytes = 0;
     GetSurfaceInfo(m_Dim.x, m_Dim.y, m_Format, &numBytes, &rowBytes, nullptr);
 
-    if (numBytes > l_FileLength)
+    if (numBytes > (size_t)l_FileLength)
     {
         clear();
         return ;

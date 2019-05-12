@@ -7,13 +7,28 @@ public:
 	
 private:
 	virtual bool OnInit();
+	virtual int OnExit();
+
+	std::shared_ptr<R::GraphicCanvas> m_pCanvas;
 };
 
 IMPLEMENT_APP(BasicApp)
 
 bool BasicApp::OnInit()
 {
-	R::EngineCore::singleton().createCanvas();
+	m_pCanvas = R::EngineCore::singleton().createCanvas();
 	
+	std::shared_ptr<R::Scene> l_pScene = R::SceneManager::singleton().create(wxT("Test"));
+	l_pScene->initEmpty();
+	
+	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
+
 	return true;
+}
+
+int BasicApp::OnExit()
+{
+	m_pCanvas = nullptr;
+
+	return 0;
 }

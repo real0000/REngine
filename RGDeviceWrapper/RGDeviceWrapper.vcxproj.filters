@@ -32,9 +32,6 @@
     <ClInclude Include="DeviceWrapper.h" />
     <ClInclude Include="RGDeviceWrapper.h" />
     <ClInclude Include="ShaderBase.h" />
-    <ClInclude Include="Shaders\StdInclude.h">
-      <Filter>Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="D3D\HLSLShader.h">
       <Filter>D3D</Filter>
     </ClInclude>
@@ -48,35 +45,6 @@
     <ClInclude Include="D3D\D3D12Device.h">
       <Filter>D3D</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="Shaders\TextureOnly.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\GenerateMipmap2D.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\GenerateMipmap1D.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\GenerateMipmap3D.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\Copy.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\BlockDefine.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\GenerateMinmaxDepth.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\TiledLightIntersection.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\TiledDeferredLighting.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GenerateMipmap2D.compute">
@@ -94,19 +62,41 @@
     <None Include="Shaders\TiledDeferredLighting.pixel">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\GenerateMipmap1D.compute">
+    <None Include="Shaders\GenerateMinmaxDepth.compute">
       <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\GenerateMipmap3D.compute">
+    </None>
+    <None Include="Shaders\GenerateMinmaxDepth.xml">
       <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TiledLightIntersection.compute">
+    </None>
+    <None Include="Shaders\GenerateMipmap2D.xml">
       <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\GenerateMinmaxDepth.compute">
+    </None>
+    <None Include="Shaders\GenerateMipmap3D.compute">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </None>
+    <None Include="Shaders\GenerateMipmap3D.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TiledDeferredLighting.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TiledLightIntersection.compute">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TiledLightIntersection.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TextureOnly.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\BlockDefine.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Copy.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\StdInclude.h">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

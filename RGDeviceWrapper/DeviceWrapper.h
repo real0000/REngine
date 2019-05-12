@@ -67,9 +67,11 @@ public:
 
 protected:
 	virtual void resizeBackBuffer() = 0;
+	void setInitialed();
 
 private:
 	bool m_bFullScreen;
+	bool m_bInitialed;
 
 	DECLARE_EVENT_TABLE()
 };
@@ -104,10 +106,8 @@ public:
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
 
 	// texture part
-	virtual int allocateTexture(unsigned int a_Size, PixelFormat::Key a_Format) = 0;
 	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false) = 0;
 	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
-	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, unsigned int a_Size, unsigned int a_Offset, void *a_pSrcData) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
 	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram) = 0;
