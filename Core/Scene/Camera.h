@@ -50,6 +50,7 @@ public:
 	};
 	virtual ~CameraComponent();// don't call this method directly
 	
+	virtual void postInit();
 	virtual void start();
 	virtual void end();
 	virtual void hiddenFlagChanged();

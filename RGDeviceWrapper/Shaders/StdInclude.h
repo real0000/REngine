@@ -40,6 +40,18 @@
 		float4 m_Weight : BLENDWEIGHT0;
 		float4 m_Color : COLOR0;
 	};
+	struct VS_CommonOutput
+	{
+		float4 m_Texcoord01 : TEXCOORD0;
+		float4 m_Texcoord23 : TEXCOORD1;
+		float4 m_Texcoord45 : TEXCOORD2;
+		float4 m_Texcoord67 : TEXCOORD3;
+		float4 m_Normal : NORMAL0;
+		float4 m_Tangent : TANGENT0;
+		float4 m_Binormal : BINORMAL0;
+		float4 m_Color : COLOR0;
+		float4 m_Position : SV_POSITION;
+	};
 
 	struct HS_TriangleFactor
 	{
@@ -49,7 +61,10 @@
 
 	struct PS_CommonInput
 	{
-		float4 m_UV : TEXCOORD0;
+		float4 m_Texcoord01 : TEXCOORD0;
+		float4 m_Texcoord23 : TEXCOORD1;
+		float4 m_Texcoord45 : TEXCOORD2;
+		float4 m_Texcoord67 : TEXCOORD3;
 		float4 m_Normal : NORMAL0;
 		float4 m_Tangent : TANGENT0;
 		float4 m_Binormal : BINORMAL0;

@@ -237,9 +237,12 @@ void Scene::initEmpty()
 	clear();
 	
 	m_pMembers->m_pScene = shared_from_this();
-	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
-	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
 	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
+	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
+	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
+	m_pMembers->m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
+	m_pMembers->m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
+	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
 
 	m_pCurrCamera = EngineComponent::create<CameraComponent>(m_pMembers, m_pMembers->m_pSceneNode);
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
@@ -325,7 +328,7 @@ void Scene::update(float a_Delta)
 	//m_pMembers->m_pBatcher->flush();
 }
 
-void Scene::render(std::shared_ptr<GraphicCanvas> a_pCanvas)
+void Scene::render(GraphicCanvas *a_pCanvas)
 {
 	if( nullptr == m_pCurrCamera ) return;
 
@@ -465,7 +468,7 @@ SceneManager::~SceneManager()
 	m_SceneMap.clear();
 }
 
-void SceneManager::setMainScene(std::shared_ptr<GraphicCanvas> a_pCanvas, std::shared_ptr<Scene> a_pScene)
+void SceneManager::setMainScene(GraphicCanvas *a_pCanvas, std::shared_ptr<Scene> a_pScene)
 {
 	assert(nullptr != a_pScene);
 	m_CanvasMainScene[a_pScene] = a_pCanvas;
@@ -478,6 +481,20 @@ void SceneManager::dropScene(wxString a_Name)
 
 	m_CanvasMainScene.erase(it->second);
 	m_SceneMap.erase(it);
+}
+
+void SceneManager::dropCanvas(GraphicCanvas *a_pWeak)
+{
+	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
+	for( auto it = m_CanvasMainScene.begin() ; it != m_CanvasMainScene.end() ; ++it )
+	{
+		if( it->second == a_pWeak )
+		{
+			m_CanvasMainScene.erase(it);
+			if( m_CanvasMainScene.empty() ) EngineCore::singleton().shutDown();
+			break;
+		}
+	}
 }
 
 std::shared_ptr<Scene> SceneManager::getScene(wxString a_Name)
@@ -508,6 +525,7 @@ void SceneManager::update(float a_Delta)
 
 void SceneManager::render()
 {
+	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
 	for( auto it = m_SceneMap.begin() ; it != m_SceneMap.end() ; ++it )
 	{
 		if( !it->second->m_bActivate ) continue;

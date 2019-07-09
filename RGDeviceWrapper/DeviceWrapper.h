@@ -58,20 +58,27 @@ public:
 
 	void setFullScreen(bool a_bFullScreen);
 	bool isFullScreen(){ return m_bFullScreen; }
+	void setCloseCallback(std::function<void(GraphicCanvas*)> a_pCloseCB){ m_pCloseCB = a_pCloseCB; }
 	
 	void onSize(wxSizeEvent &a_Event);
+	void onClose(wxCloseEvent &a_Event);
 
 	virtual void init(bool a_bFullScr) = 0;
-	virtual void present() = 0;
 	virtual unsigned int getBackBuffer() = 0;
+	virtual void* getBackBufferResource() = 0;
+
+	virtual void present() = 0;
+	virtual void resizeBackBuffer() = 0;
 
 protected:
-	virtual void resizeBackBuffer() = 0;
 	void setInitialed();
-
+	bool getNeedResize();
+	
 private:
 	bool m_bFullScreen;
 	bool m_bInitialed;
+	bool m_bNeedResize;
+	std::function<void(GraphicCanvas*)> m_pCloseCB;
 
 	DECLARE_EVENT_TABLE()
 };
@@ -143,8 +150,6 @@ public:
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount) = 0;
 	virtual char* getUavBufferContainer(int a_ID) = 0;
 	virtual void* getUavBufferResource(int a_ID) = 0;
-	virtual int getUavBufferCounter(int a_ID) = 0;
-	virtual void setUavBufferCounter(int a_ID, int a_Val) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end

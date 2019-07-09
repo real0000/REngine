@@ -98,5 +98,8 @@
     <None Include="Shaders\StdInclude.h">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\TextureOnly.pixel">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

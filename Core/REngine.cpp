@@ -25,16 +25,19 @@ EngineComponent::EngineComponent(SharedSceneMember *a_pSharedMember, std::shared
 	: m_bHidden(false)
 	, m_Name(wxT(""))
 	, m_pMembers(new SharedSceneMember)
-
 {
 	*m_pMembers = *a_pSharedMember;
 	m_pMembers->m_pSceneNode = a_pOwner;
-	if( nullptr != a_pOwner ) a_pOwner->add(shared_from_this());
 	memset(&m_Flags, 0, sizeof(m_Flags));
 }
 
 EngineComponent::~EngineComponent()
 {
+}
+
+void EngineComponent::postInit()
+{
+	if( nullptr != m_pMembers->m_pSceneNode ) m_pMembers->m_pSceneNode->add(shared_from_this());
 }
 
 void EngineComponent::setHidden(bool a_bHidden)
@@ -232,26 +235,27 @@ EngineCore::~EngineCore()
 	}
 }
 
-std::shared_ptr<GraphicCanvas> EngineCore::createCanvas()
+GraphicCanvas* EngineCore::createCanvas()
 {
 	if( !m_bValid ) return nullptr;
-	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
 	wxFrame *l_pNewWindow = new wxFrame(NULL, wxID_ANY, EngineSetting::singleton().m_Title);
+	l_pNewWindow->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pNewWindow->Show();
 
-	std::shared_ptr<GraphicCanvas> l_pCanvas = std::shared_ptr<GraphicCanvas>(GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY));
+	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
+	l_pCanvas->setCloseCallback(std::bind(&EngineCore::onCanvasClose, this, std::placeholders::_1));
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	return l_pCanvas;
 }
 
-std::shared_ptr<GraphicCanvas> EngineCore::createCanvas(wxWindow *a_pParent)
+GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 {
 	if( !m_bValid ) return nullptr;
-	std::lock_guard<std::mutex> l_CanvasLock(m_CanvasLock);
 
-	std::shared_ptr<GraphicCanvas> l_pCanvas = std::shared_ptr<GraphicCanvas>(GDEVICE()->canvasFactory(a_pParent, wxID_ANY));
+	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(a_pParent, wxID_ANY);
+	l_pCanvas->setCloseCallback(std::bind(&EngineCore::onCanvasClose, this, std::placeholders::_1));
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	return l_pCanvas;
 }
@@ -318,6 +322,11 @@ void EngineCore::mainLoop()
 
 		l_Start = l_Now;
 	}
+}
+
+void EngineCore::onCanvasClose(GraphicCanvas *a_pWeak)
+{
+	SceneManager::singleton().dropCanvas(a_pWeak);
 }
 #pragma endregion
 

@@ -41,11 +41,13 @@ class InputMediator;
 
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 {
+	friend class EngineComponent;
 public:
 	template<typename T>
 	static std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	{
 		std::shared_ptr<T> l_pNewComponent = std::shared_ptr<T>(new T(a_pSharedMember, a_pOwner));
+		l_pNewComponent->postInit();
 		l_pNewComponent->start();
 		return l_pNewComponent;
 	}
@@ -56,6 +58,7 @@ public:
 		return std::static_pointer_cast<T>(shared_from_this());
 	}
 	
+	virtual void postInit();
 	virtual void start(){}
 	virtual void end(){}
 	virtual void hiddenFlagChanged(){}
@@ -136,9 +139,9 @@ public:
 	static EngineCore& singleton();
 	
 	// for normal game : 1 canvas with close button
-	std::shared_ptr<GraphicCanvas> createCanvas();
+	GraphicCanvas* createCanvas();
 	// for tool window
-	std::shared_ptr<GraphicCanvas> createCanvas(wxWindow *a_pParent);
+	GraphicCanvas* createCanvas(wxWindow *a_pParent);
 
 	bool isShutdown();
 	void shutDown();
@@ -149,13 +152,13 @@ private:
 
 	bool init();
 	void mainLoop();
+	void onCanvasClose(GraphicCanvas *a_pWeak);
 
 	bool m_bValid;
 	bool m_bShutdown;
 
 	InputMediator *m_pInput;
 	std::thread *m_pMainLoop;
-	std::mutex m_CanvasLock;
 };
 
 }

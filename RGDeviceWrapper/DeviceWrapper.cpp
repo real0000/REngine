@@ -58,9 +58,9 @@ GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	: wxWindow(a_pParent, a_ID)
 	, m_bFullScreen(false)
 	, m_bInitialed(false)
+	, m_bNeedResize(false)
+	, m_pCloseCB(nullptr)
 {
-	Layout();
-	Fit();
 }
 
 GraphicCanvas::~GraphicCanvas()
@@ -90,20 +90,31 @@ void GraphicCanvas::setFullScreen(bool a_bFullScreen)
 
 BEGIN_EVENT_TABLE(GraphicCanvas, wxWindow)
 	EVT_SIZE(GraphicCanvas::onSize)
+	EVT_CLOSE(GraphicCanvas::onClose)
 END_EVENT_TABLE()
 
 void GraphicCanvas::onSize(wxSizeEvent& event)
 {
 	if( !m_bInitialed ) return;
 	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
-	
-	glm::ivec2 l_NewSize(GetClientSize().x, GetClientSize().y);
-	resizeBackBuffer();
+	m_bNeedResize = true;
+}
+
+void GraphicCanvas::onClose(wxCloseEvent &a_Event)
+{
+	if( nullptr != m_pCloseCB ) m_pCloseCB(this);
 }
 
 void GraphicCanvas::setInitialed()
 {
 	m_bInitialed = true;
+}
+
+bool GraphicCanvas::getNeedResize()
+{
+	bool l_Res = m_bNeedResize;
+	m_bNeedResize = false;
+	return l_Res;
 }
 #pragma endregion
 

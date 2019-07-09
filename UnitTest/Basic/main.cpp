@@ -3,13 +3,13 @@
 class BasicApp: public wxApp
 {
 public:
-	BasicApp() : wxApp(){}
+	BasicApp() : wxApp(), m_pCanvas(nullptr){}
 	
 private:
 	virtual bool OnInit();
 	virtual int OnExit();
 
-	std::shared_ptr<R::GraphicCanvas> m_pCanvas;
+	R::GraphicCanvas *m_pCanvas;
 };
 
 IMPLEMENT_APP(BasicApp)

@@ -35,7 +35,7 @@ public:
 	DeferredRenderer(SharedSceneMember *a_pSharedMember);
 	virtual ~DeferredRenderer();
 
-	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<GraphicCanvas> a_pCanvas);
+	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas);
 
 private:
 	bool setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);

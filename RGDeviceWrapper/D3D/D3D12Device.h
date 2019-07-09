@@ -141,6 +141,9 @@ private:
 	D3D12GpuThread m_CurrThread;
 	HLSLProgram12 *m_pCurrProgram;
 
+	ID3D12Resource *m_pRefBackBuffer;
+	bool m_bNeedResetBackBufferState;
+
 	// resource state
 	std::unordered_map<ID3D12Resource*, std::pair<int, int> > m_ResourceState;//resource, origin state, current state
 
@@ -155,11 +158,13 @@ public:
 	virtual ~D3D12Canvas();
 
 	virtual void init(bool a_bFullScr);
-	virtual void present();
 	virtual unsigned int getBackBuffer();
+	virtual void* getBackBufferResource();
 
-protected:
+	virtual void present();
 	virtual void resizeBackBuffer();
+
+	void presentImp();
 
 private:
 	D3D12HeapManager *m_pRefHeapOwner;
@@ -234,8 +239,6 @@ public:
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount);
 	virtual char* getUavBufferContainer(int a_ID);
 	virtual void* getUavBufferResource(int a_ID);
-	virtual int getUavBufferCounter(int a_ID);
-	virtual void setUavBufferCounter(int a_ID, int a_Val);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList);
 	virtual void freeUavBuffer(int a_ID);
@@ -260,6 +263,7 @@ public:
 	D3D12GpuThread requestThread(bool a_bCompute);
 	void recycleThread(D3D12GpuThread a_Thread, bool a_bCompute);
 	void waitForResourceUpdate();
+	void addPresentCanvas(D3D12Canvas *a_pCanvas);
 
 private:
 	void resourceThread();
@@ -330,8 +334,7 @@ private:
 
 		unsigned int m_ElementSize;
 		unsigned int m_ElementCount;
-		int m_CounterID;
-		int *m_pCounterVal;
+		ID3D12Resource *m_pCounterResource;
 	};
 	struct ReadBackBuffer
 	{
@@ -379,6 +382,7 @@ private:
 	std::vector<D3D12GpuThread> m_ComputeReadyThread, m_ComputeBusyThread;
 	std::vector<D3D12GpuThread> m_GraphicReadyThread, m_GraphicBusyThread;
 	std::deque<D3D12GpuThread> m_GraphicThread, m_ComputeThread;// idle thread
+	std::vector<D3D12Canvas*> m_PresentCanvas;
 	std::mutex m_ThreadMutex, m_ResourceMutex, m_ComputeMutex;
 
 	int m_QuadBufferID;

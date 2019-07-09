@@ -47,7 +47,7 @@ public:
 		, m_FreeCount(a_InitSize), m_ExtendSize(a_ExtendSize)
 		, m_Lights(true)
 	{
-		m_Lights.setNewFunc(std::bind(&SpotLights::newSpotLight, this));
+		m_Lights.setNewFunc(std::bind(&LightContainer<T>::newLight, this));
 
 		ProgramBlockDesc *l_pDesc = ProgramManager::singleton().createBlockFromDesc(a_BlockName);
 		m_pLightData = MaterialBlock::create(ShaderRegType::UavBuffer, l_pDesc, m_FreeCount);

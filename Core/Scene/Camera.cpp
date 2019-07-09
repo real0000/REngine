@@ -25,19 +25,24 @@ CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared
 	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
 {
-	addTransformListener();
-	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
-
 	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly);
 
 	auto l_BlockDescVec = l_pProgram->getBlockDesc(ShaderRegType::ConstBuffer);
-	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_Name == "CameraBuffer"; });
+	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "CameraBuffer"; });
 	m_pCameraBlock = MaterialBlock::create(ShaderRegType::ConstBuffer, *l_BlockDescIt);
+
+	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
 }
 
 CameraComponent::~CameraComponent()
 {
 	m_pCameraBlock = nullptr;
+}
+
+void CameraComponent::postInit()
+{
+	RenderableComponent::postInit();
+	addTransformListener();
 }
 
 void CameraComponent::start()

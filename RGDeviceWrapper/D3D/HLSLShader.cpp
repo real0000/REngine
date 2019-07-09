@@ -671,6 +671,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 	bool l_bUseIndirectDraw = a_ShaderSetting.get("<xmlattr>.useIndirectDraw", "true") == "true";
 	if( l_bUseIndirectDraw )
 	{// init indirect command signature
+		bool l_bHasCommandDesc = false;
 		std::vector<D3D12_INDIRECT_ARGUMENT_DESC> l_IndirectCmdDesc;
 		for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
 		{
@@ -690,42 +691,62 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			m_IndirectCmdSize += sizeof(D3D12_INDEX_BUFFER_VIEW);
 		}
 
+		std::map<int64, std::pair<RegisterInfo*, ShaderRegType::Key> > l_SortedParam;
+
 		for( auto it = m_RegMap[ShaderRegType::Constant].begin() ; it != m_RegMap[ShaderRegType::Constant].end() ; ++it )
 		{
 			if( it->second->m_bReserved ) continue;
-
-			D3D12_INDIRECT_ARGUMENT_DESC l_SrvSlot = {};
-			l_SrvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-			l_SrvSlot.Constant.DestOffsetIn32BitValues = it->second->m_Offset / 4;
-			l_SrvSlot.Constant.Num32BitValuesToSet = it->second->m_Size / 4;
-			l_SrvSlot.Constant.RootParameterIndex = it->second->m_RootIndex;
-			l_IndirectCmdDesc.push_back(l_SrvSlot);
-
-			m_IndirectCmdSize += sizeof(unsigned int);
+			l_SortedParam.insert(std::make_pair((int64(it->second->m_RootIndex) << 32) + it->second->m_Offset, std::make_pair(it->second, ShaderRegType::Constant)));
 		}
 
 		for( auto it = m_RegMap[ShaderRegType::ConstBuffer].begin() ; it != m_RegMap[ShaderRegType::ConstBuffer].end() ; ++it )
 		{
 			if( it->second->m_bReserved ) continue;
-
-			D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
-			l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
-			l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second->m_RootIndex;
-			l_IndirectCmdDesc.push_back(l_CbvSlot);
-			
-			m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+			l_SortedParam.insert(std::make_pair(int64(it->second->m_RootIndex) << 32, std::make_pair(it->second, ShaderRegType::ConstBuffer)));
 		}
 		
 		for( auto it = m_RegMap[ShaderRegType::UavBuffer].begin() ; it != m_RegMap[ShaderRegType::UavBuffer].end() ; ++it )
 		{
 			if( it->second->m_bReserved ) continue;
+			l_SortedParam.insert(std::make_pair(int64(it->second->m_RootIndex) << 32, std::make_pair(it->second, ShaderRegType::UavBuffer)));
+		}
 
-			D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
-			l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW;
-			l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second->m_RootIndex;
-			l_IndirectCmdDesc.push_back(l_CbvSlot);
+		l_bHasCommandDesc = !l_SortedParam.empty();
+		for( auto it = l_SortedParam.begin() ; it != l_SortedParam.end() ; ++it )
+		{
+			switch( it->second.second )
+			{
+				case ShaderRegType::Constant:{
+					D3D12_INDIRECT_ARGUMENT_DESC l_SrvSlot = {};
+					l_SrvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+					l_SrvSlot.Constant.DestOffsetIn32BitValues = it->second.first->m_Offset / 4;
+					l_SrvSlot.Constant.Num32BitValuesToSet = it->second.first->m_Size / 4;
+					l_SrvSlot.Constant.RootParameterIndex = it->second.first->m_RootIndex;
+					l_IndirectCmdDesc.push_back(l_SrvSlot);
+
+					m_IndirectCmdSize += sizeof(unsigned int);
+					}break;
+
+				case ShaderRegType::ConstBuffer:{
+					D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
+					l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
+					l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second.first->m_RootIndex;
+					l_IndirectCmdDesc.push_back(l_CbvSlot);
 			
-			m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+					m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+					}break;
+
+				case ShaderRegType::UavBuffer:{
+					D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
+					l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW;
+					l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second.first->m_RootIndex;
+					l_IndirectCmdDesc.push_back(l_CbvSlot);
+			
+					m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+					}break;
+
+				default:break;
+			}
 		}
 
 		{// indirect draw command
@@ -741,7 +762,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		l_CmdSignatureDesc.NumArgumentDescs = l_IndirectCmdDesc.size();
 		l_CmdSignatureDesc.ByteStride = m_IndirectCmdSize;
 
-		HRESULT l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, nullptr, IID_PPV_ARGS(&m_pIndirectFmt));//m_pRegisterDesc
+		HRESULT l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, l_bHasCommandDesc ? m_pRegisterDesc : nullptr, IID_PPV_ARGS(&m_pIndirectFmt));
 		if( S_OK != l_Res )
 		{
 			wxMessageBox(wxT("command signature init failed"), wxT("HLSLProgram::init"));

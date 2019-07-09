@@ -434,14 +434,14 @@ std::shared_ptr<ShaderProgram> ProgramManager::allocator()
 void ProgramManager::loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path)
 {
 	boost::property_tree::ptree l_XMLTree;
-	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree);
+	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree, boost::property_tree::xml_parser::no_comments);
 	assert( !l_XMLTree.empty() );
 	a_pInst->setup(l_XMLTree);
 }
 
 void ProgramManager::initBlockDefine(wxString a_Filepath)
 {
-	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Filepath.c_str()), m_BlockDefineFile);
+	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Filepath.c_str()), m_BlockDefineFile, boost::property_tree::xml_parser::no_comments);
 	assert( !m_BlockDefineFile.empty() );
 
 	boost::property_tree::ptree &l_Root = m_BlockDefineFile.get_child("root");

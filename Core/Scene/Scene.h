@@ -124,7 +124,7 @@ public:
 	void preprocessInput();
 	void processInput(InputData &a_Data);
 	void update(float a_Delta);
-	void render(std::shared_ptr<GraphicCanvas> a_pCanvas);
+	void render(GraphicCanvas *a_pCanvas);
 	
 	// listener
 	void addUpdateListener(std::shared_ptr<EngineComponent> a_pListener);
@@ -165,8 +165,9 @@ public:
 	static SceneManager& singleton();
 	std::shared_ptr<Scene> create(wxString a_Name);
 
-	void setMainScene(std::shared_ptr<GraphicCanvas> a_pCanvas, std::shared_ptr<Scene> a_pScene);
+	void setMainScene(GraphicCanvas *a_pCanvas, std::shared_ptr<Scene> a_pScene);
 	void dropScene(wxString a_Name);
+	void dropCanvas(GraphicCanvas *a_pWeak);
 	std::shared_ptr<Scene> getScene(wxString a_Name);
 
 	// focused main scene only
@@ -178,8 +179,9 @@ private:
 	SceneManager();
 	virtual ~SceneManager();
 
-	std::map<std::shared_ptr<Scene>, std::shared_ptr<GraphicCanvas> > m_CanvasMainScene;
+	std::map<std::shared_ptr<Scene>, GraphicCanvas*> m_CanvasMainScene;
 	std::map<wxString, std::shared_ptr<Scene> > m_SceneMap;
+	std::mutex m_CanvasDropLock;
 };
 
 }

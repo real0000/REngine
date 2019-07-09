@@ -24,7 +24,7 @@ public:
 	RenderPipeline(SharedSceneMember *a_pSharedMember);
 	virtual ~RenderPipeline();
 
-	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<GraphicCanvas> a_pCanvas) = 0;
+	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
 
 protected:
 	SharedSceneMember* getSharedMember(){ return m_pSharedMember; }

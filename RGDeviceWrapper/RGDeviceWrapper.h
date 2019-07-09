@@ -186,7 +186,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 
 	// draw
 	Copy,
-	ShadowMap,
+	//ShadowMap,
 	TextureOnly,
 	TiledDeferredLighting,
 

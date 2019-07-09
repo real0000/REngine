@@ -1,10 +1,10 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
-    <ConstBuffer name="CameraBuffer" reserved="true"/>
+    <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
     <ConstBuffer name="VertexTransition">
       <Param name="m_World" desc="" type="float4x4" size="100"/>
     </ConstBuffer>
-    <Constant name="m_VtxFlag" type="int" reserved="false"/>
+    <Constant name="m_VtxFlag" type="int1" reserved="false"/>
     <!--UavBuffer   always reserved/-->
     <Srv2D name="m_DiffTex" desc="" reserved="false"/>
     <Srv2D name="m_NormalTex" desc="" reserved="false"/>
@@ -12,7 +12,7 @@
   <Shaders>
     <Model_5_1>
       <Vertex file="VertexTransfer.vertex">
-        m_VtxFlag, CameraBuffer, VertexTransition
+        m_VtxFlag, g_Camera, VertexTransition
       </Vertex>
       <!--Geometry file="">
       </Geometry>

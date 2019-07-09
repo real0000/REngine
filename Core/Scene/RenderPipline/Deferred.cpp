@@ -89,8 +89,8 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	const std::map<std::string, int> &l_UavBuffMap = m_pLightIndexMat->getProgram()->getBlockIndexMap(ShaderRegType::UavBuffer);
 	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SrcLights")->second, m_LightIdx);
 	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_DstLights")->second, m_TiledValidLightIdx);
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_OmniLight")->second, this->getSharedMember()->m_pOmniLights->getMaterialBlock());
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SpotLight")->second, this->getSharedMember()->m_pSpotLights->getMaterialBlock());
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_OmniLights")->second, a_pSharedMember->m_pOmniLights->getMaterialBlock());
+	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SpotLights")->second, a_pSharedMember->m_pSpotLights->getMaterialBlock());
 
 	m_pCopyMat->setTexture("m_SrcTex", m_pFrameBuffer);
 
@@ -123,10 +123,20 @@ DeferredRenderer::~DeferredRenderer()
 	m_TiledValidLightIdx = nullptr;
 }
 
-void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<GraphicCanvas> a_pCanvas)
+void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas)
 {
 	std::vector< std::shared_ptr<RenderableComponent> > l_Lights, l_Meshes;
-	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) ) return;
+	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) )
+	{
+		// clear backbuffer only if mesh list is empty
+		m_pCmdInit->begin(false);
+		m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas);
+		m_pCmdInit->clearBackBuffer(a_pCanvas, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		m_pCmdInit->end();
+
+		a_pCanvas->present();
+		return;
+	}
 	
 	m_pShadowMap->releaseAll();
 
@@ -259,12 +269,15 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, std::s
 
 			// temp : copy only
 			m_pCmdInit->begin(false);
-			m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas.get());
+			m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas);
+			m_pCmdInit->clearBackBuffer(a_pCanvas, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 			m_pCmdInit->bindVertex(m_pQuad.get());
 			m_pCopyMat->bindAll(m_pCmdInit);
 			m_pCmdInit->drawVertex(4, 0);
 			m_pCmdInit->end();
 		}
+
+		a_pCanvas->present();
 	}
 }
 
