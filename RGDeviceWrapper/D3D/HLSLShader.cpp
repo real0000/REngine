@@ -27,7 +27,7 @@ HLSLProgram12::~HLSLProgram12()
 {
 	for( unsigned int i=0 ; i<ShaderRegType::UavBuffer+1 ; ++i )
 	{
-		for( auto it=m_RegMap[i].begin() ; it!=m_RegMap[i].end() ; ++it ) delete it->second;
+		//for( auto it=m_RegMap[i].begin() ; it!=m_RegMap[i].end() ; ++it ) delete it->second;
 		m_RegMap[i].clear();
 	}
 

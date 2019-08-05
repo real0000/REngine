@@ -226,13 +226,6 @@ EngineCore::EngineCore()
 EngineCore::~EngineCore()
 {
 	SAFE_DELETE(m_pInput)
-	if( !m_bValid ) return;
-
-	if( nullptr != m_pMainLoop )
-	{
-		delete m_pMainLoop;
-		m_pMainLoop = nullptr;
-	}
 }
 
 GraphicCanvas* EngineCore::createCanvas()
@@ -244,7 +237,6 @@ GraphicCanvas* EngineCore::createCanvas()
 	l_pNewWindow->Show();
 
 	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
-	l_pCanvas->setCloseCallback(std::bind(&EngineCore::onCanvasClose, this, std::placeholders::_1));
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	return l_pCanvas;
@@ -255,7 +247,6 @@ GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 	if( !m_bValid ) return nullptr;
 
 	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(a_pParent, wxID_ANY);
-	l_pCanvas->setCloseCallback(std::bind(&EngineCore::onCanvasClose, this, std::placeholders::_1));
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
 	return l_pCanvas;
 }
@@ -269,7 +260,12 @@ void EngineCore::shutDown()
 {
 	m_bShutdown = true;
 	m_bValid = false;
+
 	m_pMainLoop->join();
+	delete m_pMainLoop;
+	m_pMainLoop = nullptr;
+
+	GDEVICE()->shutdown();
 	SDL_Quit();
 }
 
@@ -322,11 +318,6 @@ void EngineCore::mainLoop()
 
 		l_Start = l_Now;
 	}
-}
-
-void EngineCore::onCanvasClose(GraphicCanvas *a_pWeak)
-{
-	SceneManager::singleton().dropCanvas(a_pWeak);
 }
 #pragma endregion
 

@@ -97,6 +97,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\third\SDL2\include;..\..\Core;..\..\RGDeviceWrapper;..\..\RImporters;..\..\RUtility;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(ADSK_FBX_SDK)lib\vs2015\x64\debug;..\..\third\SDL2\lib\x64;..\..\x64\Debug;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

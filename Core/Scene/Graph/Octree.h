@@ -38,7 +38,7 @@ public:
 		bool isLeaf();
 		void clear();
 
-		SerializedObjectPool<Node> *m_pRefOwner;
+		//SerializedObjectPool<Node> *m_pRefOwner;
 
 		unsigned int m_ID;
 		unsigned int m_RelationID;// parent idx

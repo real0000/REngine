@@ -36,6 +36,7 @@ enum ComponentDefine
 struct InputData;
 struct SharedSceneMember;
 class GraphicCanvas;
+class Scene;
 class SceneNode;
 class InputMediator;
 
@@ -76,7 +77,8 @@ public:
 	void setOwner(std::shared_ptr<SceneNode> a_pOwner);
 	void remove();
 
-	void detach();//for engine use, user should not call this method
+	// for engine only, user should not call this method
+	void detach();
 
 protected:
 	EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
@@ -152,7 +154,6 @@ private:
 
 	bool init();
 	void mainLoop();
-	void onCanvasClose(GraphicCanvas *a_pWeak);
 
 	bool m_bValid;
 	bool m_bShutdown;

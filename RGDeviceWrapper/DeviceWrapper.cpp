@@ -59,7 +59,6 @@ GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	, m_bFullScreen(false)
 	, m_bInitialed(false)
 	, m_bNeedResize(false)
-	, m_pCloseCB(nullptr)
 {
 }
 
@@ -90,7 +89,6 @@ void GraphicCanvas::setFullScreen(bool a_bFullScreen)
 
 BEGIN_EVENT_TABLE(GraphicCanvas, wxWindow)
 	EVT_SIZE(GraphicCanvas::onSize)
-	EVT_CLOSE(GraphicCanvas::onClose)
 END_EVENT_TABLE()
 
 void GraphicCanvas::onSize(wxSizeEvent& event)
@@ -98,11 +96,6 @@ void GraphicCanvas::onSize(wxSizeEvent& event)
 	if( !m_bInitialed ) return;
 	if( event.GetSize().x * event.GetSize().y <= 1 ) return;
 	m_bNeedResize = true;
-}
-
-void GraphicCanvas::onClose(wxCloseEvent &a_Event)
-{
-	if( nullptr != m_pCloseCB ) m_pCloseCB(this);
 }
 
 void GraphicCanvas::setInitialed()

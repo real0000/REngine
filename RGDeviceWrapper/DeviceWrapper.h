@@ -58,10 +58,8 @@ public:
 
 	void setFullScreen(bool a_bFullScreen);
 	bool isFullScreen(){ return m_bFullScreen; }
-	void setCloseCallback(std::function<void(GraphicCanvas*)> a_pCloseCB){ m_pCloseCB = a_pCloseCB; }
 	
 	void onSize(wxSizeEvent &a_Event);
-	void onClose(wxCloseEvent &a_Event);
 
 	virtual void init(bool a_bFullScr) = 0;
 	virtual unsigned int getBackBuffer() = 0;
@@ -78,7 +76,6 @@ private:
 	bool m_bFullScreen;
 	bool m_bInitialed;
 	bool m_bNeedResize;
-	std::function<void(GraphicCanvas*)> m_pCloseCB;
 
 	DECLARE_EVENT_TABLE()
 };
@@ -87,9 +84,13 @@ private:
 class GraphicDevice
 {
 public:
+	GraphicDevice(){}
+	virtual ~GraphicDevice(){}
+
 	virtual void initDeviceMap() = 0;
 	virtual void initDevice(unsigned int a_DeviceID) = 0;
 	virtual void init() = 0;
+	virtual void shutdown() = 0;
 	virtual GraphicCommander* commanderFactory() = 0;
 	virtual GraphicCanvas* canvasFactory(wxWindow *a_pParent, wxWindowID a_ID) = 0;
 	virtual std::pair<int, int> maxShaderModel() = 0;

@@ -38,6 +38,8 @@ STRING_ENUM_CLASS(ShaderStages,
 
 struct RegisterInfo
 {
+	RegisterInfo();
+
 	ShaderRegType::Key m_Type;
 	int m_RootIndex;
 	int m_Slot;

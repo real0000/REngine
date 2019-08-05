@@ -177,8 +177,6 @@ D3D12Fence::D3D12Fence(ID3D12Device *a_pDevice, ID3D12CommandQueue *a_pQueue)
 
 D3D12Fence::~D3D12Fence()
 {
-	wait();
-
 	SAFE_RELEASE(m_pSynchronizer)
 	CloseHandle(m_FenceEvent);
 }
@@ -588,14 +586,6 @@ D3D12Device::~D3D12Device()
 	if( -1 != m_QuadBufferID ) freeVertexBuffer(m_QuadBufferID);
 	m_QuadBufferID = -1;
 
-	m_bLooping = false;
-	if( nullptr != m_pResourceLoop ) m_pResourceLoop->join();
-	delete m_pResourceLoop;
-	if( nullptr != m_pComputeLoop ) m_pComputeLoop->join();
-	delete m_pComputeLoop;
-	if( nullptr != m_pComputeLoop ) m_pGraphicLoop->join();
-	delete m_pComputeLoop;
-
 	SAFE_DELETE(m_pResFence)
 	SAFE_DELETE(m_pComputeFence)
 	SAFE_DELETE(m_pGraphicFence)
@@ -783,6 +773,17 @@ void D3D12Device::init()
 	};
 	m_QuadBufferID = requestVertexBuffer((void *)c_QuadVtx, VTXSLOT_POSITION, 4);
 	ProgramManager::init(new HLSLComponent());
+}
+
+void D3D12Device::shutdown()
+{
+	m_bLooping = false;
+	if( nullptr != m_pResourceLoop ) m_pResourceLoop->join();
+	delete m_pResourceLoop;
+	if( nullptr != m_pComputeLoop ) m_pComputeLoop->join();
+	delete m_pComputeLoop;
+	if( nullptr != m_pGraphicLoop ) m_pGraphicLoop->join();
+	delete m_pGraphicLoop;
 }
 
 GraphicCommander* D3D12Device::commanderFactory()
@@ -1643,7 +1644,11 @@ void D3D12Device::resourceThread()
 {
 	while( m_bLooping )
 	{
-		while( m_TempResources[m_IdleResThread].empty() ) std::this_thread::yield();
+		while( m_TempResources[m_IdleResThread].empty() )
+		{
+			std::this_thread::yield();
+			if( !m_bLooping ) return;
+		}
 		
 		unsigned int l_Original = m_IdleResThread;
 		{
@@ -1676,7 +1681,11 @@ void D3D12Device::computeThread()
 {
 	while( m_bLooping )
 	{
-		while( m_ComputeReadyThread.empty() ) std::this_thread::yield();
+		while( m_ComputeReadyThread.empty() )
+		{
+			std::this_thread::yield();
+			if( !m_bLooping ) return;
+		}
 
 		{
 			std::lock_guard<std::mutex> l_Guard(m_ComputeMutex);
@@ -1710,7 +1719,11 @@ void D3D12Device::graphicThread()
 {
 	while( m_bLooping )
 	{
-		while( m_GraphicReadyThread.empty() ) std::this_thread::yield();
+		while( m_GraphicReadyThread.empty() )
+		{
+			std::this_thread::yield();
+			if( !m_bLooping ) return;
+		}
 
 		{
 			std::lock_guard<std::mutex> l_Guard(m_ThreadMutex);

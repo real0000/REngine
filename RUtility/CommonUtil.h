@@ -34,7 +34,7 @@
 #include <stdarg.h>
 
 #define GLM_FORCE_RADIANS
-//#include "vld.h"
+#include "vld.h"
 #include "glm.hpp"
 #include "gtc/constants.hpp"
 #include "gtx/quaternion.hpp"

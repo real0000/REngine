@@ -13,6 +13,19 @@ STRING_ENUM_CLASS_INST(ShaderStages)
 
 #pragma region ProgramStrctures
 //
+// RegisterInfo
+//
+RegisterInfo::RegisterInfo()
+	: m_Type(ShaderRegType::ConstBuffer)
+	, m_RootIndex(0)
+	, m_Slot(0)
+	, m_Offset(0)
+	, m_Size(0)
+	, m_bReserved(false)
+{
+}
+
+//
 // ProgramTextureDesc
 //
 ProgramTextureDesc::ProgramTextureDesc()
@@ -43,7 +56,7 @@ ProgramParamDesc::ProgramParamDesc()
 
 ProgramParamDesc::~ProgramParamDesc()
 {
-	SAFE_DELETE(m_pDefault)
+	SAFE_DELETE_ARRAY(m_pDefault)
 	SAFE_DELETE(m_pRegInfo)
 }
 

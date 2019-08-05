@@ -476,9 +476,11 @@ void SceneManager::setMainScene(GraphicCanvas *a_pCanvas, std::shared_ptr<Scene>
 
 void SceneManager::dropScene(wxString a_Name)
 {
+	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
 	auto it = m_SceneMap.find(a_Name);
 	if( m_SceneMap.end() == it ) return;
 
+	it->second->destroy();
 	m_CanvasMainScene.erase(it->second);
 	m_SceneMap.erase(it);
 }
@@ -491,7 +493,6 @@ void SceneManager::dropCanvas(GraphicCanvas *a_pWeak)
 		if( it->second == a_pWeak )
 		{
 			m_CanvasMainScene.erase(it);
-			if( m_CanvasMainScene.empty() ) EngineCore::singleton().shutDown();
 			break;
 		}
 	}
@@ -506,6 +507,7 @@ std::shared_ptr<Scene> SceneManager::getScene(wxString a_Name)
 
 void SceneManager::processInput(std::vector<InputData *> &a_Data)
 {
+	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
 	for( auto it = m_CanvasMainScene.begin() ; it != m_CanvasMainScene.end() ; ++it )
 	{
 		if( !it->second->HasFocus() || !it->first->m_bActivate ) continue;

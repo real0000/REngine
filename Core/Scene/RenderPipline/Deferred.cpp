@@ -130,11 +130,19 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 	{
 		// clear backbuffer only if mesh list is empty
 		m_pCmdInit->begin(false);
-		m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas);
-		m_pCmdInit->clearBackBuffer(a_pCanvas, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+		if( nullptr == a_pCanvas )
+		{
+			// to do : clear camera texture?
+		}
+		else
+		{
+			m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas);
+			m_pCmdInit->clearBackBuffer(a_pCanvas, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		}
 		m_pCmdInit->end();
 
-		a_pCanvas->present();
+		if( nullptr != a_pCanvas ) a_pCanvas->present();
 		return;
 	}
 	
@@ -493,7 +501,7 @@ void DeferredRenderer::drawMesh(std::vector< std::shared_ptr<RenderableComponent
 	unsigned int l_CommandCount = m_DrawCommand.size();
 
 	#pragma omp parallel for
-	for( unsigned int i=0 ; i<l_CommandCount ; ++i )
+	for( int i=0 ; i<(int)l_CommandCount ; ++i )
 	{
 		GraphicCommander *l_pCommandList = m_DrawCommand[i];
 		unsigned int l_Start = a_Start+i;

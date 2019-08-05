@@ -48,7 +48,7 @@ void OctreePartition::Node::clear()
 		if( nullptr != m_Children[i] ) m_Children[i]->clear();
 		m_Children[i] = nullptr;
 	}
-	m_pRefOwner->release(m_ID);
+	//m_pRefOwner->release(m_ID);
 	m_pParent = nullptr;
 }
 #pragma endregion

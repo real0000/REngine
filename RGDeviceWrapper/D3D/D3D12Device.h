@@ -183,6 +183,7 @@ public:
 	virtual void initDeviceMap();
 	virtual void initDevice(unsigned int a_DeviceID);
 	virtual void init();
+	virtual void shutdown();
 	virtual GraphicCommander* commanderFactory();
 	virtual GraphicCanvas* canvasFactory(wxWindow *a_pParent, wxWindowID a_ID);
 	virtual std::pair<int, int> maxShaderModel();
@@ -305,7 +306,7 @@ private:
 	struct VertexBinder
 	{
 		VertexBinder() : m_pVtxRes(nullptr){}
-		~VertexBinder(){ SAFE_RELEASE(m_pVtxRes) }
+		virtual ~VertexBinder(){ SAFE_RELEASE(m_pVtxRes) }
 
 		ID3D12Resource *m_pVtxRes;
 		D3D12_VERTEX_BUFFER_VIEW m_VtxView;
@@ -313,7 +314,7 @@ private:
 	struct IndexBinder
 	{
 		IndexBinder() : m_pIndexRes(nullptr){}
-		~IndexBinder(){ SAFE_RELEASE(m_pIndexRes) }
+		virtual ~IndexBinder(){ SAFE_RELEASE(m_pIndexRes) }
 
 		ID3D12Resource *m_pIndexRes;
 		D3D12_INDEX_BUFFER_VIEW m_IndexView;
@@ -321,7 +322,7 @@ private:
 	struct ConstBufferBinder
 	{
 		ConstBufferBinder() : m_pResource(nullptr), m_HeapID(0), m_CurrSize(0), m_pCurrBuff(nullptr){}
-		~ConstBufferBinder(){ SAFE_RELEASE(m_pResource) }
+		virtual ~ConstBufferBinder(){ SAFE_RELEASE(m_pResource) }
 
 		ID3D12Resource *m_pResource;
 		unsigned int m_HeapID;
@@ -331,6 +332,7 @@ private:
 	struct UnorderAccessBufferBinder : ConstBufferBinder
 	{
 		UnorderAccessBufferBinder() : ConstBufferBinder(), m_ElementSize(0), m_ElementCount(0){}
+		virtual ~UnorderAccessBufferBinder(){ SAFE_RELEASE(m_pCounterResource) }
 
 		unsigned int m_ElementSize;
 		unsigned int m_ElementCount;
@@ -339,6 +341,8 @@ private:
 	struct ReadBackBuffer
 	{
 		ReadBackBuffer() : m_pTempResource(nullptr), m_pTargetBuffer(nullptr), m_Size(0){}
+		virtual ~ReadBackBuffer(){ SAFE_RELEASE(m_pTempResource) }
+
 		void readback()
 		{
 			D3D12_RANGE l_MapRange;
