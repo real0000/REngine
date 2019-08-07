@@ -58,6 +58,12 @@ public:
 		m_pLightData = nullptr;
 	}
 
+	void clear()
+	{
+		m_Lights.clear();
+		m_bDirty = true;
+	}
+
 	void setExtendSize(unsigned int a_NewSize)
 	{
 		assert(0 != a_NewSize);

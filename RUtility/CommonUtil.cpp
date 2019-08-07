@@ -502,7 +502,7 @@ bool ImageAtlas::insertNode(unsigned int a_ID, glm::ivec2 a_Size, unsigned int &
 }
 #pragma endregion
 
-#pragma region ThreadEventCallback
+/*#pragma region ThreadEventCallback
 //
 // ThreadEventCallback
 //
@@ -525,6 +525,6 @@ void ThreadEventCallback::addEndEvent(std::function<void()> a_Func)
 {
 	m_EndEvents.push_back(a_Func);
 }
-#pragma endregion
+#pragma endregion*/
 
 }

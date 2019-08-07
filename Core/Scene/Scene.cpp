@@ -227,6 +227,9 @@ Scene::~Scene()
 void Scene::destroy()
 {
 	clear();
+	delete m_pMembers->m_pDirLights;
+	delete m_pMembers->m_pOmniLights;
+	delete m_pMembers->m_pSpotLights;
 	SAFE_DELETE(m_pMembers)
 }
 
@@ -408,6 +411,9 @@ void Scene::clear()
 		delete m_pMembers->m_pRenderer;
 		m_pMembers->m_pRenderer = nullptr;
 	}
+	if( nullptr != m_pMembers->m_pDirLights ) m_pMembers->m_pDirLights->clear();
+	if( nullptr != m_pMembers->m_pOmniLights ) m_pMembers->m_pOmniLights->clear();
+	if( nullptr != m_pMembers->m_pSpotLights ) m_pMembers->m_pSpotLights->clear();
 
 	m_pCurrCamera = nullptr;
 }
@@ -518,6 +524,7 @@ void SceneManager::processInput(std::vector<InputData *> &a_Data)
 
 void SceneManager::update(float a_Delta)
 {
+	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
 	for( auto it = m_SceneMap.begin() ; it != m_SceneMap.end() ; ++it )
 	{
 		if( !it->second->m_bActivate ) continue;

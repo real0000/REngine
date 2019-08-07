@@ -566,7 +566,7 @@ D3D12Device::D3D12Device()
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
 	, m_IdleResThread(0)
 	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
-	, m_pResourceLoop(nullptr), m_bLooping(true)
+	, m_bLooping(true)
 	, m_QuadBufferID(-1)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
@@ -628,6 +628,7 @@ D3D12Device::~D3D12Device()
 		SAFE_RELEASE(l_Thread.second)
 		m_ComputeThread.pop_front();
 	}
+
 	SAFE_RELEASE(m_pDevice)
 }
 
@@ -751,9 +752,9 @@ void D3D12Device::init()
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread(D3D12_COMMAND_LIST_TYPE_COPY);
 	//ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
 	//m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
-	m_pResourceLoop = new std::thread(&D3D12Device::resourceThread, this);
-	m_pComputeLoop = new std::thread(&D3D12Device::computeThread, this);
-	m_pGraphicLoop = new std::thread(&D3D12Device::graphicThread, this);
+	m_ResourceLoop = std::thread(&D3D12Device::resourceThread, this);
+	m_ComputeLoop = std::thread(&D3D12Device::computeThread, this);
+	m_GraphicLoop = std::thread(&D3D12Device::graphicThread, this);
 
 	unsigned int l_NumCore = std::thread::hardware_concurrency();
 	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
@@ -778,12 +779,9 @@ void D3D12Device::init()
 void D3D12Device::shutdown()
 {
 	m_bLooping = false;
-	if( nullptr != m_pResourceLoop ) m_pResourceLoop->join();
-	delete m_pResourceLoop;
-	if( nullptr != m_pComputeLoop ) m_pComputeLoop->join();
-	delete m_pComputeLoop;
-	if( nullptr != m_pGraphicLoop ) m_pGraphicLoop->join();
-	delete m_pGraphicLoop;
+	m_ResourceLoop.join();
+	m_ComputeLoop.join();
+	m_GraphicLoop.join();
 }
 
 GraphicCommander* D3D12Device::commanderFactory()

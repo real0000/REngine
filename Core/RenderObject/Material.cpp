@@ -57,6 +57,8 @@ MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDes
 	{
 		if( 0 == it->second->m_Offset ) m_FirstParam = it->first;
 		MaterialParam *l_pNewParam = new MaterialParam();
+		m_Params.insert(std::make_pair(it->first, l_pNewParam));
+
 		l_pNewParam->m_Type = it->second->m_Type;
 		l_pNewParam->m_Byte = GDEVICE()->getParamAlignmentSize(l_pNewParam->m_Type);
 		l_pNewParam->m_pRefDesc = it->second;

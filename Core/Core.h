@@ -159,7 +159,7 @@ private:
 	bool m_bShutdown;
 
 	InputMediator *m_pInput;
-	std::thread *m_pMainLoop;
+	std::thread m_MainLoop;
 };
 
 }

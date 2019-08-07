@@ -163,8 +163,15 @@ EngineSetting::EngineSetting()
 	, m_NumRenderCommandList(20)
 {
 	boost::property_tree::ptree l_IniFile;
-	boost::property_tree::ini_parser::read_ini(CONIFG_FILE, l_IniFile);
-	if( l_IniFile.empty() ) return;
+	try
+	{
+		boost::property_tree::ini_parser::read_ini(CONIFG_FILE, l_IniFile);
+	}
+	catch( ... )
+	{
+		save();
+		return;
+	}
 
 	m_Title = l_IniFile.get("General.Title", "REngine");
 
@@ -219,7 +226,6 @@ EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
 	, m_pInput(new InputMediator())
-	, m_pMainLoop(nullptr)
 {
 }
 
@@ -260,10 +266,8 @@ void EngineCore::shutDown()
 {
 	m_bShutdown = true;
 	m_bValid = false;
-
-	m_pMainLoop->join();
-	delete m_pMainLoop;
-	m_pMainLoop = nullptr;
+	
+	m_MainLoop.join();
 
 	GDEVICE()->shutdown();
 	SDL_Quit();
@@ -291,7 +295,7 @@ bool EngineCore::init()
 
 		default:break;
 	}
-	if( m_bValid ) m_pMainLoop = new std::thread(&EngineCore::mainLoop, this);
+	if( m_bValid ) m_MainLoop = std::thread(&EngineCore::mainLoop, this);
 	
 	return m_bValid;
 }

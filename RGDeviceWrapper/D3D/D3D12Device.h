@@ -380,7 +380,7 @@ private:
 	D3D12Fence *m_pResFence, *m_pComputeFence, *m_pGraphicFence;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
 	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
-	std::thread *m_pResourceLoop, *m_pComputeLoop, *m_pGraphicLoop;
+	std::thread m_ResourceLoop, m_ComputeLoop, m_GraphicLoop;
 	bool m_bLooping;
 
 	std::vector<D3D12GpuThread> m_ComputeReadyThread, m_ComputeBusyThread;

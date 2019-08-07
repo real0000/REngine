@@ -102,10 +102,17 @@ DeferredRenderer::~DeferredRenderer()
 {
 	m_pQuad = nullptr;
 	m_pDepthMinmax->release();
+	m_pDepthMinmax = nullptr;
 	m_pFrameBuffer->release();
-	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_pGBuffer[i]->release();
+	m_pFrameBuffer = nullptr;
+	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
+	{
+		m_pGBuffer[i]->release();
+		m_pGBuffer[i] = nullptr;
+	}
 
 	m_pShadowMapDepth->release();
+	m_pShadowMapDepth = nullptr;
 	SAFE_DELETE(m_pShadowMap)
 
 	for( unsigned int i=0 ; i<m_ShadowCommands.size() ; ++i ) delete m_ShadowCommands[i];

@@ -146,6 +146,8 @@ private:
 class ProgramManagerComponent
 {
 public:
+	virtual ~ProgramManagerComponent(){}
+
 	virtual void* getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine) = 0;
 	virtual ShaderProgram* newProgram() = 0;
 	virtual unsigned int calculateParamOffset(unsigned int &a_Offset, ShaderParamType::Key a_Type, unsigned int a_ArraySize = 1) = 0;

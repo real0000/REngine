@@ -497,7 +497,7 @@ private:
 	unsigned int m_ExtendSize;
 };
 
-class ThreadEventCallback
+/*class ThreadEventCallback
 {
 public:
 	// don't use this constructor 
@@ -509,7 +509,7 @@ public:
 
 private:
 	std::vector<std::function<void()> > m_EndEvents;
-};
+};*/
 
 }
 
