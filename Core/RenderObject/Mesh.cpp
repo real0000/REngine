@@ -4,6 +4,7 @@
 //
 
 #include "CommonUtil.h"
+#include "RImporters.h"
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Scene/Scene.h"
@@ -21,18 +22,11 @@ namespace R
 //
 RenderableMesh::RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode)
 	: RenderableComponent(a_pMember, a_pNode)
-	, m_pVtxBuffer(nullptr), m_pIndexBuffer(nullptr), m_DrawParam(0, 0)
-	, m_pMaterial(nullptr)
-	, m_BatchID(-1), m_CommandID(-1)
-	, m_BaseBounding(1.0f, 1.0f, 1.0f)
+	, m_pVtxBuffer(nullptr), m_pIndexBuffer(nullptr)
+	, m_BaseBounding()
+	, m_Stage(0)
 	, m_bShadowed(true)
-	, m_bValidCheckRequired(true)
 {
-	m_Flag.m_bNeedRebatch = false;
-	m_Flag.m_bNeedUavSync = false;
-	m_Flag.m_bFlagUpdated = false;
-
-	addTransformListener();
 }
 
 RenderableMesh::~RenderableMesh()
@@ -41,6 +35,7 @@ RenderableMesh::~RenderableMesh()
 
 void RenderableMesh::start()
 {
+	addTransformListener();
 	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
 }
 
@@ -48,7 +43,7 @@ void RenderableMesh::end()
 {
 	m_pVtxBuffer = nullptr;
 	m_pIndexBuffer = nullptr;
-	m_pMaterial = nullptr;
+	m_SubMeshes.clear();
 
 	if( isHidden() ) return;
 	
@@ -56,7 +51,7 @@ void RenderableMesh::end()
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
 
 	l_pMembers->m_pGraphs[SharedSceneMember::GRAPH_MESH]->remove(l_pThis);
-	l_pMembers->m_pBatcher->remove(l_pThis);
+	//l_pMembers->m_pBatcher->remove(l_pThis);
 }
 
 void RenderableMesh::hiddenFlagChanged()
@@ -75,39 +70,35 @@ void RenderableMesh::hiddenFlagChanged()
 
 void RenderableMesh::updateListener(float a_Delta)
 {
-	if( m_bValidCheckRequired )
-	{
-		if( nullptr == m_pMaterial ||
-			nullptr == m_pVtxBuffer ||
-			nullptr == m_pIndexBuffer ||
-			!m_pVtxBuffer->valid() ||
-			!m_pIndexBuffer->valid()) return ;
-		m_bValidCheckRequired = false;
-	}
-
 	if( GDEVICE()->supportExtraIndirectCommand() )
 	{
-		 if( m_pMaterial->needRebatch() ) m_Flag.m_bNeedRebatch = true;
-		 if( m_pMaterial->needUavUpdate() ) m_Flag.m_bNeedUavSync = true;
-		 m_pMaterial->syncEnd();
+		for( unsigned int i=0 ; i<m_SubMeshes.size() ; ++i )
+		{
+			if( m_SubMeshes[i]->m_pMaterial->needRebatch() ) m_SubMeshes[i]->m_bNeedRebatch = true;
+			if( m_SubMeshes[i]->m_pMaterial->needUavUpdate() ) m_SubMeshes[i]->m_bNeedUavSync = true;
+			m_SubMeshes[i]->m_pMaterial->syncEnd();
+		}
 	}
 
-	if( m_Flag.m_bNeedRebatch )
+	for( unsigned int i=0 ; i<m_SubMeshes.size() ; ++i )
 	{
-		getSharedMember()->m_pBatcher->batch(shared_from_base<RenderableMesh>());
-		m_Flag.m_bNeedRebatch = false;
-	}
-	if( m_Flag.m_bNeedUavSync )
-	{
-		getSharedMember()->m_pBatcher->update(shared_from_base<RenderableMesh>());
-		m_Flag.m_bNeedUavSync = false;
-	}
-	if( m_Flag.m_bFlagUpdated )
-	{
-		unsigned int l_Flag = 0;
-		if( m_bShadowed ) l_Flag |= 0x00000001 << 0;
-		getSharedMember()->m_pBatcher->setFlag(shared_from_base<RenderableMesh>(), l_Flag);
-		m_Flag.m_bFlagUpdated = false;
+		if( m_SubMeshes[i]->m_bNeedRebatch )
+		{
+			getSharedMember()->m_pBatcher->batch(shared_from_base<RenderableMesh>());
+			m_SubMeshes[i]->m_bNeedRebatch = false;
+		}
+		if( m_SubMeshes[i]->m_bNeedUavSync )
+		{
+			getSharedMember()->m_pBatcher->update(shared_from_base<RenderableMesh>());
+			m_SubMeshes[i]->m_bNeedUavSync = false;
+		}
+		if( m_SubMeshes[i]->m_bFlagUpdated )
+		{
+			unsigned int l_Flag = 0;
+			if( m_bShadowed ) l_Flag |= 0x00000001 << 0;
+			getSharedMember()->m_pBatcher->setFlag(shared_from_base<RenderableMesh>(), l_Flag);
+			m_SubMeshes[i]->m_bFlagUpdated = false;
+		}
 	}
 }
 
@@ -117,15 +108,15 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 	glm::quat l_Rot;
 	decomposeTRS(a_NewTransform, l_Trans, l_Scale, l_Rot);
 
-	boundingBox().m_Center = l_Trans;
-	boundingBox().m_Size = l_Scale * m_BaseBounding;
+	boundingBox().m_Center = l_Trans + m_BaseBounding.m_Center;
+	boundingBox().m_Size = l_Scale * m_BaseBounding.m_Size;
 }
 
 void RenderableMesh::setShadowed(bool a_bShadow)
 {
 	if( m_bShadowed == a_bShadow ) return;
 	m_bShadowed = a_bShadow;
-	m_Flag.m_bFlagUpdated = true;
+	for( unsigned int i=0 ; i<m_SubMeshes.size() ; ++i ) m_SubMeshes[i]->m_bFlagUpdated = true;
 }
 
 bool RenderableMesh::getShadowed()
@@ -133,67 +124,101 @@ bool RenderableMesh::getShadowed()
 	return m_bShadowed;
 }
 
-void RenderableMesh::setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawParam, glm::vec3 a_BoxSize)
+void RenderableMesh::setMesh(wxString a_SettingFile, std::function<void()> a_pCallback)
 {
-	m_BaseBounding = a_BoxSize;
-	m_pVtxBuffer = a_pVtxBuffer;
-	m_pIndexBuffer = a_pIndexBuffer;
-	m_DrawParam = a_DrawParam;
-	
-	glm::vec3 l_Trans, l_Scale;
-	glm::quat l_Rot;
-	decomposeTRS(getSharedMember()->m_pSceneNode->getTransform(), l_Trans, l_Scale, l_Rot);
-	boundingBox().m_Center = l_Trans;
-	boundingBox().m_Size = l_Scale * m_BaseBounding;
-	
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->update(shared_from_base<RenderableMesh>());
-
-	if( !GDEVICE()->supportExtraIndirectCommand() )
+	if( a_SettingFile.EndsWith("xml") )
 	{
-		m_Flag.m_bNeedRebatch = true;
-		m_Flag.m_bNeedUavSync = true;
 	}
 	else
 	{
-		m_Flag.m_bNeedUavSync = true;	
-	}
+		std::shared_ptr<MaterialBlock> l_pSkinBlock = nullptr;
 
-	m_bValidCheckRequired = nullptr == m_pMaterial ||
-							nullptr == m_pVtxBuffer ||
-							nullptr == m_pIndexBuffer ||
-							!m_pVtxBuffer->valid() ||
-							!m_pIndexBuffer->valid();
+		std::shared_ptr<ModelCache::Instance> l_pMeshSrc = getSharedMember()->m_pModelFactory->loadMesh(a_SettingFile);
+		m_pVtxBuffer = l_pMeshSrc->m_pVtxBuffer;
+		m_pIndexBuffer = l_pMeshSrc->m_pIdxBuffer;
+		m_BaseBounding = l_pMeshSrc->m_pModel->getBoundingBox();
+		std::vector<ModelData::Meshes *> &l_SubMeshRefNodes = l_pMeshSrc->m_pModel->getMeshes();
+		bool l_bHasSkin = !l_pMeshSrc->m_pModel->getBones().empty();
+		for( unsigned int i=0 ; i<l_SubMeshRefNodes.size() ; ++i )
+		{
+			ModelData::Meshes *l_pSubMesh =l_SubMeshRefNodes[i];
+			for( unsigned int j=0 ; j<l_pSubMesh->m_RefNode.size() ; ++j )
+			{
+				std::shared_ptr<SubMeshData> l_pNewSubMesh = std::shared_ptr<SubMeshData>(new SubMeshData());
+				l_pNewSubMesh->m_Name = l_pSubMesh->m_Name;
+
+				l_pNewSubMesh->m_pMaterial = Material::create(ProgramManager::singleton().getData(DefaultPrograms::TextureOnly));
+				l_pNewSubMesh->m_pMaterial->setParam("m_Local", 0, l_pSubMesh->m_RefNode[j]->getAbsoluteTransform());
+				l_pNewSubMesh->m_pMaterial->setParam("m_World", 0, getSharedMember()->m_pSceneNode->getTransform());
+				if( l_bHasSkin )
+				{
+					if( nullptr == l_pSkinBlock )
+					{
+						l_pSkinBlock = l_pNewSubMesh->m_pMaterial->createExternalBlock(ShaderRegType::ConstBuffer, "SkinTransition");
+						for( unsigned int k=0 ; k<l_pMeshSrc->m_pModel->getBones().size() ; ++k ) l_pSkinBlock->setParam("m_Skin", k, l_pMeshSrc->m_pModel->getBones()[k]);
+					}
+					l_pNewSubMesh->m_pMaterial->setBlock("SkinTransition", l_pSkinBlock);
+					l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT | VTXFLAG_USE_SKIN);
+				}
+				else l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT);
+				l_pNewSubMesh->m_pMaterial->setTexture("m_DiffTex", EngineCore::singleton().getWhiteTexture());
+
+				l_pNewSubMesh->m_PartData = l_pMeshSrc->m_SubMeshes[l_pSubMesh->m_Name];
+				if( !GDEVICE()->supportExtraIndirectCommand() )
+				{
+					l_pNewSubMesh->m_bNeedRebatch = true;
+					l_pNewSubMesh->m_bNeedUavSync = true;
+				}
+				else
+				{
+					l_pNewSubMesh->m_bNeedUavSync = true;	
+				}
+				l_pNewSubMesh->m_BatchID =
+				l_pNewSubMesh->m_CommandID = -1;
+			}
+		}
+
+		glm::vec3 l_Trans, l_Scale;
+		glm::quat l_Rot;
+		decomposeTRS(getSharedMember()->m_pSceneNode->getTransform(), l_Trans, l_Scale, l_Rot);
+		boundingBox().m_Center = l_Trans + m_BaseBounding.m_Center;
+		boundingBox().m_Size = l_Scale * m_BaseBounding.m_Size;
+		
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->update(shared_from_base<RenderableMesh>());
+	}
 }
 
-void RenderableMesh::setMaterial(std::shared_ptr<Material> a_pMaterial)
+void RenderableMesh::setStage(unsigned int a_Stage)
 {
-	if( a_pMaterial == m_pMaterial ) return;
+	m_Stage = a_Stage;
+	//
+	// add dirty flag ?
+	//
+}
+
+void RenderableMesh::setMaterial(unsigned int a_Idx, std::shared_ptr<Material> a_pMaterial)
+{
+	if( a_pMaterial == m_SubMeshes[a_Idx]->m_pMaterial ) return;
 
 	if( GDEVICE()->supportExtraIndirectCommand() )
 	{
-		if( nullptr == m_pMaterial ||
-			!m_pMaterial->canBatch(a_pMaterial) )
+		if( nullptr == m_SubMeshes[a_Idx]->m_pMaterial ||
+			!m_SubMeshes[a_Idx]->m_pMaterial->canBatch(a_pMaterial) )
 		{
-			m_Flag.m_bNeedRebatch = true;
-			m_Flag.m_bNeedUavSync = true;
+			m_SubMeshes[a_Idx]->m_bNeedRebatch = true;
+			m_SubMeshes[a_Idx]->m_bNeedUavSync = true;
 		}
 		else
 		{
-			m_Flag.m_bNeedUavSync = true;
+			m_SubMeshes[a_Idx]->m_bNeedUavSync = true;
 		}
 	}
 	else
 	{
-		m_Flag.m_bNeedRebatch = true;
-		m_Flag.m_bNeedUavSync = true;
+		m_SubMeshes[a_Idx]->m_bNeedRebatch = true;
+		m_SubMeshes[a_Idx]->m_bNeedUavSync = true;
 	}
-	m_pMaterial = a_pMaterial;
-	
-	m_bValidCheckRequired = nullptr == m_pMaterial ||
-							nullptr == m_pVtxBuffer ||
-							nullptr == m_pIndexBuffer ||
-							!m_pVtxBuffer->valid() ||
-							!m_pIndexBuffer->valid();
+	m_SubMeshes[a_Idx]->m_pMaterial = a_pMaterial;
 }
 #pragma endregion
 
@@ -336,93 +361,113 @@ void MeshBatcher::batch(std::shared_ptr<RenderableMesh> a_pMesh)
 {
 	std::lock_guard<std::mutex> l_Guard(m_Locker);
 
-	freeBatchID(a_pMesh->m_BatchID);
-	freeCommandOffset(a_pMesh->m_CommandID);
+	for( unsigned int i=0 ; i<a_pMesh->m_SubMeshes.size() ; ++i )
+	{
+		std::shared_ptr<RenderableMesh::SubMeshData> l_SubMesh = a_pMesh->m_SubMeshes[i];
 
-	std::vector<RenderUnit>::iterator l_UnitIt;
-	if( GDEVICE()->supportExtraIndirectCommand() )
-	{
-		l_UnitIt = std::find_if(m_UnitMap.begin(), m_UnitMap.end(), [a_pMesh](RenderUnit const &a_Unit)->bool
-		{
-			return (nullptr != a_Unit.m_pMaterial) && a_Unit.m_pMaterial->canBatch(a_pMesh->getMaterial());
-		});
-	}
-	else
-	{
-		l_UnitIt = std::find_if(m_UnitMap.begin(), m_UnitMap.end(), [a_pMesh](RenderUnit const &a_Unit)->bool
-		{
-			return (nullptr != a_Unit.m_pMaterial) &&
-				a_Unit.m_pMaterial == a_pMesh->getMaterial() &&
-				a_Unit.m_pVtxBuffer == a_pMesh->getVtxBuffer() &&
-				a_Unit.m_pIndexBuffer == a_pMesh->getIndexBuffer();
-		});
-	}
-	if( m_UnitMap.end() == l_UnitIt )
-	{
-		if( m_FreeUnitSlot.empty() )
-		{
-			RenderUnit l_NewUnit;
-			l_NewUnit.m_pVtxBuffer = a_pMesh->getVtxBuffer();
-			l_NewUnit.m_pIndexBuffer = a_pMesh->getIndexBuffer();
-			l_NewUnit.m_pMaterial = a_pMesh->getMaterial();
-			++l_NewUnit.m_RefCount;
+		freeBatchID(l_SubMesh->m_BatchID);
+		freeCommandOffset(l_SubMesh->m_CommandID);
 
-			a_pMesh->m_BatchID = m_UnitMap.size();
-			m_UnitMap.push_back(l_NewUnit);
+		std::vector<RenderUnit>::iterator l_UnitIt;
+		if( GDEVICE()->supportExtraIndirectCommand() )
+		{
+			l_UnitIt = std::find_if(m_UnitMap.begin(), m_UnitMap.end(), [=](RenderUnit const &a_Unit)->bool
+			{
+				return (nullptr != a_Unit.m_pMaterial) && a_Unit.m_pMaterial->canBatch(l_SubMesh->m_pMaterial);
+			});
 		}
 		else
 		{
-			a_pMesh->m_BatchID = m_FreeUnitSlot.front();
-			m_FreeUnitSlot.pop_front();
-
-			RenderUnit &l_NewUnit = m_UnitMap[a_pMesh->m_BatchID];
-			l_NewUnit.m_pVtxBuffer = a_pMesh->getVtxBuffer();
-			l_NewUnit.m_pIndexBuffer = a_pMesh->getIndexBuffer();
-			l_NewUnit.m_pMaterial = a_pMesh->getMaterial();
-			++l_NewUnit.m_RefCount;
+			l_UnitIt = std::find_if(m_UnitMap.begin(), m_UnitMap.end(), [=](RenderUnit const &a_Unit)->bool
+			{
+				return (nullptr != a_Unit.m_pMaterial) &&
+					a_Unit.m_pMaterial == l_SubMesh->m_pMaterial &&
+					a_Unit.m_pVtxBuffer == a_pMesh->getVtxBuffer() &&
+					a_Unit.m_pIndexBuffer == a_pMesh->getIndexBuffer();
+			});
 		}
-	}
-	else
-	{
-		a_pMesh->m_BatchID = l_UnitIt - m_UnitMap.begin();
-		++m_UnitMap[a_pMesh->m_BatchID].m_RefCount;
-	}
+		if( m_UnitMap.end() == l_UnitIt )
+		{
+			if( m_FreeUnitSlot.empty() )
+			{
+				RenderUnit l_NewUnit;
+				l_NewUnit.m_pVtxBuffer = a_pMesh->getVtxBuffer();
+				l_NewUnit.m_pIndexBuffer = a_pMesh->getIndexBuffer();
+				l_NewUnit.m_pMaterial = l_SubMesh->m_pMaterial;
+				++l_NewUnit.m_RefCount;
+
+				l_SubMesh->m_BatchID = m_UnitMap.size();
+				m_UnitMap.push_back(l_NewUnit);
+			}
+			else
+			{
+				l_SubMesh->m_BatchID = m_FreeUnitSlot.front();
+				m_FreeUnitSlot.pop_front();
+
+				RenderUnit &l_NewUnit = m_UnitMap[l_SubMesh->m_BatchID];
+				l_NewUnit.m_pVtxBuffer = a_pMesh->getVtxBuffer();
+				l_NewUnit.m_pIndexBuffer = a_pMesh->getIndexBuffer();
+				l_NewUnit.m_pMaterial = l_SubMesh->m_pMaterial;
+				++l_NewUnit.m_RefCount;
+			}
+		}
+		else
+		{
+			l_SubMesh->m_BatchID = l_UnitIt - m_UnitMap.begin();
+			++m_UnitMap[l_SubMesh->m_BatchID].m_RefCount;
+		}
 	
-	int l_Offset = m_pCmdUnitPool->malloc(sizeof(CommandUnit));
-	a_pMesh->m_CommandID = l_Offset / sizeof(CommandUnit);
-	CommandUnit *l_pCmdOffset = getCommandUnit(a_pMesh->m_CommandID);
-	l_pCmdOffset->m_Offset = m_pCommandPool->malloc(a_pMesh->getMaterial()->getProgram()->getIndirectCommandSize());
-	m_pCmdUnitPool->m_bDirty = true;
+		int l_Offset = m_pCmdUnitPool->malloc(sizeof(CommandUnit));
+		l_SubMesh->m_CommandID = l_Offset / sizeof(CommandUnit);
+		CommandUnit *l_pCmdOffset = getCommandUnit(l_SubMesh->m_CommandID);
+		l_pCmdOffset->m_Offset = m_pCommandPool->malloc(l_SubMesh->m_pMaterial->getProgram()->getIndirectCommandSize());
+		m_pCmdUnitPool->m_bDirty = true;
+	}
 }
 
 void MeshBatcher::remove(std::shared_ptr<RenderableMesh> a_pMesh)
 {
 	std::lock_guard<std::mutex> l_Guard(m_Locker);
 
-	freeBatchID(a_pMesh->m_BatchID);
-	freeCommandOffset(a_pMesh->m_CommandID);
+	for( unsigned int i=0 ; i<a_pMesh->m_SubMeshes.size() ; ++i )
+	{
+		std::shared_ptr<RenderableMesh::SubMeshData> l_SubMesh = a_pMesh->m_SubMeshes[i];
 
-	a_pMesh->m_BatchID = -1;
-	a_pMesh->m_CommandID = -1;
+		freeBatchID(l_SubMesh->m_BatchID);
+		freeCommandOffset(l_SubMesh->m_CommandID);
+
+		l_SubMesh->m_BatchID = -1;
+		l_SubMesh->m_CommandID = -1;
+	}
 }
 
 void MeshBatcher::update(std::shared_ptr<RenderableMesh> a_pMesh)
 {
-	CommandUnit *l_pCmdOffset = getCommandUnit(a_pMesh->m_CommandID);
-	if( nullptr == l_pCmdOffset ) return;
+	for( unsigned int i=0 ; i<a_pMesh->m_SubMeshes.size() ; ++i )
+	{
+		std::shared_ptr<RenderableMesh::SubMeshData> l_SubMesh = a_pMesh->m_SubMeshes[i];
 
-	char *l_pBuffer = getCommandPoolPtr(l_pCmdOffset->m_Offset);
-	a_pMesh->m_pMaterial->assignIndirectCommand(l_pBuffer, a_pMesh->m_pVtxBuffer, a_pMesh->m_pIndexBuffer, a_pMesh->m_DrawParam);
-	m_pCommandPool->m_bDirty = true;
+		CommandUnit *l_pCmdOffset = getCommandUnit(l_SubMesh->m_CommandID);
+		if( nullptr == l_pCmdOffset ) continue;
+
+		char *l_pBuffer = getCommandPoolPtr(l_pCmdOffset->m_Offset);
+		l_SubMesh->m_pMaterial->assignIndirectCommand(l_pBuffer, a_pMesh->m_pVtxBuffer, a_pMesh->m_pIndexBuffer, l_SubMesh->m_PartData);
+		m_pCommandPool->m_bDirty = true;
+	}
 }
 
 void MeshBatcher::setFlag(std::shared_ptr<RenderableMesh> a_pMesh, unsigned int a_Flag)
 {
-	CommandUnit *l_pCmdOffset = getCommandUnit(a_pMesh->m_CommandID);
-	if( nullptr == l_pCmdOffset ) return;
+	for( unsigned int i=0 ; i<a_pMesh->m_SubMeshes.size() ; ++i )
+	{
+		std::shared_ptr<RenderableMesh::SubMeshData> l_SubMesh = a_pMesh->m_SubMeshes[i];
 
-	l_pCmdOffset->m_Flags = a_Flag;
-	m_pCmdUnitPool->m_bDirty = true;
+		CommandUnit *l_pCmdOffset = getCommandUnit(l_SubMesh->m_CommandID);
+		if( nullptr == l_pCmdOffset ) continue;
+
+		l_pCmdOffset->m_Flags = a_Flag;
+		m_pCmdUnitPool->m_bDirty = true;
+	}
 }
 
 void MeshBatcher::flush()

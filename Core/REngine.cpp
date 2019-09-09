@@ -4,10 +4,13 @@
 //
 
 #include "CommonUtil.h"
+#include "RImporters.h"
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Input/InputMediator.h"
 #include "Scene/Scene.h"
+
+#include "Texture/Texture.h"
 
 #include <chrono>
 #include "boost/property_tree/ini_parser.hpp"
@@ -183,6 +186,17 @@ EngineSetting::EngineSetting()
 	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 2048);
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
+
+#define PARSE_PATH(a_Path, a_Target) {	\
+	std::vector<wxString> l_Path;		\
+	splitString(wxT('|'), l_IniFile.get(a_Path, "./"), l_Path);\
+	for( unsigned int i=0 ; i<l_Path.size() ; ++i ) a_Target::singleton().addSearchPath(l_Path[i]); }
+
+	PARSE_PATH("Filepath.Image", ImageManager)
+	PARSE_PATH("Filepath.Animation", AnimationManager)
+	PARSE_PATH("Filepath.Model", ModelManager)
+
+#undef PARSE_PATH
 }
 
 EngineSetting::~EngineSetting()
@@ -225,6 +239,7 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
+	, m_pWhite(nullptr), m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 {
 }
@@ -268,6 +283,8 @@ void EngineCore::shutDown()
 	m_bValid = false;
 	
 	m_MainLoop.join();
+	m_pWhite = nullptr;
+	m_pQuad = nullptr;
 
 	GDEVICE()->shutdown();
 	SDL_Quit();
@@ -295,6 +312,20 @@ bool EngineCore::init()
 
 		default:break;
 	}
+
+	const unsigned int c_White[64] = {0xffffffff};
+	m_pWhite = TextureManager::singleton().createTexture(wxT("Default_White"), glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, c_White);
+
+	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
+	const glm::vec3 c_QuadVtx[] = {
+		glm::vec3(-1.0f, 1.0f, 0.0f),
+		glm::vec3(-1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(1.0f, -1.0f, 0.0f)};
+	m_pQuad->setNumVertex(4);
+	m_pQuad->setVertex(VTXSLOT_POSITION, (void *)c_QuadVtx);
+	m_pQuad->init();
+
 	if( m_bValid ) m_MainLoop = std::thread(&EngineCore::mainLoop, this);
 	
 	return m_bValid;

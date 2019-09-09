@@ -30,7 +30,9 @@ CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared
 	auto l_BlockDescVec = l_pProgram->getBlockDesc(ShaderRegType::ConstBuffer);
 	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "CameraBuffer"; });
 	m_pCameraBlock = MaterialBlock::create(ShaderRegType::ConstBuffer, *l_BlockDescIt);
-
+	
+	m_Matrices[PROJECTION] = glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w);
+	m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
 }
 
@@ -49,6 +51,7 @@ void CameraComponent::start()
 {
 	auto l_pThis = shared_from_base<CameraComponent>();
 	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(l_pThis);
+
 }
 
 void CameraComponent::end()

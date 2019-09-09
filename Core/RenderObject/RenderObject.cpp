@@ -33,68 +33,35 @@ RenderableComponent::~RenderableComponent()
 
 #pragma region
 //
-// ModelComponentFactory
+// ModelCache
 //
-ModelComponentFactory::ModelComponentFactory(SharedSceneMember *a_pSharedMember)
-	: m_pSharedMember(new SharedSceneMember)
+ModelCache::ModelCache()
 {
-	*m_pSharedMember = *a_pSharedMember;
 }
 
-ModelComponentFactory::~ModelComponentFactory()
+ModelCache::~ModelCache()
 {
-	delete m_pSharedMember;
-	assert(m_FileCache.empty());
+	clearCache();
 }
 
-void ModelComponentFactory::createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::shared_ptr<Material> a_pMaterial, std::function<void()> a_pCallback)
-{
-	if( nullptr != a_pCallback ) std::thread l_Thread(&ModelComponentFactory::loadMesh, this, a_pOwner, a_Filename, a_pMaterial, a_pCallback);
-	else loadMesh(a_pOwner, a_Filename, a_pMaterial, nullptr);
-}
-
-void ModelComponentFactory::createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::function<void()> a_pCallback)
-{
-	if( nullptr != a_pCallback ) std::thread l_Thread(&ModelComponentFactory::loadSetting, this, a_pOwner, a_Filename, a_pCallback);
-	else loadSetting(a_pOwner, a_Filename, nullptr);
-}
-
-std::shared_ptr<RenderableMesh> ModelComponentFactory::createSphere(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Material> a_pMaterial)
-{
-	return nullptr;
-}
-
-std::shared_ptr<RenderableMesh> ModelComponentFactory::createBox(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Material> a_pMaterial)
-{
-	return nullptr;
-}
-
-void ModelComponentFactory::clearCache()
-{
-	m_FileCache.clear();
-	ModelManager::singleton().clearCache();
-}
-
-void ModelComponentFactory::loadMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::shared_ptr<Material> a_pMaterial, std::function<void()> a_pCallback)
+std::shared_ptr<ModelCache::Instance> ModelCache::loadMesh(wxString a_Filename)
 {
 	bool l_bNeedInitVertex = false;
 	std::shared_ptr<ModelData> l_pModel = ModelManager::singleton().getData(a_Filename).second;
 	std::shared_ptr<Instance> l_pRes = getInstance(a_Filename, l_pModel, l_bNeedInitVertex);
 
 	if( l_bNeedInitVertex ) initMeshes(l_pRes, l_pModel);
-
-	std::list<std::shared_ptr<RenderableMesh> > l_MeshComponents;
-	initNodes(a_pOwner, l_pRes, l_pModel, l_MeshComponents);
-	for( auto it = l_MeshComponents.begin() ; it != l_MeshComponents.end() ; ++it ) (*it)->setMaterial(a_pMaterial);
-
-	if( nullptr != a_pCallback ) a_pCallback();
+	return l_pRes;
 }
 
-void ModelComponentFactory::loadSetting(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::function<void()> a_pCallback)
+
+void ModelCache::clearCache()
 {
+	m_FileCache.clear();
+	ModelManager::singleton().clearCache();
 }
 
-std::shared_ptr<ModelComponentFactory::Instance> ModelComponentFactory::getInstance(wxString a_Filename, std::shared_ptr<ModelData> a_pSrc, bool &a_bNeedInitInstance)
+std::shared_ptr<ModelCache::Instance> ModelCache::getInstance(wxString a_Filename, std::shared_ptr<ModelData> a_pSrc, bool &a_bNeedInitInstance)
 {
 	std::lock_guard<std::mutex> l_Guard(m_CacheLock);
 	
@@ -104,23 +71,14 @@ std::shared_ptr<ModelComponentFactory::Instance> ModelComponentFactory::getInsta
 	if( m_FileCache.end() == it )
 	{
 		a_bNeedInitInstance = true;
-
-		std::shared_ptr<ModelData> l_pModel = ModelManager::singleton().getData(a_Filename).second;
+		
 		l_pRes = std::shared_ptr<Instance>(new Instance);
+		l_pRes->m_pModel = ModelManager::singleton().getData(a_Filename).second;
 		l_pRes->m_pVtxBuffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 		l_pRes->m_pVtxBuffer->setName(a_Filename);
 		l_pRes->m_pIdxBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
 		l_pRes->m_pIdxBuffer->setName(a_Filename);
-		auto &l_Meshes = l_pModel->getMeshes();
-			
-		unsigned int l_VertexCount = 0;
-		l_pRes->m_Meshes.resize(l_Meshes.size());
-		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
-		{
-			l_pRes->m_Meshes[i].first = l_Meshes[i]->m_Indicies.size();
-			l_pRes->m_Meshes[i].second = l_VertexCount;
-			l_VertexCount += l_Meshes[i]->m_Vertex.size();
-		}
+		
 		m_FileCache.insert(std::make_pair(a_Filename, l_pRes));
 	}
 	else l_pRes = it->second;
@@ -128,7 +86,7 @@ std::shared_ptr<ModelComponentFactory::Instance> ModelComponentFactory::getInsta
 	return l_pRes;
 }
 
-void ModelComponentFactory::initMeshes(std::shared_ptr<Instance> a_pInst, std::shared_ptr<ModelData> a_pSrc)
+void ModelCache::initMeshes(std::shared_ptr<Instance> a_pInst, std::shared_ptr<ModelData> a_pSrc)
 {
 	unsigned int l_VertexCount = 0;
 	unsigned int l_IndiciesCount = 0;
@@ -154,6 +112,10 @@ void ModelComponentFactory::initMeshes(std::shared_ptr<Instance> a_pInst, std::s
 	unsigned int l_BaseIndex = 0;
 	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
 	{
+		IndirectDrawData l_PartData;
+		l_PartData.m_InstanceCount = 0;
+		l_PartData.m_StartInstance = 0;
+
 		unsigned int l_MeshVtxCount = l_Meshes[i]->m_Vertex.size();
 		for( unsigned int j=0 ; j<l_MeshVtxCount ; ++j )
 		{
@@ -170,10 +132,16 @@ void ModelComponentFactory::initMeshes(std::shared_ptr<Instance> a_pInst, std::s
 			l_TempBoneId[l_VtxIdx] = l_SrcVtx.m_BoneId;
 			l_TempWeight[l_VtxIdx] = l_SrcVtx.m_Weight;
 		}
-		l_BaseVtx += l_MeshVtxCount;
 
 		unsigned int l_MeshIndiciesCount = l_Meshes[i]->m_Indicies.size();
 		memcpy(&(l_TempIndicies[l_BaseIndex]), l_Meshes[i]->m_Indicies.data(), sizeof(unsigned int) * l_MeshIndiciesCount);
+		
+		l_PartData.m_BaseVertex = l_BaseVtx;
+		l_PartData.m_StartIndex = l_BaseIndex;
+		l_PartData.m_IndexCount = l_MeshIndiciesCount;
+		a_pInst->m_SubMeshes.insert(std::make_pair(l_Meshes[i]->m_Name, l_PartData));
+
+		l_BaseVtx += l_MeshVtxCount;
 		l_BaseIndex += l_MeshIndiciesCount;
 	}
 	a_pInst->m_pVtxBuffer->setVertex(VTXSLOT_POSITION, l_TempPos.data());
@@ -189,33 +157,7 @@ void ModelComponentFactory::initMeshes(std::shared_ptr<Instance> a_pInst, std::s
 	a_pInst->m_pVtxBuffer->init();
 
 	a_pInst->m_pIdxBuffer->setIndicies(true, l_TempIndicies.data(), l_IndiciesCount);
-}
-
-void ModelComponentFactory::initNodes(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Instance> a_pInst, std::shared_ptr<ModelData> a_pSrc, std::list<std::shared_ptr<RenderableMesh> > &a_OutputMeshComponent)
-{
-	std::list<ModelNode *> l_SrcContainer(1, a_pSrc->getRootNode());
-	std::list< std::shared_ptr<SceneNode> > l_DstContainer(1, SceneNode::create(m_pSharedMember, a_pOwner, a_pSrc->getRootNode()->getName()));
-
-	auto &l_SrcMeshes = a_pSrc->getMeshes();
-	auto l_SrcIt = l_SrcContainer.begin();
-	auto l_DstIt = l_DstContainer.begin();
-	for( ; l_SrcIt != l_SrcContainer.end() ; ++l_SrcIt, ++l_DstIt )
-	{
-		for( unsigned int i=0 ; i<(*l_SrcIt)->getChildren().size() ;++i )
-		{
-			ModelNode *l_pChildSrcNode = (*l_SrcIt)->getChildren()[i];
-			l_SrcContainer.push_back(l_pChildSrcNode);
-			l_DstContainer.push_back(SceneNode::create(m_pSharedMember, *l_DstIt, l_pChildSrcNode->getName()));
-		}
-
-		for( unsigned int i=0 ; i<(*l_SrcIt)->getRefMesh().size() ; ++i )
-		{
-			unsigned int l_MeshIdx = (*l_SrcIt)->getRefMesh()[i];
-			std::shared_ptr<RenderableMesh> l_pNewRenderMesh = EngineComponent::create<RenderableMesh>(m_pSharedMember, *l_DstIt);
-			l_pNewRenderMesh->setMeshData(a_pInst->m_pVtxBuffer, a_pInst->m_pIdxBuffer, a_pInst->m_Meshes[l_MeshIdx], l_SrcMeshes[l_MeshIdx]->m_BoxSize);
-			a_OutputMeshComponent.push_back(l_pNewRenderMesh);
-		}
-	}
+	a_pInst->m_pIdxBuffer->init();
 }
 #pragma endregion
 

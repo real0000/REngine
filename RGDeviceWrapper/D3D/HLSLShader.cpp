@@ -18,19 +18,12 @@ HLSLProgram12::HLSLProgram12()
 	: m_pPipeline(nullptr)
 	, m_pRegisterDesc(nullptr)
 	, m_pIndirectFmt(nullptr)
-	, m_Topology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST)
 	, m_IndirectCmdSize(0)
 {
 }
 
 HLSLProgram12::~HLSLProgram12()
 {
-	for( unsigned int i=0 ; i<ShaderRegType::UavBuffer+1 ; ++i )
-	{
-		//for( auto it=m_RegMap[i].begin() ; it!=m_RegMap[i].end() ; ++it ) delete it->second;
-		m_RegMap[i].clear();
-	}
-
 	SAFE_RELEASE(m_pPipeline)
 	SAFE_RELEASE(m_pRegisterDesc)
 }
@@ -49,9 +42,9 @@ void HLSLProgram12::init(boost::property_tree::ptree &a_Root)
 
 std::pair<int, int> HLSLProgram12::getConstantSlot(std::string a_Name)
 {
-	auto it = m_RegMap[ShaderRegType::Constant].find(a_Name);
-	if( m_RegMap[ShaderRegType::Constant].end() == it ) return std::make_pair(-1, -1);
-	return std::make_pair(it->second->m_Slot, it->second->m_Offset);
+	auto it = m_ConstantMap.find(a_Name);
+	if( m_ConstantMap.end() == it ) return std::make_pair(-1, -1);
+	return it->second;
 }
 
 void HLSLProgram12::assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput, VertexBuffer *a_pVtx)
@@ -184,7 +177,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					it->second->m_RootIndex = l_RegCollect.size();
 					it->second->m_Slot = l_TargetSlot;
 					l_TextuerMap[it->first]->m_pRegInfo = it->second;
-					m_RegMap[l_Type][it->first] = it->second;
 
 					l_RegCollect.push_back({});
 					
@@ -202,7 +194,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
 					l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 
-					(l_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(l_TargetSlot);
+					(l_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(it->second->m_RootIndex);
 
 					++l_TargetSlot;
 				}
@@ -219,7 +211,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
-			it->second->m_RootIndex = l_RegCollect.size();;
+			it->second->m_RootIndex = l_RegCollect.size();
 			it->second->m_Slot = l_UavSlot;
 			m_RegMap[ShaderRegType::UavBuffer][it->first] = it->second;
 			
@@ -238,7 +230,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			ProgramBlockDesc *l_pNewBlock = *l_UavIt;
 			l_pNewBlock->m_pRegInfo = it->second;
 			
-			m_UavStageMap.push_back(l_UavSlot);
+			m_UavStageMap.push_back(it->second->m_RootIndex);
 
 			++l_UavSlot;
 		}
@@ -273,7 +265,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			ProgramBlockDesc *l_pNewBlock = *l_ConstBuffIt;
 			l_pNewBlock->m_pRegInfo = it->second;
 
-			m_ConstStageMap.push_back(l_Slot);
+			m_ConstStageMap.push_back(it->second->m_RootIndex);
 
 			++l_Slot;
 		}
@@ -308,6 +300,8 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			it->second->m_Offset = l_pNewParam->m_Offset;
 			it->second->m_Size = l_ParamSize;
 			m_RegMap[ShaderRegType::Constant][it->first] = it->second;
+			
+			m_ConstantMap.insert(std::make_pair(it->first, std::make_pair(it->second->m_RootIndex, l_pNewParam->m_Offset)));
 		}
 
 		l_RegCollect.push_back({});
@@ -392,7 +386,6 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		l_PsoDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 
 		Topology::Key l_Topology = Topology::fromString(a_ShaderSetting.get("<xmlattr>.topology", "triangle"));
-		m_Topology = (D3D_PRIMITIVE_TOPOLOGY)l_pRefDevice->getTopology(l_Topology);
 		// setup 
 		switch( l_Topology )
 		{
@@ -711,18 +704,20 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			l_SortedParam.insert(std::make_pair(int64(it->second->m_RootIndex) << 32, std::make_pair(it->second, ShaderRegType::UavBuffer)));
 		}
 
+		for( unsigned int i=0 ; i<=ShaderRegType::UavBuffer ; ++i ) m_RegMap[i].clear();
+
 		l_bHasCommandDesc = !l_SortedParam.empty();
 		for( auto it = l_SortedParam.begin() ; it != l_SortedParam.end() ; ++it )
 		{
 			switch( it->second.second )
 			{
 				case ShaderRegType::Constant:{
-					D3D12_INDIRECT_ARGUMENT_DESC l_SrvSlot = {};
-					l_SrvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
-					l_SrvSlot.Constant.DestOffsetIn32BitValues = it->second.first->m_Offset / 4;
-					l_SrvSlot.Constant.Num32BitValuesToSet = it->second.first->m_Size / 4;
-					l_SrvSlot.Constant.RootParameterIndex = it->second.first->m_RootIndex;
-					l_IndirectCmdDesc.push_back(l_SrvSlot);
+					D3D12_INDIRECT_ARGUMENT_DESC l_ConstSlot = {};
+					l_ConstSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT;
+					l_ConstSlot.Constant.DestOffsetIn32BitValues = it->second.first->m_Offset / 4;
+					l_ConstSlot.Constant.Num32BitValuesToSet = it->second.first->m_Size / 4;
+					l_ConstSlot.Constant.RootParameterIndex = it->second.first->m_RootIndex;
+					l_IndirectCmdDesc.push_back(l_ConstSlot);
 
 					m_IndirectCmdSize += sizeof(unsigned int);
 					}break;
@@ -737,10 +732,10 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 					}break;
 
 				case ShaderRegType::UavBuffer:{
-					D3D12_INDIRECT_ARGUMENT_DESC l_CbvSlot = {};
-					l_CbvSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW;
-					l_CbvSlot.ConstantBufferView.RootParameterIndex = it->second.first->m_RootIndex;
-					l_IndirectCmdDesc.push_back(l_CbvSlot);
+					D3D12_INDIRECT_ARGUMENT_DESC l_UavSlot = {};
+					l_UavSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_UNORDERED_ACCESS_VIEW;
+					l_UavSlot.ConstantBufferView.RootParameterIndex = it->second.first->m_RootIndex;
+					l_IndirectCmdDesc.push_back(l_UavSlot);
 			
 					m_IndirectCmdSize += sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
 					}break;

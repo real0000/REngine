@@ -1,26 +1,13 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
-    <Srv2D name="GBuff0" desc="" reserved="true"/>
-    <Srv2D name="GBuff1" desc="" reserved="true"/>
-    <Srv2D name="GBuff2" desc="" reserved="true"/>
-    <Srv2D name="GBuff3" desc="" reserved="true"/>
-    <Srv2D name="GBuff4" desc="" reserved="true"/>
-    <Srv2D name="GBuff5" desc="" reserved="true"/>
-    <Srv2D name="GBuff6" desc="" reserved="true"/>
+    <Srv2D name="m_SrcTex" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="Quad.vertex"/>
-      <!--Geometry file="">
-      </Geometry>
-      <TessCtrl file="">  
-      </TessCtrl>
-      <TessEval file="">
-      </TessEval>
-      <Compute>
-      </Compute>-->
-      <Fragment file="TiledDeferredLighting.pixel">
-        GBuff0, GBuff1, GBuff2, GBuff3, GBuff4, GBuff5, GBuff6
+      <Vertex file="Quad.vertex">
+      </Vertex>
+      <Fragment file="CopyDepth.pixel">
+        m_SrcTex
       </Fragment>
     </Model_5_1>
   </Shaders>
@@ -35,7 +22,7 @@
       </Stencil>
     </DepthStencil>
     <RenderTarget depthStencil="d24_unorm_s8_uint">
-      <rgba16_float/>
+      <rg16_float/>
     </RenderTarget>
   </ShaderSetting>
 </root>

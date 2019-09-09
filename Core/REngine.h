@@ -22,6 +22,7 @@
 #include "Input/MouseInput.h"
 
 #include "RenderObject/Material.h"
+#include "RenderObject/Mesh.h"
 #include "RenderObject/RenderObject.h"
 
 #include "Scene/Camera.h"

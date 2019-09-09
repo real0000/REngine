@@ -14,7 +14,7 @@ class CameraComponent;
 class DirLight;
 class EngineComponent;
 class MeshBatcher;
-class ModelComponentFactory;
+class ModelCache;
 class OmniLight;
 class RenderPipeline;
 class Scene;
@@ -47,7 +47,7 @@ struct SharedSceneMember
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	MeshBatcher *m_pBatcher;
-	ModelComponentFactory *m_pModelFactory;
+	ModelCache *m_pModelFactory;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };
@@ -61,6 +61,12 @@ public:
 	static std::shared_ptr<SceneNode> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name = wxT("NoName"));
 
 	std::shared_ptr<SceneNode> addChild();
+	template<typename T>
+	std::shared_ptr<T> addComponent()
+	{
+		return EngineComponent::create<T>(m_pMembers, shared_from_this());
+	}
+	
 	void destroy();
 	void setParent(std::shared_ptr<SceneNode> a_pNewParent);
 	std::shared_ptr<SceneNode> find(wxString a_Name);
@@ -134,6 +140,7 @@ public:
 	void clearInputListener();
 
 	// misc;
+	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
 	void resume(){ m_bActivate = true; }
 

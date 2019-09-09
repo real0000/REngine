@@ -16,6 +16,7 @@ namespace R
 //
 TextureUnit::TextureUnit()
 	: m_TextureID(0)
+	, m_bRenderTarget(false)
 	, m_Name(wxT(""))
 	, m_bReady(false)
 {
@@ -32,17 +33,30 @@ void TextureUnit::release()
 
 PixelFormat::Key TextureUnit::getTextureFormat()
 {
-	return GDEVICE()->getTextureFormat(m_TextureID);
+	int l_ID = m_TextureID;
+	if( m_bRenderTarget ) l_ID = GDEVICE()->getRenderTargetTexture(l_ID);
+	return GDEVICE()->getTextureFormat(l_ID);
 }
 
 glm::ivec3 TextureUnit::getDimension()
 {
-	return GDEVICE()->getTextureSize(m_TextureID);
+	int l_ID = m_TextureID;
+	if( m_bRenderTarget ) l_ID = GDEVICE()->getRenderTargetTexture(l_ID);
+	return GDEVICE()->getTextureSize(l_ID);
 }
 
 TextureType TextureUnit::getTextureType()
 {
-	return GDEVICE()->getTextureType(m_TextureID);
+	int l_ID = m_TextureID;
+	if( m_bRenderTarget ) l_ID = GDEVICE()->getRenderTargetTexture(l_ID);
+	return GDEVICE()->getTextureType(l_ID);
+}
+
+void TextureUnit::generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram)
+{
+	int l_ID = m_TextureID;
+	if( m_bRenderTarget ) l_ID = GDEVICE()->getRenderTargetTexture(l_ID);
+	GDEVICE()->generateMipmap(l_ID, a_Level, a_pProgram);
 }
 #pragma endregion
 
@@ -125,6 +139,7 @@ std::shared_ptr<TextureUnit> TextureManager::createRenderTarget(wxString a_Name,
 	unsigned int l_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format, a_ArraySize, a_bCube);
 
 	l_pNewTexture->setTextureID(l_TextureID);
+	l_pNewTexture->setRenderTarget();
 	l_pNewTexture->setReady();
 	return l_pNewTexture;
 }
@@ -135,8 +150,22 @@ std::shared_ptr<TextureUnit> TextureManager::createRenderTarget(wxString a_Name,
 	unsigned int l_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format);
 
 	l_pNewTexture->setTextureID(l_TextureID);
+	l_pNewTexture->setRenderTarget();
 	l_pNewTexture->setReady();
 	return l_pNewTexture;
+}
+
+void TextureManager::copyTexture(std::shared_ptr<TextureUnit> a_pSrc, std::shared_ptr<TextureUnit> a_pDst)
+{
+	if( a_pSrc->getDimension() != a_pDst->getDimension() ) return;
+
+	int l_DstTexID = a_pDst->getTextureID();
+	if( a_pDst->m_bRenderTarget ) l_DstTexID = GDEVICE()->getRenderTargetTexture(l_DstTexID);
+
+	int l_SrcTexID = a_pSrc->getTextureID();
+	if( a_pSrc->m_bRenderTarget ) l_SrcTexID = GDEVICE()->getRenderTargetTexture(l_SrcTexID);
+
+	GDEVICE()->copyTexture(l_DstTexID, l_SrcTexID);
 }
 
 void TextureManager::recycle(wxString a_Name)

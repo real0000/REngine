@@ -9,6 +9,7 @@
 namespace R
 {
 
+class ShaderProgram;
 class TextureManager;
 
 class TextureUnit
@@ -25,13 +26,16 @@ public:
 	glm::ivec3 getDimension();
 	TextureType getTextureType();
 	bool isReady(){ return m_bReady; }
+	void generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
 
 private:
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	void setTextureID(int a_TexID){ m_TextureID = a_TexID; }
+	void setRenderTarget(){ m_bRenderTarget = true; }
 	void setReady(){ m_bReady = true; }
 
 	int m_TextureID;
+	bool m_bRenderTarget;
 	wxString m_Name;
 	bool m_bReady;
 };
@@ -46,6 +50,7 @@ public:
 	std::shared_ptr<TextureUnit> createTexture(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
 	std::shared_ptr<TextureUnit> createRenderTarget(wxString a_Name, glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
 	std::shared_ptr<TextureUnit> createRenderTarget(wxString a_Name, glm::ivec3 a_Size, PixelFormat::Key a_Format);
+	void copyTexture(std::shared_ptr<TextureUnit> a_pDst, std::shared_ptr<TextureUnit> a_pSrc);
 
 	void recycle(wxString a_Name);
 	std::shared_ptr<TextureUnit> getTexture(wxString a_Name);

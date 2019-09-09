@@ -48,8 +48,8 @@ private:
 	ID3D12PipelineState *m_pPipeline;
 	ID3D12RootSignature *m_pRegisterDesc;
 	ID3D12CommandSignature *m_pIndirectFmt;
-	D3D_PRIMITIVE_TOPOLOGY m_Topology;
-	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::UavBuffer+1];
+	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::UavBuffer+1];// temp data
+	std::map<std::string, std::pair<int, int> > m_ConstantMap;// stage(b#) : root slot, offset
 	std::vector<unsigned int> m_TextureStageMap;// stage(t#) : root slot
 	std::vector<unsigned int> m_ConstStageMap;// stage(b#) : root slot
 	std::vector<unsigned int> m_UavStageMap;// stage(u#) : root slot

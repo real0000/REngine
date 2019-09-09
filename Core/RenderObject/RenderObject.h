@@ -9,6 +9,7 @@
 namespace R
 {
 	
+struct IndirectDrawData;
 struct SharedSceneMember;
 class IndexBuffer;
 class Material;
@@ -32,35 +33,28 @@ private:
 	glm::daabb m_BoundingBox;
 };
 
-class ModelComponentFactory
+class ModelCache
 {
-private:
+public:
 	struct Instance
 	{
+		std::shared_ptr<ModelData> m_pModel;
 		std::shared_ptr<VertexBuffer> m_pVtxBuffer;
 		std::shared_ptr<IndexBuffer> m_pIdxBuffer;
-		std::vector< std::pair<int, int> > m_Meshes;// mesh name : {(index count : base vertex)...}
+		std::map<wxString, IndirectDrawData> m_SubMeshes;
 	};
 public:
-	ModelComponentFactory(SharedSceneMember *a_pSharedMember);
-	virtual ~ModelComponentFactory();
-
-	void createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::shared_ptr<Material> a_pMaterial, std::function<void()> a_pCallback);// model file
-	void createMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::function<void()> a_pCallback);// settings file
-	std::shared_ptr<RenderableMesh> createSphere(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Material> a_pMaterial);
-	std::shared_ptr<RenderableMesh> createBox(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Material> a_pMaterial);
-	//std::shared_ptr<EngineComponent> createVoxelTerrain(std::shared_ptr<SceneNode> a_pOwner, glm::ivec3 a_Size);
+	ModelCache();
+	virtual ~ModelCache();
+	
+	std::shared_ptr<Instance> loadMesh(wxString a_Filename);
 
 	void clearCache();
 
 private:
-	void loadMesh(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::shared_ptr<Material> a_pMaterial, std::function<void()> a_pCallback);
-	void loadSetting(std::shared_ptr<SceneNode> a_pOwner, wxString a_Filename, std::function<void()> a_pCallback);
 	std::shared_ptr<Instance> getInstance(wxString a_Filename, std::shared_ptr<ModelData> a_pSrc, bool &a_bNeedInitInstance);
 	void initMeshes(std::shared_ptr<Instance> a_pInst, std::shared_ptr<ModelData> a_pSrc);
-	void initNodes(std::shared_ptr<SceneNode> a_pOwner, std::shared_ptr<Instance> a_pInst, std::shared_ptr<ModelData> a_pSrc, std::list<std::shared_ptr<RenderableMesh> > &a_OutputMeshComponent);
 
-	SharedSceneMember *m_pSharedMember;
 	std::map<wxString, std::shared_ptr<Instance> > m_FileCache;
 	std::mutex m_CacheLock;
 };

@@ -38,6 +38,8 @@ struct SharedSceneMember;
 class GraphicCanvas;
 class Scene;
 class SceneNode;
+class TextureUnit;
+class VertexBuffer;
 class InputMediator;
 
 class EngineComponent : public std::enable_shared_from_this<EngineComponent>
@@ -144,9 +146,13 @@ public:
 	GraphicCanvas* createCanvas();
 	// for tool window
 	GraphicCanvas* createCanvas(wxWindow *a_pParent);
-
+	
 	bool isShutdown();
 	void shutDown();
+
+	// utility
+	std::shared_ptr<TextureUnit> getWhiteTexture(){ return m_pWhite; }
+	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
 
 private:
 	EngineCore();
@@ -158,6 +164,8 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 
+	std::shared_ptr<TextureUnit> m_pWhite;
+	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
 	std::thread m_MainLoop;
 };

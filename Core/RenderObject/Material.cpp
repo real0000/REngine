@@ -155,7 +155,6 @@ std::shared_ptr<Material> Material::create(std::shared_ptr<ShaderProgram> a_pRef
 
 Material::Material(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
-	, m_Stage(0)
 	, m_bNeedRebatch(true), m_bNeedUavUpdate(true)
 {
 	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
@@ -195,7 +194,6 @@ std::shared_ptr<Material> Material::clone()
 	std::copy(m_ExternBlock.begin(), m_ExternBlock.end(), l_pNewMaterial->m_ExternBlock.begin());
 	l_pNewMaterial->m_OwnBlocks.resize(m_Textures.size());
 	std::copy(m_Textures.begin(), m_Textures.end(), l_pNewMaterial->m_Textures.begin());
-	l_pNewMaterial->m_Stage = m_Stage;
 
 	return l_pNewMaterial;
 }
@@ -224,9 +222,36 @@ void Material::setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBl
 	m_bNeedUavUpdate = true;
 }
 
+void Material::setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock)
+{
+	int l_TargetSlot = -1;
+	{
+		const std::map<std::string, int> &l_ConstBuffers = m_pRefProgram->getBlockIndexMap(ShaderRegType::ConstBuffer);
+		auto it = l_ConstBuffers.find(a_Name);
+		if( l_ConstBuffers.end() == it )
+		{
+			const std::map<std::string, int> &l_UavBuffers = m_pRefProgram->getBlockIndexMap(ShaderRegType::UavBuffer);
+			it = l_UavBuffers.find(a_Name);
+			if( l_UavBuffers.end() == it ) return;
+			l_TargetSlot = it->second;
+		}
+		else l_TargetSlot = it->second;
+	}
+
+	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+	{
+		if( l_TargetSlot == m_ExternBlock[i].second )
+		{
+			m_ExternBlock[i].first = a_pBlock;
+			m_bNeedUavUpdate = true;
+			return ;
+		}
+	}
+}
+
 bool Material::canBatch(std::shared_ptr<Material> a_Other)
 {
-	if( m_pRefProgram != a_Other->m_pRefProgram || m_Stage != a_Other->m_Stage ) return false;
+	if( m_pRefProgram != a_Other->m_pRefProgram ) return false;
 
 	if( m_Textures.size() != a_Other->m_Textures.size() ) return false;
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
@@ -236,7 +261,7 @@ bool Material::canBatch(std::shared_ptr<Material> a_Other)
 	return true;
 }
 
-void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawInfo)
+void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, IndirectDrawData a_DrawInfo)
 {
 	unsigned int l_Offset = 0;
 
@@ -274,17 +299,17 @@ void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuff
 		}
 	}
 	
-	m_pRefProgram->assignIndirectDrawComaand(l_Offset, a_pOutput, a_DrawInfo.first, 1, 0, a_DrawInfo.second, 0);
+	m_pRefProgram->assignIndirectDrawComaand(l_Offset, a_pOutput, a_DrawInfo);
 }
 
 void Material::bindTexture(GraphicCommander *a_pBinder)
 {
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
-		if( nullptr != m_Textures[i] ) continue;
+		if( nullptr == m_Textures[i] ) continue;
 
 		TextureType l_Type = m_Textures[i]->getTextureType();
-		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type && TextureType::TEXTYPE_DEPTH_STENCIL_VIEW != l_Type);
+		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type);
 	}
 }
 

@@ -68,6 +68,8 @@ std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember,
 
 SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
+	, m_World(glm::identity<glm::mat4x4>())
+	, m_LocalTransform(glm::identity<glm::mat4x4>())
 	, m_pMembers(new SharedSceneMember)
 {
 	*m_pMembers = *a_pSharedMember;
@@ -230,6 +232,7 @@ void Scene::destroy()
 	delete m_pMembers->m_pDirLights;
 	delete m_pMembers->m_pOmniLights;
 	delete m_pMembers->m_pSpotLights;
+	delete m_pMembers->m_pModelFactory;
 	SAFE_DELETE(m_pMembers)
 }
 
@@ -240,14 +243,17 @@ void Scene::initEmpty()
 	clear();
 	
 	m_pMembers->m_pScene = shared_from_this();
-	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
+	m_pMembers->m_pModelFactory = new ModelCache();
 	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
+	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
 	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
 	m_pMembers->m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pMembers->m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
 	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
 
-	m_pCurrCamera = EngineComponent::create<CameraComponent>(m_pMembers, m_pMembers->m_pSceneNode);
+	std::shared_ptr<SceneNode> l_pCameraNode = m_pMembers->m_pSceneNode->addChild();
+	l_pCameraNode->setName(wxT("Default Camera"));
+	m_pCurrCamera = l_pCameraNode->addComponent<CameraComponent>();
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
 
 	m_bLoading = false;
@@ -389,6 +395,11 @@ void Scene::clearInputListener()
 	m_InputListener.clear();
 	m_ReadyInputListener.clear();
 	m_DroppedInputListener.clear();
+}
+
+std::shared_ptr<SceneNode> Scene::getRootNode()
+{
+	return m_pMembers->m_pSceneNode;
 }
 
 void Scene::clear()

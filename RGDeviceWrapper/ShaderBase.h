@@ -86,6 +86,15 @@ struct ProgramBlockDesc
 	RegisterInfo *m_pRegInfo;
 };
 
+struct IndirectDrawData
+{
+	unsigned int m_IndexCount;
+	unsigned int m_StartIndex;
+	unsigned int m_BaseVertex;
+	unsigned int m_StartInstance;
+	unsigned int m_InstanceCount;
+};
+
 class ShaderProgram
 {
 	friend class ProgramManager;
@@ -116,6 +125,7 @@ public:
 	//virtual void assignIndirectConstant(unsigned int &a_Size, char *a_pOutput, char *a_pSrc, unsigned int a_SizeInf)
 	virtual void assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList) = 0;
 	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance) = 0;
+	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo);
 	
 protected:
 	ProgramBlockDesc* newConstBlockDesc();

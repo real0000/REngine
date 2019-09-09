@@ -94,6 +94,7 @@ public:
 	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
 	void setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture);
 	void setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock);
+	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
@@ -113,18 +114,10 @@ public:
 		return 	m_OwnBlocks[it->second].first->getParam(a_Name, a_Slot);
 	}
 
-	void setStage(unsigned int a_Stage)
-	{
-		if( m_Stage == a_Stage ) return;
-		m_Stage = a_Stage;
-		m_bNeedRebatch = true;
-	}
-	unsigned int getStage(){ return m_Stage; }
-
 	// only valid if supportExtraIndirectCommand is true
 	bool canBatch(std::shared_ptr<Material> a_Other);
 	// if supportExtraIndirectCommand is false, assign only draw command
-	void assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawInfo);
+	void assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, IndirectDrawData a_DrawInfo);
 
 	void bindTexture(GraphicCommander *a_pBinder);
 	void bindBlocks(GraphicCommander *a_pBinder);
@@ -141,7 +134,6 @@ private:
 	std::vector< std::pair<std::shared_ptr<MaterialBlock>, int> > m_OwnBlocks, m_ExternBlock;// [block, stage] ... 
 	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 
-	unsigned int m_Stage;
 	bool m_bNeedRebatch, m_bNeedUavUpdate;// valid if supportExtraIndirectCommand
 };
 

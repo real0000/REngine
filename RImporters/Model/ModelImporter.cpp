@@ -34,6 +34,12 @@ ModelNode* ModelNode::find(wxString a_Name)
 	}
 	return nullptr;
 }
+
+glm::mat4x4 ModelNode::getAbsoluteTransform()
+{
+	if( nullptr != m_pParent ) return m_pParent->getAbsoluteTransform() * m_Transform;
+	return m_Transform;
+}
 #pragma endregion
 
 #pragma region ModelData
@@ -97,28 +103,12 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData:
     }
 }
 
-static wxString getFbxMaterialTexture(FbxSurfaceMaterial *a_pSrcMaterial, const char *a_pTypeName)
-{
-    FbxProperty l_DiffTexture = a_pSrcMaterial->FindProperty(a_pTypeName);
-    if( l_DiffTexture.IsValid() )
-    {
-        FbxLayeredTexture *l_pLayeredTex = 0 != l_DiffTexture.GetSrcObjectCount<FbxLayeredTexture>() ? l_DiffTexture.GetSrcObject<FbxLayeredTexture>(0) : nullptr;
-        if( nullptr != l_pLayeredTex )
-        {
-            FbxFileTexture *l_pTexFile = 0 != l_pLayeredTex->GetSrcObjectCount<FbxFileTexture>() ? l_pLayeredTex->GetSrcObject<FbxFileTexture>(0) : nullptr;
-            return nullptr == l_pTexFile ? wxT("") : wxString(l_pTexFile->GetRelativeFileName());
-        }
-    }
-    
-    FbxFileTexture *l_pTexFile = 0 != l_DiffTexture.GetSrcObjectCount<FbxFileTexture>() ? l_DiffTexture.GetSrcObject<FbxFileTexture>(0) : nullptr;
-    return nullptr == l_pTexFile ? wxT("") : wxString(l_pTexFile->GetRelativeFileName());
-}
-
 //
 // ModelData
 //
 ModelData::ModelData()
 	: m_pRootNode(nullptr)
+	, m_BoundingBox()
 {
 
 }
@@ -226,6 +216,8 @@ void ModelData::init(wxString a_Filepath)
 
     m_Meshes.resize(l_MeshMap.size(), nullptr);
 	std::vector<int> l_BoneRecord;
+	glm::vec3 l_MinPt(std::numeric_limits<float>().max(), std::numeric_limits<float>().max(), std::numeric_limits<float>().max());
+	glm::vec3 l_MaxPt(-l_MinPt);
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
@@ -234,13 +226,23 @@ void ModelData::init(wxString a_Filepath)
         l_pDstMesh->m_Name = it->first->GetName();
         l_pDstMesh->m_Index = l_Idx;
 
-        FbxNode *l_pRefNode = it->first->GetNode();
-        l_pDstMesh->m_RefNode.push_back(l_NodeMap[l_pRefNode]);
+		FbxNode *l_pRefNode = nullptr;
+		for( int i=0 ; i<it->first->GetNodeCount() ; ++i )
+		{
+			l_pRefNode = it->first->GetNode(i);
+			l_pDstMesh->m_RefNode.push_back(l_NodeMap[l_pRefNode]);
 
-        FbxVector4 l_FbxBoxMax, l_FbxBoxMin, l_FbxBoxCenter;
-        l_pRefNode->EvaluateGlobalBoundingBoxMinMaxCenter(l_FbxBoxMin, l_FbxBoxMax, l_FbxBoxCenter);
-        l_FbxBoxMax -= l_FbxBoxMin;
-        l_pDstMesh->m_BoxSize = glm::vec3(l_FbxBoxMax[0], l_FbxBoxMax[1], l_FbxBoxMax[2]) * 0.5f;
+			FbxVector4 l_FbxBoxMax, l_FbxBoxMin, l_FbxBoxCenter;
+			l_pRefNode->EvaluateGlobalBoundingBoxMinMaxCenter(l_FbxBoxMin, l_FbxBoxMax, l_FbxBoxCenter);
+			l_MaxPt.x = std::max<float>(l_FbxBoxMax[0], l_MaxPt.x);
+			l_MaxPt.y = std::max<float>(l_FbxBoxMax[1], l_MaxPt.y);
+			l_MaxPt.z = std::max<float>(l_FbxBoxMax[2], l_MaxPt.z);
+			l_MinPt.x = std::min<float>(l_FbxBoxMin[0], l_MinPt.x);
+			l_MinPt.y = std::min<float>(l_FbxBoxMin[1], l_MinPt.y);
+			l_MinPt.z = std::min<float>(l_FbxBoxMin[2], l_MinPt.z);
+		}
+		l_pRefNode = it->first->GetNode(0);
+		if( l_pDstMesh->m_Name.empty() ) l_pDstMesh->m_Name = l_pRefNode->GetName();
 
         unsigned int l_NumVtx = l_pSrcMesh->GetControlPointsCount();
         l_pDstMesh->m_Vertex.resize(l_NumVtx);
@@ -275,14 +277,15 @@ void ModelData::init(wxString a_Filepath)
         std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
         setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetBinormals(), l_pDstMesh, l_SetBinormalFunc);
 
-		for( int i=0 ; i<l_pSrcMesh->GetLayerCount() ; ++i )
+		int l_LayerCount = std::min(4, l_pSrcMesh->GetLayerCount());
+		for( int i=0 ; i<l_LayerCount ; ++i )
 		{
 			std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
 			std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
 
 			setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_pDstMesh, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
         }
-
+			
 		for( int i=0 ; i<l_pSrcMesh->GetDeformerCount() ; ++i )
 		{
 			FbxDeformer *l_pDefornmer = l_pSrcMesh->GetDeformer(i);
@@ -295,12 +298,12 @@ void ModelData::init(wxString a_Filepath)
 				FbxCluster *l_pCluster = l_pSkin->GetCluster(j);
 				l_pCluster->GetTransformLinkMatrix(l_VtxTrans);
 				
-				int l_BondIndex = l_pDstMesh->m_Bones.size();
+				int l_BondIndex = m_Bones.size();
 				glm::mat4x4 l_DstBonsMat(l_VtxTrans.Get(0, 0), l_VtxTrans.Get(0, 1), l_VtxTrans.Get(0, 2), l_VtxTrans.Get(0, 3)
 										,l_VtxTrans.Get(1, 0), l_VtxTrans.Get(1, 1), l_VtxTrans.Get(1, 2), l_VtxTrans.Get(1, 3)
 										,l_VtxTrans.Get(2, 0), l_VtxTrans.Get(2, 1), l_VtxTrans.Get(2, 2), l_VtxTrans.Get(2, 3)
 										,l_VtxTrans.Get(3, 0), l_VtxTrans.Get(3, 1), l_VtxTrans.Get(3, 2), l_VtxTrans.Get(3, 3));
-				l_pDstMesh->m_Bones.push_back(l_DstBonsMat);
+				m_Bones.push_back(l_DstBonsMat);
 				for( int k=0 ; k<l_pCluster->GetControlPointIndicesCount() ; ++k )
 				{
 					Vertex &l_Vtx = l_pDstMesh->m_Vertex[l_pCluster->GetControlPointIndices()[k]];
@@ -322,24 +325,20 @@ void ModelData::init(wxString a_Filepath)
             }
         }
 
-		for( int i=0 ; i<l_pRefNode->GetMaterialCount() ; ++i )
+		FbxLayerElementArrayTemplate<int> *l_pMaterialIndicies = nullptr;
+		if( l_pSrcMesh->GetMaterialIndices(&l_pMaterialIndicies) )
 		{
-			FbxSurfaceMaterial *l_pSrcMaterial = l_pRefNode->GetMaterial(i);
-			l_pDstMesh->m_Texures[i][TEXUSAGE_DIFFUSE] = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sDiffuse);
-            
-			wxString l_TexName(getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sSpecular));
-			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_SPECULAR] = l_TexName;
-
-			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sReflection);
-			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_GLOSSINESS] = l_TexName;
-
-			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sNormalMap);
-			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_NORMAL] = l_TexName;
-			
-			l_TexName = getFbxMaterialTexture(l_pSrcMaterial, FbxSurfaceMaterial::sBump);
-			if( 0 != l_TexName.length() ) l_pDstMesh->m_Texures[i][TEXUSAGE_HEIGHT] = l_TexName;
+			if( 0 != l_pMaterialIndicies->GetCount() )
+			{
+				int l_MatIdx = l_pMaterialIndicies->GetAt(0);
+				m_Materials.insert(l_MatIdx);
+				l_pDstMesh->m_RefMaterial = l_MatIdx;
+			}
 		}
     }
+
+	m_BoundingBox.m_Center = (l_MaxPt + l_MinPt) * 0.5f;
+	m_BoundingBox.m_Size = l_MaxPt - l_MinPt;
 
     l_pScene->Clear();
 	l_pScene->Destroy();

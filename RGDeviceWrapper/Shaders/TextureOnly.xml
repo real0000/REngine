@@ -2,7 +2,11 @@
   <ParamList>
     <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
     <ConstBuffer name="VertexTransition">
-      <Param name="m_World" desc="" type="float4x4" size="100"/>
+      <Param name="m_World" desc="" type="float4x4"/>
+      <Param name="m_Local" desc="" type="float4x4"/>
+    </ConstBuffer>
+    <ConstBuffer name="SkinTransition" reserved="true">
+      <Param name="m_Skin" desc="" type="float4x4" size="100"/>
     </ConstBuffer>
     <Constant name="m_VtxFlag" type="int1" reserved="false"/>
     <!--UavBuffer   always reserved/-->
@@ -12,7 +16,7 @@
   <Shaders>
     <Model_5_1>
       <Vertex file="VertexTransfer.vertex">
-        m_VtxFlag, g_Camera, VertexTransition
+        m_VtxFlag, g_Camera, VertexTransition, SkinTransition
       </Vertex>
       <!--Geometry file="">
       </Geometry>

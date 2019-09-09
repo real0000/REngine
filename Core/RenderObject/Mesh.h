@@ -32,32 +32,39 @@ public:
 	virtual void setShadowed(bool a_bShadow);
 	virtual bool getShadowed();
 
-	virtual void setMeshData(std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, std::pair<int, int> a_DrawParam, glm::vec3 a_BoxSize);
-	virtual void setMaterial(std::shared_ptr<Material> a_pMaterial);
-	std::shared_ptr<Material> getMaterial(){ return m_pMaterial; }
+	void setMesh(wxString a_SettingFile, std::function<void()> a_pCallback);
+	void setStage(unsigned int a_Stage);
+	unsigned int getStage(){ return m_Stage; }
+	unsigned int getNumSubMesh(){ return m_SubMeshes.size(); }
+	wxString getName(unsigned int a_Idx){ return m_SubMeshes[a_Idx]->m_Name; }
+	void setMaterial(unsigned int a_Idx, std::shared_ptr<Material> a_pMaterial);
+	std::shared_ptr<Material> getMaterial(unsigned int a_Idx){ return m_SubMeshes[a_Idx]->m_pMaterial; }
+	unsigned int getCommandID(unsigned int a_Idx){ return m_SubMeshes[a_Idx]->m_CommandID; }
 	std::shared_ptr<VertexBuffer> getVtxBuffer(){ return m_pVtxBuffer; }
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_pIndexBuffer; }
-	int getBatchID(){ return m_BatchID; }
-	int getCommandID(){ return m_CommandID; }
 
 private:
-	RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode);
-
-	struct
+	struct SubMeshData
 	{
+		wxString m_Name;
+		std::shared_ptr<Material> m_pMaterial;
+		IndirectDrawData m_PartData;
+		int m_BatchID, m_CommandID;
 		unsigned char m_bNeedRebatch : 1;// include index
 		unsigned char m_bNeedUavSync : 1;
+		unsigned char m_bVisible : 1;
 		unsigned char m_bFlagUpdated : 1;
-	} m_Flag;
+	};
+	RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode);
+
 	std::shared_ptr<VertexBuffer> m_pVtxBuffer;
 	std::shared_ptr<IndexBuffer> m_pIndexBuffer;
-	std::pair<int, int> m_DrawParam;// index count, base vertex
-	std::shared_ptr<Material> m_pMaterial;
-	int m_BatchID, m_CommandID;
-	glm::vec3 m_BaseBounding;
-
+	
+	glm::aabb m_BaseBounding;
+	std::vector< std::shared_ptr<SubMeshData> > m_SubMeshes;
+	
+	unsigned int m_Stage;
 	bool m_bShadowed;
-	bool m_bValidCheckRequired;
 };
 
 class MeshBatcher

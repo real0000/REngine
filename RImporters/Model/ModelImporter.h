@@ -34,6 +34,7 @@ public:
 	ModelNode* find(wxString a_Name);
 	wxString getName(){ return m_NodeName; }
 	glm::mat4x4 getTransform(){ return m_Transform; }
+	glm::mat4x4 getAbsoluteTransform();
 	std::vector<unsigned int>& getRefMesh(){ return m_RefMesh; }
 	std::vector<ModelNode *> getChildren(){ return m_Children; }
 
@@ -52,14 +53,12 @@ public:
     {
         Vertex()
             : m_Position(0.0f, 0.0f, 0.0f)
+			, m_Texcoord{glm::zero<glm::vec4>(), glm::zero<glm::vec4>(), glm::zero<glm::vec4>(), glm::zero<glm::vec4>()}
             , m_Normal(0.0f, 0.0f, 0.0f)
             , m_Tangent(0.0f, 0.0f, 0.0f)
             , m_Binormal(0.0f, 0.0f, 0.0f)
 			, m_BoneId(0, 0, 0, 0)
-			, m_Weight(1.0f, 0.0f, 0.0f, 0.0f)
-		{
-			memset(m_Texcoord, 0, sizeof(glm::vec4) * 4);
-		}
+			, m_Weight(1.0f, 0.0f, 0.0f, 0.0f){}
 		virtual ~Vertex(){}
 
         glm::vec3 m_Position;
@@ -75,8 +74,8 @@ public:
         Meshes()
 			: m_Name(wxT(""))
 			, m_Index(0)
-			, m_BoxSize(0.0f, 0.0f, 0.0f)
 			, m_bHasBone(false)
+			, m_RefMaterial(-1)
 		{
 		}
 		virtual ~Meshes(){}
@@ -86,10 +85,8 @@ public:
         std::vector<Vertex> m_Vertex;
         std::vector<unsigned int> m_Indicies;
 
-        std::map<unsigned int, std::string> m_Texures[8];
-		std::vector<glm::mat4x4> m_Bones;
+		int m_RefMaterial;
         std::vector<ModelNode *> m_RefNode;
-        glm::vec3 m_BoxSize;
 		bool m_bHasBone;
     };
 public:
@@ -101,9 +98,14 @@ public:
 	std::vector<Meshes *>& getMeshes(){ return m_Meshes; }
 	ModelNode* find(wxString a_Name);
 	ModelNode* getRootNode(){ return m_pRootNode; }
+	glm::aabb getBoundingBox(){ return m_BoundingBox; }
+	std::vector<glm::mat4x4>& getBones(){ return m_Bones; }
 
 private:
+	std::set<int> m_Materials;
     std::vector<Meshes *> m_Meshes;
+	std::vector<glm::mat4x4> m_Bones;
+	glm::aabb m_BoundingBox;
 	ModelNode *m_pRootNode;
 };
 

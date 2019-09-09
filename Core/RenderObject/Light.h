@@ -55,12 +55,14 @@ public:
 	}
 	virtual ~LightContainer()
 	{
+		clear();
 		m_pLightData = nullptr;
 	}
 
 	void clear()
 	{
 		m_Lights.clear();
+		m_FreeCount = m_Lights.count();
 		m_bDirty = true;
 	}
 

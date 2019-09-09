@@ -13,12 +13,13 @@ VS_CommonOutput main(VS_CommonInput l_Input)
 	float4x4 l_WorldTransform;
 	if( 0 != (m_VtxFlag & USE_SKIN) )
 	{
-		l_WorldTransform = m_World[l_Input.m_BoneID.x] * l_Input.m_Weight.x
-						+ m_World[l_Input.m_BoneID.y] * l_Input.m_Weight.y
-						+ m_World[l_Input.m_BoneID.z] * l_Input.m_Weight.z
-						+ m_World[l_Input.m_BoneID.w] * l_Input.m_Weight.w;
+		l_WorldTransform = mul(m_Skin[l_Input.m_BoneID.x] * l_Input.m_Weight.x
+						+ m_Skin[l_Input.m_BoneID.y] * l_Input.m_Weight.y
+						+ m_Skin[l_Input.m_BoneID.z] * l_Input.m_Weight.z
+						+ m_Skin[l_Input.m_BoneID.w] * l_Input.m_Weight.w, m_Local);
 	}
-	else l_WorldTransform = m_World[0];
+	else l_WorldTransform = m_Local;
+	l_WorldTransform = mul(l_WorldTransform, m_World);
 
 	if( 0 != (m_VtxFlag & VTXFLAG_NORMAL) )
 	{

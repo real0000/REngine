@@ -257,6 +257,11 @@ const std::map<std::string, int>& ShaderProgram::getBlockIndexMap(ShaderRegType:
 	return ShaderRegType::ConstBuffer == a_Type ? m_ConstBufferIndexMap : m_UavBufferIndexMap;
 }
 
+void ShaderProgram::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo)
+{
+	assignIndirectDrawComaand(a_Offset, a_pOutput, a_DrawInfo.m_IndexCount, a_DrawInfo.m_InstanceCount, a_DrawInfo.m_StartIndex, a_DrawInfo.m_BaseVertex, a_DrawInfo.m_StartInstance);
+}
+
 ProgramBlockDesc* ShaderProgram::newConstBlockDesc()
 {
 	auto &l_TargetContainer = getBlockDesc(ShaderRegType::Constant);
