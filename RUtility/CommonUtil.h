@@ -497,6 +497,25 @@ private:
 	unsigned int m_ExtendSize;
 };
 
+class ThreadPool
+{
+public:
+	ThreadPool(unsigned int a_NumThread);
+	virtual ~ThreadPool();
+
+	void addJob(std::function<void()> a_Job);
+	void join();
+
+private:
+	void loop();
+
+	bool m_bLooping;
+	std::deque< std::function<void()> > m_JobQueue;
+	std::vector<std::thread> m_Threads;
+	std::condition_variable m_Signal;
+	std::mutex m_SignalLock, m_QueueLock;
+	unsigned int m_WorkingCount;
+};
 /*class ThreadEventCallback
 {
 public:

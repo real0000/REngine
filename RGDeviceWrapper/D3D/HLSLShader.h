@@ -38,7 +38,7 @@ public:
 	virtual void assignIndirectVertex(unsigned int &a_Offset, char *a_pOutput, VertexBuffer *a_pVtx);
 	virtual void assignIndirectIndex(unsigned int &a_Offset, char *a_pOutput, IndexBuffer *a_pIndex);
 	virtual void assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList);
-	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance);
+	virtual void assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance);
 
 private:
 	void initRegister(boost::property_tree::ptree &a_Root, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput);

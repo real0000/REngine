@@ -95,7 +95,7 @@ void HLSLProgram12::assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput,
 	}
 }
 
-void HLSLProgram12::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance)
+void HLSLProgram12::assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance)
 {
 	D3D12_DRAW_INDEXED_ARGUMENTS *l_pArg = reinterpret_cast<D3D12_DRAW_INDEXED_ARGUMENTS *>(a_pOutput + a_Offset);
 	l_pArg->IndexCountPerInstance = a_IndexCount;
@@ -229,7 +229,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			assert(l_UavIt != l_UavBlockDesc.end());
 			ProgramBlockDesc *l_pNewBlock = *l_UavIt;
 			l_pNewBlock->m_pRegInfo = it->second;
-			
+
 			m_UavStageMap.push_back(it->second->m_RootIndex);
 
 			++l_UavSlot;
@@ -264,6 +264,14 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			assert(l_ConstBuffIt != l_ConstBufferBlockDesc.end());
 			ProgramBlockDesc *l_pNewBlock = *l_ConstBuffIt;
 			l_pNewBlock->m_pRegInfo = it->second;
+
+			for( auto it2=(*l_ConstBuffIt)->m_ParamDesc.begin() ; it2!=(*l_ConstBuffIt)->m_ParamDesc.end() ; ++it2 )
+			{
+				RegisterInfo *l_pNewInfo = it2->second->m_pRegInfo = new RegisterInfo();
+				memcpy(l_pNewInfo, it->second, sizeof(RegisterInfo));
+				l_pNewInfo->m_Offset = it2->second->m_Offset;
+				l_pNewInfo->m_Size = it2->second->m_ArraySize * GDEVICE()->getParamAlignmentSize(it2->second->m_Type);
+			}
 
 			m_ConstStageMap.push_back(it->second->m_RootIndex);
 

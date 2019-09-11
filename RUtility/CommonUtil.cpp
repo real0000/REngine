@@ -31,7 +31,6 @@ void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Outpu
 	if( !l_Seg.empty() ) a_Output.push_back(l_Seg);
 }
 
-
 wxString getFileName(wxString a_File)
 {
 	std::vector<wxString> l_Tokens;
@@ -502,6 +501,63 @@ bool ImageAtlas::insertNode(unsigned int a_ID, glm::ivec2 a_Size, unsigned int &
 }
 #pragma endregion
 
+#pragma region ThreadPool
+//
+// ThreadPool
+//
+ThreadPool::ThreadPool(unsigned int a_NumThread)
+	: m_bLooping(true)
+	, m_WorkingCount(0)
+{
+	for( unsigned int i=0 ; i<a_NumThread ; ++i )
+	{
+		m_Threads.emplace_back(std::thread(&ThreadPool::loop, this));
+	}
+}
+
+ThreadPool::~ThreadPool()
+{
+	m_bLooping = false;
+	m_Signal.notify_all();
+	for( unsigned int i=0 ; i<m_Threads.size() ; ++i ) m_Threads[i].join();
+	m_Threads.clear();
+}
+
+void ThreadPool::addJob(std::function<void()> a_Job)
+{
+	std::lock_guard<std::mutex> l_QueueLock(m_QueueLock);
+	++m_WorkingCount;
+	m_JobQueue.push_back(a_Job);
+	m_Signal.notify_all();
+}
+
+void ThreadPool::join()
+{
+	while( 0 != m_WorkingCount ) std::this_thread::yield();
+}
+
+void ThreadPool::loop()
+{
+	while( m_bLooping )
+	{
+        std::unique_lock<std::mutex> l_Lock(m_SignalLock);
+		if( 0 == m_WorkingCount ) m_Signal.wait(l_Lock);
+		
+		std::function<void()> l_Job = nullptr;
+		{
+			std::lock_guard<std::mutex> l_QueueLock(m_QueueLock);
+			if( m_JobQueue.empty() ) continue;
+			else
+			{
+				l_Job = m_JobQueue.front();
+				m_JobQueue.pop_front();
+			}
+		}
+		l_Job();
+		--m_WorkingCount;
+	}
+}
+#pragma endregion
 /*#pragma region ThreadEventCallback
 //
 // ThreadEventCallback

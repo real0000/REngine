@@ -317,7 +317,7 @@ void D3D12Commander::bindConstBlock(int a_ID, int a_BlockStage)
 	int l_SlotInfo = m_pCurrProgram->getConstBufferSlot(a_BlockStage);
 	if( -1 == l_SlotInfo ) return;
 
-	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_SlotInfo, m_pRefDevice->getConstBufferGpuHandle(a_ID));
+	m_pComponent->setRootConstantBufferView(m_CurrThread.second, l_SlotInfo, m_pRefDevice->getConstBufferGpuAddress(a_ID));
 }
 
 void D3D12Commander::bindUavBlock(int a_ID, int a_BlockStage)
@@ -325,7 +325,7 @@ void D3D12Commander::bindUavBlock(int a_ID, int a_BlockStage)
 	int l_SlotInfo = m_pCurrProgram->getUavSlot(a_BlockStage);
 	if( -1 == l_SlotInfo ) return;
 
-	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_SlotInfo, m_pRefDevice->getUnorderAccessBufferGpuHandle(a_ID));
+	m_pComponent->setRootUnorderedAccessView(m_CurrThread.second, l_SlotInfo, m_pRefDevice->getUnorderAccessBufferGpuAddress(a_ID));
 }
 
 void D3D12Commander::clearRenderTarget(int a_ID, glm::vec4 a_Color)
@@ -783,6 +783,7 @@ void D3D12Device::wait()
 	{
 		if( !m_TempResources[i].empty() )
 		{
+			m_pResFence->signal();
 			m_pResFence->wait();
 		}
 	}
@@ -1116,8 +1117,6 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 	}
 
 	l_Thread.second->Close();
-	// must wait for texture update
-	wait();
 	recycleThread(l_Thread);
 }
 
@@ -1629,15 +1628,14 @@ void D3D12Device::freeUavBuffer(int a_ID)
 D3D12GpuThread D3D12Device::requestThread()
 {
 	std::lock_guard<std::mutex> l_Guard(m_ThreadMutex);
-	std::deque<D3D12GpuThread> &l_TargetQueue = m_GraphicThread;
-	if( l_TargetQueue.empty() )
+	if( m_GraphicThread.empty() )
 	{
 		D3D12GpuThread l_Res = newThread();
 		return l_Res;
 	}
 
-	D3D12GpuThread l_Res = l_TargetQueue.front();
-	l_TargetQueue.pop_front();
+	D3D12GpuThread l_Res = m_GraphicThread.front();
+	m_GraphicThread.pop_front();
 
 	return l_Res;
 }

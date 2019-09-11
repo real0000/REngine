@@ -70,6 +70,7 @@ private:
 	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
 	std::vector<GraphicCommander *> m_DrawCommand;
 	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
+	ThreadPool m_ThreadPool;
 };
 
 }

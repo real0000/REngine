@@ -93,15 +93,31 @@ public:
 
 	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
 	void setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture);
-	void setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
-		auto it = m_pRefProgram->getParamIndexMap().find(a_Name);
-		if( m_pRefProgram->getParamIndexMap().end() == it ) return;
-		m_OwnBlocks[it->second].first->setParam(a_Name, a_Slot, a_Param);
+		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+		if( nullptr == l_pRegInfo ) return;
+
+		std::shared_ptr<MaterialBlock> l_pTargetBlock = nullptr;
+		switch( l_pRegInfo->m_Type )
+		{
+			case ShaderRegType::ConstBuffer:
+			case ShaderRegType::Constant:
+				l_pTargetBlock = m_ConstBlocks[l_pRegInfo->m_Slot];
+				break;
+
+			case ShaderRegType::UavBuffer:
+				l_pTargetBlock = m_UavBlocks[l_pRegInfo->m_Slot];
+				break;
+
+			default:break;
+		}
+		if( nullptr == l_pTargetBlock ) return;
+
+		l_pTargetBlock->setParam(a_Name, a_Slot, a_Param);
 		m_bNeedUavUpdate = true;
 	}
 	template<typename T>
@@ -109,9 +125,25 @@ public:
 	{
 		T l_Empty;
 
-		auto it = m_pRefProgram->getParamIndexMap().find(a_Name);
-		if( m_pRefProgram->getParamIndexMap().end() == it ) return l_Empty;
-		return 	m_OwnBlocks[it->second].first->getParam(a_Name, a_Slot);
+		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+		if( nullptr == l_pRegInfo ) return l_Empty;
+
+		std::shared_ptr<MaterialBlock> l_pTargetBlock = nullptr;
+		switch( l_pRegInfo->m_Type )
+		{
+			case ShaderRegType::ConstBuffer:
+			case ShaderRegType::Constant:
+				l_pTargetBlock = m_ConstBlocks[l_pRegInfo->m_Slot];
+				break;
+
+			case ShaderRegType::UavBuffer:
+				l_pTargetBlock = m_UavBlocks[l_pRegInfo->m_Slot];
+				break;
+
+			default:break;
+		}
+		if( nullptr == l_pTargetBlock ) return l_Empty;
+		return l_pTargetBlock->getParam(a_Name, a_Slot);
 	}
 
 	// only valid if supportExtraIndirectCommand is true
@@ -129,9 +161,10 @@ public:
 
 private:
 	Material(std::shared_ptr<ShaderProgram> a_pRefProgram);
+	Material(Material *a_pSrc);
 
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
-	std::vector< std::pair<std::shared_ptr<MaterialBlock>, int> > m_OwnBlocks, m_ExternBlock;// [block, stage] ... 
+	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
 	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
 
 	bool m_bNeedRebatch, m_bNeedUavUpdate;// valid if supportExtraIndirectCommand

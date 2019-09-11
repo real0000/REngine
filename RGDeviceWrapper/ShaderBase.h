@@ -110,10 +110,6 @@ public:
 	std::map<std::string, ProgramTextureDesc *>& getTextureDesc(){ return m_TextureDesc; }
 	std::vector<ProgramBlockDesc *>& getBlockDesc(ShaderRegType::Key a_Type);// only ConstBuffer/Constant/UavBuffer valid
 
-	const std::map<std::string, int>& getParamIndexMap(){ return m_ParamIndexMap; }
-	const std::map<std::string, int>& getBlockIndexMap(ShaderRegType::Key a_Type);// const buffer/ uav only
-	const std::vector<std::string>& getReservedBlockName(){ return m_ReservedBlockNameList; }
-
 	void setExtraFlag(int a_ID, bool a_bVal){ m_ExtraFlags[a_ID] = a_bVal; }
 	bool getExtraFlag(int a_ID){ return m_ExtraFlags[a_ID]; }
 
@@ -124,9 +120,11 @@ public:
 	// use memcpy instead
 	//virtual void assignIndirectConstant(unsigned int &a_Size, char *a_pOutput, char *a_pSrc, unsigned int a_SizeInf)
 	virtual void assignIndirectBlock(unsigned int &a_Offset, char *a_pOutput, ShaderRegType::Key a_Type, std::vector<int> &a_IDList) = 0;
-	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance) = 0;
-	virtual void assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo);
+	virtual void assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance) = 0;
+	virtual void assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo);
 	
+	RegisterInfo* getRegisterInfo(std::string a_Name);
+
 protected:
 	ProgramBlockDesc* newConstBlockDesc();
 	VertexBuffer* getNullVertex(){ return m_pNullVtxBuffer; }
@@ -137,13 +135,11 @@ private:
 	
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
 	std::vector<ProgramBlockDesc *> m_BlockDesc[ShaderRegType::UavBuffer - ShaderRegType::ConstBuffer + 1];// const buffer, constant, uav
+	std::map<std::string, RegisterInfo *> m_RegMap;
 	bool m_bCompute;
 	bool m_bIndexedDraw;
 	std::pair<int, int> m_ShaderInUse;
 
-	std::map<std::string, int> m_ParamIndexMap;// only parameter in not reserved block here, param name : block index
-	std::map<std::string, int> m_ConstBufferIndexMap, m_UavBufferIndexMap;
-	std::vector<std::string> m_ReservedBlockNameList;// only extern block here
 	std::map<int, bool> m_ExtraFlags;
 
 	static VertexBuffer *m_pNullVtxBuffer;

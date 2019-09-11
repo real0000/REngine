@@ -39,6 +39,7 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_pLightIndexMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection)))
 	, m_pDeferredLightMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting)))
 	, m_pCopyMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::Copy)))
+	, m_ThreadPool(std::thread::hardware_concurrency())
 {
 	m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
 
@@ -75,11 +76,10 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	m_pLightIndexMat->setParam<int>("c_MipmapLevel", 0, (int)m_MinmaxStepCount);
 	m_pLightIndexMat->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
 	
-	const std::map<std::string, int> &l_UavBuffMap = m_pLightIndexMat->getProgram()->getBlockIndexMap(ShaderRegType::UavBuffer);
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SrcLights")->second, m_LightIdx);
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_DstLights")->second, m_TiledValidLightIdx);
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_OmniLights")->second, a_pSharedMember->m_pOmniLights->getMaterialBlock());
-	m_pLightIndexMat->setBlock(l_UavBuffMap.find("g_SpotLights")->second, a_pSharedMember->m_pSpotLights->getMaterialBlock());
+	m_pLightIndexMat->setBlock("g_SrcLights", m_LightIdx);
+	m_pLightIndexMat->setBlock("g_DstLights", m_TiledValidLightIdx);
+	m_pLightIndexMat->setBlock("g_OmniLights", a_pSharedMember->m_pOmniLights->getMaterialBlock());
+	m_pLightIndexMat->setBlock("g_SpotLights", a_pSharedMember->m_pSpotLights->getMaterialBlock());
 
 	m_pCopyMat->setTexture("m_SrcTex", m_pFrameBuffer);
 
@@ -146,22 +146,19 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 	{// shadow step
 		unsigned int l_CurrShadowMapSize = m_pShadowMap->getArraySize();
 		unsigned int l_ShadowedLights = 0;
-		std::thread l_UavThread(&DeferredRenderer::setupIndexUav, this, l_Lights, l_Meshes);
-		std::vector<std::thread> l_LightCmdThread;
-
+		m_ThreadPool.addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights, l_Meshes);});
+		
 		for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
 		{
 			auto l_pLight = l_Lights[i]->shared_from_base<Light>();
 			if( l_pLight->getShadowed() )
 			{
-				l_LightCmdThread.emplace_back(std::thread(&DeferredRenderer::setupShadow, this, l_pLight->getShadowCamera(), l_pLight, l_Meshes));
+				m_ThreadPool.addJob([=, &l_pLight, &l_Meshes](){ this->setupShadow(l_pLight->getShadowCamera(), l_pLight, l_Meshes);});
 				++l_ShadowedLights;
 			}
 		}
 		
-		l_UavThread.join();
-		for( unsigned int i=0 ; i<l_LightCmdThread.size() ; ++i ) l_LightCmdThread[i].join();
-		l_LightCmdThread.clear();
+		m_ThreadPool.join();
 
 		getSharedMember()->m_pDirLights->flush();
 		getSharedMember()->m_pOmniLights->flush();
@@ -191,9 +188,9 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
 		{
 			auto l_pLight = l_Lights[i]->shared_from_base<Light>();
-			if( l_pLight->getShadowed() ) l_LightCmdThread.emplace_back(std::thread(&DeferredRenderer::drawShadow, this, l_pLight, l_Meshes));
+			if( l_pLight->getShadowed() ) m_ThreadPool.addJob([=, &l_pLight, &l_Meshes](){ this->drawShadow(l_pLight, l_Meshes);});
 		}
-		for( unsigned int i=0 ; i<l_LightCmdThread.size() ; ++i ) l_LightCmdThread[i].join();
+		m_ThreadPool.join();
 	}
 
 	{// graphic step, divide by stage
@@ -247,8 +244,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->begin(true);
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
-		const std::map<std::string, int> &l_ConstBuffMap = m_pLightIndexMat->getProgram()->getBlockIndexMap(ShaderRegType::ConstBuffer);
-		m_pLightIndexMat->setBlock(l_ConstBuffMap.find("g_Camera")->second, a_pCamera->getMaterialBlock());
+		m_pLightIndexMat->setBlock("g_Camera", a_pCamera->getMaterialBlock());
 		m_pLightIndexMat->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
 		m_pLightIndexMat->bindAll(m_pCmdInit);
 		m_pCmdInit->compute(m_TileDim.x, m_TileDim.y);

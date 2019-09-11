@@ -88,7 +88,7 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>RGDeviceWrapper.h</PrecompiledHeaderFile>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;_CRT_SECURE_NO_WARNINGS;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -105,6 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <OpenMPSupport>true</OpenMPSupport>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;USE_D3D;USE_GL;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -121,6 +122,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <OpenMPSupport>true</OpenMPSupport>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;USE_D3D;USE_GL;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -139,6 +141,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <OpenMPSupport>true</OpenMPSupport>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;USE_D3D;USE_GL;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

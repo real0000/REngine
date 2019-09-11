@@ -121,8 +121,7 @@ ShaderProgram::ShaderProgram()
 
 ShaderProgram::~ShaderProgram()
 {
-	m_ParamIndexMap.clear();
-	m_ReservedBlockNameList.clear();
+	m_RegMap.clear();
 
 	for( auto it = m_TextureDesc.begin() ; it != m_TextureDesc.end() ; ++it ) delete it->second;
 	m_TextureDesc.clear();
@@ -208,39 +207,29 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 				m_TextureDesc.insert(std::make_pair(l_Name, l_pNewTexture));
 				}break;
 
-			default:
-				break;
+			default: break;
 		}
 	}
 
 	init(a_Root);
 
-	unsigned int l_OwnBlockIdx = 0;
-	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
+	for( unsigned int i=ShaderRegType::ConstBuffer ; i<=ShaderRegType::UavBuffer ; ++i )
 	{
-		auto &l_Block = getBlockDesc((ShaderRegType::Key)i);
-		for( ProgramBlockDesc *l_pDesc : l_Block )
+		std::vector<ProgramBlockDesc *> &l_BlockList = m_BlockDesc[i - ShaderRegType::ConstBuffer];
+		for( unsigned int j=0 ; j<l_BlockList.size() ; ++j )
 		{
-			if( l_pDesc->m_bReserved )
+			ProgramBlockDesc *l_pCurrBlock = l_BlockList[j];
+			if( nullptr != l_pCurrBlock->m_pRegInfo )
 			{
-				m_ReservedBlockNameList.push_back(l_pDesc->m_Name);
-				continue;
+				m_RegMap.insert(std::make_pair(l_pCurrBlock->m_Name, l_pCurrBlock->m_pRegInfo));
 			}
 
-			for( auto l_ParamIt = l_pDesc->m_ParamDesc.begin() ; l_ParamIt != l_pDesc->m_ParamDesc.end() ; ++l_ParamIt )
+			for( auto it = l_pCurrBlock->m_ParamDesc.begin() ; it != l_pCurrBlock->m_ParamDesc.end() ; ++it )
 			{
-				assert(m_ParamIndexMap.find(l_ParamIt->first) == m_ParamIndexMap.end());
-				m_ParamIndexMap[l_ParamIt->first] = l_OwnBlockIdx;
+				if( nullptr == it->second->m_pRegInfo ) continue;
+				m_RegMap.insert(std::make_pair(it->first, it->second->m_pRegInfo));
 			}
-			l_OwnBlockIdx++;
 		}
-	}
-
-	{// init uav/const buffer name:index map(for indirect command assign)
-		std::vector<ProgramBlockDesc *> &l_ConstBuffers = getBlockDesc(ShaderRegType::ConstBuffer);
-		for( unsigned int i=0 ; i<l_ConstBuffers.size() ; ++i ) m_ConstBufferIndexMap.insert(std::make_pair(l_ConstBuffers[i]->m_Name, i));
-		std::vector<ProgramBlockDesc *> &l_UavBuffers = getBlockDesc(ShaderRegType::UavBuffer);
-		for( unsigned int i=0 ; i<l_UavBuffers.size() ; ++i ) m_UavBufferIndexMap.insert(std::make_pair(l_UavBuffers[i]->m_Name, i));
 	}
 }
 
@@ -251,15 +240,16 @@ std::vector<ProgramBlockDesc *>& ShaderProgram::getBlockDesc(ShaderRegType::Key 
 	return m_BlockDesc[l_Idx];
 }
 
-const std::map<std::string, int>& ShaderProgram::getBlockIndexMap(ShaderRegType::Key a_Type)
+void ShaderProgram::assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo)
 {
-	assert(ShaderRegType::ConstBuffer == a_Type || ShaderRegType::UavBuffer == a_Type);
-	return ShaderRegType::ConstBuffer == a_Type ? m_ConstBufferIndexMap : m_UavBufferIndexMap;
+	assignIndirectDrawCommand(a_Offset, a_pOutput, a_DrawInfo.m_IndexCount, a_DrawInfo.m_InstanceCount, a_DrawInfo.m_StartIndex, a_DrawInfo.m_BaseVertex, a_DrawInfo.m_StartInstance);
 }
 
-void ShaderProgram::assignIndirectDrawComaand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo)
+RegisterInfo* ShaderProgram::getRegisterInfo(std::string a_Name)
 {
-	assignIndirectDrawComaand(a_Offset, a_pOutput, a_DrawInfo.m_IndexCount, a_DrawInfo.m_InstanceCount, a_DrawInfo.m_StartIndex, a_DrawInfo.m_BaseVertex, a_DrawInfo.m_StartInstance);
+	auto it = m_RegMap.find(a_Name);
+	if( m_RegMap.end() == it ) return nullptr;
+	return it->second;
 }
 
 ProgramBlockDesc* ShaderProgram::newConstBlockDesc()

@@ -157,44 +157,48 @@ Material::Material(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	: m_pRefProgram(a_pRefProgram)
 	, m_bNeedRebatch(true), m_bNeedUavUpdate(true)
 {
-	for( unsigned int i = ShaderRegType::ConstBuffer ; i <= ShaderRegType::UavBuffer ; ++i )
+	auto &l_CbvBlock = m_pRefProgram->getBlockDesc(ShaderRegType::ConstBuffer);
+	auto &l_ConstBlock = m_pRefProgram->getBlockDesc(ShaderRegType::Constant);
+	auto &l_UavBlock = m_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
+	m_ConstBlocks.resize(l_ConstBlock.size() + l_CbvBlock.size(), nullptr);
+	for( unsigned int i=0 ; i<l_CbvBlock.size() ; ++i )
 	{
-		auto &l_Block = m_pRefProgram->getBlockDesc((ShaderRegType::Key)i);
-		for( ProgramBlockDesc *l_pDesc : l_Block )
-		{
-			if( l_pDesc->m_bReserved )
-			{
-				m_ExternBlock.push_back(std::make_pair(nullptr, l_pDesc->m_pRegInfo->m_Slot));
-				continue;
-			}
-
-			auto l_pNewBlock = MaterialBlock::create((ShaderRegType::Key)i, l_pDesc);
-			m_OwnBlocks.push_back(std::make_pair(l_pNewBlock, l_pDesc->m_pRegInfo->m_Slot));
-		}
+		ProgramBlockDesc *l_pDesc = l_CbvBlock[i];
+		if( l_pDesc->m_bReserved ) continue;
+		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(l_pDesc->m_pRegInfo->m_Type, l_pDesc);
 	}
+	for( unsigned int i=0 ; i<l_ConstBlock.size() ; ++i )
+	{
+		ProgramBlockDesc *l_pDesc = l_ConstBlock[i];
+		if( l_pDesc->m_bReserved ) continue;
+		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(l_pDesc->m_pRegInfo->m_Type, l_pDesc);
+	}
+	m_UavBlocks.resize(l_UavBlock.size(), nullptr);
 
 	m_Textures.resize(a_pRefProgram->getTextureDesc().size(), nullptr);
+}
+
+Material::Material(Material *a_pSrc)
+{
+	m_ConstBlocks.resize(a_pSrc->m_ConstBlocks.size(), nullptr);
+	std::copy(a_pSrc->m_ConstBlocks.begin(), a_pSrc->m_ConstBlocks.end(), m_ConstBlocks.begin());
+	m_UavBlocks.resize(a_pSrc->m_UavBlocks.size(), nullptr);
+	std::copy(a_pSrc->m_UavBlocks.begin(), a_pSrc->m_UavBlocks.end(), m_UavBlocks.begin());
+	m_Textures.resize(a_pSrc->m_Textures.size());
+	std::copy(a_pSrc->m_Textures.begin(), a_pSrc->m_Textures.end(), m_Textures.begin());
 }
 
 Material::~Material()
 {
 	m_pRefProgram = nullptr;
-	m_OwnBlocks.clear();
-	m_ExternBlock.clear();
+	m_ConstBlocks.clear();
+	m_UavBlocks.clear();
 	m_Textures.clear();
 }
 
 std::shared_ptr<Material> Material::clone()
 {
-	std::shared_ptr<Material> l_pNewMaterial = Material::create(m_pRefProgram);
-
-	l_pNewMaterial->m_OwnBlocks.resize(m_OwnBlocks.size());
-	std::copy(m_OwnBlocks.begin(), m_OwnBlocks.end(), l_pNewMaterial->m_OwnBlocks.begin());
-	l_pNewMaterial->m_ExternBlock.resize(m_ExternBlock.size());
-	std::copy(m_ExternBlock.begin(), m_ExternBlock.end(), l_pNewMaterial->m_ExternBlock.begin());
-	l_pNewMaterial->m_OwnBlocks.resize(m_Textures.size());
-	std::copy(m_Textures.begin(), m_Textures.end(), l_pNewMaterial->m_Textures.begin());
-
+	std::shared_ptr<Material> l_pNewMaterial = std::shared_ptr<Material>(new Material(this));
 	return l_pNewMaterial;
 }
 
@@ -215,37 +219,23 @@ void Material::setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTe
 	m_bNeedRebatch = true;
 }
 
-void Material::setBlock(unsigned int a_Idx, std::shared_ptr<MaterialBlock> a_pBlock)
-{
-	assert(a_Idx < m_ExternBlock.size());
-	m_ExternBlock[a_Idx].first = a_pBlock;
-	m_bNeedUavUpdate = true;
-}
-
 void Material::setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock)
 {
 	int l_TargetSlot = -1;
+	RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+	if( nullptr == l_pRegInfo ) return;
+	switch( l_pRegInfo->m_Type )
 	{
-		const std::map<std::string, int> &l_ConstBuffers = m_pRefProgram->getBlockIndexMap(ShaderRegType::ConstBuffer);
-		auto it = l_ConstBuffers.find(a_Name);
-		if( l_ConstBuffers.end() == it )
-		{
-			const std::map<std::string, int> &l_UavBuffers = m_pRefProgram->getBlockIndexMap(ShaderRegType::UavBuffer);
-			it = l_UavBuffers.find(a_Name);
-			if( l_UavBuffers.end() == it ) return;
-			l_TargetSlot = it->second;
-		}
-		else l_TargetSlot = it->second;
-	}
+		case ShaderRegType::ConstBuffer:
+			m_ConstBlocks[l_pRegInfo->m_Slot] = a_pBlock;
+			break;
 
-	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
-	{
-		if( l_TargetSlot == m_ExternBlock[i].second )
-		{
-			m_ExternBlock[i].first = a_pBlock;
+		case ShaderRegType::UavBuffer:
+			m_UavBlocks[l_pRegInfo->m_Slot] = a_pBlock;
 			m_bNeedUavUpdate = true;
-			return ;
-		}
+			break;
+
+		default:return;
 	}
 }
 
@@ -269,7 +259,7 @@ void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuff
 	{
 		m_pRefProgram->assignIndirectVertex(l_Offset, a_pOutput, a_pVtxBuffer.get());
 		m_pRefProgram->assignIndirectIndex(l_Offset, a_pOutput, a_pIndexBuffer.get());
-		for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i )
+		/*for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i )
 		{
 			if( m_OwnBlocks[i].first->getType() != ShaderRegType::Constant ) continue;
 			memcpy(a_pOutput + l_Offset, m_OwnBlocks[i].first->getBlockPtr(0), m_OwnBlocks[i].first->getBlockSize());
@@ -296,10 +286,10 @@ void Material::assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuff
 				l_IDList[it->second] = m_ExternBlock[i].first->getID();
 			}
 			m_pRefProgram->assignIndirectBlock(l_Offset, a_pOutput, l_Type, l_IDList);
-		}
+		}*/
 	}
 	
-	m_pRefProgram->assignIndirectDrawComaand(l_Offset, a_pOutput, a_DrawInfo);
+	m_pRefProgram->assignIndirectDrawCommand(l_Offset, a_pOutput, a_DrawInfo);
 }
 
 void Material::bindTexture(GraphicCommander *a_pBinder)
@@ -315,11 +305,15 @@ void Material::bindTexture(GraphicCommander *a_pBinder)
 
 void Material::bindBlocks(GraphicCommander *a_pBinder)
 {
-	for( unsigned int i=0 ; i<m_OwnBlocks.size() ; ++i ) m_OwnBlocks[i].first->bind(a_pBinder, m_OwnBlocks[i].second);
-	for( unsigned int i=0 ; i<m_ExternBlock.size() ; ++i )
+	for( unsigned int i=0 ; i<m_ConstBlocks.size() ; ++i )
 	{
-		if( nullptr == m_ExternBlock[i].first ) continue;
-		m_ExternBlock[i].first->bind(a_pBinder, m_ExternBlock[i].second);
+		if( nullptr == m_ConstBlocks[i] ) continue;
+		m_ConstBlocks[i]->bind(a_pBinder, i);
+	}
+	for( unsigned int i=0 ; i<m_UavBlocks.size() ; ++i )
+	{
+		if( nullptr == m_UavBlocks[i] ) continue;
+		m_UavBlocks[i]->bind(a_pBinder, i);
 	}
 }
 
