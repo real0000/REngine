@@ -175,6 +175,7 @@ void RenderableMesh::setMesh(wxString a_SettingFile, std::function<void()> a_pCa
 				}
 				l_pNewSubMesh->m_BatchID =
 				l_pNewSubMesh->m_CommandID = -1;
+				m_SubMeshes.push_back(l_pNewSubMesh);
 			}
 		}
 

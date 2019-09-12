@@ -51,7 +51,6 @@ void CameraComponent::start()
 {
 	auto l_pThis = shared_from_base<CameraComponent>();
 	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(l_pThis);
-
 }
 
 void CameraComponent::end()

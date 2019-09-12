@@ -46,8 +46,8 @@ private:
 	unsigned int calculateShadowMapRegion(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
 
-	void drawOpaqueMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd);
-	void drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
+	void drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd);
+	void drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
 
 	GraphicCommander *m_pCmdInit;
 	std::shared_ptr<MaterialBlock> m_LightIdx, m_MeshIdx;
@@ -71,6 +71,8 @@ private:
 	std::vector<GraphicCommander *> m_DrawCommand;
 	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
 	ThreadPool m_ThreadPool;
+
+	std::vector<int> m_GBufferCache, m_FBufferCache;
 };
 
 }

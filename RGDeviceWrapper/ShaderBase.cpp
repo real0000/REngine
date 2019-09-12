@@ -189,7 +189,7 @@ void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
 			case ShaderRegType::UavBuffer:{
 				ProgramBlockDesc *l_pNewBlock = ProgramManager::singleton().createBlockFromDesc(it->second);
 				getBlockDesc(l_RegType).push_back(l_pNewBlock);
-				l_pNewBlock->m_bReserved = ShaderRegType::UavBuffer || it->second.get("<xmlattr>.reserved", "false") == "true";
+				l_pNewBlock->m_bReserved = l_RegType == ShaderRegType::UavBuffer || it->second.get("<xmlattr>.reserved", "false") == "true";
 				}break;
 
 			case ShaderRegType::Srv2D:

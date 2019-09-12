@@ -29,6 +29,11 @@ bool BasicApp::OnInit()
 	std::shared_ptr<R::RenderableMesh> l_pNewMesh = l_pMeshNode->addComponent<R::RenderableMesh>();
 	l_pNewMesh->setMesh(wxT("Cube.FBX"), nullptr);
 
+	glm::mat4x4 l_World(glm::identity<glm::mat4x4>());
+	l_World = glm::translate(l_World, glm::vec3(0.0f, 0.0f, -100.0f));
+	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
+	l_pCameraNode->setTransform(l_World);
+
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 
 	return true;

@@ -42,8 +42,8 @@
       </Stencil>
     </DepthStencil>
     <RenderTarget depthStencil="d24_unorm_s8_uint">
-      <rgb10a2_unorm/>
-      <rgba8_unorm/>
+      <rgba8_snorm/>
+      <rgba8_uint/>
       <rgba8_unorm/>
       <rgba8_unorm/>
       <rgba8_unorm/>

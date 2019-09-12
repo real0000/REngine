@@ -74,7 +74,7 @@
 	struct PS_CommonOutput
 	{
 		float4 m_Target0 : SV_TARGET0;// rgb : world normal, a : distance/height map flag
-		float4 m_Target1 : SV_TARGET1;// r : metallic, g : specular, b : roughness, a : shaing mode id(7 bit), decal mask(1 bit)
+		uint4 m_Target1 : SV_TARGET1;// r : metallic, g : specular, b : roughness, a : shaing mode id(7 bit), decal mask(1 bit)
 		float4 m_Target2 : SV_TARGET2;// rgb : diffuse, (a : ao?)
 		float4 m_Target3 : SV_TARGET3;// r : opacity, gba : mask g-buffer(ssao, subsurface scattering, wet surface mask, skylight mask ...)
 		float4 m_Target4 : SV_TARGET4;// pre compute shader factor

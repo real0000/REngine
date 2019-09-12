@@ -85,6 +85,10 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 
 	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
+
+	m_GBufferCache.resize(GBUFFER_COUNT - 1);
+	for( unsigned int i=GBUFFER_NORMAL ; i<=GBUFFER_MOTIONBLUR ; ++i ) m_GBufferCache[i] = m_pGBuffer[i]->getTextureID();
+	m_FBufferCache.resize(1, m_pFrameBuffer->getTextureID());
 }
 
 DeferredRenderer::~DeferredRenderer()
@@ -198,13 +202,6 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->begin(false);
 
 		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
-		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), GBUFFER_COUNT - 1
-			, m_pGBuffer[GBUFFER_NORMAL]->getTextureID()
-			, m_pGBuffer[GBUFFER_MATERIAL]->getTextureID()
-			, m_pGBuffer[GBUFFER_DIFFUSE]->getTextureID()
-			, m_pGBuffer[GBUFFER_MASK]->getTextureID()
-			, m_pGBuffer[GBUFFER_FACTOR]->getTextureID()
-			, m_pGBuffer[GBUFFER_MOTIONBLUR]->getTextureID());
 		m_pCmdInit->setViewPort(1, l_Viewport);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
 
@@ -218,7 +215,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 
 		// draw gbuffer
 		unsigned int l_CurrIdx = 0;
-		drawOpaqueMesh(l_Meshes, l_CurrIdx);
+		drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_GBufferCache, l_Meshes, l_CurrIdx);
 		
 		{// copy depth data
 			m_pCmdInit->begin(false);
@@ -271,10 +268,10 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->end();
 
 		// draw frame buffer
-		drawOpaqueMesh(l_Meshes, l_CurrIdx);
+		//drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_FBufferCache, l_Meshes, l_CurrIdx);
 
 		// draw transparent objects
-		if( l_CurrIdx < l_Meshes.size() ) drawMesh(l_Meshes, l_CurrIdx, l_Meshes.size() - 1);
+		//if( l_CurrIdx < l_Meshes.size() ) drawMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_FBufferCache, l_Meshes, l_CurrIdx, l_Meshes.size() - 1);
 		
 		if( nullptr != a_pCanvas )
 		{
@@ -501,22 +498,21 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 	assert(false && "invalid light type");
 }
 
-void DeferredRenderer::drawOpaqueMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
+void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
 {
-	a_OpaqueEnd = 0;
 	unsigned int l_StageID = static_cast<RenderableMesh *>(a_Mesh.front().get())->getStage();
 	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
 	{
 		unsigned int l_CurrStageID = static_cast<RenderableMesh *>(a_Mesh[i].get())->getStage();
 		if( l_StageID != l_CurrStageID )
 		{
-			drawMesh(a_Mesh, a_OpaqueEnd, i);
+			drawMesh(a_pCamera, a_DepthTexture, a_RenderTargets, a_Mesh, a_OpaqueEnd, i);
 			l_StageID = l_CurrStageID;
 			a_OpaqueEnd = i;
 		}
 		else if( i + 1 == a_Mesh.size() )
 		{
-			drawMesh(a_Mesh, a_OpaqueEnd, i + 1);
+			drawMesh(a_pCamera, a_DepthTexture, a_RenderTargets, a_Mesh, a_OpaqueEnd, i + 1);
 			a_OpaqueEnd = i;
 		}
 			
@@ -524,26 +520,33 @@ void DeferredRenderer::drawOpaqueMesh(std::vector< std::shared_ptr<RenderableCom
 	}
 }
 
-void DeferredRenderer::drawMesh(std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
+void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
 {
 	unsigned int l_CommandCount = m_DrawCommand.size();
 
-	#pragma omp parallel for
+	glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
+
+	//#pragma omp parallel for
 	for( int i=0 ; i<(int)l_CommandCount ; ++i )
 	{
 		GraphicCommander *l_pCommandList = m_DrawCommand[i];
 		unsigned int l_Start = a_Start+i;
-		if( l_Start >= a_End ) continue;
+		if( l_Start > a_End ) continue;
 
-		l_pCommandList->begin(true);
+		l_pCommandList->begin(false);
 		for( unsigned int j=a_Start+i ; j<a_End ; j+=l_CommandCount )
 		{
 			RenderableMesh *l_pMesh = static_cast<RenderableMesh *>(a_Mesh[j].get());
 			for( unsigned int k=0 ; k<l_pMesh->getNumSubMesh() ; ++k )
 			{
 				std::shared_ptr<Material> l_pMaterial = l_pMesh->getMaterial(k);
+				l_pMaterial->setBlock("g_Camera", a_pCamera->getMaterialBlock());
 
 				l_pCommandList->useProgram(l_pMaterial->getProgram());
+				l_pCommandList->setRenderTarget(a_DepthTexture, a_RenderTargets);
+				l_pCommandList->setViewPort(1, l_Viewport);
+				l_pCommandList->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
+				
 				l_pCommandList->setTopology(Topology::triangle_list);
 				l_pCommandList->bindVertex(l_pMesh->getVtxBuffer().get());
 				l_pCommandList->bindIndex(l_pMesh->getIndexBuffer().get());

@@ -126,7 +126,7 @@ void ModelData::init(wxString a_Filepath)
     FbxIOSettings *l_pIOCfg = FbxIOSettings::Create(l_pSdkManager, IOSROOT);
     l_pIOCfg->SetBoolProp(IMP_FBX_MATERIAL, true);
     l_pIOCfg->SetBoolProp(IMP_FBX_TEXTURE, true);
-    l_pIOCfg->SetBoolProp(IMP_FBX_LINK, true);
+    l_pIOCfg->SetBoolProp(IMP_FBX_LINK, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_SHAPE, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_GOBO, false);
     l_pIOCfg->SetBoolProp(IMP_FBX_ANIMATION, false);
@@ -151,7 +151,7 @@ void ModelData::init(wxString a_Filepath)
             FbxNode *l_pCurrNode = l_pScene->GetNode(i);
             l_NodeMap[l_pCurrNode] = l_NodeVec[i];
 
-            FbxAMatrix l_FbxMat = l_pCurrNode->EvaluateLocalTransform();
+            FbxAMatrix l_FbxMat = l_pCurrNode->EvaluateLocalTransform(FbxTime(0));
 
             l_NodeVec[i]->m_NodeName = l_pCurrNode->GetName();
             for( unsigned int j=0 ; j<4 ; ++j )

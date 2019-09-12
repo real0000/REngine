@@ -244,7 +244,7 @@ void Scene::initEmpty()
 	
 	m_pMembers->m_pScene = shared_from_this();
 	m_pMembers->m_pModelFactory = new ModelCache();
-	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition();
+	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new NoPartition();//OctreePartition();
 	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
 	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
 	m_pMembers->m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
