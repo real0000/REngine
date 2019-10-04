@@ -158,9 +158,9 @@ void RenderableMesh::setMesh(wxString a_SettingFile, std::function<void()> a_pCa
 						for( unsigned int k=0 ; k<l_pMeshSrc->m_pModel->getBones().size() ; ++k ) l_pSkinBlock->setParam("m_Skin", k, l_pMeshSrc->m_pModel->getBones()[k]);
 					}
 					l_pNewSubMesh->m_pMaterial->setBlock("SkinTransition", l_pSkinBlock);
-					l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT | VTXFLAG_USE_SKIN);
+					l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT | VTXFLAG_USE_SKIN | GENERAL_VTX_FLAG);
 				}
-				else l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT);
+				else l_pNewSubMesh->m_pMaterial->setParam("m_VtxFlag", 0, VTXFLAG_USE_WORLD_MAT | GENERAL_VTX_FLAG);
 				l_pNewSubMesh->m_pMaterial->setTexture("m_DiffTex", EngineCore::singleton().getWhiteTexture());
 
 				l_pNewSubMesh->m_PartData = l_pMeshSrc->m_SubMeshes[l_pSubMesh->m_Name];

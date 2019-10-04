@@ -60,7 +60,7 @@ public:
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
 
 	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform);
-    void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far, glm::mat4x4 &a_Transform);
+    void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform);
 	void setTetrahedonView(glm::mat4x4 &a_Transform);// implement later...
 	void setCubeView(glm::mat4x4 &a_Transform);
 	glm::vec4 getViewParam(){ return m_ViewParam; }

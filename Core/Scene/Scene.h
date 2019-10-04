@@ -86,9 +86,10 @@ public:
 	void getComponent(unsigned int a_TypeID, std::vector< std::shared_ptr<T> > &a_Output)
 	{
 		auto it = m_Components.find(a_TypeID);
-		if( m_Components.end() == it || it->second.emplace() ) return;
+		if( m_Components.end() == it || it->second.empty() ) return;
 		a_Output.resize(it->second.size());
-		std::copy(it->second.begin(), it->second.end(), a_Output.begin());
+		std::transform(it->second.begin(), it->second.end(), a_Output.begin()
+			, [=](std::shared_ptr<EngineComponent> a_pComponent){ return reinterpret_cast<std::shared_ptr<T>&>(a_pComponent); });
 	}
 	
 private:

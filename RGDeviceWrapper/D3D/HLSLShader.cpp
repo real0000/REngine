@@ -324,39 +324,39 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 	enum
 	{
-		LINEAR_CLAMP_SAMPLER = 0,
-		POINT_CLAMP_SAMPLER,
-		ANISOTROPIC_CLAMP_SAMPLER,
+		LINEAR_WRAP_SAMPLER = 0,
+		POINT_WRAP_SAMPLER,
+		ANISOTROPIC_WRAP_SAMPLER,
 
 		NUM_SAMPLER
 	};
 	D3D12_STATIC_SAMPLER_DESC s_SamplerSetting[NUM_SAMPLER];
 	{// s0
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].MipLODBias = 0;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].MaxAnisotropy = 16;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].MinLOD = 0.0f;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].MaxLOD = D3D12_FLOAT32_MAX;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].ShaderRegister = LINEAR_CLAMP_SAMPLER;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].RegisterSpace = 0;
-		s_SamplerSetting[LINEAR_CLAMP_SAMPLER].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MipLODBias = 0;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MaxAnisotropy = 16;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MinLOD = 0.0f;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MaxLOD = D3D12_FLOAT32_MAX;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ShaderRegister = LINEAR_WRAP_SAMPLER;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].RegisterSpace = 0;
+		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	}
 
 	{// s1
-		s_SamplerSetting[POINT_CLAMP_SAMPLER] = s_SamplerSetting[LINEAR_CLAMP_SAMPLER];
-		s_SamplerSetting[POINT_CLAMP_SAMPLER].Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
-		s_SamplerSetting[POINT_CLAMP_SAMPLER].ShaderRegister = POINT_CLAMP_SAMPLER;
+		s_SamplerSetting[POINT_WRAP_SAMPLER] = s_SamplerSetting[LINEAR_WRAP_SAMPLER];
+		s_SamplerSetting[POINT_WRAP_SAMPLER].Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
+		s_SamplerSetting[POINT_WRAP_SAMPLER].ShaderRegister = POINT_WRAP_SAMPLER;
 	}
 
 	{// s2
-		s_SamplerSetting[ANISOTROPIC_CLAMP_SAMPLER] = s_SamplerSetting[LINEAR_CLAMP_SAMPLER];
-		s_SamplerSetting[ANISOTROPIC_CLAMP_SAMPLER].Filter = D3D12_FILTER_ANISOTROPIC;
-		s_SamplerSetting[ANISOTROPIC_CLAMP_SAMPLER].ShaderRegister = ANISOTROPIC_CLAMP_SAMPLER;
+		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER] = s_SamplerSetting[LINEAR_WRAP_SAMPLER];
+		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER].Filter = D3D12_FILTER_ANISOTROPIC;
+		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER].ShaderRegister = ANISOTROPIC_WRAP_SAMPLER;
 	}
 
 	D3D12_ROOT_SIGNATURE_DESC l_RegisterDesc = {};
@@ -460,17 +460,17 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		l_PsoDesc.CachedPSO.CachedBlobSizeInBytes = 0;
 		
 		const D3D12_INPUT_ELEMENT_DESC c_InputLayout[] = {
-			{"POSITION"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_POSITION	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD01, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD"		, 1, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD23, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD"		, 2, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD45, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TEXCOORD"		, 3, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TEXCOORD67, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"NORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_NORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"TANGENT"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TANGENT	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"BINORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_BINORMAL	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"BLENDINDICES"	, 0, DXGI_FORMAT_R32G32B32A32_SINT	, VTXSLOT_BONE		, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"BLENDWEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_WEIGHT	, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"COLOR"		, 0, DXGI_FORMAT_R8G8B8A8_UNORM		, VTXSLOT_COLOR		, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+			{"POSITION"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_POSITION	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_TEXCOORD01, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 1, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_TEXCOORD23, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 2, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_TEXCOORD45, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD"		, 3, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_TEXCOORD67, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"NORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_NORMAL	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TANGENT"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TANGENT	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"BINORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_BINORMAL	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"BLENDINDICES"	, 0, DXGI_FORMAT_R32G32B32A32_SINT	, VTXSLOT_BONE		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"BLENDWEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_WEIGHT	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"COLOR"		, 0, DXGI_FORMAT_R8G8B8A8_UNORM		, VTXSLOT_COLOR		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 		const unsigned int c_NumInputElement = sizeof(c_InputLayout) / sizeof(const D3D12_INPUT_ELEMENT_DESC);
 
 		l_PsoDesc.InputLayout.pInputElementDescs = c_InputLayout;
@@ -1007,7 +1007,7 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 	char l_Buff[256];
 	bool l_bWriteValid = a_Stage == ShaderStages::Fragment || a_Stage == ShaderStages::Compute;
 	m_ParamDefine.clear();
-
+	
 	const ShaderRegType::Key c_Keys[] = {ShaderRegType::ConstBuffer, ShaderRegType::Constant};
 	for each( ShaderRegType::Key l_Key in c_Keys )
 	{
@@ -1018,17 +1018,28 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 			snprintf(l_Buff, 256, "cbuffer %s : register(b%d) {\n", l_pBlock->m_Name.c_str(), l_pBlock->m_pRegInfo->m_Slot);
 			m_ParamDefine += l_Buff;
 
+			std::map<unsigned int, std::map<std::string, ProgramParamDesc *>::iterator> l_SortedParam;
 			for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
 			{
-				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s %s[%d];\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
-				else snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				l_SortedParam.insert(std::make_pair(it->second->m_Offset, it));
+			}
+
+			for( auto l_SortedItem = l_SortedParam.begin() ; l_SortedItem != l_SortedParam.end() ; ++l_SortedItem )
+			{
+				auto it = l_SortedItem->second;
+
+				std::string l_RowMajor("");
+				if( ShaderParamType::float3x3 == it->second->m_Type || ShaderParamType::float4x4 == it->second->m_Type ) l_RowMajor = "row_major ";
+				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s%s %s[%d];\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
+				else snprintf(l_Buff, 256, "\t%s%s %s;\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
 				m_ParamDefine += l_Buff;
 			}
 
 			m_ParamDefine += "};\n\n";
+			l_SortedParam.clear();
 		}
 	}
-
+	
 	std::vector<ProgramBlockDesc *> &l_UavBlocks = a_pProgrom->getBlockDesc(ShaderRegType::UavBuffer);
 	std::set<std::string> l_StructDefined;
 	for( unsigned int i=0 ; i<l_UavBlocks.size() ; ++i )
@@ -1039,10 +1050,21 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 		{
 			l_StructDefined.insert(l_pBlock->m_StructureName);
 			m_ParamDefine += "struct "+ l_pBlock->m_StructureName + " {\n";
-
+			
+			std::map<unsigned int, std::map<std::string, ProgramParamDesc *>::iterator> l_SortedParam;
 			for( auto it=l_pBlock->m_ParamDesc.begin() ; it!=l_pBlock->m_ParamDesc.end() ; ++it )
 			{
-				snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				l_SortedParam.insert(std::make_pair(it->second->m_Offset, it));
+			}
+			
+			for( auto l_SortedItem = l_SortedParam.begin() ; l_SortedItem != l_SortedParam.end() ; ++l_SortedItem )
+			{
+				auto it = l_SortedItem->second;
+				
+				std::string l_RowMajor("");
+				if( ShaderParamType::float3x3 == it->second->m_Type || ShaderParamType::float4x4 == it->second->m_Type ) l_RowMajor = "row_major ";
+				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s%s %s[%d];\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
+				else snprintf(l_Buff, 256, "\t%s%s %s;\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
 				m_ParamDefine += l_Buff;
 			}
 			m_ParamDefine += "};\n";

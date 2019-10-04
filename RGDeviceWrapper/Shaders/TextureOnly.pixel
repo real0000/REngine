@@ -1,12 +1,12 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-PS_CommonOutput main(float2 a_UV : TEXCOORD0) : SV_TARGET0
+PS_CommonOutput main(PS_CommonInput a_Input)
 {
 	PS_CommonOutput l_Output = (PS_CommonOutput)0;
 
-	l_Output.m_Target0.xyz = encodeNormal(m_NormalTex.Sample(s_LinearSampler, a_UV));
-	l_Output.m_Target2 = float4(1.0, 1.0, 1.0, 1.0);// m_DiffTex.Sample(s_LinearSampler, a_UV).xyz;
+	l_Output.m_Target0.xyz = encodeNormal(m_NormalTex.Sample(s_LinearSampler, a_Input.m_Texcoord01.xy));
+	l_Output.m_Target2 = m_DiffTex.Sample(s_LinearSampler, a_Input.m_Texcoord01.xy);
 
 	return l_Output;
 }

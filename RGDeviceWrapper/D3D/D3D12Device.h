@@ -250,14 +250,15 @@ public:
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
 	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, bool a_bRenderTarget);
+	D3D12_GPU_VIRTUAL_ADDRESS getTextureGpuAddress(int a_ID, bool a_bRenderTarget);
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID, bool a_bDepth = false);
 	ID3D12Resource* getRenderTargetResource(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getConstBufferGpuAddress(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getUnorderAccessBufferGpuAddress(int a_ID);
-	D3D12_VERTEX_BUFFER_VIEW getVertexBufferView(int a_ID);
-	D3D12_INDEX_BUFFER_VIEW getIndexBufferView(int a_ID);
+	D3D12_VERTEX_BUFFER_VIEW& getVertexBufferView(int a_ID);
+	D3D12_INDEX_BUFFER_VIEW& getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain create
 

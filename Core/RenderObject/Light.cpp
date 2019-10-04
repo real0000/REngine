@@ -335,7 +335,7 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Center = m_pRefParam->m_Position + m_pRefParam->m_Direction * 0.5f * m_pRefParam->m_Range;
 	getSharedMember()->m_pSpotLights->setDirty();
 	
-	getShadowCamera()->setPerspectiveView(m_pRefParam->m_Angle, 1.0f, 0.01f, m_pRefParam->m_Range, a_NewTransform);
+	getShadowCamera()->setPerspectiveView(m_pRefParam->m_Angle, 1.0f, 0.01f, a_NewTransform);
 
 	Light::transformListener(a_NewTransform);
 }

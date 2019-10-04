@@ -248,7 +248,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 
 		m_pCmdInit->end();
 
-		// bind frame buffer
+		// draw frame buffer
 		m_pCmdInit->begin(false);
 		
 		m_pCmdInit->useProgram(m_pDeferredLightMat->getProgram());
@@ -267,7 +267,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 
 		m_pCmdInit->end();
 
-		// draw frame buffer
+		// draw extra object
 		//drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_FBufferCache, l_Meshes, l_CurrIdx);
 
 		// draw transparent objects

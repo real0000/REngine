@@ -50,7 +50,7 @@
 		float4 m_Tangent : TANGENT0;
 		float4 m_Binormal : BINORMAL0;
 		float4 m_Color : COLOR0;
-		float4 m_Position : SV_POSITION;
+		float4 m_Position : SV_Position;
 	};
 
 	struct HS_TriangleFactor

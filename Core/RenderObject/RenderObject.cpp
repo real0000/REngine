@@ -75,9 +75,9 @@ std::shared_ptr<ModelCache::Instance> ModelCache::getInstance(wxString a_Filenam
 		l_pRes = std::shared_ptr<Instance>(new Instance);
 		l_pRes->m_pModel = ModelManager::singleton().getData(a_Filename).second;
 		l_pRes->m_pVtxBuffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
-		l_pRes->m_pVtxBuffer->setName(a_Filename);
+		l_pRes->m_pVtxBuffer->setName(a_Filename + wxT("_Vertex"));
 		l_pRes->m_pIdxBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
-		l_pRes->m_pIdxBuffer->setName(a_Filename);
+		l_pRes->m_pIdxBuffer->setName(a_Filename + wxT("_Index"));
 		
 		m_FileCache.insert(std::make_pair(a_Filename, l_pRes));
 	}

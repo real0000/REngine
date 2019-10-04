@@ -3,13 +3,13 @@
 
 VS_CommonOutput main(VS_CommonInput l_Input)
 {
-	VS_CommonOutput l_Output;
+	VS_CommonOutput l_Output = (VS_CommonOutput)0;
 	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD01) ) l_Output.m_Texcoord01 = l_Input.m_Texcoord01;
 	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD23) ) l_Output.m_Texcoord23 = l_Input.m_Texcoord23;
 	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD45) ) l_Output.m_Texcoord45 = l_Input.m_Texcoord45;
 	if( 0 != (m_VtxFlag & VTXFLAG_TEXCOORD67) ) l_Output.m_Texcoord67 = l_Input.m_Texcoord67;
 	if( 0 != (m_VtxFlag & VTXFLAG_COLOR) ) l_Output.m_Color = l_Input.m_Color;
-
+	
 	float4x4 l_WorldTransform;
 	if( 0 != (m_VtxFlag & USE_SKIN) )
 	{

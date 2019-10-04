@@ -165,13 +165,13 @@ Material::Material(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	{
 		ProgramBlockDesc *l_pDesc = l_CbvBlock[i];
 		if( l_pDesc->m_bReserved ) continue;
-		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(l_pDesc->m_pRegInfo->m_Type, l_pDesc);
+		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::ConstBuffer, l_pDesc);
 	}
 	for( unsigned int i=0 ; i<l_ConstBlock.size() ; ++i )
 	{
 		ProgramBlockDesc *l_pDesc = l_ConstBlock[i];
 		if( l_pDesc->m_bReserved ) continue;
-		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(l_pDesc->m_pRegInfo->m_Type, l_pDesc);
+		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::Constant, l_pDesc);
 	}
 	m_UavBlocks.resize(l_UavBlock.size(), nullptr);
 

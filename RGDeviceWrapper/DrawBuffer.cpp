@@ -96,7 +96,8 @@ void VertexBuffer::init()
 	{
 		if( nullptr != m_pInitVal->m_pRefVtx[i] )
 		{
-			m_ID[i] = GDEVICE()->requestVertexBuffer(m_pInitVal->m_pRefVtx[i], i, m_pInitVal->m_NumVtx, m_pInitVal->m_Name);
+			wxString a_Name(wxString::Format(wxT("%s[%d]"), m_pInitVal->m_Name, i));
+			m_ID[i] = GDEVICE()->requestVertexBuffer(m_pInitVal->m_pRefVtx[i], i, m_pInitVal->m_NumVtx, a_Name);
 			if( -1 == m_ID[i] )
 			{
 				for( unsigned int j=0 ; j<i ; ++j )

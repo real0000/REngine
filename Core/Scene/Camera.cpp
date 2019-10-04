@@ -22,7 +22,7 @@ namespace R
 //
 CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
-	, m_ViewParam(45.0f, 1.0f, 0.1f, 4000.0f), m_Type(PERSPECTIVE)
+	, m_ViewParam(glm::pi<float>() / 3.0f, 16.0f / 9.0f, 0.1f, 10000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
 {
 	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly);
@@ -31,7 +31,7 @@ CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared
 	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "CameraBuffer"; });
 	m_pCameraBlock = MaterialBlock::create(ShaderRegType::ConstBuffer, *l_BlockDescIt);
 	
-	m_Matrices[PROJECTION] = glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w);
+	m_Matrices[PROJECTION] = glm::tweakedInfinitePerspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z);
 	m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
 }
@@ -82,9 +82,9 @@ void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, 
 	calProjection(a_Transform);
 }
     
-void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
+void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform)
 {
-	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, a_Far);
+	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, m_ViewParam.w);
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
     m_Type = PERSPECTIVE;
 	calProjection(a_Transform);
@@ -105,9 +105,11 @@ void CameraComponent::setCubeView(glm::mat4x4 &a_Transform)
 void CameraComponent::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 {
 	assert(m_Type == ORTHO || m_Type == PERSPECTIVE);
-	a_Eye = glm::vec3(m_Matrices[VIEW][0][3], m_Matrices[VIEW][1][3], m_Matrices[VIEW][2][3]);
-	a_Dir = glm::normalize(glm::vec3(m_Matrices[VIEW][0][2], m_Matrices[VIEW][1][2], m_Matrices[VIEW][2][2]));
-	a_Up  = glm::normalize(glm::vec3(m_Matrices[VIEW][0][1], m_Matrices[VIEW][1][1], m_Matrices[VIEW][2][1]));
+
+	glm::mat4x4 l_World(getSharedMember()->m_pSceneNode->getTransform());
+	a_Eye = glm::vec3(l_World[3][0], l_World[3][1], l_World[3][2]);
+	a_Dir = glm::normalize(glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
+	a_Up  = glm::normalize(glm::vec3(l_World[1][0], l_World[1][1], l_World[1][2]));
 }
 
 void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
@@ -131,8 +133,10 @@ void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 	{
 		case ORTHO:
 		case PERSPECTIVE:
-			m_Matrices[INVERTVIEW] = getSharedMember()->m_pSceneNode->getTransform();
-			m_Matrices[VIEW] = glm::inverse(m_Matrices[INVERTVIEW]);
+			glm::vec3 l_Eye, l_Dir, l_Up;
+			getCameraParam(l_Eye, l_Dir, l_Up);
+			m_Matrices[VIEW] = glm::lookAt(l_Eye, l_Eye + l_Dir * 10.0f, l_Up);
+			m_Matrices[INVERTVIEW] = glm::inverse(m_Matrices[VIEW]);
 
 			m_pCameraBlock->setParam("m_View", 0, m_Matrices[VIEW]);
 			m_pCameraBlock->setParam("m_InvView", 0, m_Matrices[INVERTVIEW]);
@@ -155,7 +159,7 @@ void CameraComponent::calProjection(glm::mat4x4 &a_NewTransform)
 			break;
 
 		case PERSPECTIVE:
-			m_Matrices[PROJECTION] = glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w);
+			m_Matrices[PROJECTION] = glm::tweakedInfinitePerspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z);
 			m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 			break;
 

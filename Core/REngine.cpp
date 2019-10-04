@@ -313,8 +313,10 @@ bool EngineCore::init()
 		default:break;
 	}
 
-	const unsigned int c_White[64] = {0xffffffff};
-	m_pWhite = TextureManager::singleton().createTexture(wxT("Default_White"), glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, c_White);
+	unsigned int l_White[64];
+	memset(l_White, 0xffffffff, sizeof(unsigned int) * 64);
+	m_pWhite = TextureManager::singleton().createTexture(wxT("Default_White"), glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_White);
+	m_pWhite->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 	const glm::vec3 c_QuadVtx[] = {
@@ -338,7 +340,7 @@ void EngineCore::mainLoop()
 	{
 		auto l_Now = std::chrono::high_resolution_clock::now();
 		auto l_Delta = std::chrono::duration<double, std::milli>(l_Now - l_Start).count();
-		SceneManager::singleton().update(l_Delta);
+		SceneManager::singleton().update(l_Delta / 1000.0f);
 		if( l_Delta < 1000.0f/EngineSetting::singleton().m_FPS )
 		{
 			std::this_thread::yield();
