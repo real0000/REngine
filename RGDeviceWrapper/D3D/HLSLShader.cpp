@@ -188,7 +188,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
 					l_RegRangeCollect.back()->RegisterSpace = 0;
 					l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
-					
+										
 					l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 					l_RegCollect.back().DescriptorTable.NumDescriptorRanges = 1;
 					l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
@@ -197,6 +197,27 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					(l_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(it->second->m_RootIndex);
 
 					++l_TargetSlot;
+
+					if( !l_bWrite )
+					{
+						l_RegRangeCollect.push_back(new D3D12_DESCRIPTOR_RANGE());
+						*l_RegRangeCollect.back() = {};
+
+						l_RegRangeCollect.back()->RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+						l_RegRangeCollect.back()->NumDescriptors = 1;
+						l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
+						l_RegRangeCollect.back()->RegisterSpace = 0;
+						l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
+
+						l_RegCollect.push_back({});
+						
+						l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+						l_RegCollect.back().DescriptorTable.NumDescriptorRanges = 1;
+						l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
+						l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
+
+						++l_TargetSlot;
+					}
 				}
 			}
 		}
@@ -322,48 +343,11 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 		++l_Slot;
 	}
 
-	enum
-	{
-		LINEAR_WRAP_SAMPLER = 0,
-		POINT_WRAP_SAMPLER,
-		ANISOTROPIC_WRAP_SAMPLER,
-
-		NUM_SAMPLER
-	};
-	D3D12_STATIC_SAMPLER_DESC s_SamplerSetting[NUM_SAMPLER];
-	{// s0
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MipLODBias = 0;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MaxAnisotropy = 16;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MinLOD = 0.0f;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].MaxLOD = D3D12_FLOAT32_MAX;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ShaderRegister = LINEAR_WRAP_SAMPLER;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].RegisterSpace = 0;
-		s_SamplerSetting[LINEAR_WRAP_SAMPLER].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	}
-
-	{// s1
-		s_SamplerSetting[POINT_WRAP_SAMPLER] = s_SamplerSetting[LINEAR_WRAP_SAMPLER];
-		s_SamplerSetting[POINT_WRAP_SAMPLER].Filter = D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
-		s_SamplerSetting[POINT_WRAP_SAMPLER].ShaderRegister = POINT_WRAP_SAMPLER;
-	}
-
-	{// s2
-		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER] = s_SamplerSetting[LINEAR_WRAP_SAMPLER];
-		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER].Filter = D3D12_FILTER_ANISOTROPIC;
-		s_SamplerSetting[ANISOTROPIC_WRAP_SAMPLER].ShaderRegister = ANISOTROPIC_WRAP_SAMPLER;
-	}
-
 	D3D12_ROOT_SIGNATURE_DESC l_RegisterDesc = {};
 	l_RegisterDesc.NumParameters = l_RegCollect.size();
 	l_RegisterDesc.pParameters = l_RegCollect.data();
-	l_RegisterDesc.NumStaticSamplers = NUM_SAMPLER;
-	l_RegisterDesc.pStaticSamplers = s_SamplerSetting;
+	l_RegisterDesc.NumStaticSamplers = 0;
+	l_RegisterDesc.pStaticSamplers = nullptr;
 	l_RegisterDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	ID3DBlob *l_BinSignature = nullptr;
@@ -1104,6 +1088,8 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 		else
 		{
 			snprintf(l_Buff, 256, "%s %s : register(t%d);\n", l_TypeStr.c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
+			m_ParamDefine += l_Buff;
+			snprintf(l_Buff, 256, "Sampler %sSampler : register(s%d);\n", it->first.c_str(), it->second->m_pRegInfo->m_Slot);
 			m_ParamDefine += l_Buff;
 		}
 	}

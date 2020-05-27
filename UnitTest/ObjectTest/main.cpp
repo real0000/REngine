@@ -32,7 +32,7 @@ public:
 		m_Angle += glm::pi<float>() / 6.0f * a_Delta;
 		if( m_Angle > glm::pi<float>() * 2.0f ) m_Angle -= glm::pi<float>() * 2.0f;
 
-		glm::mat4x4 l_World(glm::identity<glm::mat4x4>());
+		glm::mat4x4 l_World(1.0f);
 		glm::vec3 l_CameraPos(glm::vec3(200.0f * std::sin(m_Angle), 0.0f, 200.0f * std::cos(m_Angle)));
 		l_World = glm::translate(l_World, l_CameraPos);
 		getSharedMember()->m_pSceneNode->setTransform(l_World);

@@ -132,7 +132,7 @@ void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 	switch( m_Type )
 	{
 		case ORTHO:
-		case PERSPECTIVE:
+		case PERSPECTIVE:{
 			glm::vec3 l_Eye, l_Dir, l_Up;
 			getCameraParam(l_Eye, l_Dir, l_Up);
 			m_Matrices[VIEW] = glm::lookAt(l_Eye, l_Eye + l_Dir * 10.0f, l_Up);
@@ -140,7 +140,7 @@ void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 
 			m_pCameraBlock->setParam("m_View", 0, m_Matrices[VIEW]);
 			m_pCameraBlock->setParam("m_InvView", 0, m_Matrices[INVERTVIEW]);
-			break;
+			}break;
 
 		//case TETRAHEDRON:
 		//case CUBE:

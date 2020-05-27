@@ -99,8 +99,3 @@
 		return float3(l_Res.xyz / l_Res.w);
 	}*/
 #endif
-
-// static samplers
-SamplerState s_LinearSampler : register(s0);
-SamplerState s_PointSampler : register(s1);
-SamplerState s_AnisotropicSampler : register(s2);

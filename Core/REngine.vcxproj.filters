@@ -19,6 +19,9 @@
     <Filter Include="RenderObject">
       <UniqueIdentifier>{c73d1786-8375-49eb-87e8-edc942ebefea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Asset">
+      <UniqueIdentifier>{6db482ec-474a-4bde-9159-42bd88d951cc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core.h" />
@@ -73,6 +76,18 @@
     <ClInclude Include="RenderObject\Mesh.h">
       <Filter>RenderObject</Filter>
     </ClInclude>
+    <ClInclude Include="Asset\AssetBase.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset\MeshAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset\SceneAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset\TextureAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -125,6 +140,18 @@
     </ClCompile>
     <ClCompile Include="RenderObject\Mesh.cpp">
       <Filter>RenderObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\AssetBase.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\MeshAsset.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\SceneAsset.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\TextureAsset.cpp">
+      <Filter>Asset</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

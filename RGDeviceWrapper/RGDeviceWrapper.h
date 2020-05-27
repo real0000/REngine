@@ -83,7 +83,6 @@ STRING_ENUM_CLASS(BlendKey,
 	src1_alpha,
 	inv_src1_alpha) 
 	
-	
 STRING_ENUM_CLASS(BlendOP, add, sub, rev_sub, min, max)
 
 STRING_ENUM_CLASS(BlendLogic,//add '_' to avoid keyword
@@ -174,6 +173,51 @@ STRING_ENUM_CLASS(Topology,
 	point_patch_list_30,
 	point_patch_list_31,
 	point_patch_list_32)
+
+STRING_ENUM_CLASS(Filter,
+	min_mag_mip_point,
+    min_mag_point_mip_linear,
+    min_point_mag_linear_mip_point,
+    min_point_mag_mip_linear,
+    min_linear_mag_mip_point,
+    min_linear_mag_point_mip_linear,
+    min_mag_linear_mip_point,
+    min_mag_mip_linear,
+    anisotropic,
+    comparison_min_mag_mip_point,
+    comparison_min_mag_point_mip_linear,
+    comparison_min_point_mag_linear_mip_point,
+    comparison_min_point_mag_mip_linear,
+    comparison_min_linear_mag_mip_point,
+    comparison_min_linear_mag_point_mip_linear,
+    comparison_min_mag_linear_mip_point,
+    comparison_min_mag_mip_linear,
+    comparison_anisotropic,
+    minimum_min_mag_mip_point,
+    minimum_min_mag_point_mip_linear,
+    minimum_min_point_mag_linear_mip_point,
+    minimum_min_point_mag_mip_linear,
+    minimum_min_linear_mag_mip_point,
+    minimum_min_linear_mag_point_mip_linear,
+    minimum_min_mag_linear_mip_point,
+    minimum_min_mag_mip_linear,
+    minimum_anisotropic,
+    maximum_min_mag_mip_point,
+    maximum_min_mag_point_mip_linear,
+    maximum_min_point_mag_linear_mip_point,
+    maximum_min_point_mag_mip_linear,
+    maximum_min_linear_mag_mip_point,
+    maximum_min_linear_mag_point_mip_linear,
+    maximum_min_mag_linear_mip_point,
+    maximum_min_mag_mip_linear,
+    maximum_anisotropic)
+
+STRING_ENUM_CLASS(AddressMode,
+	wrap,
+    mirror,
+    clamp,
+    border,
+    mirror_once)
 
 #define SHADER_PATH "Shaders/"
 #define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"

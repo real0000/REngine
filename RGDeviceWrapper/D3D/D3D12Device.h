@@ -29,6 +29,7 @@ public:
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc);
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc);
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(D3D12_SAMPLER_DESC *a_pDesc);
 	unsigned int newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc);
 	unsigned int newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc);
 	void recycle(unsigned int a_HeapID);
@@ -113,6 +114,7 @@ public:
 	virtual void bindVertex(VertexBuffer *a_pBuffer);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
+	virtual void bindSampler(int a_ID, unsigned int a_Stage);
 	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData);
 	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt);
 	virtual void bindConstBlock(int a_HeapID, int a_BlockStage);
@@ -201,6 +203,8 @@ public:
 	virtual unsigned int getStencilOP(StencilOP::Key a_Key);
 	virtual unsigned int getTopologyType(TopologyType::Key a_Key);
 	virtual unsigned int getTopology(Topology::Key a_Key);
+	virtual unsigned int getFilter(Filter::Key a_Key);
+	virtual unsigned int getAddressMode(AddressMode::Key a_Key);
 
 	// texture part
 	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
@@ -214,6 +218,8 @@ public:
 	virtual TextureType getTextureType(int a_ID);
 	virtual void* getTextureResource(int a_ID);
 	virtual void freeTexture(int a_ID);
+	virtual int createSampler(Filter::Key a_Filter, AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode, float a_MipLodBias, unsigned int a_MaxAnisotropy, CompareFunc::Key a_Func, float a_MinLod = 0.0f, float a_MaxLod = std::numeric_limits<float>::max(), float a_Border0 = 0.0f, float a_Border1 = 0.0f, float a_Border2 = 0.0f, float a_Border3 = 0.0f);
+	virtual void freeSampler(int a_ID);
 	
 	// render target part
 	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);// 3d render target, use uav
@@ -250,6 +256,7 @@ public:
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
 	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, bool a_bRenderTarget);
+	D3D12_GPU_DESCRIPTOR_HANDLE getSamplerGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getTextureGpuAddress(int a_ID, bool a_bRenderTarget);
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID, bool a_bDepth = false);
 	ID3D12Resource* getRenderTargetResource(int a_ID);
@@ -260,6 +267,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW& getVertexBufferView(int a_ID);
 	D3D12_INDEX_BUFFER_VIEW& getIndexBufferView(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
+	ID3D12DescriptorHeap* getSamplerBindingHeap(){ return m_pSamplerHeap->getHeapInst(); }
 	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain create
 
 	// thread part
@@ -290,6 +298,13 @@ private:
 		unsigned int m_HeapID;
 		TextureType m_Type;
 		unsigned int m_MipmapLevels;
+	};
+	struct SamplerBinder
+	{
+		SamplerBinder()
+			: m_HeapID(0){}
+		
+		unsigned int m_HeapID;
 	};
 	struct RenderTargetBinder
 	{
@@ -362,9 +377,10 @@ private:
 
 	D3D12GpuThread newThread();
 
-	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap;
+	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap, *m_pSamplerHeap;
 	
 	SerializedObjectPool<TextureBinder> m_ManagedTexture;
+	SerializedObjectPool<SamplerBinder> m_ManagedSampler;
 	SerializedObjectPool<RenderTargetBinder> m_ManagedRenderTarget;
 	SerializedObjectPool<VertexBinder> m_ManagedVertexBuffer;
 	SerializedObjectPool<IndexBinder> m_ManagedIndexBuffer;

@@ -104,8 +104,10 @@
     <None Include="Shaders\CopyDepth.pixel">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Shaders\CopyFrame.xml" />
     <None Include="Shaders\CopyDepth.xml">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\CopyFrame.xml">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

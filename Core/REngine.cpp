@@ -187,16 +187,22 @@ EngineSetting::EngineSetting()
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
 
-#define PARSE_PATH(a_Path, a_Target) {	\
-	std::vector<wxString> l_Path;		\
-	splitString(wxT('|'), l_IniFile.get(a_Path, "./"), l_Path);\
-	for( unsigned int i=0 ; i<l_Path.size() ; ++i ) a_Target::singleton().addSearchPath(l_Path[i]); }
+	std::vector<wxString> l_Path;
+	splitString(wxT('|'), l_IniFile.get("Asset.ImportPath", "./"), l_Path);
+	for( unsigned int i=0 ; i<l_Path.size() ; ++i )
+	{
+		ImageManager::singleton().addSearchPath(l_Path[i]);
+		AnimationManager::singleton().addSearchPath(l_Path[i]);
+		ModelManager::singleton().addSearchPath(l_Path[i]);
+	}
 
-	PARSE_PATH("Filepath.Image", ImageManager)
-	PARSE_PATH("Filepath.Animation", AnimationManager)
-	PARSE_PATH("Filepath.Model", ModelManager)
+	m_CDN = l_IniFile.get("Asset.CDN", "");
+	
+	splitString(wxT('|'), l_IniFile.get("Asset.ResourcePath", "./"), l_Path);
+	for( unsigned int i=0 ; i<l_Path.size() ; ++i )
+	{
 
-#undef PARSE_PATH
+	}
 }
 
 EngineSetting::~EngineSetting()
@@ -217,6 +223,8 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.ShadowMapSize", m_ShadowMapSize);
 	l_IniFile.put("Graphic.TileSize", m_TileSize);
 	l_IniFile.put("Graphic.NumRenderCommandList", m_NumRenderCommandList);
+
+	l_IniFile.put("Asset.", m_CDN);
 
 	boost::property_tree::ini_parser::write_ini(CONIFG_FILE, l_IniFile);
 }

@@ -131,6 +131,9 @@ public:
 	float m_TileSize;
 	unsigned int m_NumRenderCommandList;
 
+	// Asset
+	wxString m_CDN;
+
 private:
 	EngineSetting();
 	virtual ~EngineSetting();

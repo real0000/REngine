@@ -71,6 +71,14 @@ unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_
 	return l_Res;
 }
 
+unsigned int D3D12HeapManager::newHeap(D3D12_SAMPLER_DESC *a_pDesc)
+{
+	unsigned int l_Res = newHeap();
+	m_pRefDevice->CreateSampler(a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateSampler(a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
 unsigned int D3D12HeapManager::newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc)
 {
 	unsigned int l_Res = newHeap();
@@ -226,8 +234,8 @@ void D3D12Commander::begin(bool a_bCompute)
 	m_pComponent = a_bCompute ? reinterpret_cast<CmdComponent*>(&m_ComputeComponent) : reinterpret_cast<CmdComponent*>(&m_GraphicComponent);
 	m_pCurrProgram = nullptr;
 
-	ID3D12DescriptorHeap *l_ppHeaps[] = {m_pRefDevice->getShaderBindingHeap()};
-	m_CurrThread.second->SetDescriptorHeaps(1, l_ppHeaps);
+	ID3D12DescriptorHeap *l_ppHeaps[] = {m_pRefDevice->getShaderBindingHeap(), m_pRefDevice->getSamplerBindingHeap()};
+	m_CurrThread.second->SetDescriptorHeaps(2, l_ppHeaps);
 }
 
 void D3D12Commander::end()
@@ -294,6 +302,15 @@ void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderT
 	if( -1 == l_RootSlot ) return;
 
 	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_bRenderTarget));
+}
+
+void D3D12Commander::bindSampler(int a_ID, unsigned int a_Stage)
+{
+	int l_RootSlot = m_pCurrProgram->getTextureSlot(a_Stage);
+	if( -1 == l_RootSlot ) return;
+
+	// behind texture
+	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot + 1, m_pRefDevice->getSamplerGpuHandle(a_ID));
 }
 
 void D3D12Commander::bindConstant(std::string a_Name, unsigned int a_SrcData)
@@ -733,14 +750,14 @@ void D3D12Device::init()
 	// Create descriptor heaps.
 	{
 		m_pShaderResourceHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 16, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	}
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread();//D3D12_COMMAND_LIST_TYPE_COPY);
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
+	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(2, l_ppHeaps);
 	m_ResourceLoop = std::thread(&D3D12Device::resourceThread, this);
 	m_GraphicLoop = std::thread(&D3D12Device::graphicThread, this);
 
@@ -979,6 +996,67 @@ unsigned int D3D12Device::getTopology(Topology::Key a_Key)
 	return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 }
 
+unsigned int D3D12Device::getFilter(Filter::Key a_Key)
+{
+	switch( a_Key )
+	{
+		case Filter::min_mag_mip_point:								return D3D12_FILTER_MIN_MAG_MIP_POINT;
+		case Filter::min_mag_point_mip_linear:						return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+		case Filter::min_point_mag_linear_mip_point:				return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		case Filter::min_point_mag_mip_linear:						return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+		case Filter::min_linear_mag_mip_point:						return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+		case Filter::min_linear_mag_point_mip_linear:				return D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+		case Filter::min_mag_linear_mip_point:						return D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		case Filter::min_mag_mip_linear:							return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		case Filter::anisotropic:									return D3D12_FILTER_ANISOTROPIC;
+		case Filter::comparison_min_mag_mip_point:					return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+		case Filter::comparison_min_mag_point_mip_linear:			return D3D12_FILTER_COMPARISON_MIN_MAG_POINT_MIP_LINEAR;
+		case Filter::comparison_min_point_mag_linear_mip_point:		return D3D12_FILTER_COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		case Filter::comparison_min_point_mag_mip_linear:			return D3D12_FILTER_COMPARISON_MIN_POINT_MAG_MIP_LINEAR;
+		case Filter::comparison_min_linear_mag_mip_point:			return D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_MIP_POINT;
+		case Filter::comparison_min_linear_mag_point_mip_linear:	return D3D12_FILTER_COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+		case Filter::comparison_min_mag_linear_mip_point:			return D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		case Filter::comparison_min_mag_mip_linear:					return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		case Filter::comparison_anisotropic:						return D3D12_FILTER_COMPARISON_ANISOTROPIC;
+		case Filter::minimum_min_mag_mip_point:						return D3D12_FILTER_MINIMUM_MIN_MAG_MIP_POINT;
+		case Filter::minimum_min_mag_point_mip_linear:				return D3D12_FILTER_MINIMUM_MIN_MAG_POINT_MIP_LINEAR;
+		case Filter::minimum_min_point_mag_linear_mip_point:		return D3D12_FILTER_MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		case Filter::minimum_min_point_mag_mip_linear:				return D3D12_FILTER_MINIMUM_MIN_POINT_MAG_MIP_LINEAR;
+		case Filter::minimum_min_linear_mag_mip_point:				return D3D12_FILTER_MINIMUM_MIN_LINEAR_MAG_MIP_POINT;
+		case Filter::minimum_min_linear_mag_point_mip_linear:		return D3D12_FILTER_MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+		case Filter::minimum_min_mag_linear_mip_point:				return D3D12_FILTER_MINIMUM_MIN_MAG_LINEAR_MIP_POINT;
+		case Filter::minimum_min_mag_mip_linear:					return D3D12_FILTER_MINIMUM_MIN_MAG_MIP_LINEAR;
+		case Filter::minimum_anisotropic:							return D3D12_FILTER_MINIMUM_ANISOTROPIC;
+		case Filter::maximum_min_mag_mip_point:						return D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_POINT;
+		case Filter::maximum_min_mag_point_mip_linear:				return D3D12_FILTER_MAXIMUM_MIN_MAG_POINT_MIP_LINEAR;
+		case Filter::maximum_min_point_mag_linear_mip_point:		return D3D12_FILTER_MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT;
+		case Filter::maximum_min_point_mag_mip_linear:				return D3D12_FILTER_MAXIMUM_MIN_POINT_MAG_MIP_LINEAR;
+		case Filter::maximum_min_linear_mag_mip_point:				return D3D12_FILTER_MAXIMUM_MIN_LINEAR_MAG_MIP_POINT;
+		case Filter::maximum_min_linear_mag_point_mip_linear:		return D3D12_FILTER_MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+		case Filter::maximum_min_mag_linear_mip_point:				return D3D12_FILTER_MAXIMUM_MIN_MAG_LINEAR_MIP_POINT;
+		case Filter::maximum_min_mag_mip_linear:					return D3D12_FILTER_MAXIMUM_MIN_MAG_MIP_LINEAR;
+		case Filter::maximum_anisotropic:							return D3D12_FILTER_MAXIMUM_ANISOTROPIC;
+		default:break;
+	}
+	assert(false && "invalid filter type");
+	return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+}
+
+unsigned int D3D12Device::getAddressMode(AddressMode::Key a_Key)
+{
+	switch( a_Key )
+	{
+		case AddressMode::wrap:			return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		case AddressMode::mirror:		return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+		case AddressMode::clamp:		return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		case AddressMode::border:		return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		case AddressMode::mirror_once:	return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
+		default:break;
+	}
+	assert(false && "invalid address mode");
+	return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+}
+
 // texture part
 int D3D12Device::allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
 {
@@ -1025,8 +1103,8 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram)
 {
 	D3D12GpuThread l_Thread = requestThread();
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-	l_Thread.second->SetDescriptorHeaps(1, l_ppHeaps);
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
+	l_Thread.second->SetDescriptorHeaps(2, l_ppHeaps);
 
 	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
 	assert(nullptr != l_pTargetBinder);
@@ -1193,6 +1271,38 @@ void D3D12Device::freeTexture(int a_ID)
 	m_ManagedTexture.release(a_ID);
 }
 
+int D3D12Device::createSampler(Filter::Key a_Filter, AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode, float a_MipLodBias, unsigned int a_MaxAnisotropy, CompareFunc::Key a_Func, float a_MinLod, float a_MaxLod, float a_Border0, float a_Border1, float a_Border2, float a_Border3)
+{
+	std::shared_ptr<SamplerBinder> l_pNewBinder = nullptr;
+	unsigned int l_SamplerID = m_ManagedSampler.retain(&l_pNewBinder);
+
+	D3D12_SAMPLER_DESC l_Desc = {};
+	l_Desc.Filter = (D3D12_FILTER)getFilter(a_Filter);
+	l_Desc.AddressU = (D3D12_TEXTURE_ADDRESS_MODE)getAddressMode(a_UMode);
+	l_Desc.AddressV = (D3D12_TEXTURE_ADDRESS_MODE)getAddressMode(a_VMode);
+	l_Desc.AddressW = (D3D12_TEXTURE_ADDRESS_MODE)getAddressMode(a_WMode);
+	l_Desc.MipLODBias = a_MipLodBias;
+	l_Desc.MaxAnisotropy = a_MaxAnisotropy;
+	l_Desc.ComparisonFunc = (D3D12_COMPARISON_FUNC)getComapreFunc(a_Func);
+	l_Desc.MinLOD = a_MinLod;
+	l_Desc.MaxLOD = a_MaxLod;
+	l_Desc.BorderColor[0] = a_Border0;
+	l_Desc.BorderColor[1] = a_Border1;
+	l_Desc.BorderColor[2] = a_Border2;
+	l_Desc.BorderColor[3] = a_Border3;
+	
+	l_pNewBinder->m_HeapID = m_pSamplerHeap->newHeap(&l_Desc);
+
+	return l_SamplerID;
+}
+
+void D3D12Device::freeSampler(int a_ID)
+{
+	std::shared_ptr<SamplerBinder> l_pTargetBinder = m_ManagedSampler[a_ID];
+	m_pSamplerHeap->recycle(l_pTargetBinder->m_HeapID);
+	m_ManagedSampler.release(a_ID);
+}
+
 // render target part
 int D3D12Device::createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format)
 {
@@ -1339,6 +1449,12 @@ D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getTextureGpuHandle(int a_ID, bool a_bR
 {
 	std::shared_ptr<TextureBinder> l_pTargetBinder = a_bRenderTarget ? m_ManagedRenderTarget[a_ID]->m_pRefBinder : m_ManagedTexture[a_ID];
 	return m_pShaderResourceHeap->getGpuHandle(l_pTargetBinder->m_HeapID);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getSamplerGpuHandle(int a_ID)
+{
+	std::shared_ptr<SamplerBinder> l_pTargetBinder = m_ManagedSampler[a_ID];
+	return m_pSamplerHeap->getGpuHandle(l_pTargetBinder->m_HeapID);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS D3D12Device::getTextureGpuAddress(int a_ID, bool a_bRenderTarget)
@@ -1676,8 +1792,8 @@ void D3D12Device::resourceThread()
 			m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
 			
 			m_IdleResThread = 1 - m_IdleResThread;
-			ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst() };
-			m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(1, l_ppHeaps);
+			ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
+			m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(2, l_ppHeaps);
 		}
 		
 		m_pResFence->signal();

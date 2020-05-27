@@ -30,6 +30,7 @@ public:
 	virtual void bindVertex(VertexBuffer *a_pBuffer) = 0;
 	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
+	virtual void bindSampler(int a_ID, unsigned int a_Stage) = 0;
 	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData) = 0;
 	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt) = 0;
 	virtual void bindConstBlock(int a_ID, int a_BlockStage) = 0;
@@ -112,6 +113,8 @@ public:
 	virtual unsigned int getVertexSlotStride(unsigned int a_Type);//VTXSLOT_*
 	virtual unsigned int getParamAlignment(ShaderParamType::Key a_Key) = 0;
 	virtual unsigned int getParamAlignmentSize(ShaderParamType::Key a_Key);
+	virtual unsigned int getFilter(Filter::Key a_Key) = 0;
+	virtual unsigned int getAddressMode(AddressMode::Key a_Key) = 0;
 
 	// texture part
 	virtual int allocateTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false) = 0;
@@ -125,6 +128,8 @@ public:
 	virtual TextureType getTextureType(int a_ID) = 0;
 	virtual void* getTextureResource(int a_ID) = 0;
 	virtual void freeTexture(int a_ID) = 0;
+	virtual int createSampler(Filter a_Filter, AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode, float a_MipLodBias, unsigned int a_MaxAnisotropy, CompareFunc::Key a_Func, float a_MinLod = 0.0f, float a_MaxLod = std::numeric_limits<float>::max(), float a_Border0 = 0.0f, float a_Border1 = 0.0f, float a_Border2 = 0.0f, float a_Border3 = 0.0f) = 0;
+	virtual void freeSampler(int a_ID) = 0;
 
 	// render target part
 	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;// 3d render target, use uav
