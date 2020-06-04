@@ -9,8 +9,8 @@
 #include "Core.h"
 #include "Input/InputMediator.h"
 #include "Scene/Scene.h"
-
-#include "Texture/Texture.h"
+#include "Asset/AssetBase.h"
+#include "Asset/TextureAsset.h"
 
 #include <chrono>
 #include "boost/property_tree/ini_parser.hpp"
@@ -195,6 +195,7 @@ EngineSetting::EngineSetting()
 		AnimationManager::singleton().addSearchPath(l_Path[i]);
 		ModelManager::singleton().addSearchPath(l_Path[i]);
 	}
+	AssetManager::singleton().addSearchPath("./");
 
 	m_CDN = l_IniFile.get("Asset.CDN", "");
 	
@@ -247,7 +248,7 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
-	, m_pWhite(nullptr), m_pQuad(nullptr)
+	, m_WhiteTexture(std::make_pair(-1, nullptr)), m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 {
 }
@@ -291,7 +292,7 @@ void EngineCore::shutDown()
 	m_bValid = false;
 	
 	m_MainLoop.join();
-	m_pWhite = nullptr;
+	m_WhiteTexture.second = nullptr;
 	m_pQuad = nullptr;
 
 	GDEVICE()->shutdown();
@@ -323,8 +324,9 @@ bool EngineCore::init()
 
 	unsigned int l_White[64];
 	memset(l_White, 0xffffffff, sizeof(unsigned int) * 64);
-	m_pWhite = TextureManager::singleton().createTexture(wxT("Default_White"), glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_White);
-	m_pWhite->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_WhiteTexture = AssetManager::singleton().createAsset(wxT("Default_White.Image"));
+	m_WhiteTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_White);
+	m_WhiteTexture.second->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 	const glm::vec3 c_QuadVtx[] = {

@@ -6,13 +6,10 @@
 #ifndef _TEXTURE_ATLAS_H_
 #define _TEXTURE_ATLAS_H_
 
-#include "RGDeviceWrapper.h"
-
 namespace R
 {
 
-class TextureManager;
-class TextureUnit;
+class TextureAsset;
 
 class RenderTextureAtlas
 {
@@ -24,7 +21,7 @@ public:
 	void release(unsigned int a_ID);
 	void releaseAll();
 	
-	std::shared_ptr<TextureUnit> getTexture(){ return m_pTexture; }
+	std::shared_ptr<Asset> getTexture(){ return m_pTexture; }
 	ImageAtlas::NodeInfo& getInfo(int a_ID){ return m_Atlas.getInfo(a_ID); }
 	glm::ivec2 getMaxSize(){ return m_Atlas.getMaxSize(); }
 	unsigned int getArraySize(){ return m_Atlas.getArraySize(); }
@@ -32,8 +29,10 @@ public:
 
 private:
 	ImageAtlas m_Atlas;
-	std::shared_ptr<TextureUnit> m_pTexture;
+	wxString m_AssetName;
+	std::shared_ptr<Asset> m_pTexture;
 	bool m_bCube;
+	static unsigned int m_Serial;
 };
 
 }

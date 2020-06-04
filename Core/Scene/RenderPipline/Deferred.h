@@ -12,7 +12,7 @@ namespace R
 {
 
 class RenderTextureAtlas;
-class TextureUnit;
+class TextureAsset;
 class Light;
 
 class DeferredRenderer : public RenderPipeline
@@ -55,7 +55,7 @@ private:
 
 	// shadow map variable
 	RenderTextureAtlas *m_pShadowMap;
-	std::shared_ptr<TextureUnit> m_pShadowMapDepth;
+	std::shared_ptr<Asset> m_pShadowMapDepth;
 	unsigned int m_ShadowCmdIdx;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ShadowMapIndirectBuffer;
@@ -63,9 +63,9 @@ private:
 	
 	// gbuffer varibles
 	glm::ivec2 m_TileDim;
-	std::shared_ptr<TextureUnit> m_pGBuffer[GBUFFER_COUNT];
-	std::shared_ptr<TextureUnit> m_pFrameBuffer;
-	std::shared_ptr<TextureUnit> m_pDepthMinmax;
+	std::shared_ptr<Asset> m_pGBuffer[GBUFFER_COUNT];
+	std::shared_ptr<Asset> m_pFrameBuffer;
+	std::shared_ptr<Asset> m_pDepthMinmax;
 	unsigned int m_MinmaxStepCount;
 	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
 	std::vector<GraphicCommander *> m_DrawCommand;

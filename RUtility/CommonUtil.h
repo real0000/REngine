@@ -40,8 +40,11 @@
 #include "gtx/quaternion.hpp"
 #include "gtc/matrix_transform.hpp"
 
+#include "boost/beast/core/detail/base64.hpp"
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/xml_parser.hpp"
+#include "boost/iostreams/filter/gzip.hpp"
+#include "boost/iostreams/filtering_stream.hpp"
 
 #include "wx/wx.h"
 
@@ -60,6 +63,8 @@ wxString getFileExt(wxString a_File);
 wxString getFilePath(wxString a_File);
 wxString getRelativePath(wxString a_ParentPath, wxString a_File);
 wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath);
+void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output);
+void base642Binary(std::string &a_Src, std::vector<char> &a_Output);
 //void showOpenGLErrorCode(wxString a_StepInfo);
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut);
@@ -376,7 +381,8 @@ public:
 
 	virtual ~SearchPathSystem()
 	{
-		clearCache();
+		m_FileIDMap.clear();
+		m_ManagedObject.clear();
 	}
 
 	std::pair<int, std::shared_ptr<T> > getData(wxString a_Filename)
@@ -394,7 +400,7 @@ public:
 			if( l_FilePath.empty() ) return std::make_pair(-1, nullptr);
 
 			l_ID = m_ManagedObject.retain(&l_pNewFile);
-			m_FileIDMap.insert(std::make_pair(a_Filename, l_ID));
+			m_FileIDMap.insert(std::make_pair(l_FilePath, l_ID));
 		}
 		m_FileLoader(l_pNewFile, l_FilePath);
 		return std::make_pair(l_ID, l_pNewFile);
@@ -403,6 +409,16 @@ public:
 	std::shared_ptr<T> getData(int a_ID)
 	{
 		return m_ManagedObject[a_ID];
+	}
+
+	std::pair<int, std::shared_ptr<T> > addData(wxString a_Path)
+	{
+		std::lock_guard<std::mutex> l_Guard(m_Locker);
+
+		std::shared_ptr<T> l_pNewFile = nullptr;
+		int l_ID = m_ManagedObject.retain(&l_pNewFile);
+		m_FileIDMap.insert(std::make_pair(a_Path, l_ID));
+		return std::make_pair(l_ID, l_pNewFile);
 	}
 
 	void removeData(wxString a_Filename)
@@ -433,9 +449,31 @@ public:
 		m_SearchPath.push_back(a_Path);
 	}
 	
-	void clearCache()
+	void gc()
 	{
+		std::vector<wxString> l_EraseKey;
+		for( auto it = m_FileIDMap.begin() ; it != m_FileIDMap.end() ; ++it )
+		{
+			if( 1 == m_ManagedObject[it->second].use_count() ) m_ManagedObject.release(it->second);
+			l_EraseKey.push_back(it->first);
+		}
+
+		for( unsigned int i=0 ; i<l_EraseKey.size() ; ++i ) m_FileIDMap.erase(l_EraseKey[i]);
+	}
+
+	void finalize()
+	{
+		m_ManagedObject.clear();
 		m_FileIDMap.clear();
+	}
+
+	void updateFilepath(wxString a_Old, wxString a_New)
+	{
+		auto it = m_FileIDMap.find(a_Old);
+		if( m_FileIDMap.end() == it ) return;
+		int l_Idx = it->second;
+		m_FileIDMap.erase(it);
+		m_FileIDMap.insert(std::make_pair(a_New, l_Idx));
 	}
 
 private:

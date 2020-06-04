@@ -7,19 +7,33 @@
 #include "RGDeviceWrapper.h"
 
 #include "Core.h"
+#include "Asset/AssetBase.h"
+#include "Asset/TextureAsset.h"
 #include "RenderObject/Material.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/Light.h"
+#include "RenderObject/TextureAtlas.h"
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
-#include "Texture/Texture.h"
-#include "Texture/TextureAtlas.h"
 
 #include "Deferred.h"
 
 namespace R
 {
+
+#define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
+#define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
+#define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
+
+const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
+	{wxT("DefferredGBufferNormal.Image"), PixelFormat::rgba8_snorm},
+	{wxT("DefferredGBufferMaterial.Image"), PixelFormat::rgba8_uint},
+	{wxT("DefferredGBufferDiffuse.Image"), PixelFormat::rgba8_unorm},
+	{wxT("DefferredGBufferMask.Image"), PixelFormat::rgba8_unorm},
+	{wxT("DefferredGBufferFactor.Image"), PixelFormat::rgba8_unorm},
+	{wxT("DefferredGBufferMotionBlur.Image"), PixelFormat::rg16_float},
+	{wxT("DefferredGBufferDepth.Image"), PixelFormat::d24_unorm_s8_uint}};
 
 #pragma region DeferredRenderer
 //
@@ -41,25 +55,20 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_pCopyMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::Copy)))
 	, m_ThreadPool(std::thread::hardware_concurrency())
 {
-	m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
+	m_pShadowMapDepth = AssetManager::singleton().createAsset(SHADOWMAP_ASSET_NAME).second;
+	m_pShadowMapDepth->getComponent<TextureAsset>()->initRenderTarget(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
 
-	const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
-		{wxT("DefferredGBufferNormal"), PixelFormat::rgba8_snorm},
-		{wxT("DefferredGBufferMaterial"), PixelFormat::rgba8_uint},
-		{wxT("DefferredGBufferDiffuse"), PixelFormat::rgba8_unorm},
-		{wxT("DefferredGBufferMask"), PixelFormat::rgba8_unorm},
-		{wxT("DefferredGBufferFactor"), PixelFormat::rgba8_unorm},
-		{wxT("DefferredGBufferMotionBlur"), PixelFormat::rg16_float},
-		{wxT("DefferredGBufferDepth"), PixelFormat::d24_unorm_s8_uint}};
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		m_pGBuffer[i] = TextureManager::singleton().createRenderTarget(c_GBufferDef[i].first, EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
+		m_pGBuffer[i] = AssetManager::singleton().createAsset(c_GBufferDef[i].first).second;
+		m_pGBuffer[i]->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
 
 		char l_Buff[8];
 		snprintf(l_Buff, 8, "GBuff%d", i);
 		m_pDeferredLightMat->setTexture(l_Buff, m_pGBuffer[i]);
 	}
-	m_pFrameBuffer = TextureManager::singleton().createRenderTarget(wxT("DefferredFrame"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
+	m_pFrameBuffer = AssetManager::singleton().createAsset(FRAMEBUFFER_ASSET_NAME).second;
+	m_pFrameBuffer->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
 	m_LightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
 	m_MeshIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 4);// use packed int
@@ -68,7 +77,9 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 
 	m_TileDim.x = std::ceil(EngineSetting::singleton().m_DefaultSize.x / EngineSetting::singleton().m_TileSize);
 	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
-	m_pDepthMinmax = TextureManager::singleton().createRenderTarget(wxT("DefferredDepthMinmax"), EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
+	
+	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME).second;
+	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
 	m_TiledValidLightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
 
@@ -87,24 +98,24 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
 
 	m_GBufferCache.resize(GBUFFER_COUNT - 1);
-	for( unsigned int i=GBUFFER_NORMAL ; i<=GBUFFER_MOTIONBLUR ; ++i ) m_GBufferCache[i] = m_pGBuffer[i]->getTextureID();
-	m_FBufferCache.resize(1, m_pFrameBuffer->getTextureID());
+	for( unsigned int i=GBUFFER_NORMAL ; i<=GBUFFER_MOTIONBLUR ; ++i ) m_GBufferCache[i] = m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID();
+	m_FBufferCache.resize(1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 }
 
 DeferredRenderer::~DeferredRenderer()
 {
-	m_pDepthMinmax->release();
+	AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
+	AssetManager::singleton().removeData(FRAMEBUFFER_ASSET_NAME);
+	AssetManager::singleton().removeData(DEPTHMINMAX_ASSET_NAME);
 	m_pDepthMinmax = nullptr;
-	m_pFrameBuffer->release();
 	m_pFrameBuffer = nullptr;
+	m_pShadowMapDepth = nullptr;
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		m_pGBuffer[i]->release();
+		AssetManager::singleton().removeData(c_GBufferDef[i].first);
 		m_pGBuffer[i] = nullptr;
 	}
 
-	m_pShadowMapDepth->release();
-	m_pShadowMapDepth = nullptr;
 	SAFE_DELETE(m_pShadowMap)
 
 	for( unsigned int i=0 ; i<m_ShadowCommands.size() ; ++i ) delete m_ShadowCommands[i];
@@ -169,8 +180,11 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		getSharedMember()->m_pSpotLights->flush();
 		if( l_CurrShadowMapSize != m_pShadowMap->getArraySize() )
 		{
-			m_pShadowMapDepth->release();
-			m_pShadowMapDepth = TextureManager::singleton().createRenderTarget(wxT("RenderTextureAtlasDepth"), m_pShadowMap->getMaxSize(), PixelFormat::d32_float, m_pShadowMap->getArraySize());
+			AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
+			m_pShadowMapDepth = nullptr;
+
+			m_pShadowMapDepth = AssetManager::singleton().createAsset(SHADOWMAP_ASSET_NAME).second;
+			m_pShadowMapDepth->getComponent<TextureAsset>()->initRenderTarget(m_pShadowMap->getMaxSize(), PixelFormat::d32_float, m_pShadowMap->getArraySize());
 		}
 
 		// add required command execute thread
@@ -179,12 +193,12 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->begin(false);
 
 		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize, 0.0f, 1.0f);
-		m_pCmdInit->setRenderTarget(m_pShadowMapDepth->getTextureID(), 1, m_pShadowMap->getTexture()->getTextureID());
+		m_pCmdInit->setRenderTarget(m_pShadowMapDepth->getComponent<TextureAsset>()->getTextureID(), 1, m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID());
 		m_pCmdInit->setViewPort(1, l_Viewport);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize));
 
-		m_pCmdInit->clearRenderTarget(m_pShadowMap->getTexture()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-		m_pCmdInit->clearDepthTarget(m_pShadowMapDepth->getTextureID(), true, 1.0f, false, 0);
+		m_pCmdInit->clearRenderTarget(m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		m_pCmdInit->clearDepthTarget(m_pShadowMapDepth->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
 		m_pCmdInit->end();
 
@@ -207,36 +221,36 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 
 		for( unsigned int i=0 ; i<GBUFFER_COUNT - 1 ; ++i )
 		{
-			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 		}
-		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), true, 1.0f, false, 0);
+		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
 		m_pCmdInit->end();
 
 		// draw gbuffer
 		unsigned int l_CurrIdx = 0;
-		drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_GBufferCache, l_Meshes, l_CurrIdx);
+		drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), m_GBufferCache, l_Meshes, l_CurrIdx);
 		
 		{// copy depth data
 			m_pCmdInit->begin(false);
 			
 			m_pCmdInit->useProgram(DefaultPrograms::CopyDepth);
-			m_pCmdInit->setRenderTarget(-1, 1, m_pDepthMinmax->getTextureID());
+			m_pCmdInit->setRenderTarget(-1, 1, m_pDepthMinmax->getComponent<TextureAsset>()->getTextureID());
 
-			glm::ivec3 l_DepthSize(m_pDepthMinmax->getDimension());
+			glm::ivec3 l_DepthSize(m_pDepthMinmax->getComponent<TextureAsset>()->getDimension());
 			glm::viewport l_DepthView(0.0f, 0.0f, l_DepthSize.x, l_DepthSize.y, 0.0f, 1.0f);
 			m_pCmdInit->setViewPort(1, l_DepthView);
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_DepthSize.x, l_DepthSize.y));
 
 			m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
-			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), 0, true);
+			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 0, true);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
 			m_pCmdInit->drawVertex(4, 0);
 
 			m_pCmdInit->end();
 		}
 		// do fence ?
-		m_pDepthMinmax->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth));
+		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth));
 
 		m_pCmdInit->begin(true);
 		
@@ -252,10 +266,10 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->begin(false);
 		
 		m_pCmdInit->useProgram(m_pDeferredLightMat->getProgram());
-		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), 1, m_pFrameBuffer->getTextureID());
-		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
+		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
-		glm::ivec3 l_FrameSize(m_pFrameBuffer->getDimension());
+		glm::ivec3 l_FrameSize(m_pFrameBuffer->getComponent<TextureAsset>()->getDimension());
 		glm::viewport l_FrameView(0.0f, 0.0f, l_FrameSize.x, l_FrameSize.y, 0.0f, 1.0f);
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));

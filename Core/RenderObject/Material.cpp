@@ -6,7 +6,7 @@
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Material.h"
-#include "Texture/Texture.h"
+#include "Asset/TextureAsset.h"
 
 namespace R
 {
@@ -210,7 +210,7 @@ std::shared_ptr<MaterialBlock> Material::createExternalBlock(ShaderRegType::Key 
 	return MaterialBlock::create(a_Type, *it, a_NumSlot);
 }
 
-void Material::setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture)
+void Material::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture)
 {
 	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
 	auto it = l_TextureSlotMap.find(a_Name);
@@ -298,8 +298,9 @@ void Material::bindTexture(GraphicCommander *a_pBinder)
 	{
 		if( nullptr == m_Textures[i] ) continue;
 
-		TextureType l_Type = m_Textures[i]->getTextureType();
-		a_pBinder->bindTexture(m_Textures[i]->getTextureID(), i, TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type);
+		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
+		TextureType l_Type = l_pTextureComp->getTextureType();
+		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type);
 	}
 }
 

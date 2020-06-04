@@ -85,7 +85,7 @@
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(VLDSDK)lib\Win32;$(WXSDK)lib\vc_lib;..\..\third\SDL2\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x86\lib;\lib;$(VLDSDK)lib\Win32;$(WXSDK)lib\vc_lib;..\..\third\SDL2\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
       <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -103,7 +103,7 @@
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(ADSK_FBX_SDK)lib\vs2015\x64\debug;..\..\third\SDL2\lib\x64;..\..\x64\Debug;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(ADSK_FBX_SDK)lib\vs2015\x64\debug;..\..\third\SDL2\lib\x64;..\..\x64\Debug;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
       <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;SDL2.lib;libfbxsdk-md.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -125,7 +125,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(VLDSDK)lib\Win32;$(WXSDK)lib\vc_lib;..\..\third\SDL2\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x86\lib;\lib;$(VLDSDK)lib\Win32;$(WXSDK)lib\vc_lib;..\..\third\SDL2\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
       <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -146,7 +146,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\..\third\SDL2\lib\x64;..\..\x64\Release;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(BOOSTSDK)stage\lib;..\..\third\SDL2\lib\x64;..\..\x64\Release;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
       <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;%(AdditionalDependencies)</AdditionalDependencies>

@@ -22,13 +22,48 @@ public:
 	static wxString validAssetKey();
 
 	virtual void importFile(wxString a_File);
-	virtual void loadFile(wxString a_File);
-	virtual void saveFile(wxString a_File);
+	virtual void loadFile(boost::property_tree::ptree &a_Src);
+	virtual void saveFile(boost::property_tree::ptree &a_Dst);
+
+	void initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...);// void *[a_ArraySize]
+	void initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
+	void initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
+	void initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);
+
+
+	int getSampler();
+	int getTextureID(){ return m_TextureID; }
+	PixelFormat::Key getTextureFormat();
+	glm::ivec3 getDimension();
+	TextureType getTextureType();
+	bool isReady(){ return m_bReady; }
+	void generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
 
 private:
-	unsigned int m_Dimention;
-	glm::ivec3 m_Size;
+	void setTextureID(int a_TexID){ m_TextureID = a_TexID; }
+	void setRenderTarget(){ m_bRenderTarget = true; }
+	void setReady(){ m_bReady = true; }
+	void loadThread(wxString a_Path);
+	void updateSampler();
 
+	// texture part
+	int m_TextureID;
+	bool m_bRenderTarget;
+	bool m_bReady;
+	TextureType m_SrcType;
+	std::vector<std::string> m_RawFile;
+
+	// sampler part
+	int m_SamplerID;
+	Filter::Key m_Filter;
+	AddressMode::Key m_AddressMode[3];
+	float m_MipLodBias;
+	unsigned int m_MaxAnisotropy;
+	CompareFunc::Key m_Func;
+	float m_MinLod;
+	float m_MaxLod;
+	float m_Border[4];
+	bool m_bSamplerDirty;
 };
 
 }

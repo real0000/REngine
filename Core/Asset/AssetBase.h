@@ -9,6 +9,8 @@
 namespace R
 {
 
+class AssetManager;
+
 class AssetComponent
 {
 public:
@@ -16,20 +18,22 @@ public:
 	virtual ~AssetComponent(){}
 
 	virtual void importFile(wxString a_File) = 0;
-	virtual void loadFile(wxString a_File) = 0;
-	virtual void saveFile(wxString a_File) = 0;
+	virtual void loadFile(boost::property_tree::ptree &a_Src) = 0;
+	virtual void saveFile(boost::property_tree::ptree &a_Dst) = 0;
 };
 
 class Asset
 {
+	friend class AssetManager;
 public:
 	Asset(){}
 	virtual ~Asset(){}
 
-	void initComponent(AssetComponent *a_pComponent);
-	//void 
+	template<typename T>
+	T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }
 
 private:
+	wxString m_Key;
 	AssetComponent *m_pComponent;
 };
 
@@ -38,6 +42,12 @@ class AssetManager : public SearchPathSystem<Asset>
 public:
 	static AssetManager& singleton();
 
+	// use these method instead getData
+	std::pair<int, std::shared_ptr<Asset>> createAsset(wxString a_Path);
+	std::pair<int, std::shared_ptr<Asset>> getAsset(wxString a_Path);
+	std::shared_ptr<Asset> getAsset(int a_ID){ return getData(a_ID); }
+	void saveAsset(int a_ID, wxString a_Path = ""){ saveAsset(getData(a_ID), a_Path); }
+	void saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path = "");
 
 private:
 	AssetManager();
@@ -49,12 +59,10 @@ private:
 		std::vector<wxString> l_List;
 		T::validImportExt(l_List);
 		std::function<AssetComponent*()> l_pFunc = []() -> AssetComponent*{ return new T(); };
-		for( unsigned int i=0 ; i<l_List.size() ; ++i ) m_ImporterMap.insert(std::make_pair(l_List[i], l_pFunc));
-		m_LoaderMap.insert(std::make_pair(T::validAssetKey(), l_pFunc));
+		for( unsigned int i=0 ; i<l_List.size() ; ++i ) m_ImporterMap.insert(std::make_pair(l_List[i].MakeLower(), l_pFunc));
+		m_LoaderMap.insert(std::make_pair(T::validAssetKey().MakeLower(), l_pFunc));
 	}
-
 	void loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path);
-	//void importFile();
 
 	std::map<wxString, std::function<AssetComponent *()>> m_ImporterMap, m_LoaderMap;
 };

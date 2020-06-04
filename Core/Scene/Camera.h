@@ -13,7 +13,7 @@ namespace R
 
 struct SharedSceneMember;
 class MaterialBlock;
-class TextureUnit;
+class TextureAsset;
 
 class CameraComponent : public RenderableComponent
 {

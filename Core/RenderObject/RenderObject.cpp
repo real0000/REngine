@@ -58,7 +58,7 @@ std::shared_ptr<ModelCache::Instance> ModelCache::loadMesh(wxString a_Filename)
 void ModelCache::clearCache()
 {
 	m_FileCache.clear();
-	ModelManager::singleton().clearCache();
+	ModelManager::singleton().gc();
 }
 
 std::shared_ptr<ModelCache::Instance> ModelCache::getInstance(wxString a_Filename, std::shared_ptr<ModelData> a_pSrc, bool &a_bNeedInitInstance)

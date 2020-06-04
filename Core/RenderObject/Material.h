@@ -12,7 +12,7 @@ namespace R
 struct ProgramBlockDesc;
 class GraphicCommander;
 class ShaderProgram;
-class TextureUnit;
+class TextureAsset;
 
 struct MaterialParam
 {
@@ -92,7 +92,7 @@ public:
 	std::shared_ptr<MaterialBlock> createExternalBlock(ShaderRegType::Key a_Type, std::string a_Name, unsigned int a_NumSlot = 1);
 
 	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
-	void setTexture(std::string a_Name, std::shared_ptr<TextureUnit> a_pTexture);
+	void setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
 	template<typename T>
@@ -165,7 +165,7 @@ private:
 
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
-	std::vector< std::shared_ptr<TextureUnit> > m_Textures;
+	std::vector< std::shared_ptr<Asset> > m_Textures;
 
 	bool m_bNeedRebatch, m_bNeedUavUpdate;// valid if supportExtraIndirectCommand
 };

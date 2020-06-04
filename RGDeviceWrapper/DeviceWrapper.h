@@ -128,7 +128,7 @@ public:
 	virtual TextureType getTextureType(int a_ID) = 0;
 	virtual void* getTextureResource(int a_ID) = 0;
 	virtual void freeTexture(int a_ID) = 0;
-	virtual int createSampler(Filter a_Filter, AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode, float a_MipLodBias, unsigned int a_MaxAnisotropy, CompareFunc::Key a_Func, float a_MinLod = 0.0f, float a_MaxLod = std::numeric_limits<float>::max(), float a_Border0 = 0.0f, float a_Border1 = 0.0f, float a_Border2 = 0.0f, float a_Border3 = 0.0f) = 0;
+	virtual int createSampler(Filter::Key a_Filter, AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode, float a_MipLodBias, unsigned int a_MaxAnisotropy, CompareFunc::Key a_Func, float a_MinLod = 0.0f, float a_MaxLod = std::numeric_limits<float>::max(), float a_Border0 = 0.0f, float a_Border1 = 0.0f, float a_Border2 = 0.0f, float a_Border3 = 0.0f) = 0;
 	virtual void freeSampler(int a_ID) = 0;
 
 	// render target part

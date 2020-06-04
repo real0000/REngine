@@ -131,6 +131,33 @@ wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath)
 	return l_Res;
 }
 
+void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)
+{
+	std::vector<char> l_Buff;
+	boost::iostreams::filtering_ostream l_Compress;
+	l_Compress.push(boost::iostreams::gzip_compressor(boost::iostreams::gzip_params(boost::iostreams::gzip::best_compression)));
+	l_Compress.push(boost::iostreams::back_inserter(l_Buff));
+	l_Compress.write(reinterpret_cast<const char *>(a_pSrc), a_Size);
+	boost::iostreams::close(l_Compress);
+
+	a_Output.resize(boost::beast::detail::base64::encoded_size(a_Size));
+    a_Output.resize(boost::beast::detail::base64::encode((void *)(a_Output.data()), l_Buff.data(), l_Buff.size()));
+}
+
+void base642Binary(std::string &a_Src, std::vector<char> &a_Output)
+{
+	std::vector<char> l_Buff;
+	l_Buff.resize(boost::beast::detail::base64::decoded_size(a_Src.size()));
+	auto const l_Base64Size = boost::beast::detail::base64::decode(l_Buff.data(), a_Src.data(), a_Src.size());
+	l_Buff.resize(l_Base64Size.first);
+
+	boost::iostreams::filtering_ostream l_Decompress;
+	l_Decompress.push(boost::iostreams::gzip_decompressor());
+	l_Decompress.push(boost::iostreams::back_inserter(a_Output));
+	l_Decompress.write(l_Buff.data(), l_Buff.size());
+	boost::iostreams::close(l_Decompress);
+}
+
 /*void showOpenGLErrorCode(wxString a_StepInfo)
 {
 #ifdef _DEBUG

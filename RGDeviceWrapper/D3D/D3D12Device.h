@@ -377,7 +377,7 @@ private:
 
 	D3D12GpuThread newThread();
 
-	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap, *m_pSamplerHeap;
+	D3D12HeapManager *m_pShaderResourceHeap, *m_pSamplerHeap, *m_pRenderTargetHeap, *m_pDepthHeap;
 	
 	SerializedObjectPool<TextureBinder> m_ManagedTexture;
 	SerializedObjectPool<SamplerBinder> m_ManagedSampler;

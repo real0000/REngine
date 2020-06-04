@@ -4,9 +4,6 @@
     <Filter Include="Scene">
       <UniqueIdentifier>{e1c3e040-e351-4189-968d-732e644a0772}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Texture">
-      <UniqueIdentifier>{bccc469d-4a75-48e6-b97c-69b189115de7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Input">
       <UniqueIdentifier>{551b1256-8aaf-4461-b805-6c1363192142}</UniqueIdentifier>
     </Filter>
@@ -31,12 +28,6 @@
     </ClInclude>
     <ClInclude Include="Scene\Scene.h">
       <Filter>Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="Texture\Texture.h">
-      <Filter>Texture</Filter>
-    </ClInclude>
-    <ClInclude Include="Texture\TextureAtlas.h">
-      <Filter>Texture</Filter>
     </ClInclude>
     <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="StateMachine.h" />
@@ -88,6 +79,9 @@
     <ClInclude Include="Asset\TextureAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
+    <ClInclude Include="RenderObject\TextureAtlas.h">
+      <Filter>RenderObject</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -96,12 +90,6 @@
     </ClCompile>
     <ClCompile Include="Scene\Scene.cpp">
       <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Texture\Texture.cpp">
-      <Filter>Texture</Filter>
-    </ClCompile>
-    <ClCompile Include="Texture\TextureAtlas.cpp">
-      <Filter>Texture</Filter>
     </ClCompile>
     <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="StateMachine.cpp" />
@@ -152,6 +140,9 @@
     </ClCompile>
     <ClCompile Include="Asset\TextureAsset.cpp">
       <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderObject\TextureAtlas.cpp">
+      <Filter>RenderObject</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
