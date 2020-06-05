@@ -82,6 +82,7 @@ ImageManager& ImageManager::singleton()
 ImageManager::ImageManager()
 	: SearchPathSystem(std::bind(&ImageManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&defaultNewFunc<ImageData>))
 {
+	wxInitAllImageHandlers();
 }
 
 ImageManager::~ImageManager()

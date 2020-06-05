@@ -17,6 +17,7 @@ public:
 	AssetComponent(){}
 	virtual ~AssetComponent(){}
 
+	virtual wxString getAssetExt() = 0;
 	virtual void importFile(wxString a_File) = 0;
 	virtual void loadFile(boost::property_tree::ptree &a_Src) = 0;
 	virtual void saveFile(boost::property_tree::ptree &a_Dst) = 0;
@@ -31,6 +32,7 @@ public:
 
 	template<typename T>
 	T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }
+	wxString getAssetExt(){ return nullptr == m_pComponent ? wxT("") : m_pComponent->getAssetExt(); }
 
 private:
 	wxString m_Key;

@@ -27,7 +27,7 @@ TextureAsset::TextureAsset()
 	, m_MipLodBias(0)
 	, m_MaxAnisotropy(16)
 	, m_Func(CompareFunc::never)
-	, m_MinLod(0)
+	, m_MinLod(0.0f)
 	, m_MaxLod(FLT_MAX)
 	, m_Border{0.0f, 0.0f, 0.0f, 0.0f}
 	, m_bSamplerDirty(true)
@@ -120,51 +120,127 @@ void TextureAsset::importFile(wxString a_File)
 	assert(-1 == m_TextureID);
 
 	m_TextureID = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>()->getTextureID();
-	std::thread l_AsyncLoader(&TextureAsset::loadThread, this, a_File);
+	std::thread l_AsyncLoader(&TextureAsset::importThread, this, a_File);
+	l_AsyncLoader.detach();
 	updateSampler();
 }
 
 void TextureAsset::loadFile(boost::property_tree::ptree &a_Src)
 {
-	/*m_Texture = TextureManager::singleton().getTexture(a_File);
-	if( nullptr == m_Texture ) return;
+	assert(-1 == m_TextureID);
+	
+	m_TextureID = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>()->getTextureID();
 
-	m_Dimention = m_Texture->getDimension();
-	m_SamplerID = GDEVICE()->createSampler(m_Filter, m_AddressMode[0], m_AddressMode[1], m_AddressMode[2], m_MipLodBias, m_MaxAnisotropy, m_Func, m_MinLod, m_MaxLod
-		, m_Border[0], m_Border[1], m_Border[2], m_Border[3]);*/
+	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
+	boost::property_tree::ptree &l_RootAttr = l_Root.get_child("<xmlattr>");
+
+	glm::ivec3 l_Dim(l_RootAttr.get<int>("x"), l_RootAttr.get<int>("y"), l_RootAttr.get<int>("z"));
+	TextureType l_Type = (TextureType)l_RootAttr.get<int>("type");
+	PixelFormat::Key l_Fmt = PixelFormat::fromString(l_RootAttr.get("format", "rgba8_unorm"));
+	m_bRenderTarget = l_RootAttr.get<bool>("isRenderTarget");
+
+	boost::property_tree::ptree l_SamplerAttr = l_Root.get_child("Sampler.<xmlattr>");
+	m_Filter = Filter::fromString(l_SamplerAttr.get("filter", "comparison_min_mag_mip_linear"));
+	m_AddressMode[0] = AddressMode::fromString(l_SamplerAttr.get("u", "wrap"));
+	m_AddressMode[1] = AddressMode::fromString(l_SamplerAttr.get("v", "wrap"));
+	m_AddressMode[2] = AddressMode::fromString(l_SamplerAttr.get("w", "wrap"));
+	m_MipLodBias = l_SamplerAttr.get("lodbias", 0);
+	m_MaxAnisotropy = l_SamplerAttr.get("anisotropy", 16);
+	m_Func = CompareFunc::fromString(l_SamplerAttr.get("func", "never"));
+	m_MinLod = l_SamplerAttr.get("minlod", 0.0f);
+	m_MaxLod = l_SamplerAttr.get("maxlod", FLT_MAX);
+	m_Border[0] = l_SamplerAttr.get("r", 0.0f);
+	m_Border[1] = l_SamplerAttr.get("g", 0.0f);
+	m_Border[2] = l_SamplerAttr.get("b", 0.0f);
+	m_Border[3] = l_SamplerAttr.get("a", 0.0f);
+
+	if( m_bRenderTarget )
+	{
+		switch( l_Type )
+		{
+			case TEXTYPE_SIMPLE_2D:{
+				m_TextureID = GDEVICE()->createRenderTarget(glm::ivec2(l_Dim.x, l_Dim.y), l_Fmt);
+				}break;
+
+			case TEXTYPE_SIMPLE_2D_ARRAY:
+			case TEXTYPE_SIMPLE_CUBE:{
+				m_TextureID = GDEVICE()->createRenderTarget(glm::ivec2(l_Dim.x, l_Dim.y), l_Fmt, l_Dim.z, l_Type == TEXTYPE_SIMPLE_CUBE);
+				}break;
+
+			case TEXTYPE_SIMPLE_3D:{
+				m_TextureID = GDEVICE()->createRenderTarget(l_Dim, l_Fmt);
+				}break;
+
+			default:break;
+		}
+		m_bReady = true;
+	}
+	else
+	{
+		boost::property_tree::ptree l_Layers = l_Root.get_child("Layers");
+		for( auto it=l_Layers.begin() ; it!=l_Layers.end() ; ++it )
+		{
+			m_RawFile.push_back(it->second.get_child("RawData").data());
+		}
+
+		std::thread l_AsyncLoader(&TextureAsset::loadThread, this, l_Dim, l_Type, l_Fmt);
+		l_AsyncLoader.detach();
+	}
+	
+	updateSampler();
 }
 
 void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 {
+	while( !m_bReady ) std::this_thread::yield();
+
 	glm::ivec3 l_Dim(getDimension());
-	a_Dst.put("root.<xmlattr>.x", l_Dim.x);
-	a_Dst.put("root.<xmlattr>.y", l_Dim.y);
-	a_Dst.put("root.<xmlattr>.z", l_Dim.z);
-	a_Dst.put("root.<xmlattr>.type", getTextureType());
-	a_Dst.put("root.<xmlattr>.isRenderTarget", m_bRenderTarget);
+
+	boost::property_tree::ptree l_Root;
+
+	boost::property_tree::ptree l_RootAttr;
+	l_RootAttr.add("x", l_Dim.x);
+	l_RootAttr.add("y", l_Dim.y);
+	l_RootAttr.add("z", l_Dim.z);
+	l_RootAttr.add("type", getTextureType());
+	l_RootAttr.add("format", PixelFormat::toString(getTextureFormat()));
+	l_RootAttr.add("isRenderTarget", m_bRenderTarget);
+	l_Root.add_child("<xmlattr>", l_RootAttr);
+
 	if( !m_bRenderTarget )
 	{
+		boost::property_tree::ptree l_Layers;
 		for( unsigned int i=0 ; i<m_RawFile.size() ; ++i )
 		{
-			char l_Buff[64];
-			snprintf(l_Buff, 64, "root.RawData.Layer%d", i);
-			a_Dst.put("RawData", m_RawFile[i]);
+			boost::property_tree::ptree l_Layer;
+			l_Layer.put("RawData", m_RawFile[i]);
+		
+			char l_Buff[64];	
+			snprintf(l_Buff, 64, "Layer%d", i);
+			l_Layers.add_child(l_Buff, l_Layer);
 		}
+		l_Root.add_child("Layers", l_Layers);
 	}
 	
-	a_Dst.put("root.Sampler.<xmlattr>.filter", Filter::toString(m_Filter).c_str());
-	a_Dst.put("root.Sampler.<xmlattr>.u", AddressMode::toString(m_AddressMode[0]).c_str());
-	a_Dst.put("root.Sampler.<xmlattr>.v", AddressMode::toString(m_AddressMode[1]).c_str());
-	a_Dst.put("root.Sampler.<xmlattr>.w", AddressMode::toString(m_AddressMode[2]).c_str());
-	a_Dst.put("root.Sampler.<xmlattr>.lodbias", m_MipLodBias);
-	a_Dst.put("root.Sampler.<xmlattr>.anisotropy", m_MaxAnisotropy);
-	a_Dst.put("root.Sampler.<xmlattr>.func", CompareFunc::toString(m_Func));
-	a_Dst.put("root.Sampler.<xmlattr>.minlod", m_MinLod);
-	a_Dst.put("root.Sampler.<xmlattr>.minlod", m_MaxLod);
-	a_Dst.put("root.Sampler.<xmlattr>.r", m_Border[0]);
-	a_Dst.put("root.Sampler.<xmlattr>.g", m_Border[1]);
-	a_Dst.put("root.Sampler.<xmlattr>.b", m_Border[2]);
-	a_Dst.put("root.Sampler.<xmlattr>.a", m_Border[3]);
+	boost::property_tree::ptree l_Sampler;
+	boost::property_tree::ptree l_SamplerAttr;
+	l_SamplerAttr.add("filter", Filter::toString(m_Filter).c_str());
+	l_SamplerAttr.add("u", AddressMode::toString(m_AddressMode[0]).c_str());
+	l_SamplerAttr.add("v", AddressMode::toString(m_AddressMode[1]).c_str());
+	l_SamplerAttr.add("w", AddressMode::toString(m_AddressMode[2]).c_str());
+	l_SamplerAttr.add("lodbias", m_MipLodBias);
+	l_SamplerAttr.add("anisotropy", m_MaxAnisotropy);
+	l_SamplerAttr.add("func", CompareFunc::toString(m_Func));
+	l_SamplerAttr.add("minlod", m_MinLod);
+	l_SamplerAttr.add("maxlod", m_MaxLod);
+	l_SamplerAttr.add("r", m_Border[0]);
+	l_SamplerAttr.add("g", m_Border[1]);
+	l_SamplerAttr.add("b", m_Border[2]);
+	l_SamplerAttr.add("a", m_Border[3]);
+	l_Sampler.add_child("<xmlattr>", l_SamplerAttr);
+	l_Root.add_child("Sampler", l_Sampler);
+
+	a_Dst.add_child("root", l_Root);
 }
 
 int TextureAsset::getSamplerID()
@@ -201,15 +277,14 @@ void TextureAsset::generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderPr
 	GDEVICE()->generateMipmap(l_ID, a_Level, a_pProgram);
 }
 
-void TextureAsset::loadThread(wxString a_Path)
+void TextureAsset::importThread(wxString a_Path)
 {
 	std::shared_ptr<ImageData> l_pImageData = ImageManager::singleton().getData(a_Path).second;
-	m_SrcType = l_pImageData->getType();
 	
 	int l_TextureID = 0;
 	glm::ivec3 l_Dim(l_pImageData->getSize());
 	std::shared_ptr<ShaderProgram> l_pProgram = nullptr;
-	switch( m_SrcType )
+	switch( l_pImageData->getType() )
 	{
 		case TEXTYPE_SIMPLE_2D:{
 			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
@@ -248,6 +323,50 @@ void TextureAsset::loadThread(wxString a_Path)
 
 		default:break;
 	}
+	m_TextureID = l_TextureID;
+	GDEVICE()->generateMipmap(l_TextureID, 0, l_pProgram);
+	m_bReady = true;
+}
+
+void TextureAsset::loadThread(glm::ivec3 a_Dim, TextureType a_Type, PixelFormat::Key a_Fmt)
+{
+	int l_TextureID = 0;
+	std::shared_ptr<ShaderProgram> l_pProgram = nullptr;
+	switch( a_Type )
+	{
+		case TEXTYPE_SIMPLE_2D:{
+			std::vector<char> l_Buff;
+			base642Binary(m_RawFile[0], l_Buff);
+
+			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
+			l_TextureID = GDEVICE()->allocateTexture(glm::ivec2(a_Dim.x, a_Dim.y), a_Fmt);
+			GDEVICE()->updateTexture(l_TextureID, 0, glm::ivec2(a_Dim.x, a_Dim.y), glm::zero<glm::ivec2>(), 0, l_Buff.data());
+			}break;
+
+		case TEXTYPE_SIMPLE_2D_ARRAY:
+		case TEXTYPE_SIMPLE_CUBE:{
+			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
+			l_TextureID = GDEVICE()->allocateTexture(glm::ivec2(a_Dim.x, a_Dim.y), a_Fmt, a_Dim.z, a_Type == TEXTYPE_SIMPLE_CUBE);
+			for( int i=0 ; i<a_Dim.z ; ++i )
+			{
+				std::vector<char> l_Buff;
+				base642Binary(m_RawFile[i], l_Buff);
+				GDEVICE()->updateTexture(l_TextureID, 0, glm::ivec2(a_Dim.x, a_Dim.y), glm::zero<glm::ivec2>(), i, l_Buff.data());
+			}
+			}break;
+
+		case TEXTYPE_SIMPLE_3D:{
+			std::vector<char> l_Buff;
+			base642Binary(m_RawFile[0], l_Buff);
+
+			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap3D);
+			l_TextureID = GDEVICE()->allocateTexture(a_Dim, a_Fmt);
+			GDEVICE()->updateTexture(l_TextureID, 0, a_Dim, glm::zero<glm::ivec3>(), 0, l_Buff.data());
+			}break;
+
+		default:break;
+	}
+
 	m_TextureID = l_TextureID;
 	GDEVICE()->generateMipmap(l_TextureID, 0, l_pProgram);
 	m_bReady = true;

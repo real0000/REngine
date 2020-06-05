@@ -17,6 +17,9 @@
 #include "PhysicalModule.h"
 #include "StateMachine.h"
 
+#include "Asset/AssetBase.h"
+#include "Asset/TextureAsset.h"
+
 #include "Input/InputMediator.h"
 #include "Input/KeyboardInput.h"
 #include "Input/MouseInput.h"

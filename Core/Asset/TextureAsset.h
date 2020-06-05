@@ -21,6 +21,7 @@ public:
 	static void validImportExt(std::vector<wxString> &a_Output);
 	static wxString validAssetKey();
 
+	virtual wxString getAssetExt(){ return TextureAsset::validAssetKey(); }
 	virtual void importFile(wxString a_File);
 	virtual void loadFile(boost::property_tree::ptree &a_Src);
 	virtual void saveFile(boost::property_tree::ptree &a_Dst);
@@ -43,14 +44,14 @@ private:
 	void setTextureID(int a_TexID){ m_TextureID = a_TexID; }
 	void setRenderTarget(){ m_bRenderTarget = true; }
 	void setReady(){ m_bReady = true; }
-	void loadThread(wxString a_Path);
+	void importThread(wxString a_Path);
+	void loadThread(glm::ivec3 a_Dim, TextureType a_Type, PixelFormat::Key a_Fmt);
 	void updateSampler();
 
 	// texture part
 	int m_TextureID;
 	bool m_bRenderTarget;
 	bool m_bReady;
-	TextureType m_SrcType;
 	std::vector<std::string> m_RawFile;
 
 	// sampler part

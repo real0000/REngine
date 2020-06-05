@@ -60,6 +60,7 @@ namespace R
 void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Output);
 wxString getFileName(wxString a_File);
 wxString getFileExt(wxString a_File);
+wxString replaceFileExt(wxString a_File, wxString a_NewExt);
 wxString getFilePath(wxString a_File);
 wxString getRelativePath(wxString a_ParentPath, wxString a_File);
 wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath);
@@ -433,6 +434,7 @@ public:
 
 	wxString findFullPath(wxString a_Filename)
 	{
+		if( a_Filename.StartsWith("./") ) a_Filename = a_Filename.Remove(0, 2);
 		for( unsigned int i=0 ; i<m_SearchPath.size() ; ++i )
 		{
 			wxString l_FilePath(m_SearchPath[i] + a_Filename);

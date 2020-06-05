@@ -49,6 +49,17 @@ wxString getFileExt(wxString a_File)
 	return l_Tokens.back();
 }
 
+wxString replaceFileExt(wxString a_File, wxString a_NewExt)
+{
+	std::vector<wxString> l_Tokens;
+	splitString(wxT('.'), a_File, l_Tokens);
+	l_Tokens.pop_back();
+
+	wxString l_Res(wxT(""));
+	for( unsigned int i=0 ; i<l_Tokens.size() ; ++i ) l_Res += l_Tokens[i];
+	return l_Res + "." + a_NewExt;
+}
+
 wxString getFilePath(wxString a_File)
 {
 	std::vector<wxString> l_Tokens;
@@ -146,6 +157,7 @@ void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)
 
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output)
 {
+	a_Output.clear();
 	std::vector<char> l_Buff;
 	l_Buff.resize(boost::beast::detail::base64::decoded_size(a_Src.size()));
 	auto const l_Base64Size = boost::beast::detail::base64::decode(l_Buff.data(), a_Src.data(), a_Src.size());

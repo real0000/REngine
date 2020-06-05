@@ -41,7 +41,7 @@ std::pair<int, std::shared_ptr<Asset>> AssetManager::createAsset(wxString a_Path
 	assert(l_LoaderIt != m_LoaderMap.end());
 
 	l_Res = addData(a_Path);
-	l_Res.second->m_Key = a_Path;
+	l_Res.second->m_Key = replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	l_Res.second->m_pComponent = l_LoaderIt->second();
 	return l_Res;
 }
@@ -50,18 +50,19 @@ std::pair<int, std::shared_ptr<Asset>> AssetManager::getAsset(wxString a_Path)
 {
 	std::pair<int, std::shared_ptr<Asset>> l_Res = getData(a_Path);
 	assert(-1 != l_Res.first);
-	l_Res.second->m_Key = a_Path;
+	l_Res.second->m_Key = replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	return l_Res;
 }
 
 void AssetManager::saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path)
 {
 	if( a_Path.IsEmpty() ) a_Path = a_pInst->m_Key;
-	else a_pInst->m_Key = a_Path;
-
+	else a_pInst->m_Key = replaceFileExt(a_Path, a_pInst->getAssetExt());
+	
 	boost::property_tree::ptree l_XMLTree;
 	a_pInst->m_pComponent->saveFile(l_XMLTree);
-	boost::property_tree::xml_parser::write_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree);
+	boost::property_tree::xml_parser::write_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree, std::locale()
+		, boost::property_tree::xml_writer_make_settings<std::string>(' ', 4));
 }
 
 void AssetManager::loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path)
