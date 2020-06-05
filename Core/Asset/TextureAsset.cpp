@@ -167,7 +167,7 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	a_Dst.put("root.Sampler.<xmlattr>.a", m_Border[3]);
 }
 
-int TextureAsset::getSampler()
+int TextureAsset::getSamplerID()
 {
 	updateSampler();
 	return m_SamplerID;

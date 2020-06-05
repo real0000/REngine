@@ -295,6 +295,11 @@ void EngineCore::shutDown()
 	m_WhiteTexture.second = nullptr;
 	m_pQuad = nullptr;
 
+	ImageManager::singleton().finalize();
+	ModelManager::singleton().finalize();
+	AnimationManager::singleton().finalize();
+	AssetManager::singleton().finalize();
+
 	GDEVICE()->shutdown();
 	SDL_Quit();
 }

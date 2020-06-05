@@ -308,7 +308,7 @@ void D3D12Commander::bindSampler(int a_ID, unsigned int a_Stage)
 {
 	int l_RootSlot = m_pCurrProgram->getTextureSlot(a_Stage);
 	if( -1 == l_RootSlot ) return;
-
+	
 	// behind texture
 	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot + 1, m_pRefDevice->getSamplerGpuHandle(a_ID));
 }
@@ -576,7 +576,7 @@ void D3D12Canvas::resizeBackBuffer()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
-	, m_ManagedTexture(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
+	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
@@ -586,6 +586,7 @@ D3D12Device::D3D12Device()
 	, m_bLooping(true)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
+	BIND_DEFAULT_ALLOCATOR(SamplerBinder, m_ManagedSampler);
 	BIND_DEFAULT_ALLOCATOR(RenderTargetBinder, m_ManagedRenderTarget);
 	BIND_DEFAULT_ALLOCATOR(VertexBinder, m_ManagedVertexBuffer);
 	BIND_DEFAULT_ALLOCATOR(IndexBinder, m_ManagedIndexBuffer);

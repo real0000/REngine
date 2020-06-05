@@ -26,8 +26,8 @@ class Asset
 {
 	friend class AssetManager;
 public:
-	Asset(){}
-	virtual ~Asset(){}
+	Asset() : m_Key(wxT("")), m_pComponent(nullptr){}
+	virtual ~Asset(){ SAFE_DELETE(m_pComponent) }
 
 	template<typename T>
 	T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }

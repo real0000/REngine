@@ -17,7 +17,7 @@ void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt,
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	float2 l_Texcoord = c_PixelSize * a_ThreadID.xy;
-	float2 l_MinMax = g_MinMapTexture.SampleLevel(s_LinearSampler, l_Texcoord, c_MipmapLevel).xy;
+	float2 l_MinMax = g_MinMapTexture.SampleLevel(g_MinMapTextureSampler, l_Texcoord, c_MipmapLevel).xy;
 	float2 l_Center = a_ThreadID.xy / c_TileCount * float2(2.0, -2.0) + float2(-1.0, 1.0);
 	float2 l_Offset = 0.5 / c_TileCount;
 

@@ -158,6 +158,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 	// srv
 	unsigned int l_Slot = 0;
 	unsigned int l_UavSlot = 0;
+	unsigned int l_SamplerSlot = 0;
 	{
 		const ShaderRegType::Key c_SrvSerial[] = {ShaderRegType::Srv2D, ShaderRegType::Srv3D, ShaderRegType::Srv2DArray, ShaderRegType::SrvCube, ShaderRegType::SrvCubeArray}; 
 		const unsigned int c_NumType = sizeof(c_SrvSerial) / sizeof(const ShaderRegType::Key);
@@ -205,7 +206,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 						l_RegRangeCollect.back()->RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 						l_RegRangeCollect.back()->NumDescriptors = 1;
-						l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
+						l_RegRangeCollect.back()->BaseShaderRegister = l_SamplerSlot;
 						l_RegRangeCollect.back()->RegisterSpace = 0;
 						l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
 
@@ -216,7 +217,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 						l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
 						l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 
-						++l_TargetSlot;
+						++l_SamplerSlot;
 					}
 				}
 			}
@@ -1089,7 +1090,7 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 		{
 			snprintf(l_Buff, 256, "%s %s : register(t%d);\n", l_TypeStr.c_str(), it->first.c_str(), it->second->m_pRegInfo->m_Slot);
 			m_ParamDefine += l_Buff;
-			snprintf(l_Buff, 256, "Sampler %sSampler : register(s%d);\n", it->first.c_str(), it->second->m_pRegInfo->m_Slot);
+			snprintf(l_Buff, 256, "sampler %sSampler : register(s%d);\n", it->first.c_str(), it->second->m_pRegInfo->m_Slot);
 			m_ParamDefine += l_Buff;
 		}
 	}

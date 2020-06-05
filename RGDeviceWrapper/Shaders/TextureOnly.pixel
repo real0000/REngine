@@ -5,8 +5,8 @@ PS_CommonOutput main(PS_CommonInput a_Input)
 {
 	PS_CommonOutput l_Output = (PS_CommonOutput)0;
 
-	l_Output.m_Target0.xyz = encodeNormal(m_NormalTex.Sample(s_LinearSampler, a_Input.m_Texcoord01.xy));
-	l_Output.m_Target2 = m_DiffTex.Sample(s_LinearSampler, a_Input.m_Texcoord01.xy);
+	l_Output.m_Target0.xyz = encodeNormal(m_NormalTex.Sample(m_NormalTexSampler, a_Input.m_Texcoord01.xy));
+	l_Output.m_Target2 = m_DiffTex.Sample(m_DiffTexSampler, a_Input.m_Texcoord01.xy);
 
 	return l_Output;
 }

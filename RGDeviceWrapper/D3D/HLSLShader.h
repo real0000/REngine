@@ -51,6 +51,7 @@ private:
 	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::UavBuffer+1];// temp data
 	std::map<std::string, std::pair<int, int> > m_ConstantMap;// stage(b#) : root slot, offset
 	std::vector<unsigned int> m_TextureStageMap;// stage(t#) : root slot
+	std::vector<unsigned int> m_SamplerStageMap;// stage(s#) : root slot
 	std::vector<unsigned int> m_ConstStageMap;// stage(b#) : root slot
 	std::vector<unsigned int> m_UavStageMap;// stage(u#) : root slot
 

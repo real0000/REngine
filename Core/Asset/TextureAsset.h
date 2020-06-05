@@ -31,7 +31,7 @@ public:
 	void initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);
 
 
-	int getSampler();
+	int getSamplerID();
 	int getTextureID(){ return m_TextureID; }
 	PixelFormat::Key getTextureFormat();
 	glm::ivec3 getDimension();

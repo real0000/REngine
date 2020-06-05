@@ -68,8 +68,8 @@ std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember,
 
 SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
-	, m_World(glm::mat4x4())
-	, m_LocalTransform(glm::mat4x4())
+	, m_World(1.0)
+	, m_LocalTransform(1.0)
 	, m_pMembers(new SharedSceneMember)
 {
 	*m_pMembers = *a_pSharedMember;

@@ -427,8 +427,8 @@ public:
 		auto it = m_FileIDMap.find(a_Filename);
 		if( m_FileIDMap.end() == it ) return;
 
-		m_FileIDMap.erase(it);
 		m_ManagedObject.release(it->second);
+		m_FileIDMap.erase(it);
 	}
 
 	wxString findFullPath(wxString a_Filename)

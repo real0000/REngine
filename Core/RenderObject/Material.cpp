@@ -301,6 +301,7 @@ void Material::bindTexture(GraphicCommander *a_pBinder)
 		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
 		TextureType l_Type = l_pTextureComp->getTextureType();
 		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type);
+		a_pBinder->bindSampler(l_pTextureComp->getSamplerID(), i);
 	}
 }
 
