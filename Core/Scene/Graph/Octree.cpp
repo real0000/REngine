@@ -134,6 +134,12 @@ void OctreePartition::getVisibleList(std::shared_ptr<CameraComponent> a_pTargetC
 	assignBoxIntersect(a_pTargetCamera->getFrustum(), m_pRoot, a_Output);
 }
 
+void OctreePartition::getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
+{
+	a_Output.clear();
+	for( auto it=m_ModelMap.begin() ; it!=m_ModelMap.end() ; ++it ) a_Output.push_back(it->first);
+}
+
 void OctreePartition::flush()
 {
 	std::lock_guard<std::mutex> l_Guard(m_Locker);

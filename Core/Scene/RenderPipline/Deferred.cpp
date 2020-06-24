@@ -8,8 +8,8 @@
 
 #include "Core.h"
 #include "Asset/AssetBase.h"
+#include "Asset/MaterialAsset.h"
 #include "Asset/TextureAsset.h"
-#include "RenderObject/Material.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/TextureAtlas.h"
@@ -25,6 +25,10 @@ namespace R
 #define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
 #define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
 #define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
+
+#define LIGHTINDEX_ASSET_NAME wxT("DefferredLightIndex.Material")
+#define LIGHTING_ASSET_NAME wxT("TiledDefferredLighting.Material")
+#define COPY_ASSET_NAME wxT("Copy.Material")
 
 const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
 	{wxT("DefferredGBufferNormal.Image"), PixelFormat::rgba8_snorm},
@@ -50,11 +54,20 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_pFrameBuffer(nullptr)
 	, m_pDepthMinmax(nullptr)
 	, m_MinmaxStepCount(1)
-	, m_pLightIndexMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection)))
-	, m_pDeferredLightMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting)))
-	, m_pCopyMat(Material::create(ProgramManager::singleton().getData(DefaultPrograms::Copy)))
+	, m_pLightIndexMat(AssetManager::singleton().createAsset(LIGHTINDEX_ASSET_NAME).second)
+	, m_pDeferredLightMat(AssetManager::singleton().createAsset(LIGHTING_ASSET_NAME).second)
+	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME).second)
+	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
 	, m_ThreadPool(std::thread::hardware_concurrency())
 {
+	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
+	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
+	m_pCopyMatInst = m_pCopyMat->getComponent<MaterialAsset>();
+
+	m_pLightIndexMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection));
+	m_pDeferredLightMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting));
+	m_pCopyMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Copy));
+
 	m_pShadowMapDepth = AssetManager::singleton().createAsset(SHADOWMAP_ASSET_NAME).second;
 	m_pShadowMapDepth->getComponent<TextureAsset>()->initRenderTarget(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float);
 
@@ -65,13 +78,13 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 
 		char l_Buff[8];
 		snprintf(l_Buff, 8, "GBuff%d", i);
-		m_pDeferredLightMat->setTexture(l_Buff, m_pGBuffer[i]);
+		m_pDeferredLightMatInst->setTexture(l_Buff, m_pGBuffer[i]);
 	}
 	m_pFrameBuffer = AssetManager::singleton().createAsset(FRAMEBUFFER_ASSET_NAME).second;
 	m_pFrameBuffer->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
-	m_LightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
-	m_MeshIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 4);// use packed int
+	m_LightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
+	m_MeshIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 4);// use packed int
 
 	m_pCmdInit = GDEVICE()->commanderFactory();
 
@@ -81,18 +94,18 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME).second;
 	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
-	m_TiledValidLightIdx = m_pLightIndexMat->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
+	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
 
-	m_pLightIndexMat->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / EngineSetting::singleton().m_DefaultSize.x, 1.0f / EngineSetting::singleton().m_DefaultSize.y));
-	m_pLightIndexMat->setParam<int>("c_MipmapLevel", 0, (int)m_MinmaxStepCount);
-	m_pLightIndexMat->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
+	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / EngineSetting::singleton().m_DefaultSize.x, 1.0f / EngineSetting::singleton().m_DefaultSize.y));
+	m_pLightIndexMatInst->setParam<int>("c_MipmapLevel", 0, (int)m_MinmaxStepCount);
+	m_pLightIndexMatInst->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
 	
-	m_pLightIndexMat->setBlock("g_SrcLights", m_LightIdx);
-	m_pLightIndexMat->setBlock("g_DstLights", m_TiledValidLightIdx);
-	m_pLightIndexMat->setBlock("g_OmniLights", a_pSharedMember->m_pOmniLights->getMaterialBlock());
-	m_pLightIndexMat->setBlock("g_SpotLights", a_pSharedMember->m_pSpotLights->getMaterialBlock());
+	m_pLightIndexMatInst->setBlock("g_SrcLights", m_LightIdx);
+	m_pLightIndexMatInst->setBlock("g_DstLights", m_TiledValidLightIdx);
+	m_pLightIndexMatInst->setBlock("g_OmniLights", a_pSharedMember->m_pOmniLights->getMaterialBlock());
+	m_pLightIndexMatInst->setBlock("g_SpotLights", a_pSharedMember->m_pSpotLights->getMaterialBlock());
 
-	m_pCopyMat->setTexture("m_SrcTex", m_pFrameBuffer);
+	m_pCopyMatInst->setTexture("m_SrcTex", m_pFrameBuffer);
 
 	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
@@ -126,6 +139,9 @@ DeferredRenderer::~DeferredRenderer()
 	m_DrawCommand.clear();
 	// add memset ?
 
+	m_pLightIndexMatInst = nullptr;
+	m_pDeferredLightMatInst = nullptr;
+	m_pCopyMatInst = nullptr;
 	m_pDeferredLightMat = nullptr;
 	m_pLightIndexMat = nullptr;
 	m_LightIdx = nullptr;
@@ -135,7 +151,7 @@ DeferredRenderer::~DeferredRenderer()
 
 void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	std::vector< std::shared_ptr<RenderableComponent> > l_Lights, l_Meshes;
+	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_Meshes;
 	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) )
 	{
 		// clear backbuffer only if mesh list is empty
@@ -256,9 +272,9 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->begin(true);
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
-		m_pLightIndexMat->setBlock("g_Camera", a_pCamera->getMaterialBlock());
-		m_pLightIndexMat->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
-		m_pLightIndexMat->bindAll(m_pCmdInit);
+		m_pLightIndexMatInst->setBlock("g_Camera", a_pCamera->getMaterialBlock());
+		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
+		m_pLightIndexMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->compute(m_TileDim.x, m_TileDim.y);
 
 		m_pCmdInit->end();
@@ -266,7 +282,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		// draw frame buffer
 		m_pCmdInit->begin(false);
 		
-		m_pCmdInit->useProgram(m_pDeferredLightMat->getProgram());
+		m_pCmdInit->useProgram(m_pDeferredLightMat->getComponent<MaterialAsset>()->getProgram());
 		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
@@ -276,7 +292,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
 
 		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
-		m_pDeferredLightMat->bindAll(m_pCmdInit);
+		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->setTopology(Topology::triangle_strip);
 		m_pCmdInit->drawVertex(4, 0);
 
@@ -295,7 +311,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 			// temp : copy only
 			m_pCmdInit->begin(false);
 
-			m_pCmdInit->useProgram(m_pCopyMat->getProgram());
+			m_pCmdInit->useProgram(m_pCopyMatInst->getProgram());
 			m_pCmdInit->setRenderTargetWithBackBuffer(-1, a_pCanvas);
 			m_pCmdInit->clearBackBuffer(a_pCanvas, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 			
@@ -305,7 +321,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_CanvasSize.x, l_CanvasSize.y));
 
 			m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
-			m_pCopyMat->bindAll(m_pCmdInit);
+			m_pCopyMatInst->bindAll(m_pCmdInit);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
 			m_pCmdInit->drawVertex(4, 0);
 
@@ -327,7 +343,7 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<CameraComponent> a_pCame
 		{
 			RenderableMesh *l_pThis = reinterpret_cast<RenderableMesh *>(a_This.get());
 			RenderableMesh *l_pOther = reinterpret_cast<RenderableMesh *>(a_Other.get());
-			return l_pThis->getStage() > l_pOther->getStage();
+			return l_pThis->getMaterial()->getComponent<MaterialAsset>()->getStage() > l_pOther->getMaterial()->getComponent<MaterialAsset>()->getStage();
 		});
 	
 	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )
@@ -335,17 +351,10 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<CameraComponent> a_pCame
 		m_LightIdx->extend(m_ExtendSize / 2);
 	}
 
-	unsigned int l_NumMesh = 0;
-	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
-	{
-		RenderableMesh *l_pThis = reinterpret_cast<RenderableMesh *>(a_Mesh[i].get());
-		l_NumMesh += l_pThis->getNumSubMesh();
-	}
-
-	if( (int)l_NumMesh >= m_MeshIdx->getBlockSize() / sizeof(unsigned int) )
+	if( (int)a_Mesh.size() >= m_MeshIdx->getBlockSize() / sizeof(unsigned int) )
 	{
 		unsigned int l_ExtentUnit = m_ExtendSize / sizeof(unsigned int);
-		l_ExtentUnit = (l_NumMesh / l_ExtentUnit + 1) * l_ExtentUnit;
+		l_ExtentUnit = (a_Mesh.size() / l_ExtentUnit + 1) * l_ExtentUnit;
 		m_MeshIdx->extend(l_ExtentUnit);
 	}
 	return true;
@@ -566,7 +575,7 @@ void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int 
 				l_pCommandList->bindVertex(l_pMesh->getVtxBuffer().get());
 				l_pCommandList->bindIndex(l_pMesh->getIndexBuffer().get());
 				l_pMaterial->bindAll(l_pCommandList);
-				l_pCommandList->drawElement(0, l_pMesh->getIndexBuffer()->getNumIndicies(), 0);
+				l_pCommandList->drawElement(0, l_pMesh->getIndexBuffer()->getNumIndicies(), 0);*/
 			}
 		}
 		l_pCommandList->end();

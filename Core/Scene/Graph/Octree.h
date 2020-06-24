@@ -47,7 +47,7 @@ public:
 		std::shared_ptr<Node> m_pParent;
 		glm::daabb m_Bounding;
 
-		std::set< std::shared_ptr<RenderableComponent> > m_Models;
+		std::set<std::shared_ptr<RenderableComponent>> m_Models;
 	};
 
 public:
@@ -59,7 +59,8 @@ public:
 	virtual void remove(std::shared_ptr<RenderableComponent> a_pComponent);
 	virtual void clear();
 
-	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output);
+	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
+	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 
 	void setEdge(float a_Edge){ m_Edge = a_Edge; }
 
@@ -70,14 +71,14 @@ private:
 	int insertNode(std::shared_ptr<Node> a_pNode, glm::daabb &a_Box);
 	void removeNode(std::shared_ptr<Node> a_pNode);
 
-	void assignBoxIntersect(glm::frustumface &a_Frustum, std::shared_ptr<Node> a_pNode, std::vector< std::shared_ptr<RenderableComponent> > &a_Output);
-	void assignBoxInside(std::shared_ptr<Node> a_pNode, std::vector< std::shared_ptr<RenderableComponent> > &a_Output);
+	void assignBoxIntersect(glm::frustumface &a_Frustum, std::shared_ptr<Node> a_pNode, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
+	void assignBoxInside(std::shared_ptr<Node> a_pNode, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 
 	double m_Edge;
 	std::shared_ptr<Node> m_pRoot;
 	SerializedObjectPool<Node> m_NodePool;
 	std::map<std::shared_ptr<RenderableComponent>, int> m_ModelMap;
-	std::set< std::shared_ptr<RenderableComponent> > m_ModelUpdated;
+	std::set<std::shared_ptr<RenderableComponent>> m_ModelUpdated;
 
 	std::mutex m_Locker;
 };

@@ -6,6 +6,9 @@
 #include "RGDeviceWrapper.h"
 
 #include "AssetBase.h"
+#include "MaterialAsset.h"
+#include "MeshAsset.h"
+#include "SceneAsset.h"
 #include "TextureAsset.h"
 
 namespace R
@@ -25,6 +28,9 @@ AssetManager::AssetManager()
 	: SearchPathSystem(std::bind(&AssetManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&defaultNewFunc<Asset>))
 {
 	registAssetComponent<TextureAsset>();
+	registAssetComponent<MaterialAsset>();
+	registAssetComponent<MeshAsset>();
+	registAssetComponent<SceneAsset>();
 }
 
 AssetManager::~AssetManager()

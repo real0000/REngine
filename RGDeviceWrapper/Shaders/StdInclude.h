@@ -36,9 +36,10 @@
 		float3 m_Normal : NORMAL0;
 		float3 m_Tangent : TANGENT0;
 		float3 m_Binormal : BINORMAL0;
-		int4 m_BoneID : BLENDINDICES0;
+		uint4 m_BoneID : BLENDINDICES0;
 		float4 m_Weight : BLENDWEIGHT0;
 		float4 m_Color : COLOR0;
+		uint m_TransformID : BLENDINDICES1;
 	};
 	struct VS_CommonOutput
 	{

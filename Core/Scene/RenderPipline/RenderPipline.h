@@ -11,7 +11,6 @@ namespace R
 
 struct SharedSceneMember;
 class CameraComponent;
-class Material;
 class RenderableComponent;
 
 #define INIT_CONTAINER_SIZE 1024// general setting

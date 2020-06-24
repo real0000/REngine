@@ -169,6 +169,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Asset\AssetBase.h" />
+    <ClInclude Include="Asset\MaterialAsset.h" />
     <ClInclude Include="Asset\MeshAsset.h" />
     <ClInclude Include="Asset\SceneAsset.h" />
     <ClInclude Include="Asset\TextureAsset.h" />
@@ -178,7 +179,6 @@
     <ClInclude Include="Input\MouseInput.h" />
     <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="RenderObject\Light.h" />
-    <ClInclude Include="RenderObject\Material.h" />
     <ClInclude Include="RenderObject\Mesh.h" />
     <ClInclude Include="RenderObject\RenderObject.h" />
     <ClInclude Include="RenderObject\TextureAtlas.h" />
@@ -194,6 +194,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Asset\AssetBase.cpp" />
+    <ClCompile Include="Asset\MaterialAsset.cpp" />
     <ClCompile Include="Asset\MeshAsset.cpp" />
     <ClCompile Include="Asset\SceneAsset.cpp" />
     <ClCompile Include="Asset\TextureAsset.cpp" />
@@ -202,7 +203,6 @@
     <ClCompile Include="Input\MouseInput.cpp" />
     <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="RenderObject\Light.cpp" />
-    <ClCompile Include="RenderObject\Material.cpp" />
     <ClCompile Include="RenderObject\Mesh.cpp" />
     <ClCompile Include="RenderObject\RenderObject.cpp" />
     <ClCompile Include="RenderObject\TextureAtlas.cpp" />

@@ -14,6 +14,8 @@ namespace R
 // enging config file
 #define CONIFG_FILE "Config.ini"
 
+#define BATCHDRAW_UNIT 1024
+
 STRING_ENUM_CLASS(GraphicApi,
 	d3d11,
 	d3d12,

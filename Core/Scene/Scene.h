@@ -13,14 +13,16 @@ struct InputData;
 class CameraComponent;
 class DirLight;
 class EngineComponent;
-class MeshBatcher;
-class ModelCache;
+class GraphicCommander;
+class IndexBuffer;
+class MaterialBlock;
 class OmniLight;
 class RenderPipeline;
 class Scene;
 class SceneNode;
 class ScenePartition;
 class SpotLight;
+class VertexBuffer;
 
 template<typename T>
 class LightContainer;
@@ -30,6 +32,7 @@ struct SharedSceneMember
 	enum
 	{
 		GRAPH_MESH = 0,
+		GRAPH_STATIC_MESH,
 		GRAPH_LIGHT,
 		GRAPH_CAMERA,
 
@@ -46,8 +49,6 @@ struct SharedSceneMember
 	LightContainer<DirLight> *m_pDirLights;
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
-	MeshBatcher *m_pBatcher;
-	ModelCache *m_pModelFactory;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
 };
@@ -116,6 +117,15 @@ class Scene : public std::enable_shared_from_this<Scene>
 	friend class Scene;
 	friend class SceneManager;
 public:
+	struct MeshVtxCache
+	{
+		unsigned int m_VertexStart;
+		unsigned int m_IndexStart;
+		unsigned int m_IndexCount;
+	};
+	typedef std::vector<MeshVtxCache> MeshCache;
+	typedef std::pair<int, unsigned int> SkinRefCache;
+public:
 	virtual ~Scene();
 
 	void destroy();
@@ -140,6 +150,16 @@ public:
 	void removeInputListener(std::shared_ptr<EngineComponent> a_pComponent);
 	void clearInputListener();
 
+	// batch
+	int requestInstanceVtxBuffer();
+	void recycleInstanceVtxBuffer(int a_BufferID);
+	int requestSkinSlot(std::shared_ptr<Asset> a_pAsset);
+	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
+	void calculateStaticBatch();
+	bool getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput);
+	void bindBatchDrawData(GraphicCommander *a_pCommander);
+	std::shared_ptr<MaterialBlock> getSkinMatrixBlock(){ return m_SkinBlock; }
+
 	// misc;
 	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
@@ -161,10 +181,21 @@ private:
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
 	
 	std::mutex m_InputLocker;
-	std::list< std::shared_ptr<EngineComponent> > m_InputListener, m_ReadyInputListener;
-	std::set< std::shared_ptr<EngineComponent> > m_DroppedInputListener;
-	std::list< std::shared_ptr<EngineComponent> > m_UpdateCallback;
+	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;
+	std::set<std::shared_ptr<EngineComponent>> m_DroppedInputListener;
+	std::list<std::shared_ptr<EngineComponent>> m_UpdateCallback;
 	bool m_bActivate;
+
+	// batch data
+	std::shared_ptr<VertexBuffer> m_VertexBufffer;// for static objects
+	std::shared_ptr<IndexBuffer> m_IndexBuffer;
+	std::shared_ptr<MaterialBlock> m_SkinBlock;
+	VirtualMemoryPool m_SkinSlotManager;
+	std::map<std::shared_ptr<Asset>, SkinRefCache> m_SkinSlotCache;// origin mesh asset : (offset, ref count)
+	std::deque<int> m_InstancVtxBuffers;
+	std::vector<int> m_UsedInstancVtxBuffers;
+	std::mutex m_InstanceVtxLock, m_SkinSlotLock;
+	std::map<std::shared_ptr<Asset>, MeshCache*> m_StaticMeshes;// origin mesh asset : cache data
 };
 
 class SceneManager

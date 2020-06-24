@@ -335,6 +335,112 @@ unsigned int getPixelSize(PixelFormat::Key a_Key)
 	return 0;
 }
 
+#pragma region VirtualMemoryPool
+//
+// VirtualMemoryPool
+//
+VirtualMemoryPool::VirtualMemoryPool()
+	: m_CurrSize(0)
+{
+}
+
+VirtualMemoryPool::~VirtualMemoryPool()
+{
+	m_FreeSpaceList.clear();
+	m_AllocateMap.clear();
+}
+	
+int VirtualMemoryPool::malloc(int a_Size)
+{
+	int l_Res = -1;
+	for( auto it = m_FreeSpaceList.begin() ; m_FreeSpaceList.end() != it ; ++it )
+	{
+		if( it->second >= a_Size )
+		{
+			l_Res = it->first;
+			int l_NewOffset = it->first + a_Size;
+			int l_NewSize = it->second - a_Size;
+			m_FreeSpaceList.erase(it);
+			if( 0 != l_NewSize ) m_FreeSpaceList[l_NewOffset] = l_NewSize;
+			break;
+		}
+	}
+	if( -1 != l_Res ) m_AllocateMap[l_Res] = a_Size;
+	return l_Res;
+}
+
+void VirtualMemoryPool::free(int a_Offset)
+{
+	int l_Size = 0;
+	{
+		auto it = m_AllocateMap.find(a_Offset);
+		assert(m_AllocateMap.end() != it);
+		l_Size = it->second;
+		m_AllocateMap.erase(l_Size);
+	}
+
+	int l_PrevOffset = a_Offset;
+	int l_NextOffset = a_Offset + l_Size;
+
+	auto l_PrevIt = m_FreeSpaceList.end();
+	for( auto it = m_FreeSpaceList.begin() ; m_FreeSpaceList.end() != it ; ++it )
+	{
+		if( it->first + it->second == l_PrevOffset )
+		{
+			it->second += l_Size;
+			l_PrevIt = it;
+		}
+		else if( it->first == l_NextOffset )
+		{
+			if( m_FreeSpaceList.end() != l_PrevIt )
+			{
+				l_PrevIt->second += it->second;
+				m_FreeSpaceList.erase(it);
+			}
+			else
+			{
+				int l_NewSize = it->second + l_Size;
+				m_FreeSpaceList.erase(it);
+				m_FreeSpaceList[a_Offset] = l_NewSize;
+			}
+			break;
+		}
+		else if( it->first > l_NextOffset )
+		{
+			m_FreeSpaceList[a_Offset] = l_Size;
+			break;
+		}
+	}
+}
+
+void VirtualMemoryPool::purge()
+{
+	m_FreeSpaceList.clear();
+	m_AllocateMap.clear();
+	m_FreeSpaceList.insert(std::make_pair(0, m_CurrSize));
+}
+
+void VirtualMemoryPool::init(int a_Size)
+{
+	assert(0 == m_CurrSize);
+	m_CurrSize = a_Size;
+	m_FreeSpaceList.insert(std::make_pair(0, a_Size));
+}
+
+void VirtualMemoryPool::extend(int a_Size)
+{
+	assert(0 != m_CurrSize);
+	if( m_FreeSpaceList.empty() ) m_FreeSpaceList.insert(std::make_pair(m_CurrSize, a_Size));
+	else
+	{
+		auto it = m_FreeSpaceList.rbegin();
+		if( it->first + it->second == m_CurrSize ) it->second += a_Size;
+		else m_FreeSpaceList.insert(std::make_pair(m_CurrSize, a_Size));
+	}
+	m_CurrSize += a_Size;
+}
+#pragma endregion
+
 #pragma region ImageAtlas
 #pragma region ImageAtlas::SplitNode
 //

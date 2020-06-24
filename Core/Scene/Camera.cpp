@@ -8,7 +8,7 @@
 #include "Core.h"
 #include "Camera.h"
 
-#include "RenderObject/Material.h"
+#include "Asset/MaterialAsset.h"
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
 #include "Scene/RenderPipline/RenderPipline.h"

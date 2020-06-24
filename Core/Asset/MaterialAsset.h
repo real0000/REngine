@@ -1,10 +1,12 @@
-// Material.h
+// MaterialAsset.h
 //
 // 2015/11/12 Ian Wu/Real0000
 //
 
-#ifndef _MATERIAL_H_
-#define _MATERIAL_H_
+#ifndef _MATERIAL_ASSET_H_
+#define _MATERIAL_ASSET_H_
+
+#include "AssetBase.h"
 
 namespace R
 {
@@ -27,6 +29,10 @@ class MaterialBlock
 public:
 	static std::shared_ptr<MaterialBlock> create(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDesc, unsigned int a_NumSlot = 1);
 	virtual ~MaterialBlock();
+
+	// for const block
+	virtual void loadFile(boost::property_tree::ptree &a_Parent);
+	virtual void saveFile(boost::property_tree::ptree &a_Parent);
 
 	// uav only
 	void extend(unsigned int a_Size);
@@ -81,14 +87,22 @@ private:
 	ShaderRegType::Key m_Type;
 };
 
-class Material
+class MaterialAsset : public AssetComponent
 {
-	friend class Material;
 public:
-	static std::shared_ptr<Material> create(std::shared_ptr<ShaderProgram> a_pRefProgram);
-	virtual ~Material();
+	MaterialAsset();
+	virtual ~MaterialAsset();
+	
+	// for asset factory
+	static void validImportExt(std::vector<wxString> &a_Output){}
+	static wxString validAssetKey(){ return wxT("Material"); }
 
-	std::shared_ptr<Material> clone();
+	virtual wxString getAssetExt(){ return MaterialAsset::validAssetKey(); }
+	virtual void importFile(wxString a_File){}
+	virtual void loadFile(boost::property_tree::ptree &a_Src);
+	virtual void saveFile(boost::property_tree::ptree &a_Dst);
+
+	void init(std::shared_ptr<ShaderProgram> a_pRefProgram);
 	std::shared_ptr<MaterialBlock> createExternalBlock(ShaderRegType::Key a_Type, std::string a_Name, unsigned int a_NumSlot = 1);
 
 	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
@@ -118,7 +132,6 @@ public:
 		if( nullptr == l_pTargetBlock ) return;
 
 		l_pTargetBlock->setParam(a_Name, a_Slot, a_Param);
-		m_bNeedUavUpdate = true;
 	}
 	template<typename T>
 	T getParam(std::string a_Name, unsigned int a_Slot)
@@ -145,29 +158,28 @@ public:
 		if( nullptr == l_pTargetBlock ) return l_Empty;
 		return l_pTargetBlock->getParam(a_Name, a_Slot);
 	}
-
-	// only valid if supportExtraIndirectCommand is true
-	bool canBatch(std::shared_ptr<Material> a_Other);
-	// if supportExtraIndirectCommand is false, assign only draw command
-	void assignIndirectCommand(char *a_pOutput, std::shared_ptr<VertexBuffer> a_pVtxBuffer, std::shared_ptr<IndexBuffer> a_pIndexBuffer, IndirectDrawData a_DrawInfo);
+	
+	void setStage(unsigned int a_Stage){ m_Stage = a_Stage; }
+	unsigned int getStage(){ return m_Stage; }
+	int requestInstanceSlot();
+	void freeInstanceSlot(unsigned int a_Slot);
 
 	void bindTexture(GraphicCommander *a_pBinder);
 	void bindBlocks(GraphicCommander *a_pBinder);
 	void bindAll(GraphicCommander *a_pBinder);
-
-	bool needRebatch(){ return m_bNeedRebatch; }
-	bool needUavUpdate(){ return m_bNeedUavUpdate; }
-	void syncEnd(){ m_bNeedRebatch = m_bNeedUavUpdate = false; }
-
+	
 private:
-	Material(std::shared_ptr<ShaderProgram> a_pRefProgram);
-	Material(Material *a_pSrc);
-
+	unsigned int m_Stage;
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
-	std::vector< std::shared_ptr<Asset> > m_Textures;
+	std::set<unsigned int> m_ReservedCBV;
+	std::vector<std::shared_ptr<Asset>> m_Textures;
 
-	bool m_bNeedRebatch, m_bNeedUavUpdate;// valid if supportExtraIndirectCommand
+	// instance part
+	std::deque<int> m_FreeInstanceSlot;
+	std::mutex m_InstanceLock;
+	int m_InstanceUavIndex;
+	unsigned int m_CurrInstanceSize;
 };
 
 }

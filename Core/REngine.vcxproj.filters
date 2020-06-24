@@ -52,9 +52,6 @@
     <ClInclude Include="Scene\Graph\ScenePartition.h">
       <Filter>Scene\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="RenderObject\Material.h">
-      <Filter>RenderObject</Filter>
-    </ClInclude>
     <ClInclude Include="RenderObject\RenderObject.h">
       <Filter>RenderObject</Filter>
     </ClInclude>
@@ -81,6 +78,9 @@
     </ClInclude>
     <ClInclude Include="RenderObject\TextureAtlas.h">
       <Filter>RenderObject</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset\MaterialAsset.h">
+      <Filter>Asset</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -114,9 +114,6 @@
     <ClCompile Include="Scene\Graph\ScenePartition.cpp">
       <Filter>Scene\Graph</Filter>
     </ClCompile>
-    <ClCompile Include="RenderObject\Material.cpp">
-      <Filter>RenderObject</Filter>
-    </ClCompile>
     <ClCompile Include="RenderObject\RenderObject.cpp">
       <Filter>RenderObject</Filter>
     </ClCompile>
@@ -143,6 +140,9 @@
     </ClCompile>
     <ClCompile Include="RenderObject\TextureAtlas.cpp">
       <Filter>RenderObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\MaterialAsset.cpp">
+      <Filter>Asset</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

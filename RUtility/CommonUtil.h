@@ -235,6 +235,26 @@ private:									\
 std::vector<wxString> classname::m_Strings;\
 std::map<wxString, classname::Key> classname::m_StringMap;
 
+class VirtualMemoryPool
+{
+public:
+	VirtualMemoryPool();
+	virtual ~VirtualMemoryPool();
+	
+	int malloc(int a_Size);//return offset
+	void free(int a_Offset);
+	void purge();
+
+	void init(int a_Size);
+	void extend(int a_Size);
+
+	int getCurrentSize(){ return m_CurrSize; }
+
+private:
+	int m_CurrSize;
+	std::map<int, int> m_FreeSpaceList, m_AllocateMap;
+};
+
 enum TextureType
 {
 	TEXTYPE_SIMPLE_2D = 0,

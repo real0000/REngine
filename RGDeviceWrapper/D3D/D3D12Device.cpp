@@ -371,13 +371,19 @@ void D3D12Commander::drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx)
 	m_CurrThread.second->DrawIndexedInstanced(a_NumIdx, 1, a_BaseIdx, a_BaseVtx, 0);
 }
 
-void D3D12Commander::drawIndirect(std::shared_ptr<ShaderProgram> a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset)
+void D3D12Commander::drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset)
 {
 	ID3D12Resource *l_pArgBuffer = static_cast<ID3D12Resource *>(a_pResPtr);
 	ID3D12Resource *l_pCounterBuffer = static_cast<ID3D12Resource *>(a_pCounterPtr);
-	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(), a_MaxCmd, l_pArgBuffer, a_BufferOffset, l_pCounterBuffer, 0);
+	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(false), a_MaxCmd, l_pArgBuffer, a_BufferOffset, l_pCounterBuffer, 0);
 }
-	
+
+void D3D12Commander::drawIndirect(unsigned int a_MaxCmd, int a_BuffID)
+{
+	ID3D12Resource *l_pArgBuffer = TYPED_GDEVICE(D3D12Device)->getIndirectCommandBuffer(a_BuffID);
+	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(true), a_MaxCmd, l_pArgBuffer, 0, nullptr, 0);
+}
+
 void D3D12Commander::compute(unsigned int a_CountX, unsigned int a_CountY, unsigned int a_CountZ)
 {
 	m_CurrThread.second->Dispatch(a_CountX, a_CountY, a_CountZ);
@@ -432,7 +438,6 @@ void D3D12Commander::setRenderTargetWithBackBuffer(int a_DepthID, GraphicCanvas 
 	D3D12_CPU_DESCRIPTOR_HANDLE l_RtvHandle(m_pRefHeapOwner->getCpuHandle(a_pCanvas->getBackBuffer()));
 	resourceTransition(m_CurrThread.second, m_pRefBackBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_CurrThread.second->OMSetRenderTargets(1, &l_RtvHandle, FALSE, -1 == a_DepthID ? nullptr : &(m_pRefDevice->getRenderTargetCpuHandle(a_DepthID)));
-
 }
 
 void D3D12Commander::setViewPort(int a_NumViewport, ...)
@@ -576,7 +581,7 @@ void D3D12Canvas::resizeBackBuffer()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
-	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer()
+	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer(), m_ManagedIndirectCommandBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_MsaaSetting({1, 0})
@@ -592,6 +597,7 @@ D3D12Device::D3D12Device()
 	BIND_DEFAULT_ALLOCATOR(IndexBinder, m_ManagedIndexBuffer);
 	BIND_DEFAULT_ALLOCATOR(ConstBufferBinder, m_ManagedConstBuffer);
 	BIND_DEFAULT_ALLOCATOR(UnorderAccessBufferBinder, m_ManagedUavBuffer);
+	BIND_DEFAULT_ALLOCATOR(IndirectCommandBinder, m_ManagedIndirectCommandBuffer);
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = std::make_pair(nullptr, nullptr);
 }
@@ -615,6 +621,7 @@ D3D12Device::~D3D12Device()
 	m_ManagedIndexBuffer.clear();
 	m_ManagedConstBuffer.clear();
 	m_ManagedUavBuffer.clear();
+	m_ManagedIndirectCommandBuffer.clear();
 
 	SAFE_RELEASE(m_pGraphicInterface)
 	SAFE_RELEASE(m_pResCmdQueue)
@@ -1504,6 +1511,11 @@ D3D12_INDEX_BUFFER_VIEW& D3D12Device::getIndexBufferView(int a_ID)
 	return m_ManagedIndexBuffer[a_ID]->m_IndexView;
 }
 
+ID3D12Resource* D3D12Device::getIndirectCommandBuffer(int a_ID)
+{
+	return m_ManagedIndirectCommandBuffer[a_ID]->m_pResource;
+}
+
 // cbv part
 int D3D12Device::requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size)
 {
@@ -1745,6 +1757,28 @@ void D3D12Device::freeUavBuffer(int a_ID)
 	SAFE_DELETE_ARRAY(l_pTargetBinder->m_pCurrBuff)
 
 	m_ManagedUavBuffer.release(a_ID);
+}
+
+// misc part
+int D3D12Device::requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int a_Size)
+{
+	ID3D12Resource *l_pNewResource = initSizedResource(a_Size, D3D12_HEAP_TYPE_UPLOAD);
+
+	std::shared_ptr<IndirectCommandBinder> l_pTargetBinder = nullptr;
+	unsigned int l_BuffID = m_ManagedIndirectCommandBuffer.retain(&l_pTargetBinder);
+
+	HRESULT l_Res = l_pNewResource->Map(0, nullptr, reinterpret_cast<void**>(&l_pTargetBinder->m_pTargetBuffer));
+	if( S_OK != l_Res )
+	{
+		wxMessageBox(wxT("failed to indirect buff"), wxT("D3D12Device::requestIndrectCommandBuffer"));
+		return -1;
+	}
+	l_pTargetBinder->m_pResource = l_pNewResource;
+	a_pOutputBuff = l_pTargetBinder->m_pTargetBuffer;
+}
+
+void D3D12Device::freeIndrectCommandBuffer(int a_BuffID)
+{
 }
 
 // thread part

@@ -40,7 +40,8 @@ public:
 	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil) = 0;
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
-	virtual void drawIndirect(std::shared_ptr<ShaderProgram> a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
+	virtual void drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
+	virtual void drawIndirect(unsigned int a_MaxCmd, int a_BuffID) = 0;
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;
 
 	virtual void setTopology(Topology::Key a_Key) = 0;
@@ -162,6 +163,10 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList) = 0;// uav id, start, end
 	virtual void freeUavBuffer(int a_BuffID) = 0;
+
+	// misc
+	virtual int requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int a_Size) = 0;
+	virtual void freeIndrectCommandBuffer(int a_BuffID) = 0;
 	
 protected:
 	std::map<unsigned int, wxString> m_DeviceMap;// id : device name

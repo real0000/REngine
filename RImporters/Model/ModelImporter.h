@@ -74,8 +74,9 @@ public:
         Meshes()
 			: m_Name(wxT(""))
 			, m_Index(0)
-			, m_bHasBone(false)
 			, m_RefMaterial(-1)
+			, m_bHasBone(false)
+			, m_BoundingBox()
 		{
 		}
 		virtual ~Meshes(){}
@@ -88,6 +89,7 @@ public:
 		int m_RefMaterial;
         std::vector<ModelNode *> m_RefNode;
 		bool m_bHasBone;
+		glm::aabb m_BoundingBox;
     };
 public:
 	ModelData();
@@ -98,14 +100,12 @@ public:
 	std::vector<Meshes *>& getMeshes(){ return m_Meshes; }
 	ModelNode* find(wxString a_Name);
 	ModelNode* getRootNode(){ return m_pRootNode; }
-	glm::aabb getBoundingBox(){ return m_BoundingBox; }
 	std::vector<glm::mat4x4>& getBones(){ return m_Bones; }
 
 private:
 	std::set<int> m_Materials;
     std::vector<Meshes *> m_Meshes;
 	std::vector<glm::mat4x4> m_Bones;
-	glm::aabb m_BoundingBox;
 	ModelNode *m_pRootNode;
 };
 

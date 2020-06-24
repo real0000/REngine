@@ -33,6 +33,7 @@ public:
 	template<typename T>
 	T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }
 	wxString getAssetExt(){ return nullptr == m_pComponent ? wxT("") : m_pComponent->getAssetExt(); }
+	wxString getKey(){ return m_Key; }
 
 private:
 	wxString m_Key;

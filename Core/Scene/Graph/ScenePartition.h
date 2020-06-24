@@ -9,6 +9,7 @@
 namespace R
 {
 
+struct IndirectDrawData;
 class CameraComponent;
 class RenderableComponent;
 
@@ -27,7 +28,8 @@ public:
 	virtual void remove(std::shared_ptr<RenderableComponent> a_pComponent) = 0;
 	virtual void clear() = 0;
 	
-	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output) = 0;
+	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output) = 0;
+	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output) = 0;
 };
 
 }

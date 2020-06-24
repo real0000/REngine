@@ -28,7 +28,7 @@ private:
 public:
 	ID3D12PipelineState* getPipeline(){ return m_pPipeline; }
 	ID3D12RootSignature* getRegDesc(){ return m_pRegisterDesc; }
-	ID3D12CommandSignature* getCommandSignature(){ return m_pIndirectFmt; }
+	ID3D12CommandSignature* getCommandSignature(bool a_bSimple){ return a_bSimple ? m_pSimpleIndirectFmt : m_pIndirectFmt; }
 	int getTextureSlot(unsigned int a_Stage){ return a_Stage >= m_TextureStageMap.size() ? -1 : (int)m_TextureStageMap[a_Stage]; }
 	std::pair<int, int> getConstantSlot(std::string a_Name);
 	int getConstBufferSlot(int a_Stage){ return (int)m_ConstStageMap.size() <= a_Stage ? -1 : (int)m_ConstStageMap[a_Stage]; }
@@ -47,7 +47,7 @@ private:
 
 	ID3D12PipelineState *m_pPipeline;
 	ID3D12RootSignature *m_pRegisterDesc;
-	ID3D12CommandSignature *m_pIndirectFmt;
+	ID3D12CommandSignature *m_pIndirectFmt, *m_pSimpleIndirectFmt;
 	std::map<std::string, RegisterInfo *> m_RegMap[ShaderRegType::UavBuffer+1];// temp data
 	std::map<std::string, std::pair<int, int> > m_ConstantMap;// stage(b#) : root slot, offset
 	std::vector<unsigned int> m_TextureStageMap;// stage(t#) : root slot

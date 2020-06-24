@@ -13,6 +13,9 @@
   <UavBuffer name="PackedFloat">
     <Param name="m_Params" desc="" type="float4"/>
   </UavBuffer>
+  <UavBuffer name="SkinMatrix">
+    <Param name="m_Matrix" desc="" type="float4x4"/>
+  </UavBuffer>
   <UavBuffer name="DirLight">
     <Param name="m_Color" desc="" type="float3"/>
     <Param name="m_Intensity" desc="" type="float1"/>

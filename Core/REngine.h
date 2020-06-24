@@ -18,13 +18,15 @@
 #include "StateMachine.h"
 
 #include "Asset/AssetBase.h"
+#include "Asset/MaterialAsset.h"
+#include "Asset/MeshAsset.h"
+#include "Asset/SceneAsset.h"
 #include "Asset/TextureAsset.h"
 
 #include "Input/InputMediator.h"
 #include "Input/KeyboardInput.h"
 #include "Input/MouseInput.h"
 
-#include "RenderObject/Material.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/RenderObject.h"
 

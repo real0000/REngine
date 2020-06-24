@@ -12,7 +12,6 @@
 namespace R
 {
 
-
 #pragma region NoPartition
 //
 // NoPartition
@@ -45,10 +44,16 @@ void NoPartition::clear()
 	m_Container.clear();
 }
 
-void NoPartition::getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output)
+void NoPartition::getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
+{
+	getAllComponent(a_Output);
+}
+
+void NoPartition::getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
 {
 	a_Output.resize(m_Container.size());
 	std::copy(m_Container.begin(), m_Container.end(), a_Output.begin());
 }
+#pragma endregion
 
 }

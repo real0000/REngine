@@ -89,6 +89,7 @@ int ShaderProgram::m_NullVtxRefCount = 0;
 ShaderProgram::ShaderProgram()
 	: m_bCompute(false)
 	, m_bIndexedDraw(true)
+	, m_Name(wxT(""))
 {
 	if( nullptr == m_pNullVtxBuffer )
 	{
@@ -140,8 +141,10 @@ ShaderProgram::~ShaderProgram()
 	}
 }
 
-void ShaderProgram::setup(boost::property_tree::ptree &a_Root)
+void ShaderProgram::setup(wxString a_Name, boost::property_tree::ptree &a_Root)
 {
+	m_Name = getFileName(a_Name);
+
 	const std::pair<int, int> c_ShaderModelList[] = {
 		std::make_pair(6, 0),
 		std::make_pair(5, 1),
@@ -350,7 +353,12 @@ ProgramBlockDesc* ProgramManager::createBlockFromDesc(boost::property_tree::ptre
 		l_pNewParam->m_Describe = l_ParamAttr.get<std::string>("desc", "");
 		l_pNewParam->m_Type = l_ParamType;
 		l_pNewParam->m_pDefault = new char[l_ParamSize];
-		parseInitValue(l_ParamType, l_ParamAttr, l_pNewParam->m_pDefault);
+		
+		if( 0 == l_ParamAttr.count("init") ) 
+		{
+			memset(l_pNewParam->m_pDefault, 0, GDEVICE()->getParamAlignmentSize(l_ParamType));
+		}
+		else parseShaderParamValue(l_ParamType, l_ParamAttr.get<std::string>("init"), l_pNewParam->m_pDefault);
 
 		l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_ParamOffset, l_ParamType, l_pNewParam->m_ArraySize);
 	}
@@ -365,75 +373,6 @@ ProgramBlockDesc* ProgramManager::createBlockFromDesc(std::string a_BlockName)
 	return createBlockFromDesc(*(m_BlockDefineMap[a_BlockName]));
 }
 
-void ProgramManager::parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst)
-{
-	if( 0 == a_Src.count("init") ) 
-	{
-		memset(a_pDst, 0, GDEVICE()->getParamAlignmentSize(a_Type));
-		return;
-	}
-
-	switch( a_Type )
-	{
-		case ShaderParamType::int1:
-			*reinterpret_cast<int *>(a_pDst) = a_Src.get<int>("init");
-			break;
-
-		case ShaderParamType::int2:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%d,%d)"
-				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1);
-			break;
-
-		case ShaderParamType::int3:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%d,%d,%d)"
-				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1, a_pDst + sizeof(int) * 2);
-			break;
-						
-		case ShaderParamType::int4:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%d,%d,%d,%d)"
-				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1, a_pDst + sizeof(int) * 2, a_pDst + sizeof(int) * 3);
-			break;
-
-		case ShaderParamType::float1:
-			*reinterpret_cast<float *>(a_pDst) = a_Src.get<float>("init");
-			break;
-						
-		case ShaderParamType::float2:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%f,%f)"
-				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1);
-			break;
-
-		case ShaderParamType::float3:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%f,%f,%f)"
-				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2);
-			break;
-						
-		case ShaderParamType::float4:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%f,%f,%f,%f)"
-				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2, a_pDst + sizeof(float) * 3);
-			break;
-						
-		case ShaderParamType::float3x3:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%f,%f,%f),(%f,%f,%f),(%f,%f,%f)"
-				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2
-				, a_pDst + sizeof(float) * 3, a_pDst + sizeof(float) * 4, a_pDst + sizeof(float) * 5
-				, a_pDst + sizeof(float) * 6, a_pDst + sizeof(float) * 7, a_pDst + sizeof(float) * 8);
-			break;
-						
-		case ShaderParamType::float4x4:
-			sscanf(a_Src.get<std::string>("init").c_str(), "(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f)"
-				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2, a_pDst + sizeof(float) * 3
-				, a_pDst + sizeof(float) * 4, a_pDst + sizeof(float) * 5, a_pDst + sizeof(float) * 6, a_pDst + sizeof(float) * 7
-				, a_pDst + sizeof(float) * 8, a_pDst + sizeof(float) * 9, a_pDst + sizeof(float) * 10, a_pDst + sizeof(float) * 11
-				, a_pDst + sizeof(float) * 12, a_pDst + sizeof(float) * 13, a_pDst + sizeof(float) * 14, a_pDst + sizeof(float) * 15);
-			break;
-
-		default:
-			assert(false && "invalid param type");
-			break;
-	}
-}
-
 std::shared_ptr<ShaderProgram> ProgramManager::allocator()
 {
 	return std::shared_ptr<ShaderProgram>(m_pShaderComponent->newProgram());
@@ -444,7 +383,7 @@ void ProgramManager::loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a
 	boost::property_tree::ptree l_XMLTree;
 	boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree, boost::property_tree::xml_parser::no_comments);
 	assert( !l_XMLTree.empty() );
-	a_pInst->setup(l_XMLTree);
+	a_pInst->setup(getFileName(a_Path), l_XMLTree);
 }
 
 void ProgramManager::initBlockDefine(wxString a_Filepath)
@@ -468,5 +407,144 @@ void ProgramManager::initDefaultProgram()
 	}
 }
 #pragma endregion
+
+bool drawDataCompare(const IndirectDrawData *a_pLeft, const IndirectDrawData *a_pRight)
+{
+	if( a_pLeft->m_IndexCount < a_pRight->m_IndexCount ) return true;
+	else if( a_pLeft->m_IndexCount > a_pRight->m_IndexCount ) return false;
+	else if( a_pLeft->m_StartIndex < a_pRight->m_StartIndex ) return true;
+	else if( a_pLeft->m_StartIndex > a_pRight->m_StartIndex ) return false;
+	return a_pLeft->m_BaseVertex < a_pRight->m_BaseVertex;
+}
+
+std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc)
+{
+	char l_Buff[1024];
+	switch( a_Type )
+	{
+		case ShaderParamType::int1:{
+			snprintf(l_Buff, 1024, "%d", *reinterpret_cast<int *>(a_pSrc));
+			}break;
+
+		case ShaderParamType::int2:{
+			int *l_pConvert = reinterpret_cast<int *>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%d,%d)", l_pConvert[0], l_pConvert[1]);
+			}break;
+
+		case ShaderParamType::int3:{
+			int *l_pConvert = reinterpret_cast<int *>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%d,%d,%d)", l_pConvert[0], l_pConvert[1], l_pConvert[2]);
+			}break;
+						
+		case ShaderParamType::int4:{
+			int *l_pConvert = reinterpret_cast<int *>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%d,%d,%d,%d)", l_pConvert[0], l_pConvert[1], l_pConvert[2], l_pConvert[3]);
+			}break;
+
+		case ShaderParamType::float1:{
+			snprintf(l_Buff, 1024, "%f", *reinterpret_cast<float*>(a_pSrc));
+			}break;
+						
+		case ShaderParamType::float2:{
+			float *l_pConvert = reinterpret_cast<float*>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%f,%f)", l_pConvert[0], l_pConvert[1]);
+			}break;
+
+		case ShaderParamType::float3:{
+			float *l_pConvert = reinterpret_cast<float*>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%f,%f,%f)", l_pConvert[0], l_pConvert[1], l_pConvert[2]);
+			}break;
+						
+		case ShaderParamType::float4:{
+			float *l_pConvert = reinterpret_cast<float*>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%f,%f,%f,%f)", l_pConvert[0], l_pConvert[1], l_pConvert[2], l_pConvert[3]);
+			}break;
+						
+		case ShaderParamType::float3x3:{
+			float *l_pConvert = reinterpret_cast<float*>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%f,%f,%f),(%f,%f,%f),(%f,%f,%f)"
+				, l_pConvert[0], l_pConvert[1], l_pConvert[2]
+				, l_pConvert[3], l_pConvert[4], l_pConvert[5]
+				, l_pConvert[6], l_pConvert[7], l_pConvert[8]);
+			}break;
+						
+		case ShaderParamType::float4x4:{
+			float *l_pConvert = reinterpret_cast<float*>(a_pSrc);
+			snprintf(l_Buff, 1024, "(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f)"
+				, l_pConvert[0], l_pConvert[1], l_pConvert[2], l_pConvert[3]
+				, l_pConvert[4], l_pConvert[5], l_pConvert[6], l_pConvert[7]
+				, l_pConvert[8], l_pConvert[9], l_pConvert[10], l_pConvert[11]
+				, l_pConvert[12], l_pConvert[13], l_pConvert[14], l_pConvert[15]);
+			}break;
+
+		default:
+			assert(false && "invalid param type");
+			break;
+	}
+	return l_Buff;
+}
+
+void parseShaderParamValue(ShaderParamType::Key a_Type, std::string a_Src, char *a_pDst)
+{
+	switch( a_Type )
+	{
+		case ShaderParamType::int1:
+			*reinterpret_cast<int *>(a_pDst) = atoi(a_Src.c_str());
+			break;
+
+		case ShaderParamType::int2:
+			sscanf(a_Src.c_str(), "(%d,%d)"
+				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1);
+			break;
+
+		case ShaderParamType::int3:
+			sscanf(a_Src.c_str(), "(%d,%d,%d)"
+				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1, a_pDst + sizeof(int) * 2);
+			break;
+						
+		case ShaderParamType::int4:
+			sscanf(a_Src.c_str(), "(%d,%d,%d,%d)"
+				, a_pDst + sizeof(int) * 0, a_pDst + sizeof(int) * 1, a_pDst + sizeof(int) * 2, a_pDst + sizeof(int) * 3);
+			break;
+
+		case ShaderParamType::float1:
+			*reinterpret_cast<float *>(a_pDst) = atof(a_Src.c_str());
+			break;
+						
+		case ShaderParamType::float2:
+			sscanf(a_Src.c_str(), "(%f,%f)"
+				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1);
+			break;
+
+		case ShaderParamType::float3:
+			sscanf(a_Src.c_str(), "(%f,%f,%f)"
+				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2);
+			break;
+						
+		case ShaderParamType::float4:
+			sscanf(a_Src.c_str(), "(%f,%f,%f,%f)"
+				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2, a_pDst + sizeof(float) * 3);
+			break;
+						
+		case ShaderParamType::float3x3:
+			sscanf(a_Src.c_str(), "(%f,%f,%f),(%f,%f,%f),(%f,%f,%f)"
+				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2
+				, a_pDst + sizeof(float) * 3, a_pDst + sizeof(float) * 4, a_pDst + sizeof(float) * 5
+				, a_pDst + sizeof(float) * 6, a_pDst + sizeof(float) * 7, a_pDst + sizeof(float) * 8);
+			break;
+						
+		case ShaderParamType::float4x4:
+			sscanf(a_Src.c_str(), "(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f),(%f,%f,%f,%f)"
+				, a_pDst + sizeof(float) * 0, a_pDst + sizeof(float) * 1, a_pDst + sizeof(float) * 2, a_pDst + sizeof(float) * 3
+				, a_pDst + sizeof(float) * 4, a_pDst + sizeof(float) * 5, a_pDst + sizeof(float) * 6, a_pDst + sizeof(float) * 7
+				, a_pDst + sizeof(float) * 8, a_pDst + sizeof(float) * 9, a_pDst + sizeof(float) * 10, a_pDst + sizeof(float) * 11
+				, a_pDst + sizeof(float) * 12, a_pDst + sizeof(float) * 13, a_pDst + sizeof(float) * 14, a_pDst + sizeof(float) * 15);
+			break;
+
+		default:
+			assert(false && "invalid param type");
+			break;
+	}
+}
 
 }

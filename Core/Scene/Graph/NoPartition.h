@@ -22,7 +22,8 @@ public:
 	virtual void remove(std::shared_ptr<RenderableComponent> a_pComponent);
 	virtual void clear();
 
-	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output);
+	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
+	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 
 private:
 	std::set< std::shared_ptr<RenderableComponent> > m_Container;

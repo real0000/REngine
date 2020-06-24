@@ -127,12 +127,13 @@ unsigned int GraphicDevice::getVertexSlotStride(unsigned int a_Type)
 		case VTXSLOT_TEXCOORD23:
 		case VTXSLOT_TEXCOORD45:
 		case VTXSLOT_TEXCOORD67:l_Res = sizeof(glm::vec4); break;
-		case VTXSLOT_NORMAL:	l_Res = sizeof(glm::vec3); break;
-		case VTXSLOT_TANGENT:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_NORMAL:
+		case VTXSLOT_TANGENT:
 		case VTXSLOT_BINORMAL:	l_Res = sizeof(glm::vec3); break;
 		case VTXSLOT_BONE:		l_Res = sizeof(glm::ivec4); break;
 		case VTXSLOT_WEIGHT:	l_Res = sizeof(glm::vec4); break;
-		case VTXSLOT_COLOR:		l_Res = sizeof(unsigned int); break;
+		case VTXSLOT_COLOR:
+		case VTXSLOT_INSTANCE:	l_Res = sizeof(unsigned int); break;
 		default:break;
 	}
 	assert(0 != l_Res);

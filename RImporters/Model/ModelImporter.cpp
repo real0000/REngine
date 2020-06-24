@@ -108,7 +108,6 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData:
 //
 ModelData::ModelData()
 	: m_pRootNode(nullptr)
-	, m_BoundingBox()
 {
 
 }
@@ -216,8 +215,6 @@ void ModelData::init(wxString a_Filepath)
 
     m_Meshes.resize(l_MeshMap.size(), nullptr);
 	std::vector<int> l_BoneRecord;
-	glm::vec3 l_MinPt(std::numeric_limits<float>().max(), std::numeric_limits<float>().max(), std::numeric_limits<float>().max());
-	glm::vec3 l_MaxPt(-l_MinPt);
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
@@ -227,6 +224,7 @@ void ModelData::init(wxString a_Filepath)
         l_pDstMesh->m_Index = l_Idx;
 
 		FbxNode *l_pRefNode = nullptr;
+		glm::vec3 l_BoxCenter(0.0f, 0.0f, 0.0f);
 		for( int i=0 ; i<it->first->GetNodeCount() ; ++i )
 		{
 			l_pRefNode = it->first->GetNode(i);
@@ -234,13 +232,17 @@ void ModelData::init(wxString a_Filepath)
 
 			FbxVector4 l_FbxBoxMax, l_FbxBoxMin, l_FbxBoxCenter;
 			l_pRefNode->EvaluateGlobalBoundingBoxMinMaxCenter(l_FbxBoxMin, l_FbxBoxMax, l_FbxBoxCenter);
-			l_MaxPt.x = std::max<float>(l_FbxBoxMax[0], l_MaxPt.x);
-			l_MaxPt.y = std::max<float>(l_FbxBoxMax[1], l_MaxPt.y);
-			l_MaxPt.z = std::max<float>(l_FbxBoxMax[2], l_MaxPt.z);
-			l_MinPt.x = std::min<float>(l_FbxBoxMin[0], l_MinPt.x);
-			l_MinPt.y = std::min<float>(l_FbxBoxMin[1], l_MinPt.y);
-			l_MinPt.z = std::min<float>(l_FbxBoxMin[2], l_MinPt.z);
+			FbxVector4 l_Size((l_FbxBoxMax - l_FbxBoxMin));
+			FbxVector4 l_Offset(l_FbxBoxCenter - (l_FbxBoxMax + l_FbxBoxMin) * 0.5f);
+			l_pDstMesh->m_BoundingBox.m_Size.x = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.x, l_Size[0]);
+			l_pDstMesh->m_BoundingBox.m_Size.y = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.y, l_Size[1]);
+			l_pDstMesh->m_BoundingBox.m_Size.z = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.z, l_Size[2]);
+			l_pDstMesh->m_BoundingBox.m_Center.x += l_Offset[0];
+			l_pDstMesh->m_BoundingBox.m_Center.y += l_Offset[1];
+			l_pDstMesh->m_BoundingBox.m_Center.z += l_Offset[2];
 		}
+		if( !l_pDstMesh->m_RefNode.empty() ) l_pDstMesh->m_BoundingBox.m_Center /= l_pDstMesh->m_RefNode.size();
+
 		l_pRefNode = it->first->GetNode(0);
 		if( l_pDstMesh->m_Name.empty() ) l_pDstMesh->m_Name = l_pRefNode->GetName();
 
@@ -336,9 +338,6 @@ void ModelData::init(wxString a_Filepath)
 			}
 		}
     }
-
-	m_BoundingBox.m_Center = (l_MaxPt + l_MinPt) * 0.5f;
-	m_BoundingBox.m_Size = l_MaxPt - l_MinPt;
 
     l_pScene->Clear();
 	l_pScene->Destroy();

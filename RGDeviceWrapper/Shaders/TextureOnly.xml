@@ -1,22 +1,20 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
     <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
-    <ConstBuffer name="VertexTransition">
+    <UavBuffer name="m_SkinTransition" preDef="SkinMatrix" write="false"/>
+    <UavBuffer name="InstanceInfo" write="false">
+      <!--customize batch draw info here, m_World, m_Local, m_VtxFlag, m_SkinMatBase are required-->
       <Param name="m_World" desc="" type="float4x4"/>
-      <Param name="m_Local" desc="" type="float4x4"/>
-    </ConstBuffer>
-    <ConstBuffer name="SkinTransition" reserved="true">
-      <Param name="m_Skin" desc="" type="float4x4" size="100"/>
-    </ConstBuffer>
-    <Constant name="m_VtxFlag" type="int1" reserved="false"/>
-    <!--UavBuffer   always reserved/-->
+      <Param name="m_VtxFlag" desc="" type="int1"/>
+      <Param name="m_SkinMatBase" desc="" type="int1"/>
+    </UavBuffer>
     <Srv2D name="m_DiffTex" desc="" reserved="false"/>
     <Srv2D name="m_NormalTex" desc="" reserved="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Vertex file="VertexTransfer.vertex">
-        m_VtxFlag, g_Camera, VertexTransition, SkinTransition
+        g_Camera, m_SkinTransition, InstanceInfo
       </Vertex>
       <!--Geometry file="">
       </Geometry>

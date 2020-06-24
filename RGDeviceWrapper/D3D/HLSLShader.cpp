@@ -17,7 +17,7 @@ namespace R
 HLSLProgram12::HLSLProgram12()
 	: m_pPipeline(nullptr)
 	, m_pRegisterDesc(nullptr)
-	, m_pIndirectFmt(nullptr)
+	, m_pIndirectFmt(nullptr), m_pSimpleIndirectFmt(nullptr)
 	, m_IndirectCmdSize(0)
 {
 }
@@ -453,9 +453,10 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 			{"NORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_NORMAL	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"TANGENT"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_TANGENT	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"BINORMAL"		, 0, DXGI_FORMAT_R32G32B32_FLOAT	, VTXSLOT_BINORMAL	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"BLENDINDICES"	, 0, DXGI_FORMAT_R32G32B32A32_SINT	, VTXSLOT_BONE		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"BLENDINDICES"	, 0, DXGI_FORMAT_R32G32B32A32_UINT	, VTXSLOT_BONE		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 			{"BLENDWEIGHT"	, 0, DXGI_FORMAT_R32G32B32A32_FLOAT	, VTXSLOT_WEIGHT	, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-			{"COLOR"		, 0, DXGI_FORMAT_R8G8B8A8_UNORM		, VTXSLOT_COLOR		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+			{"COLOR"		, 0, DXGI_FORMAT_R8G8B8A8_UNORM		, VTXSLOT_COLOR		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"BLENDINDICES"	, 1, DXGI_FORMAT_R32_UINT			, VTXSLOT_COUNT		, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 0}};
 		const unsigned int c_NumInputElement = sizeof(c_InputLayout) / sizeof(const D3D12_INPUT_ELEMENT_DESC);
 
 		l_PsoDesc.InputLayout.pInputElementDescs = c_InputLayout;
@@ -659,24 +660,6 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 	{// init indirect command signature
 		bool l_bHasCommandDesc = false;
 		std::vector<D3D12_INDIRECT_ARGUMENT_DESC> l_IndirectCmdDesc;
-		for( unsigned int i=0 ; i<VTXSLOT_COUNT ; ++i )
-		{
-			D3D12_INDIRECT_ARGUMENT_DESC l_VtxSlot = {};
-			l_VtxSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW;
-			l_VtxSlot.VertexBuffer.Slot = i;
-			l_IndirectCmdDesc.push_back(l_VtxSlot);
-
-			m_IndirectCmdSize += sizeof(D3D12_VERTEX_BUFFER_VIEW);
-		}
-
-		{
-			D3D12_INDIRECT_ARGUMENT_DESC l_IdxSlot = {};
-			l_IdxSlot.Type = D3D12_INDIRECT_ARGUMENT_TYPE_INDEX_BUFFER_VIEW;
-			l_IndirectCmdDesc.push_back(l_IdxSlot);
-			
-			m_IndirectCmdSize += sizeof(D3D12_INDEX_BUFFER_VIEW);
-		}
-
 		std::map<int64, std::pair<RegisterInfo*, ShaderRegType::Key> > l_SortedParam;
 
 		for( auto it = m_RegMap[ShaderRegType::Constant].begin() ; it != m_RegMap[ShaderRegType::Constant].end() ; ++it )
@@ -736,7 +719,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 				default:break;
 			}
 		}
-
+		
 		{// indirect draw command
 			D3D12_INDIRECT_ARGUMENT_DESC l_DrawCmd = {};
 			l_DrawCmd.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
@@ -755,6 +738,23 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		{
 			wxMessageBox(wxT("command signature init failed"), wxT("HLSLProgram::init"));
 			return;
+		}
+
+		{// simple indirect draw command (as d3d11 & opengl)
+			D3D12_INDIRECT_ARGUMENT_DESC l_DrawCmd = {};
+			l_DrawCmd.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+			
+			D3D12_COMMAND_SIGNATURE_DESC l_CmdSignatureDesc = {};
+			l_CmdSignatureDesc.pArgumentDescs = &l_DrawCmd;
+			l_CmdSignatureDesc.NumArgumentDescs = 1;
+			l_CmdSignatureDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+
+			l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, nullptr, IID_PPV_ARGS(&m_pSimpleIndirectFmt));
+			if( S_OK != l_Res )
+			{
+				wxMessageBox(wxT("simple command signature init failed"), wxT("HLSLProgram::init"));
+				return;
+			}
 		}
 	}
 }
@@ -842,42 +842,80 @@ HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
 void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
 	wxString l_ShaderName(ProgramManager::singleton().findFullPath(a_Filename));
-	setupParamDefine(a_pProgrom, a_Stage);
+	assert(!l_ShaderName.IsEmpty());
 
-	D3D_SHADER_MACRO *l_Macros = nullptr;
-	if( !a_ParamDefine.empty() )
+	wxString l_ShaderBinaryFile(wxString::Format(wxT("%s_%s_%d_%d.cso"), a_pProgrom->getName().c_str(), a_Filename.c_str(), a_Module.first, a_Module.second));
+	wxString l_ShaderBinary(ProgramManager::singleton().findFullPath(l_ShaderBinaryFile));
+	bool l_bNeedRecompile = l_ShaderBinary.IsEmpty();
+	if( !l_bNeedRecompile )
 	{
-		l_Macros = new D3D_SHADER_MACRO[a_ParamDefine.size() + 1];
-		unsigned int l_Idx = 0;
-		for( auto it = a_ParamDefine.begin() ; it != a_ParamDefine.end() ; ++it, ++l_Idx )
-		{
-			l_Macros[l_Idx].Name = it->first.c_str();
-			l_Macros[l_Idx].Definition = it->second.c_str();
-		}
-		l_Macros[a_ParamDefine.size()].Name = nullptr;
-		l_Macros[a_ParamDefine.size()].Definition = nullptr;
+		wxStructStat l_TextState, l_BinaryState;
+		
+		wxStat(l_ShaderName, &l_TextState);
+		wxDateTime l_TextTime(l_TextState.st_mtime);
+		wxStat(l_ShaderBinary, &l_BinaryState);
+		wxDateTime l_BinaryTime(l_BinaryState.st_mtime);
+		l_bNeedRecompile = l_TextTime.GetValue() > l_BinaryTime.GetValue();
 	}
-	
-	ID3DBlob *l_pShader = nullptr, *l_pErrorMsg = nullptr;
-	D3DCompileFromFile(l_ShaderName.c_str(), l_Macros, this, "main", getCompileTarget(a_Stage, a_Module).c_str()
-#ifdef _DEBUG
-		, D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
-#else
-		, D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
-#endif
-		, 0, &l_pShader, &l_pErrorMsg);
-	if( nullptr != l_Macros ) delete [] l_Macros;
 
-	if( nullptr != l_pErrorMsg )
+	ID3DBlob *l_pShader = nullptr;
+	if( !l_bNeedRecompile )
 	{
-		wxString l_Msg(static_cast<const char *>(l_pErrorMsg->GetBufferPointer()));
-		if( wxNOT_FOUND != l_Msg.Find(wxT("error")) )
+		FILE *fp = fopen(l_ShaderBinary.c_str(), "rb");
+		fseek(fp, 0, SEEK_END);
+		long l_Filesize = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		D3DCreateBlob(l_Filesize, &l_pShader);
+		fread(l_pShader->GetBufferPointer(), 1, l_Filesize, fp);
+		fclose(fp);
+	}
+	else
+	{
+		setupParamDefine(a_pProgrom, a_Stage);
+
+		D3D_SHADER_MACRO *l_Macros = nullptr;
+		if( !a_ParamDefine.empty() )
 		{
-			wxMessageBox(wxString::Format(wxT("Failed to compile shader :\n%s"), l_Msg.c_str()), wxT("HLSLContainer::compile"));
-			SAFE_RELEASE(l_pErrorMsg)
-			return nullptr;
+			l_Macros = new D3D_SHADER_MACRO[a_ParamDefine.size() + 1];
+			unsigned int l_Idx = 0;
+			for( auto it = a_ParamDefine.begin() ; it != a_ParamDefine.end() ; ++it, ++l_Idx )
+			{
+				l_Macros[l_Idx].Name = it->first.c_str();
+				l_Macros[l_Idx].Definition = it->second.c_str();
+			}
+			l_Macros[a_ParamDefine.size()].Name = nullptr;
+			l_Macros[a_ParamDefine.size()].Definition = nullptr;
 		}
-		SAFE_RELEASE(l_pErrorMsg)
+	
+		ID3DBlob *l_pErrorMsg = nullptr;
+		D3DCompileFromFile(l_ShaderName.c_str(), l_Macros, this, "main", getCompileTarget(a_Stage, a_Module).c_str()
+	#ifdef _DEBUG
+			, D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
+	#else
+			, D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES
+	#endif
+			, 0, &l_pShader, &l_pErrorMsg);
+		if( nullptr != l_Macros ) delete [] l_Macros;
+
+		if( nullptr != l_pErrorMsg )
+		{
+			wxString l_Msg(static_cast<const char *>(l_pErrorMsg->GetBufferPointer()));
+			if( wxNOT_FOUND != l_Msg.Find(wxT("error")) )
+			{
+				wxMessageBox(wxString::Format(wxT("Failed to compile shader :\n%s"), l_Msg.c_str()), wxT("HLSLContainer::compile"));
+				SAFE_RELEASE(l_pErrorMsg)
+				return nullptr;
+			}
+			SAFE_RELEASE(l_pErrorMsg)
+		}
+		else
+		{
+			l_ShaderBinary = getFilePath(l_ShaderName) + "/" + l_ShaderBinaryFile;
+			FILE *fp = fopen(l_ShaderBinary.c_str(), "wb");
+			fwrite(l_pShader->GetBufferPointer(), 1, l_pShader->GetBufferSize(), fp);
+			fclose(fp);
+		}
 	}
 	
 	return l_pShader;
@@ -886,7 +924,7 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 ShaderProgram* HLSLComponent::newProgram()
 {
 	if( nullptr != TYPED_GDEVICE(D3D12Device) ) return new HLSLProgram12();
-	else ;
+	//else ;
 
 	return nullptr;
 }

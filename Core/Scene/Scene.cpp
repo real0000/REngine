@@ -9,9 +9,11 @@
 #include "Scene.h"
 
 #include "RenderObject/Light.h"
-#include "RenderObject/Material.h"
 #include "RenderObject/Mesh.h"
 
+#include "Asset/AssetBase.h"
+#include "Asset/MaterialAsset.h"
+#include "Asset/MeshAsset.h"
 #include "Scene/Camera.h"
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
@@ -27,8 +29,6 @@ namespace R
 SharedSceneMember::SharedSceneMember()
 	: m_pRenderer(nullptr)
 	, m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
-	, m_pBatcher(nullptr)
-	, m_pModelFactory(nullptr)
 	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
@@ -49,8 +49,6 @@ SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 	m_pDirLights = a_Src.m_pDirLights;
 	m_pOmniLights = a_Src.m_pOmniLights;
 	m_pSpotLights = a_Src.m_pSpotLights;
-	m_pBatcher = a_Src.m_pBatcher;
-	m_pModelFactory = a_Src.m_pModelFactory;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
@@ -68,8 +66,8 @@ std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember,
 
 SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
-	, m_World(1.0)
-	, m_LocalTransform(1.0)
+	, m_World(1.0f)
+	, m_LocalTransform(1.0f)
 	, m_pMembers(new SharedSceneMember)
 {
 	*m_pMembers = *a_pSharedMember;
@@ -216,7 +214,15 @@ Scene::Scene()
 	, m_pMembers(new SharedSceneMember)
 	, m_pCurrCamera(nullptr)
 	, m_bActivate(true)
+	, m_VertexBufffer(nullptr)
+	, m_IndexBuffer(nullptr)
+	, m_SkinBlock(nullptr)
+	, m_SkinSlotManager()
 {
+	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly)->getBlockDesc(ShaderRegType::UavBuffer);
+	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_SkinTransition" == a_pDesc->m_Name; });
+	m_SkinBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
+	m_SkinSlotManager.init(BATCHDRAW_UNIT);
 }
 
 Scene::~Scene()
@@ -232,7 +238,6 @@ void Scene::destroy()
 	delete m_pMembers->m_pDirLights;
 	delete m_pMembers->m_pOmniLights;
 	delete m_pMembers->m_pSpotLights;
-	delete m_pMembers->m_pModelFactory;
 	SAFE_DELETE(m_pMembers)
 }
 
@@ -243,7 +248,6 @@ void Scene::initEmpty()
 	clear();
 	
 	m_pMembers->m_pScene = shared_from_this();
-	m_pMembers->m_pModelFactory = new ModelCache();
 	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new NoPartition();//OctreePartition();
 	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
 	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
@@ -346,6 +350,8 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	//
 
 	m_pMembers->m_pRenderer->render(m_pCurrCamera, a_pCanvas);
+	for( unsigned int i=0 ; i<m_UsedInstancVtxBuffers.size() ; ++i ) m_InstancVtxBuffers.push_back(m_UsedInstancVtxBuffers[i]);
+	m_UsedInstancVtxBuffers.clear();
 }
 
 void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
@@ -397,6 +403,163 @@ void Scene::clearInputListener()
 	m_DroppedInputListener.clear();
 }
 
+int Scene::requestInstanceVtxBuffer()
+{
+	std::lock_guard<std::mutex> l_Guard(m_InstanceVtxLock);
+
+	int l_Res = -1;
+	if( m_InstancVtxBuffers.empty() ) l_Res = GDEVICE()->requestVertexBuffer(nullptr, VTXSLOT_INSTANCE, BATCHDRAW_UNIT);
+	else
+	{
+		l_Res = m_InstancVtxBuffers.front();
+		m_InstancVtxBuffers.pop_front();
+	}
+	return l_Res;
+}
+
+void Scene::recycleInstanceVtxBuffer(int a_BufferID)
+{
+	m_UsedInstancVtxBuffers.push_back(a_BufferID);
+}
+
+int Scene::requestSkinSlot(std::shared_ptr<Asset> a_pAsset)
+{
+	std::lock_guard<std::mutex> l_Locker(m_SkinSlotLock);
+
+	auto it = m_SkinSlotCache.find(a_pAsset);
+	if( m_SkinSlotCache.end() != it )
+	{
+		++it->second.second;
+		return it->second.first;
+	}
+	
+	auto &l_BoneMatrix = a_pAsset->getComponent<MeshAsset>()->getBones();
+	int l_Res = m_SkinSlotManager.malloc(l_BoneMatrix.size());
+	if( -1 == l_Res )
+	{
+		m_SkinSlotManager.extend(BATCHDRAW_UNIT);
+		m_SkinBlock->extend(BATCHDRAW_UNIT);
+		l_Res = m_SkinSlotManager.malloc(l_BoneMatrix.size());
+		m_SkinSlotCache.insert(std::make_pair(a_pAsset, std::make_pair(l_Res, 1)));
+	}
+	for( unsigned int i=0 ; i<l_BoneMatrix.size() ; ++i ) m_SkinBlock->setParam("m_SkinTransition", l_Res + i, l_BoneMatrix[i]);
+	return l_Res;
+}
+
+void Scene::recycleSkinSlot(std::shared_ptr<Asset> a_pAsset)
+{
+	std::lock_guard<std::mutex> l_Locker(m_SkinSlotLock);
+	auto it = m_SkinSlotCache.find(a_pAsset);
+	if( m_SkinSlotCache.end() == it ) return;
+
+	--it->second.second;
+	if( 0 != it->second.second ) return;
+	
+	m_SkinSlotManager.free(it->second.first);
+	m_SkinSlotCache.erase(it);
+}
+
+void Scene::calculateStaticBatch()
+{
+	m_VertexBufffer = nullptr;
+	m_IndexBuffer = nullptr;
+	m_SkinBlock = nullptr;
+
+	for( auto it=m_StaticMeshes.begin() ; it!=m_StaticMeshes.end() ; ++it ) delete it->second;
+	m_StaticMeshes.clear();
+
+	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes;
+	m_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getAllComponent(l_Meshes);
+
+	std::set<std::shared_ptr<Asset>> l_MeshAssets;
+	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
+	{
+		RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[i].get());
+		l_MeshAssets.insert(l_pInst->getMesh());
+	}
+
+	unsigned int l_NumVtx = 0;
+	unsigned int l_NumIdx = 0;
+	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
+	{
+		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
+		l_NumVtx += l_pAssetInst->getPosition().size();
+		l_NumIdx += l_pAssetInst->getIndicies().size();
+	}
+
+	std::vector<glm::vec3> l_Position(l_NumVtx);
+    std::vector<glm::vec4> l_Texcoord[4] = {std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx)};
+    std::vector<glm::vec3> l_Normal(l_NumVtx);
+    std::vector<glm::vec3> l_Tangent(l_NumVtx);
+    std::vector<glm::vec3> l_Binormal(l_NumVtx);
+	std::vector<glm::ivec4> l_BoneId(l_NumVtx);
+	std::vector<glm::vec4> l_Weight(l_NumVtx);
+	std::vector<unsigned int> l_Indicies(l_NumIdx);
+	unsigned int l_BaseVtx = 0, l_BaseIdx = 0;
+	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
+	{
+		MeshCache *l_pNewCache = new MeshCache();
+		m_StaticMeshes.insert(std::make_pair(*it, l_pNewCache));
+
+		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
+		std::vector<MeshAsset::Instance*> &l_List = l_pAssetInst->getMeshes();
+		for( unsigned int j=0 ; j<l_List.size() ; ++j )
+		{
+			MeshVtxCache l_SubMesh = {};
+			l_SubMesh.m_IndexStart = l_BaseIdx + l_List[j]->m_StartIndex;
+			l_SubMesh.m_IndexCount = l_List[j]->m_IndexCount;
+			l_SubMesh.m_VertexStart = l_BaseVtx + l_List[j]->m_BaseVertex;
+			l_pNewCache->push_back(l_SubMesh);
+		}
+
+		std::copy(l_pAssetInst->getPosition().begin(), l_pAssetInst->getPosition().end(), l_Position.begin() + l_BaseVtx);
+		for( unsigned int j=0 ; j<4 ; ++j ) std::copy(l_pAssetInst->getTexcoord(j).begin(), l_pAssetInst->getTexcoord(j).end(), l_Texcoord[j].begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getNormal().begin(), l_pAssetInst->getNormal().end(), l_Normal.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getTangent().begin(), l_pAssetInst->getTangent().end(), l_Tangent.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getBinormal().begin(), l_pAssetInst->getBinormal().end(), l_Binormal.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getBoneId().begin(), l_pAssetInst->getBoneId().end(), l_BoneId.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getWeight().begin(), l_pAssetInst->getWeight().end(), l_Weight.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getIndicies().begin(), l_pAssetInst->getIndicies().end(), l_Indicies.begin() + l_BaseIdx);
+
+		l_BaseVtx += l_pAssetInst->getPosition().size();
+		l_BaseIdx += l_pAssetInst->getIndicies().size();
+	}
+
+	m_VertexBufffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
+	m_VertexBufffer->setNumVertex(l_NumVtx);
+	m_VertexBufffer->setVertex(VTXSLOT_POSITION, l_Position.data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD01, l_Texcoord[0].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD23, l_Texcoord[1].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD45, l_Texcoord[2].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD67, l_Texcoord[3].data());
+	m_VertexBufffer->setVertex(VTXSLOT_NORMAL, l_Normal.data());
+	m_VertexBufffer->setVertex(VTXSLOT_TANGENT, l_Tangent.data());
+	m_VertexBufffer->setVertex(VTXSLOT_BINORMAL, l_Binormal.data());
+	m_VertexBufffer->setVertex(VTXSLOT_BONE, l_BoneId.data());
+	m_VertexBufffer->setVertex(VTXSLOT_WEIGHT, l_Weight.data());
+	m_VertexBufffer->init();
+
+	m_IndexBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
+	m_IndexBuffer->setIndicies(true, l_Indicies.data(), l_NumIdx);
+	m_IndexBuffer->init();
+}
+
+bool Scene::getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput)
+{
+	auto it = m_StaticMeshes.find(a_pMeshAsset);
+	if( m_StaticMeshes.end() == it ) return false;
+	*a_ppOutput = it->second;
+	return true;
+}
+
+void Scene::bindBatchDrawData(GraphicCommander *a_pCommander)
+{
+	if( nullptr == m_VertexBufffer ) return;
+
+	a_pCommander->bindVertex(m_VertexBufffer.get());
+	a_pCommander->bindIndex(m_IndexBuffer.get());
+}
+
 std::shared_ptr<SceneNode> Scene::getRootNode()
 {
 	return m_pMembers->m_pSceneNode;
@@ -425,6 +588,11 @@ void Scene::clear()
 	if( nullptr != m_pMembers->m_pDirLights ) m_pMembers->m_pDirLights->clear();
 	if( nullptr != m_pMembers->m_pOmniLights ) m_pMembers->m_pOmniLights->clear();
 	if( nullptr != m_pMembers->m_pSpotLights ) m_pMembers->m_pSpotLights->clear();
+	while( !m_InstancVtxBuffers.empty() )
+	{
+		GDEVICE()->freeVertexBuffer(m_InstancVtxBuffers.front());
+		m_InstancVtxBuffers.pop_front();
+	}
 
 	m_pCurrCamera = nullptr;
 }

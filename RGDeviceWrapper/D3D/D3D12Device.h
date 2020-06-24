@@ -124,7 +124,8 @@ public:
 	virtual void clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx);
 	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx);
-	virtual void drawIndirect(std::shared_ptr<ShaderProgram> a_pProgram, unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
+	virtual void drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
+	virtual void drawIndirect(unsigned int a_MaxCmd, int a_BuffID);
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1);
 	
 	virtual void setTopology(Topology::Key a_Key);
@@ -251,6 +252,10 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList);
 	virtual void freeUavBuffer(int a_ID);
+
+	// misc
+	virtual int requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int a_Size);
+	virtual void freeIndrectCommandBuffer(int a_BuffID);
 	
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
@@ -266,6 +271,7 @@ public:
 	D3D12_GPU_VIRTUAL_ADDRESS getUnorderAccessBufferGpuAddress(int a_ID);
 	D3D12_VERTEX_BUFFER_VIEW& getVertexBufferView(int a_ID);
 	D3D12_INDEX_BUFFER_VIEW& getIndexBufferView(int a_ID);
+	ID3D12Resource* getIndirectCommandBuffer(int a_ID);
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 	ID3D12DescriptorHeap* getSamplerBindingHeap(){ return m_pSamplerHeap->getHeapInst(); }
 	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain create
@@ -374,6 +380,14 @@ private:
 		unsigned char *m_pTargetBuffer;
 		unsigned int m_Size;
 	};
+	struct IndirectCommandBinder
+	{
+		IndirectCommandBinder() : m_pResource(nullptr), m_pTargetBuffer(nullptr){}
+		virtual ~IndirectCommandBinder(){ SAFE_RELEASE(m_pResource) }
+
+		ID3D12Resource *m_pResource;
+		char *m_pTargetBuffer;
+	};
 
 	D3D12GpuThread newThread();
 
@@ -386,6 +400,7 @@ private:
 	SerializedObjectPool<IndexBinder> m_ManagedIndexBuffer;
 	SerializedObjectPool<ConstBufferBinder> m_ManagedConstBuffer;
 	SerializedObjectPool<UnorderAccessBufferBinder> m_ManagedUavBuffer;
+	SerializedObjectPool<IndirectCommandBinder> m_ManagedIndirectCommandBuffer;
 
 	IDXGIFactory4 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;

@@ -11,6 +11,7 @@
 namespace R
 {
 
+class Asset;
 class RenderTextureAtlas;
 class TextureAsset;
 class Light;
@@ -69,7 +70,8 @@ private:
 	unsigned int m_MinmaxStepCount;
 	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
 	std::vector<GraphicCommander *> m_DrawCommand;
-	std::shared_ptr<Material> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
+	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
+	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
 	ThreadPool m_ThreadPool;
 
 	std::vector<int> m_GBufferCache, m_FBufferCache;

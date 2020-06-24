@@ -86,15 +86,6 @@ struct ProgramBlockDesc
 	RegisterInfo *m_pRegInfo;
 };
 
-struct IndirectDrawData
-{
-	unsigned int m_IndexCount;
-	unsigned int m_StartIndex;
-	unsigned int m_BaseVertex;
-	unsigned int m_StartInstance;
-	unsigned int m_InstanceCount;
-};
-
 class ShaderProgram
 {
 	friend class ProgramManager;
@@ -102,7 +93,7 @@ public:
 	ShaderProgram();
 	virtual ~ShaderProgram();
 
-	void setup(boost::property_tree::ptree &a_Root);
+	void setup(wxString a_Name, boost::property_tree::ptree &a_Root);
 	bool isCompute(){ return m_bCompute; }
 	bool isIndexedDraw(){ return m_bIndexedDraw; }
 	std::pair<int, int> shaderInUse(){ return m_ShaderInUse; }
@@ -123,6 +114,7 @@ public:
 	virtual void assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, unsigned int a_IndexCount, unsigned int a_InstanceCount, unsigned int a_StartIndex, int a_BaseVertex, unsigned int a_StartInstance) = 0;
 	virtual void assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pOutput, IndirectDrawData a_DrawInfo);
 	
+	wxString getName(){ return m_Name; }
 	RegisterInfo* getRegisterInfo(std::string a_Name);
 
 protected:
@@ -131,8 +123,6 @@ protected:
 	virtual void init(boost::property_tree::ptree &a_Root) = 0;
 
 private:
-	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
-	
 	std::map<std::string, ProgramTextureDesc *> m_TextureDesc;
 	std::vector<ProgramBlockDesc *> m_BlockDesc[ShaderRegType::UavBuffer - ShaderRegType::ConstBuffer + 1];// const buffer, constant, uav
 	std::map<std::string, RegisterInfo *> m_RegMap;
@@ -140,6 +130,7 @@ private:
 	bool m_bIndexedDraw;
 	std::pair<int, int> m_ShaderInUse;
 
+	wxString m_Name;
 	std::map<int, bool> m_ExtraFlags;
 
 	static VertexBuffer *m_pNullVtxBuffer;
@@ -178,8 +169,6 @@ public:
 private:
 	ProgramManager();
 	virtual ~ProgramManager();
-
-	void parseInitValue(ShaderParamType::Key a_Type, boost::property_tree::ptree &a_Src, char *a_pDst);
 
 	std::shared_ptr<ShaderProgram> allocator();
 	void loadFile(std::shared_ptr<ShaderProgram> a_pInst, wxString a_Path);

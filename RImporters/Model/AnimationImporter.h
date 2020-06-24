@@ -21,7 +21,7 @@ public:
 	};
 	struct Animation
 	{
-		int m_Duration;
+		int m_Duration;// == frame count
 		float m_FramePerSecond;
 		std::map<wxString, AnimNode *> m_NodeList;
 	};

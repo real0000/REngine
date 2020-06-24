@@ -28,6 +28,7 @@ enum
 	VTXSLOT_COLOR,//in unsigned int a_Color;
 
 	VTXSLOT_COUNT,
+	VTXSLOT_INSTANCE = VTXSLOT_COUNT,
 };
 
 enum
@@ -50,7 +51,7 @@ enum
 	VTXFLAG_WITHOUT_VP_MAT	= 0x80000,
 	VTXFLAG_USE_TESSELLATION= 0x100000
 };
-#define GENERAL_VTX_FLAG (VTXFLAG_POSITION | VTXFLAG_TEXCOORD01 | VTXFLAG_NORMAL | VTXFLAG_TANGENT | VTXFLAG_BINORMAL | VTXFLAG_BONE | VTXFLAG_WEIGHT)
+#define GENERAL_VTX_FLAG (VTXFLAG_POSITION | VTXFLAG_TEXCOORD01 | VTXFLAG_NORMAL | VTXFLAG_TANGENT | VTXFLAG_BINORMAL | VTXFLAG_USE_WORLD_MAT)
 
 STRING_ENUM_CLASS(ShaderParamType,
 	int1,
@@ -238,6 +239,19 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	TiledDeferredLighting,
 
 	num_default_program)
+
+struct IndirectDrawData
+{
+	unsigned int m_IndexCount;
+	unsigned int m_StartIndex;
+	unsigned int m_BaseVertex;
+	unsigned int m_StartInstance;
+	unsigned int m_InstanceCount;
+};
+
+bool drawDataCompare(const IndirectDrawData *a_pLeft, const IndirectDrawData *a_pRight);
+std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc);
+void parseShaderParamValue(ShaderParamType::Key a_Type, std::string a_Src, char *a_pDst);
 
 }
 
