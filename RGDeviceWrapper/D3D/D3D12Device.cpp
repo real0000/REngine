@@ -277,7 +277,7 @@ void D3D12Commander::useProgram(std::shared_ptr<ShaderProgram> a_pProgram)
 	m_CurrThread.second->SetPipelineState(m_pCurrProgram->getPipeline());
 }
 
-void D3D12Commander::bindVertex(VertexBuffer *a_pBuffer)
+void D3D12Commander::bindVertex(VertexBuffer *a_pBuffer, int a_InstanceBuffer)
 {
 	assert(nullptr != a_pBuffer);
 
@@ -288,6 +288,12 @@ void D3D12Commander::bindVertex(VertexBuffer *a_pBuffer)
 		if( -1 != l_BuffID ) l_Buffers[i] = m_pRefDevice->getVertexBufferView(l_BuffID);
 	}
 	m_CurrThread.second->IASetVertexBuffers(0, VTXSLOT_COUNT, l_Buffers);
+
+	if( -1 != a_InstanceBuffer )
+	{
+		D3D12_VERTEX_BUFFER_VIEW &l_View = m_pRefDevice->getVertexBufferView(a_InstanceBuffer);
+		m_CurrThread.second->IASetVertexBuffers(VTXSLOT_INSTANCE, 1, &l_View);
+	}
 }
 
 void D3D12Commander::bindIndex(IndexBuffer *a_pBuffer)
@@ -366,9 +372,9 @@ void D3D12Commander::drawVertex(int a_NumVtx, int a_BaseVtx)
 	m_CurrThread.second->DrawInstanced(a_NumVtx, 1, a_BaseVtx, 0);
 }
 
-void D3D12Commander::drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx)
+void D3D12Commander::drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx, unsigned int a_NumInstance, unsigned int a_BaseInstance)
 {
-	m_CurrThread.second->DrawIndexedInstanced(a_NumIdx, 1, a_BaseIdx, a_BaseVtx, 0);
+	m_CurrThread.second->DrawIndexedInstanced(a_NumIdx, a_NumInstance, a_BaseIdx, a_BaseVtx, a_BaseInstance);
 }
 
 void D3D12Commander::drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset)
@@ -1121,6 +1127,7 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 	unsigned int l_NumConst = 0;
 	std::function<D3D12_UNORDERED_ACCESS_VIEW_DESC(unsigned int)> l_UavStructFunc = nullptr;
 	std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
+	glm::ivec3 l_Devide(8, 8, 1);
 	switch( l_pTargetBinder->m_Type )
 	{
 		case TEXTYPE_SIMPLE_2D:
@@ -1146,6 +1153,7 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 
 		case TEXTYPE_SIMPLE_3D:
 			l_NumConst = 3;
+			l_Devide.x = l_Devide.y = l_Devide.z = 4;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
 			{
 				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
@@ -1194,7 +1202,7 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
 		l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
 		l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
-		l_Thread.second->Dispatch(l_Dim.x, l_Dim.y, l_Dim.z);
+		l_Thread.second->Dispatch(l_Dim.x / l_Devide.x, l_Dim.y / l_Devide.y, l_Dim.z / l_Devide.z);
 
 		m_pShaderResourceHeap->recycle(l_TempUavID);
 		m_pShaderResourceHeap->recycle(l_TempSrvID);

@@ -18,19 +18,20 @@ public:
 	void init(wxString a_Path);
 	bool isReady(){ return m_bReady; }
 	void* getPixels(unsigned int a_Surface){ return m_RefSurfacePtr[a_Surface]; }
-	PixelFormat::Key getFormat(){ return m_Format; }
+	PixelFormat::Key getFormat(unsigned int a_Layer = 0){ return m_Formats[a_Layer]; }
 	glm::ivec3 getSize(){ return m_Dim; }
 	TextureType getType(){ return m_Type; }
 
 private:
 	void loadDDS(wxString a_Filepath);
+	void loadExr(wxString a_Filepath);
 	void loadGeneral(wxString a_Filepath);
 	void clear();// destructor or load failed
 
 	bool m_bReady;
 	unsigned char *m_pImageData;
 	std::vector<unsigned char *> m_RefSurfacePtr;
-	PixelFormat::Key m_Format;
+	std::vector<PixelFormat::Key> m_Formats;
 	glm::ivec3 m_Dim;
 	TextureType m_Type;
 };

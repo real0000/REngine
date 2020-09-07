@@ -42,6 +42,7 @@ void GraphicCommander::setRenderTarget(int a_DSVHandle, unsigned int a_NumRT, ..
 {
 	std::vector<int> l_RtvHandleList;
 	l_RtvHandleList.resize(a_NumRT);
+	if( 0 != a_NumRT )
 	{
 		va_list l_Arglist;
 		va_start(l_Arglist, a_NumRT);

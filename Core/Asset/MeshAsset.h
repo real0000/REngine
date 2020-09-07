@@ -11,6 +11,9 @@
 namespace R
 {
 
+class IndexBuffer;
+class VertexBuffer;
+
 class MeshAsset : public AssetComponent
 {
 public:
@@ -55,8 +58,12 @@ public:
 	std::vector<Instance*>& getMeshes(){ return m_Meshes; }// remove const for bounding box and material edit
 	const std::vector<Relation*>& getRelation(){ return m_Relation; }
 	const std::vector<glm::mat4x4>& getBones(){ return m_Bones; }
+	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_VertexBuffer; }
+	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_IndexBuffer; }
 
 private:
+	void initBuffers();
+
     std::vector<glm::vec3> m_Position;
     std::vector<glm::vec4> m_Texcoord[4];
     std::vector<glm::vec3> m_Normal;
@@ -65,6 +72,9 @@ private:
 	std::vector<glm::ivec4> m_BoneId;
 	std::vector<glm::vec4> m_Weight;
 	std::vector<unsigned int> m_Indicies;
+	
+	std::shared_ptr<VertexBuffer> m_VertexBuffer;
+	std::shared_ptr<IndexBuffer> m_IndexBuffer;
 
     std::vector<Instance*> m_Meshes;
 	std::vector<Relation*> m_Relation;

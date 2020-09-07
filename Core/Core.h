@@ -70,6 +70,8 @@ public:
 	virtual void hiddenFlagChanged(){}
 
 	virtual unsigned int typeID() = 0;
+	virtual void loadComponent(boost::property_tree::ptree &a_Src) = 0;
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst) = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
@@ -131,8 +133,12 @@ public:
 	bool m_bFullScreen;
 	unsigned int m_FPS;
 	unsigned int m_ShadowMapSize;
+	unsigned int m_LightMapSize;
 	float m_TileSize;
 	unsigned int m_NumRenderCommandList;
+	wxString m_OmniMaterial;
+	wxString m_SpotMaterial;
+	wxString m_DirMaterial;
 
 	// Asset
 	wxString m_CDN;

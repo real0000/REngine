@@ -1,0 +1,13 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+struct PS_Input
+{
+	float2 m_UV: TEXCOORD0;
+};
+
+void main(PS_Input a_Input)
+{
+	float4 l_DiffColor = m_DiffTex.Sample(m_DiffTexSampler, a_Input.m_UV.xy);
+	if( l_DiffColor.w < 0.01 ) clip(-1);
+}

@@ -110,5 +110,19 @@
     <None Include="Shaders\CopyFrame.xml">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\OmniShadowMap.geometry">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ShadowMap.pixel">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ShadowMap.vertex">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="Shaders\OmniShadowMap.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

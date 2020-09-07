@@ -13,7 +13,7 @@ void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt,
 	a_Min = min(a_Min, l_Far.xyz);
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(8, 8, 1)]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	float2 l_Texcoord = c_PixelSize * a_ThreadID.xy;

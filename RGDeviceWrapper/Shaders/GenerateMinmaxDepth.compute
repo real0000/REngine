@@ -1,7 +1,7 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-[numthreads(1, 1, 1 )]
+[numthreads(8, 8, 1 )]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
     float2 l_Color1 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 0.0)), 0);

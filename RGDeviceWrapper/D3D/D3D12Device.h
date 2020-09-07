@@ -111,7 +111,7 @@ public:
 
 	// draw command
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram);
-	virtual void bindVertex(VertexBuffer *a_pBuffer);
+	virtual void bindVertex(VertexBuffer *a_pBuffer, int a_InstanceBuffer = -1);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
 	virtual void bindSampler(int a_ID, unsigned int a_Stage);
@@ -123,7 +123,7 @@ public:
 	virtual void clearBackBuffer(GraphicCanvas *a_pCanvas, glm::vec4 a_Color);
 	virtual void clearDepthTarget(int a_ID, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil);
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx);
-	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx);
+	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx, unsigned int a_NumInstance, unsigned int a_BaseInstance);
 	virtual void drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset);
 	virtual void drawIndirect(unsigned int a_MaxCmd, int a_BuffID);
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1);

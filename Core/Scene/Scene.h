@@ -10,6 +10,7 @@ namespace R
 {
 
 struct InputData;
+struct SharedBatchData;
 class CameraComponent;
 class DirLight;
 class EngineComponent;
@@ -17,8 +18,10 @@ class GraphicCommander;
 class IndexBuffer;
 class MaterialBlock;
 class OmniLight;
+class RenderableMesh;
 class RenderPipeline;
 class Scene;
+class SceneBatcher;
 class SceneNode;
 class ScenePartition;
 class SpotLight;
@@ -34,6 +37,7 @@ struct SharedSceneMember
 		GRAPH_MESH = 0,
 		GRAPH_STATIC_MESH,
 		GRAPH_LIGHT,
+		GRAPH_STATIC_LIGHT,
 		GRAPH_CAMERA,
 
 		NUM_GRAPH_TYPE
@@ -46,11 +50,70 @@ struct SharedSceneMember
 	
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
 	RenderPipeline *m_pRenderer;
+	SceneBatcher *m_pBatcher;
 	LightContainer<DirLight> *m_pDirLights;
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Scene> m_pScene;
 	std::shared_ptr<SceneNode> m_pSceneNode;
+};
+
+class SceneBatcher
+{
+public:
+	struct MeshVtxCache
+	{
+		unsigned int m_VertexStart;
+		unsigned int m_IndexStart;
+		unsigned int m_IndexCount;
+	};
+	typedef std::vector<MeshVtxCache> MeshCache;
+	typedef std::pair<int, unsigned int> TransitionCache;
+	struct SingletonBatchData
+	{
+		SingletonBatchData();
+		~SingletonBatchData();
+
+		std::shared_ptr<MaterialBlock> m_SkinBlock, m_WorldBlock;
+		VirtualMemoryPool m_SkinSlotManager, m_WorldSlotManager;
+		std::map<std::shared_ptr<Asset>, TransitionCache> m_SkinCache;// origin mesh asset : (offset, ref count)
+		std::map<std::shared_ptr<RenderableMesh>, TransitionCache> m_WorldCache;
+		std::mutex m_InstanceVtxLock, m_SkinSlotLock, m_WorldSlotLock;
+	};
+public:
+	SceneBatcher();
+	virtual ~SceneBatcher();
+
+	// for render pipeline
+	int requestInstanceVtxBuffer();
+	void recycleInstanceVtxBuffer(int a_BufferID);
+	void renderEnd();
+
+	// for renderable mesh
+	int requestSkinSlot(std::shared_ptr<Asset> a_pAsset);
+	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
+	int requestWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
+	void recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
+	void calculateStaticBatch(SharedSceneMember *a_pGraphOwner);
+	bool getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput);
+	void bindBatchDrawData(GraphicCommander *a_pCommander);
+
+	// render required member
+	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_VertexBufffer; }
+	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_IndexBuffer; }
+	std::shared_ptr<MaterialBlock> getSkinMatrixBlock(){ return m_pSingletonBatchData->m_SkinBlock; }
+	std::shared_ptr<MaterialBlock> getWorldMatrixBlock(){ return m_pSingletonBatchData->m_WorldBlock; }
+
+private:
+	std::deque<int> m_InstancVtxBuffers;
+	std::vector<int> m_UsedInstancVtxBuffers;
+
+	std::shared_ptr<VertexBuffer> m_VertexBufffer;// for static objects
+	std::shared_ptr<IndexBuffer> m_IndexBuffer;
+	std::map<std::shared_ptr<Asset>, MeshCache*> m_StaticMeshes;// origin mesh asset : cache data
+
+	static SingletonBatchData *m_pSingletonBatchData;
+	static unsigned int m_NumSharedMember;
 };
 
 class SceneNode : public std::enable_shared_from_this<SceneNode>
@@ -77,14 +140,15 @@ public:
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
-	const std::list< std::shared_ptr<SceneNode> >& getChildren(){ return m_Children; }
+	const std::list<std::shared_ptr<SceneNode>>& getChildren(){ return m_Children; }
 	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
 	glm::mat4x4& getTransform(){ return m_World; }
+	glm::mat4x4& getLocalTransform(){ return m_LocalTransform; }
 
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
-	void getComponent(wxString a_Name, std::vector< std::shared_ptr<EngineComponent> > &a_Output);
+	void getComponent(wxString a_Name, std::vector<std::shared_ptr<EngineComponent>> &a_Output);
 	template<typename T>
-	void getComponent(unsigned int a_TypeID, std::vector< std::shared_ptr<T> > &a_Output)
+	void getComponent(unsigned int a_TypeID, std::vector<std::shared_ptr<T>> &a_Output)
 	{
 		auto it = m_Components.find(a_TypeID);
 		if( m_Components.end() == it || it->second.empty() ) return;
@@ -92,6 +156,7 @@ public:
 		std::transform(it->second.begin(), it->second.end(), a_Output.begin()
 			, [=](std::shared_ptr<EngineComponent> a_pComponent){ return reinterpret_cast<std::shared_ptr<T>&>(a_pComponent); });
 	}
+	const std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>>& getComponents(){ return m_Components; }
 	
 private:
 	SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name);
@@ -105,26 +170,18 @@ private:
 	glm::mat4x4 m_World;
 	glm::mat4x4 m_LocalTransform;
 
-	std::list< std::shared_ptr<SceneNode> > m_Children;
+	std::list<std::shared_ptr<SceneNode>> m_Children;
 	SharedSceneMember *m_pMembers;// scene node -> parent
+	std::shared_ptr<Asset> m_pLinkedAsset;//must be scene asset
 
-	std::list< std::shared_ptr<EngineComponent> > m_TransformListener;// use std::set instead ?
-	std::map<unsigned int, std::set< std::shared_ptr<EngineComponent> > > m_Components;
+	std::list<std::shared_ptr<EngineComponent>> m_TransformListener;// use std::set instead ?
+	std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>> m_Components;
 };
 
 class Scene : public std::enable_shared_from_this<Scene>
 {
 	friend class Scene;
 	friend class SceneManager;
-public:
-	struct MeshVtxCache
-	{
-		unsigned int m_VertexStart;
-		unsigned int m_IndexStart;
-		unsigned int m_IndexCount;
-	};
-	typedef std::vector<MeshVtxCache> MeshCache;
-	typedef std::pair<int, unsigned int> SkinRefCache;
 public:
 	virtual ~Scene();
 
@@ -150,28 +207,37 @@ public:
 	void removeInputListener(std::shared_ptr<EngineComponent> a_pComponent);
 	void clearInputListener();
 
-	// batch
-	int requestInstanceVtxBuffer();
-	void recycleInstanceVtxBuffer(int a_BufferID);
-	int requestSkinSlot(std::shared_ptr<Asset> a_pAsset);
-	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
-	void calculateStaticBatch();
-	bool getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput);
-	void bindBatchDrawData(GraphicCommander *a_pCommander);
-	std::shared_ptr<MaterialBlock> getSkinMatrixBlock(){ return m_SkinBlock; }
-
 	// misc;
 	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
 	void resume(){ m_bActivate = true; }
 
 private:
+	struct SceneAssetInstance
+	{
+		SceneAssetInstance()
+			: m_pSceneAsset(nullptr)
+			, m_pRefSceneNode(nullptr)
+			, m_bActive(false)
+			{}
+		virtual ~SceneAssetInstance()
+		{
+			m_pSceneAsset = nullptr;
+			m_pRefSceneNode = nullptr;
+		}
+
+		std::shared_ptr<Asset> m_pSceneAsset;
+		std::shared_ptr<SceneNode> m_pRefSceneNode;
+		bool m_bActive;
+	};
+
 	Scene();
 
 	void clear();
 	void loadAsyncThread(wxString a_Path);
 	void loadScenePartitionSetting(boost::property_tree::ptree &a_Node);
 	void loadRenderPipelineSetting(boost::property_tree::ptree &a_Node);
+	void loadAssetSetting(boost::property_tree::ptree &a_Node);
 
 	bool m_bLoading;
 	float m_LoadingProgress;
@@ -179,23 +245,13 @@ private:
 
 	SharedSceneMember *m_pMembers;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
+	std::map<wxString, SceneAssetInstance*> m_SceneAssets;
 	
 	std::mutex m_InputLocker;
 	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;
 	std::set<std::shared_ptr<EngineComponent>> m_DroppedInputListener;
 	std::list<std::shared_ptr<EngineComponent>> m_UpdateCallback;
 	bool m_bActivate;
-
-	// batch data
-	std::shared_ptr<VertexBuffer> m_VertexBufffer;// for static objects
-	std::shared_ptr<IndexBuffer> m_IndexBuffer;
-	std::shared_ptr<MaterialBlock> m_SkinBlock;
-	VirtualMemoryPool m_SkinSlotManager;
-	std::map<std::shared_ptr<Asset>, SkinRefCache> m_SkinSlotCache;// origin mesh asset : (offset, ref count)
-	std::deque<int> m_InstancVtxBuffers;
-	std::vector<int> m_UsedInstancVtxBuffers;
-	std::mutex m_InstanceVtxLock, m_SkinSlotLock;
-	std::map<std::shared_ptr<Asset>, MeshCache*> m_StaticMeshes;// origin mesh asset : cache data
 };
 
 class SceneManager

@@ -16,13 +16,19 @@
   <UavBuffer name="SkinMatrix">
     <Param name="m_Matrix" desc="" type="float4x4"/>
   </UavBuffer>
+  <UavBuffer name="TransformInfo">
+    <Param name="m_World" desc="" type="float4x4"/>
+    <Param name="m_VtxFlag" desc="" type="int1"/>
+    <Param name="m_SkinMatBase" desc="" type="int1"/>
+  </UavBuffer>
   <UavBuffer name="DirLight">
     <Param name="m_Color" desc="" type="float3"/>
     <Param name="m_Intensity" desc="" type="float1"/>
     <Param name="m_Direction" desc="" type="float3"/>
-    <Param name="m_Layer" desc="" type="int1"/>
-    <Param name="m_ShadowMapProj" desc="" type="float4x4"/>
     <Param name="m_bCastShadow" desc="" type="int1"/>
+    <Param name="m_Layer" desc="" type="int4"/>
+    <Param name="m_ShadowMapUV" desc="" type="float4" size="4"/>
+    <Param name="m_ShadowMapProj" desc="" type="float4x4" size="4"/>
   </UavBuffer>
   <UavBuffer name="OmniLight">
     <Param name="m_Position" desc="" type="float3"/>
@@ -32,7 +38,7 @@
     <Param name="m_ShadowMapUV" desc="" type="float4"/>
     <Param name="m_Layer" desc="" type="int1"/>
     <Param name="m_bCastShadow" desc="" type="int1"/>
-    <Param name="m_ShadowMapProj" desc="" type="float4x4" size="4"/>
+    <Param name="m_ViewProj" desc="" type="float4x4" size="4"/>
   </UavBuffer>
   <UavBuffer name="SpotLight">
     <Param name="m_Position" desc="" type="float3"/>

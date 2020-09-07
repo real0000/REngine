@@ -224,7 +224,7 @@ void ImageData::loadDDS(wxString a_Filepath)
 
 	uint32_t resDim = DDS_DIMENSION_UNKNOWN;
 	UINT arraySize = 1;
-	m_Format = PixelFormat::unknown;
+	PixelFormat::Key l_Format = PixelFormat::unknown;
 	bool isCubeMap = false;
 
     size_t mipCount = std::max<size_t>(header->mipMapCount, 1);
@@ -268,7 +268,7 @@ void ImageData::loadDDS(wxString a_Filepath)
 			}break;
         }
 
-        m_Format = d3d10ext->dxgiFormat;
+        l_Format = d3d10ext->dxgiFormat;
 
         switch (d3d10ext->resourceDimension)
         {
@@ -307,9 +307,9 @@ void ImageData::loadDDS(wxString a_Filepath)
     }
     else
     {
-        m_Format = GetDXGIFormat(header->ddspf);
+        l_Format = GetDXGIFormat(header->ddspf);
 
-        if (m_Format == PixelFormat::unknown)
+        if (l_Format == PixelFormat::unknown)
         {
 			clear();
             return ;
@@ -342,12 +342,12 @@ void ImageData::loadDDS(wxString a_Filepath)
             // Note there's no way for a legacy Direct3D 9 DDS to express a '1D' texture
         }
 
-        assert(getPixelSize(m_Format) != 0);
+        assert(getPixelSize(l_Format) != 0);
     }
 	
 	size_t numBytes = 0;
     size_t rowBytes = 0;
-    GetSurfaceInfo(m_Dim.x, m_Dim.y, m_Format, &numBytes, &rowBytes, nullptr);
+    GetSurfaceInfo(m_Dim.x, m_Dim.y, l_Format, &numBytes, &rowBytes, nullptr);
 
     if (numBytes > (size_t)l_FileLength)
     {
@@ -369,7 +369,7 @@ void ImageData::loadDDS(wxString a_Filepath)
         {
             GetSurfaceInfo(w,
                 h,
-                m_Format,
+                l_Format,
                 &NumBytes,
                 &RowBytes,
                 nullptr
@@ -396,6 +396,7 @@ void ImageData::loadDDS(wxString a_Filepath)
 	}
 	else if( TEXTYPE_SIMPLE_CUBE == m_Type  )m_Dim.z = arraySize;// 6
 	//*alphaMode = GetAlphaMode(header);
+	m_Formats.resize(m_Dim.z, l_Format);
 	m_bReady = true;
 }
 

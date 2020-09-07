@@ -205,6 +205,7 @@ void ShaderProgram::setup(wxString a_Name, boost::property_tree::ptree &a_Root)
 				l_pNewTexture->m_bWrite = it->second.get("<xmlattr>.write", "false") == "true";
 				l_pNewTexture->m_Type = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type", "float4"));
 				l_pNewTexture->m_Describe = it->second.get("<xmlattr>.desc", "");
+				l_pNewTexture->m_bReserved = it->second.get("<xmlattr>.reserved", "false") == "true";
 
 				assert(m_TextureDesc.end() == m_TextureDesc.find(l_Name));
 				m_TextureDesc.insert(std::make_pair(l_Name, l_pNewTexture));

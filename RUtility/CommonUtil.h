@@ -570,7 +570,7 @@ private:
 	void loop();
 
 	bool m_bLooping;
-	std::deque< std::function<void()> > m_JobQueue;
+	std::deque<std::function<void()>> m_JobQueue;
 	std::vector<std::thread> m_Threads;
 	std::condition_variable m_Signal;
 	std::mutex m_SignalLock, m_QueueLock;

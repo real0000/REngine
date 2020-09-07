@@ -26,15 +26,16 @@ public:
 	virtual void end();
 	virtual void hiddenFlagChanged();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void setStatic(bool a_bStatic);
+	virtual bool isStatic(){ return m_bStatic; }
 
 	virtual unsigned int getID() = 0;
 
 	std::shared_ptr<CameraComponent> getShadowCamera(){ return m_pShadowCamera; }
-	std::vector<unsigned int>& getShadowMapIndex(){ return m_ShadowMapMeshIdx; }
 
 private:
 	std::shared_ptr<CameraComponent> m_pShadowCamera;
-	std::vector<unsigned int> m_ShadowMapMeshIdx;
+	bool m_bStatic;
 };
 
 template<typename T>
@@ -79,10 +80,10 @@ public:
 		m_pSharedMember = a_pSharedMember;
 		m_pOwner = a_pOwner;
 
-		std::shared_ptr<OmniLight> l_pTarget = nullptr;
+		std::shared_ptr<T> l_pTarget = nullptr;
 		unsigned int l_ID = m_Lights.retain(&l_pTarget);
 		l_pTarget->m_ID = l_ID;
-		l_pTarget->m_pRefParam = static_cast<OmniLight::Data *>(m_pLightData->getBlockPtr(l_ID));
+		l_pTarget->m_pRefParam = static_cast<T::Data *>(m_pLightData->getBlockPtr(l_ID));
 		l_pTarget->setHidden(false);
 		l_pTarget->addTransformListener();
 		return l_pTarget;
@@ -146,6 +147,8 @@ public:
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_DIR_LIGHT; }
+	virtual void loadComponent(boost::property_tree::ptree &a_Src);
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
 	virtual void setShadowed(bool a_bShadow);
 	virtual bool getShadowed();
@@ -155,10 +158,11 @@ public:
 	void setIntensity(float a_Intensity);
 	float getIntensity();
 	glm::vec3 getDirection();
-	void setShadowMapLayer(int a_Layer);
-	int getShadowMapLayer();
-	void setShadowMapProjection(glm::mat4x4 a_Matrix);
-	glm::mat4x4 getShadowMapProjection();
+	void setShadowMapLayer(unsigned int a_Slot, glm::vec4 a_UV, int a_Layer);
+	glm::vec4 getShadowMapUV(unsigned int a_Slot);
+	int getShadowMapLayer(unsigned int a_Slot);
+	void setShadowMapProjection(unsigned int a_Slot, glm::mat4x4 a_Matrix);
+	glm::mat4x4 getShadowMapProjection(unsigned int a_Slot);
 
 	virtual unsigned int getID();
 
@@ -168,9 +172,10 @@ private:
 		glm::vec3 m_Color;
 		float m_Intensity;
 		glm::vec3 m_Direction;
-		int m_Layer;
-		glm::mat4x4 m_ShadowMapProj;
 		int m_bCastShadow;
+		glm::ivec4 m_Layer;
+		glm::vec4 m_ShadowMapUV[4];
+		glm::mat4x4 m_ShadowMapProj[4];
 	};
 	DirLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
@@ -189,6 +194,8 @@ public:
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_OMNI_LIGHT; }
+	virtual void loadComponent(boost::property_tree::ptree &a_Src);
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	
 	virtual void setShadowed(bool a_bShadow);
 	virtual bool getShadowed();
@@ -237,6 +244,8 @@ public:
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 	virtual unsigned int typeID(){ return COMPONENT_SPOT_LIGHT; }
+	virtual void loadComponent(boost::property_tree::ptree &a_Src);
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	
 	virtual void setShadowed(bool a_bShadow);
 	virtual bool getShadowed();

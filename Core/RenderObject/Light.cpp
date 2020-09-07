@@ -21,6 +21,7 @@ namespace R
 Light::Light(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
 	, m_pShadowCamera(EngineComponent::create<CameraComponent>(a_pSharedMember, nullptr))
+	, m_bStatic(false)
 {
 }
 
@@ -30,7 +31,7 @@ Light::~Light()
 
 void Light::start()
 {
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
 }
 
 void Light::end()
@@ -38,26 +39,42 @@ void Light::end()
 	m_pShadowCamera = nullptr;
 	if( isHidden() ) return;
 
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
+	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
 }
 
 void Light::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
+		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
 		removeTransformListener();
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
 		addTransformListener();
 	}
 }
 
 void Light::transformListener(glm::mat4x4 &a_NewTransform)
 {
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->update(shared_from_base<Light>());
+	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->update(shared_from_base<Light>());
+}
+
+void Light::setStatic(bool a_bStatic)
+{
+	if( m_bStatic == a_bStatic ) return;
+	if( m_bStatic )
+	{
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->remove(shared_from_base<Light>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+	}
+	else
+	{
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->add(shared_from_base<Light>());
+	}
+	m_bStatic = a_bStatic;
 }
 #pragma endregion
 
@@ -137,30 +154,38 @@ glm::vec3 DirLight::getDirection()
 	return m_pRefParam->m_Direction;
 }
 
-void DirLight::setShadowMapLayer(int a_Layer)
+void DirLight::setShadowMapLayer(unsigned int a_Slot, glm::vec4 a_UV, int a_Layer)
 {
 	assert(nullptr != m_pRefParam);
-	m_pRefParam->m_Layer = a_Layer;
+	m_pRefParam->m_Layer[a_Slot] = a_Layer;
+	bool l_bXY = 0 == (a_Slot%2);
+	m_pRefParam->m_ShadowMapUV[a_Slot] = a_UV;
 	getSharedMember()->m_pDirLights->setDirty();
 }
 
-int DirLight::getShadowMapLayer()
+glm::vec4 DirLight::getShadowMapUV(unsigned int a_Slot)
 {
 	assert(nullptr != m_pRefParam);
-	return m_pRefParam->m_Layer;
+	return m_pRefParam->m_ShadowMapUV[a_Slot];
 }
 
-void DirLight::setShadowMapProjection(glm::mat4x4 a_Matrix)
+int DirLight::getShadowMapLayer(unsigned int a_Slot)
 {
 	assert(nullptr != m_pRefParam);
-	m_pRefParam->m_ShadowMapProj = a_Matrix;
+	return m_pRefParam->m_Layer[a_Slot];
+}
+
+void DirLight::setShadowMapProjection(unsigned int a_Slot, glm::mat4x4 a_Matrix)
+{
+	assert(nullptr != m_pRefParam);
+	m_pRefParam->m_ShadowMapProj[a_Slot] = a_Matrix;
 	getSharedMember()->m_pDirLights->setDirty();
 }
 
-glm::mat4x4 DirLight::getShadowMapProjection()
+glm::mat4x4 DirLight::getShadowMapProjection(unsigned int a_Slot)
 {
 	assert(nullptr != m_pRefParam);
-	return m_pRefParam->m_ShadowMapProj;
+	return m_pRefParam->m_ShadowMapProj[a_Slot];
 }
 
 unsigned int DirLight::getID()

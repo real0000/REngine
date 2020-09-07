@@ -109,6 +109,9 @@ public:
 	void setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
+	// for shadow map rendering
+	std::shared_ptr<Asset> getFirstTexture(){ return m_Textures.empty() ? nullptr : m_Textures[0]; }
+
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
@@ -162,7 +165,7 @@ public:
 	void setStage(unsigned int a_Stage){ m_Stage = a_Stage; }
 	unsigned int getStage(){ return m_Stage; }
 	int requestInstanceSlot();
-	void freeInstanceSlot(unsigned int a_Slot);
+	void freeInstanceSlot(int a_Slot);
 
 	void bindTexture(GraphicCommander *a_pBinder);
 	void bindBlocks(GraphicCommander *a_pBinder);
@@ -172,7 +175,7 @@ private:
 	unsigned int m_Stage;
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
-	std::set<unsigned int> m_ReservedCBV;
+	std::set<unsigned int> m_ReservedCBV, m_ReservedSRV;
 	std::vector<std::shared_ptr<Asset>> m_Textures;
 
 	// instance part

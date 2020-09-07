@@ -39,7 +39,7 @@
 		uint4 m_BoneID : BLENDINDICES0;
 		float4 m_Weight : BLENDWEIGHT0;
 		float4 m_Color : COLOR0;
-		uint m_TransformID : BLENDINDICES1;
+		uint4 m_InstanceID : TEXCOORD4;
 	};
 	struct VS_CommonOutput
 	{
@@ -52,6 +52,7 @@
 		float4 m_Binormal : BINORMAL0;
 		float4 m_Color : COLOR0;
 		float4 m_Position : SV_Position;
+		uint4 m_InstanceID : TEXCOORD4;
 	};
 
 	struct HS_TriangleFactor

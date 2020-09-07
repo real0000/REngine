@@ -54,6 +54,7 @@ void TextureAsset::validImportExt(std::vector<wxString> &a_Output)
 		wxT("jpg"),
 		wxT("jpeg"),
 		wxT("tga"),
+		wxT("exr")
 	};
 	const unsigned int c_NumExt = sizeof(c_ExtList) / sizeof(wxString);
 	for( unsigned int i=0 ; i<c_NumExt ; ++i ) a_Output.push_back(c_ExtList[i]);
@@ -292,7 +293,7 @@ void TextureAsset::importThread(wxString a_Path)
 			GDEVICE()->updateTexture(l_TextureID, 0, glm::ivec2(l_Dim.x, l_Dim.y), glm::zero<glm::ivec2>(), 0, l_pImageData->getPixels(0));
 
 			std::string l_RawData;
-			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * 4, l_RawData);
+			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * getPixelSize(l_pImageData->getFormat()), l_RawData);
 			m_RawFile.push_back(l_RawData);
 			}break;
 
@@ -306,7 +307,7 @@ void TextureAsset::importThread(wxString a_Path)
 
 				std::string l_RawData;
 				l_RawData.clear();
-				binary2Base64(l_pImageData->getPixels(i), l_Dim.x * l_Dim.y * 4, l_RawData);
+				binary2Base64(l_pImageData->getPixels(i), l_Dim.x * l_Dim.y * getPixelSize(l_pImageData->getFormat()), l_RawData);
 				m_RawFile.push_back(l_RawData);
 			}
 			}break;
@@ -317,7 +318,7 @@ void TextureAsset::importThread(wxString a_Path)
 			GDEVICE()->updateTexture(l_TextureID, 0, l_Dim, glm::zero<glm::ivec3>(), 0, l_pImageData->getPixels(0));
 			
 			std::string l_RawData;
-			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * l_Dim.z * 4, l_RawData);
+			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * l_Dim.z * getPixelSize(l_pImageData->getFormat()), l_RawData);
 			m_RawFile.push_back(l_RawData);
 			}break;
 

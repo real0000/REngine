@@ -39,10 +39,10 @@ public:
 	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas);
 
 private:
-	bool setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
+	bool setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera
+		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
+		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
 	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
-	void setupShadow(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
-	void drawShadow(std::shared_ptr<Light> &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
 
 	unsigned int calculateShadowMapRegion(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
@@ -51,15 +51,13 @@ private:
 	void drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
 
 	GraphicCommander *m_pCmdInit;
-	std::shared_ptr<MaterialBlock> m_LightIdx, m_MeshIdx;
+	std::shared_ptr<MaterialBlock> m_LightIdx;
 	unsigned int m_ExtendSize;//maybe add to engine setting?
 
 	// shadow map variable
 	RenderTextureAtlas *m_pShadowMap;
-	std::shared_ptr<Asset> m_pShadowMapDepth;
-	unsigned int m_ShadowCmdIdx;
 	std::vector<GraphicCommander *> m_ShadowCommands;
-	std::vector< std::shared_ptr<MaterialBlock> > m_ShadowMapIndirectBuffer;
+	std::shared_ptr<Asset> m_pDirShadowMat, m_pOmniShadowMat, m_pSpotShadowMat;
 	std::mutex m_ShadowMapLock;
 	
 	// gbuffer varibles

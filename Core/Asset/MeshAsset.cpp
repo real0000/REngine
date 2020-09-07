@@ -14,6 +14,10 @@
 namespace R
 {
 
+#pragma region MeshAsset
+//
+// MeshAsset
+// 
 MeshAsset::MeshAsset()
 	: m_Position(0)
 	, m_Texcoord{std::vector<glm::vec4>(0), std::vector<glm::vec4>(0), std::vector<glm::vec4>(0), std::vector<glm::vec4>(0)}
@@ -23,6 +27,8 @@ MeshAsset::MeshAsset()
 	, m_BoneId(0)
 	, m_Weight(0)
 	, m_Indicies(0)
+	, m_VertexBuffer(nullptr)
+	, m_IndexBuffer(nullptr)
 	, m_Meshes(0)
 	, m_Relation()
 	, m_Bones(0)
@@ -31,6 +37,9 @@ MeshAsset::MeshAsset()
 
 MeshAsset::~MeshAsset()
 {
+	m_VertexBuffer = nullptr;
+	m_IndexBuffer = nullptr;
+
 	m_Position.clear();
     for( unsigned int i=0 ; i<4 ; ++i ) m_Texcoord[i].clear();
     m_Normal.clear();
@@ -130,6 +139,8 @@ void MeshAsset::importFile(wxString a_File)
 		l_pRelNode->m_RefMesh.resize((*it)->getRefMesh().size());
 		std::copy(l_pRelNode->m_RefMesh.begin(), l_pRelNode->m_RefMesh.end(), (*it)->getRefMesh().begin());
 	}
+
+	initBuffers();
 }
 
 void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
@@ -243,6 +254,8 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 		m_Indicies.resize(l_Buff.size() / sizeof(unsigned int));
 		memcpy(m_Indicies.data(), l_Buff.data(), l_Buff.size());
 	}
+
+	initBuffers();
 }
 
 void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
@@ -341,5 +354,28 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 
 	a_Dst.add_child("root", l_Root);
 }
+
+void MeshAsset::initBuffers()
+{
+	m_VertexBuffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
+	m_IndexBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
+
+	m_VertexBuffer->setNumVertex(m_Position.size());
+	m_VertexBuffer->setVertex(VTXSLOT_POSITION, m_Position.data());
+	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD01, m_Texcoord[0].data());
+	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD23, m_Texcoord[1].data());
+	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD45, m_Texcoord[2].data());
+	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD67, m_Texcoord[3].data());
+	m_VertexBuffer->setVertex(VTXSLOT_NORMAL, m_Normal.data());
+	m_VertexBuffer->setVertex(VTXSLOT_TANGENT, m_Tangent.data());
+	m_VertexBuffer->setVertex(VTXSLOT_BINORMAL, m_Binormal.data());
+	m_VertexBuffer->setVertex(VTXSLOT_BONE, m_BoneId.data());
+	m_VertexBuffer->setVertex(VTXSLOT_WEIGHT, m_Weight.data());
+	m_VertexBuffer->init();
+
+	m_IndexBuffer->setIndicies(true, m_Indicies.data(), m_Indicies.size());
+	m_IndexBuffer->init();
+}
+#pragma endregion
 
 }

@@ -46,12 +46,272 @@ SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 {
 	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
 	m_pRenderer = a_Src.m_pRenderer;
+	m_pBatcher = a_Src.m_pBatcher;
 	m_pDirLights = a_Src.m_pDirLights;
 	m_pOmniLights = a_Src.m_pOmniLights;
 	m_pSpotLights = a_Src.m_pSpotLights;
 	m_pScene = a_Src.m_pScene;
 	m_pSceneNode = a_Src.m_pSceneNode;
 	return *this;
+}
+#pragma endregion
+
+#pragma region SceneBatcher
+#pragma region SceneBatcher::SingletonBatchData
+SceneBatcher::SingletonBatchData::SingletonBatchData()
+	: m_SkinBlock(nullptr), m_WorldBlock(nullptr)
+	, m_SkinSlotManager(), m_WorldSlotManager()
+{
+	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly)->getBlockDesc(ShaderRegType::UavBuffer);
+	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_SkinTransition" == a_pDesc->m_Name; });
+	m_SkinBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
+	m_SkinSlotManager.init(BATCHDRAW_UNIT);
+
+	it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_NormalTransition" == a_pDesc->m_Name; });
+	m_WorldBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
+	m_WorldSlotManager.init(BATCHDRAW_UNIT);
+}
+
+SceneBatcher::SingletonBatchData::~SingletonBatchData()
+{
+	m_SkinBlock = nullptr;
+	m_WorldBlock = nullptr;
+}
+#pragma endregion
+//
+// SceneBatcher
+//
+SceneBatcher::SingletonBatchData *SceneBatcher::m_pSingletonBatchData = nullptr;
+unsigned int SceneBatcher::m_NumSharedMember = 0;
+SceneBatcher::SceneBatcher()
+	: m_VertexBufffer(nullptr)
+	, m_IndexBuffer(nullptr)
+{
+	if( nullptr == m_pSingletonBatchData ) m_pSingletonBatchData = new SingletonBatchData();
+	++m_NumSharedMember;
+}
+
+SceneBatcher::~SceneBatcher()
+{
+	m_VertexBufffer = nullptr;
+	m_IndexBuffer = nullptr;
+
+	--m_NumSharedMember;
+	if( 0 == m_NumSharedMember ) delete m_pSingletonBatchData;
+	m_pSingletonBatchData = nullptr;
+	
+	while( !m_InstancVtxBuffers.empty() )
+	{
+		GDEVICE()->freeVertexBuffer(m_InstancVtxBuffers.front());
+		m_InstancVtxBuffers.pop_front();
+	}
+}
+
+int SceneBatcher::requestInstanceVtxBuffer()
+{
+	std::lock_guard<std::mutex> l_Guard(m_pSingletonBatchData->m_InstanceVtxLock);
+
+	int l_Res = -1;
+	if( m_InstancVtxBuffers.empty() ) l_Res = GDEVICE()->requestVertexBuffer(nullptr, VTXSLOT_INSTANCE, BATCHDRAW_UNIT);
+	else
+	{
+		l_Res = m_InstancVtxBuffers.front();
+		m_InstancVtxBuffers.pop_front();
+	}
+	return l_Res;
+}
+
+void SceneBatcher::recycleInstanceVtxBuffer(int a_BufferID)
+{
+	m_UsedInstancVtxBuffers.push_back(a_BufferID);
+}
+
+void SceneBatcher::renderEnd()
+{
+	for( unsigned int i=0 ; i<m_UsedInstancVtxBuffers.size() ; ++i ) m_InstancVtxBuffers.push_back(m_UsedInstancVtxBuffers[i]);
+	m_UsedInstancVtxBuffers.clear();
+}
+
+int SceneBatcher::requestSkinSlot(std::shared_ptr<Asset> a_pAsset)
+{
+	auto &l_BoneMatrix = a_pAsset->getComponent<MeshAsset>()->getBones();
+	if( l_BoneMatrix.empty() ) return -1;
+
+	std::lock_guard<std::mutex> l_Locker(m_pSingletonBatchData->m_SkinSlotLock);
+
+	auto it = m_pSingletonBatchData->m_SkinCache.find(a_pAsset);
+	if( m_pSingletonBatchData->m_SkinCache.end() != it )
+	{
+		++it->second.second;
+		return it->second.first;
+	}
+	
+	int l_Res = m_pSingletonBatchData->m_SkinSlotManager.malloc(l_BoneMatrix.size());
+	if( -1 == l_Res )
+	{
+		m_pSingletonBatchData->m_SkinSlotManager.extend(BATCHDRAW_UNIT);
+		m_pSingletonBatchData->m_SkinBlock->extend(BATCHDRAW_UNIT);
+		l_Res = m_pSingletonBatchData->m_SkinSlotManager.malloc(l_BoneMatrix.size());
+	}
+	m_pSingletonBatchData->m_SkinCache.insert(std::make_pair(a_pAsset, std::make_pair(l_Res, 1)));
+	for( unsigned int i=0 ; i<l_BoneMatrix.size() ; ++i ) m_pSingletonBatchData->m_SkinBlock->setParam("m_SkinTransition", l_Res + i, l_BoneMatrix[i]);
+
+	return l_Res;
+}
+
+void SceneBatcher::recycleSkinSlot(std::shared_ptr<Asset> a_pComponent)
+{
+	if( nullptr == a_pComponent ) return;
+
+	std::lock_guard<std::mutex> l_Locker(m_pSingletonBatchData->m_SkinSlotLock);
+	auto it = m_pSingletonBatchData->m_SkinCache.find(a_pComponent);
+	if( m_pSingletonBatchData->m_SkinCache.end() == it ) return;
+
+	--it->second.second;
+	if( 0 != it->second.second ) return;
+	
+	m_pSingletonBatchData->m_SkinSlotManager.free(it->second.first);
+	m_pSingletonBatchData->m_SkinCache.erase(it);
+}
+
+int SceneBatcher::requestWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent)
+{
+	std::lock_guard<std::mutex> l_Locker(m_pSingletonBatchData->m_WorldSlotLock);
+
+	auto it = m_pSingletonBatchData->m_WorldCache.find(a_pComponent);
+	if( m_pSingletonBatchData->m_WorldCache.end() != it )
+	{
+		++it->second.second;
+		return it->second.first;
+	}
+	
+	int l_Res = m_pSingletonBatchData->m_WorldSlotManager.malloc(1);
+	if( -1 == l_Res )
+	{
+		m_pSingletonBatchData->m_WorldSlotManager.extend(BATCHDRAW_UNIT);
+		m_pSingletonBatchData->m_WorldBlock->extend(BATCHDRAW_UNIT);
+		l_Res = m_pSingletonBatchData->m_WorldSlotManager.malloc(1);
+	}
+	m_pSingletonBatchData->m_WorldCache.insert(std::make_pair(a_pComponent, std::make_pair(l_Res, 1)));
+
+	return l_Res;
+}
+
+void SceneBatcher::recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent)
+{
+	if( nullptr == a_pComponent ) return;
+
+	std::lock_guard<std::mutex> l_Locker(m_pSingletonBatchData->m_WorldSlotLock);
+	auto it = m_pSingletonBatchData->m_WorldCache.find(a_pComponent);
+	if( m_pSingletonBatchData->m_WorldCache.end() == it ) return;
+
+	--it->second.second;
+	if( 0 != it->second.second ) return;
+	
+	m_pSingletonBatchData->m_WorldSlotManager.free(it->second.first);
+	m_pSingletonBatchData->m_WorldCache.erase(it);
+}
+
+void SceneBatcher::calculateStaticBatch(SharedSceneMember *a_pGraphOwner)
+{
+	m_VertexBufffer = nullptr;
+	m_IndexBuffer = nullptr;
+
+	for( auto it=m_StaticMeshes.begin() ; it!=m_StaticMeshes.end() ; ++it ) delete it->second;
+	m_StaticMeshes.clear();
+
+	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes;
+	a_pGraphOwner->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getAllComponent(l_Meshes);
+
+	std::set<std::shared_ptr<Asset>> l_MeshAssets;
+	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
+	{
+		RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[i].get());
+		l_MeshAssets.insert(l_pInst->getMesh());
+	}
+
+	unsigned int l_NumVtx = 0;
+	unsigned int l_NumIdx = 0;
+	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
+	{
+		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
+		l_NumVtx += l_pAssetInst->getPosition().size();
+		l_NumIdx += l_pAssetInst->getIndicies().size();
+	}
+	
+	std::vector<glm::vec3> l_Position(l_NumVtx);
+    std::vector<glm::vec4> l_Texcoord[4] = {std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx)};
+    std::vector<glm::vec3> l_Normal(l_NumVtx);
+    std::vector<glm::vec3> l_Tangent(l_NumVtx);
+    std::vector<glm::vec3> l_Binormal(l_NumVtx);
+	std::vector<glm::ivec4> l_BoneId(l_NumVtx);
+	std::vector<glm::vec4> l_Weight(l_NumVtx);
+	std::vector<unsigned int> l_Indicies(l_NumIdx);
+	unsigned int l_BaseVtx = 0, l_BaseIdx = 0;
+	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
+	{
+		MeshCache *l_pNewCache = new MeshCache();
+		m_StaticMeshes.insert(std::make_pair(*it, l_pNewCache));
+
+		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
+		std::vector<MeshAsset::Instance*> &l_List = l_pAssetInst->getMeshes();
+		for( unsigned int j=0 ; j<l_List.size() ; ++j )
+		{
+			MeshVtxCache l_SubMesh = {};
+			l_SubMesh.m_IndexStart = l_BaseIdx + l_List[j]->m_StartIndex;
+			l_SubMesh.m_IndexCount = l_List[j]->m_IndexCount;
+			l_SubMesh.m_VertexStart = l_BaseVtx + l_List[j]->m_BaseVertex;
+			l_pNewCache->push_back(l_SubMesh);
+
+
+		}
+
+		std::copy(l_pAssetInst->getPosition().begin(), l_pAssetInst->getPosition().end(), l_Position.begin() + l_BaseVtx);
+		for( unsigned int j=0 ; j<4 ; ++j ) std::copy(l_pAssetInst->getTexcoord(j).begin(), l_pAssetInst->getTexcoord(j).end(), l_Texcoord[j].begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getNormal().begin(), l_pAssetInst->getNormal().end(), l_Normal.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getTangent().begin(), l_pAssetInst->getTangent().end(), l_Tangent.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getBinormal().begin(), l_pAssetInst->getBinormal().end(), l_Binormal.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getBoneId().begin(), l_pAssetInst->getBoneId().end(), l_BoneId.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getWeight().begin(), l_pAssetInst->getWeight().end(), l_Weight.begin() + l_BaseVtx);
+		std::copy(l_pAssetInst->getIndicies().begin(), l_pAssetInst->getIndicies().end(), l_Indicies.begin() + l_BaseIdx);
+
+		l_BaseVtx += l_pAssetInst->getPosition().size();
+		l_BaseIdx += l_pAssetInst->getIndicies().size();
+	}
+
+	m_VertexBufffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
+	m_VertexBufffer->setNumVertex(l_NumVtx);
+	m_VertexBufffer->setVertex(VTXSLOT_POSITION, l_Position.data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD01, l_Texcoord[0].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD23, l_Texcoord[1].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD45, l_Texcoord[2].data());
+	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD67, l_Texcoord[3].data());
+	m_VertexBufffer->setVertex(VTXSLOT_NORMAL, l_Normal.data());
+	m_VertexBufffer->setVertex(VTXSLOT_TANGENT, l_Tangent.data());
+	m_VertexBufffer->setVertex(VTXSLOT_BINORMAL, l_Binormal.data());
+	m_VertexBufffer->setVertex(VTXSLOT_BONE, l_BoneId.data());
+	m_VertexBufffer->setVertex(VTXSLOT_WEIGHT, l_Weight.data());
+	m_VertexBufffer->init();
+
+	m_IndexBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
+	m_IndexBuffer->setIndicies(true, l_Indicies.data(), l_NumIdx);
+	m_IndexBuffer->init();
+}
+
+bool SceneBatcher::getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput)
+{
+	auto it = m_StaticMeshes.find(a_pMeshAsset);
+	if( m_StaticMeshes.end() == it ) return false;
+	*a_ppOutput = it->second;
+	return true;
+}
+
+void SceneBatcher::bindBatchDrawData(GraphicCommander *a_pCommander)
+{
+	if( nullptr == m_VertexBufffer ) return;
+
+	a_pCommander->bindVertex(m_VertexBufffer.get());
+	a_pCommander->bindIndex(m_IndexBuffer.get());
 }
 #pragma endregion
 
@@ -69,6 +329,7 @@ SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNo
 	, m_World(1.0f)
 	, m_LocalTransform(1.0f)
 	, m_pMembers(new SharedSceneMember)
+	, m_pLinkedAsset(nullptr)
 {
 	*m_pMembers = *a_pSharedMember;
 	m_pMembers->m_pSceneNode = a_pOwner;
@@ -94,6 +355,7 @@ std::shared_ptr<SceneNode> SceneNode::addChild()
 void SceneNode::destroy()
 {
 	SAFE_DELETE(m_pMembers)
+	m_pLinkedAsset = nullptr;
 	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
 	{
 		for( auto setIt = it->second.begin() ; setIt != it->second.end() ; ++setIt )
@@ -214,15 +476,7 @@ Scene::Scene()
 	, m_pMembers(new SharedSceneMember)
 	, m_pCurrCamera(nullptr)
 	, m_bActivate(true)
-	, m_VertexBufffer(nullptr)
-	, m_IndexBuffer(nullptr)
-	, m_SkinBlock(nullptr)
-	, m_SkinSlotManager()
 {
-	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly)->getBlockDesc(ShaderRegType::UavBuffer);
-	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_SkinTransition" == a_pDesc->m_Name; });
-	m_SkinBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
-	m_SkinSlotManager.init(BATCHDRAW_UNIT);
 }
 
 Scene::~Scene()
@@ -277,6 +531,7 @@ bool Scene::load(wxString a_Path)
 
 		loadScenePartitionSetting(l_XMLTree.get_child("root.ScenePartition"));
 		loadRenderPipelineSetting(l_XMLTree.get_child("root.RenderPipeline"));
+		loadAssetSetting(l_XMLTree.get_child("root.Assets"));
 
 		m_pMembers->m_pScene = shared_from_this();
 	}
@@ -350,8 +605,7 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	//
 
 	m_pMembers->m_pRenderer->render(m_pCurrCamera, a_pCanvas);
-	for( unsigned int i=0 ; i<m_UsedInstancVtxBuffers.size() ; ++i ) m_InstancVtxBuffers.push_back(m_UsedInstancVtxBuffers[i]);
-	m_UsedInstancVtxBuffers.clear();
+	m_pMembers->m_pBatcher->renderEnd();
 }
 
 void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
@@ -403,163 +657,6 @@ void Scene::clearInputListener()
 	m_DroppedInputListener.clear();
 }
 
-int Scene::requestInstanceVtxBuffer()
-{
-	std::lock_guard<std::mutex> l_Guard(m_InstanceVtxLock);
-
-	int l_Res = -1;
-	if( m_InstancVtxBuffers.empty() ) l_Res = GDEVICE()->requestVertexBuffer(nullptr, VTXSLOT_INSTANCE, BATCHDRAW_UNIT);
-	else
-	{
-		l_Res = m_InstancVtxBuffers.front();
-		m_InstancVtxBuffers.pop_front();
-	}
-	return l_Res;
-}
-
-void Scene::recycleInstanceVtxBuffer(int a_BufferID)
-{
-	m_UsedInstancVtxBuffers.push_back(a_BufferID);
-}
-
-int Scene::requestSkinSlot(std::shared_ptr<Asset> a_pAsset)
-{
-	std::lock_guard<std::mutex> l_Locker(m_SkinSlotLock);
-
-	auto it = m_SkinSlotCache.find(a_pAsset);
-	if( m_SkinSlotCache.end() != it )
-	{
-		++it->second.second;
-		return it->second.first;
-	}
-	
-	auto &l_BoneMatrix = a_pAsset->getComponent<MeshAsset>()->getBones();
-	int l_Res = m_SkinSlotManager.malloc(l_BoneMatrix.size());
-	if( -1 == l_Res )
-	{
-		m_SkinSlotManager.extend(BATCHDRAW_UNIT);
-		m_SkinBlock->extend(BATCHDRAW_UNIT);
-		l_Res = m_SkinSlotManager.malloc(l_BoneMatrix.size());
-		m_SkinSlotCache.insert(std::make_pair(a_pAsset, std::make_pair(l_Res, 1)));
-	}
-	for( unsigned int i=0 ; i<l_BoneMatrix.size() ; ++i ) m_SkinBlock->setParam("m_SkinTransition", l_Res + i, l_BoneMatrix[i]);
-	return l_Res;
-}
-
-void Scene::recycleSkinSlot(std::shared_ptr<Asset> a_pAsset)
-{
-	std::lock_guard<std::mutex> l_Locker(m_SkinSlotLock);
-	auto it = m_SkinSlotCache.find(a_pAsset);
-	if( m_SkinSlotCache.end() == it ) return;
-
-	--it->second.second;
-	if( 0 != it->second.second ) return;
-	
-	m_SkinSlotManager.free(it->second.first);
-	m_SkinSlotCache.erase(it);
-}
-
-void Scene::calculateStaticBatch()
-{
-	m_VertexBufffer = nullptr;
-	m_IndexBuffer = nullptr;
-	m_SkinBlock = nullptr;
-
-	for( auto it=m_StaticMeshes.begin() ; it!=m_StaticMeshes.end() ; ++it ) delete it->second;
-	m_StaticMeshes.clear();
-
-	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes;
-	m_pMembers->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getAllComponent(l_Meshes);
-
-	std::set<std::shared_ptr<Asset>> l_MeshAssets;
-	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
-	{
-		RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[i].get());
-		l_MeshAssets.insert(l_pInst->getMesh());
-	}
-
-	unsigned int l_NumVtx = 0;
-	unsigned int l_NumIdx = 0;
-	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
-	{
-		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
-		l_NumVtx += l_pAssetInst->getPosition().size();
-		l_NumIdx += l_pAssetInst->getIndicies().size();
-	}
-
-	std::vector<glm::vec3> l_Position(l_NumVtx);
-    std::vector<glm::vec4> l_Texcoord[4] = {std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx), std::vector<glm::vec4>(l_NumVtx)};
-    std::vector<glm::vec3> l_Normal(l_NumVtx);
-    std::vector<glm::vec3> l_Tangent(l_NumVtx);
-    std::vector<glm::vec3> l_Binormal(l_NumVtx);
-	std::vector<glm::ivec4> l_BoneId(l_NumVtx);
-	std::vector<glm::vec4> l_Weight(l_NumVtx);
-	std::vector<unsigned int> l_Indicies(l_NumIdx);
-	unsigned int l_BaseVtx = 0, l_BaseIdx = 0;
-	for( auto it=l_MeshAssets.begin() ; it!=l_MeshAssets.end() ; ++it )
-	{
-		MeshCache *l_pNewCache = new MeshCache();
-		m_StaticMeshes.insert(std::make_pair(*it, l_pNewCache));
-
-		MeshAsset *l_pAssetInst = (*it)->getComponent<MeshAsset>();
-		std::vector<MeshAsset::Instance*> &l_List = l_pAssetInst->getMeshes();
-		for( unsigned int j=0 ; j<l_List.size() ; ++j )
-		{
-			MeshVtxCache l_SubMesh = {};
-			l_SubMesh.m_IndexStart = l_BaseIdx + l_List[j]->m_StartIndex;
-			l_SubMesh.m_IndexCount = l_List[j]->m_IndexCount;
-			l_SubMesh.m_VertexStart = l_BaseVtx + l_List[j]->m_BaseVertex;
-			l_pNewCache->push_back(l_SubMesh);
-		}
-
-		std::copy(l_pAssetInst->getPosition().begin(), l_pAssetInst->getPosition().end(), l_Position.begin() + l_BaseVtx);
-		for( unsigned int j=0 ; j<4 ; ++j ) std::copy(l_pAssetInst->getTexcoord(j).begin(), l_pAssetInst->getTexcoord(j).end(), l_Texcoord[j].begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getNormal().begin(), l_pAssetInst->getNormal().end(), l_Normal.begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getTangent().begin(), l_pAssetInst->getTangent().end(), l_Tangent.begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getBinormal().begin(), l_pAssetInst->getBinormal().end(), l_Binormal.begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getBoneId().begin(), l_pAssetInst->getBoneId().end(), l_BoneId.begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getWeight().begin(), l_pAssetInst->getWeight().end(), l_Weight.begin() + l_BaseVtx);
-		std::copy(l_pAssetInst->getIndicies().begin(), l_pAssetInst->getIndicies().end(), l_Indicies.begin() + l_BaseIdx);
-
-		l_BaseVtx += l_pAssetInst->getPosition().size();
-		l_BaseIdx += l_pAssetInst->getIndicies().size();
-	}
-
-	m_VertexBufffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
-	m_VertexBufffer->setNumVertex(l_NumVtx);
-	m_VertexBufffer->setVertex(VTXSLOT_POSITION, l_Position.data());
-	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD01, l_Texcoord[0].data());
-	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD23, l_Texcoord[1].data());
-	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD45, l_Texcoord[2].data());
-	m_VertexBufffer->setVertex(VTXSLOT_TEXCOORD67, l_Texcoord[3].data());
-	m_VertexBufffer->setVertex(VTXSLOT_NORMAL, l_Normal.data());
-	m_VertexBufffer->setVertex(VTXSLOT_TANGENT, l_Tangent.data());
-	m_VertexBufffer->setVertex(VTXSLOT_BINORMAL, l_Binormal.data());
-	m_VertexBufffer->setVertex(VTXSLOT_BONE, l_BoneId.data());
-	m_VertexBufffer->setVertex(VTXSLOT_WEIGHT, l_Weight.data());
-	m_VertexBufffer->init();
-
-	m_IndexBuffer = std::shared_ptr<IndexBuffer>(new IndexBuffer());
-	m_IndexBuffer->setIndicies(true, l_Indicies.data(), l_NumIdx);
-	m_IndexBuffer->init();
-}
-
-bool Scene::getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput)
-{
-	auto it = m_StaticMeshes.find(a_pMeshAsset);
-	if( m_StaticMeshes.end() == it ) return false;
-	*a_ppOutput = it->second;
-	return true;
-}
-
-void Scene::bindBatchDrawData(GraphicCommander *a_pCommander)
-{
-	if( nullptr == m_VertexBufffer ) return;
-
-	a_pCommander->bindVertex(m_VertexBufffer.get());
-	a_pCommander->bindIndex(m_IndexBuffer.get());
-}
-
 std::shared_ptr<SceneNode> Scene::getRootNode()
 {
 	return m_pMembers->m_pSceneNode;
@@ -580,19 +677,13 @@ void Scene::clear()
 		}
 		memset(m_pMembers->m_pGraphs, NULL, sizeof(ScenePartition *) * SharedSceneMember::NUM_GRAPH_TYPE);
 	}
-	if( nullptr != m_pMembers->m_pRenderer )
-	{
-		delete m_pMembers->m_pRenderer;
-		m_pMembers->m_pRenderer = nullptr;
-	}
+	SAFE_DELETE(m_pMembers->m_pRenderer)
+	SAFE_DELETE(m_pMembers->m_pBatcher)
 	if( nullptr != m_pMembers->m_pDirLights ) m_pMembers->m_pDirLights->clear();
 	if( nullptr != m_pMembers->m_pOmniLights ) m_pMembers->m_pOmniLights->clear();
 	if( nullptr != m_pMembers->m_pSpotLights ) m_pMembers->m_pSpotLights->clear();
-	while( !m_InstancVtxBuffers.empty() )
-	{
-		GDEVICE()->freeVertexBuffer(m_InstancVtxBuffers.front());
-		m_InstancVtxBuffers.pop_front();
-	}
+	for( auto it=m_SceneAssets.begin() ; it!=m_SceneAssets.end() ; ++it ) delete it->second;
+	m_SceneAssets.clear();
 
 	m_pCurrCamera = nullptr;
 }
@@ -622,6 +713,11 @@ void Scene::loadScenePartitionSetting(boost::property_tree::ptree &a_Node)
 
 void Scene::loadRenderPipelineSetting(boost::property_tree::ptree &a_Node)
 {
+}
+
+void Scene::loadAssetSetting(boost::property_tree::ptree &a_Node)
+{
+
 }
 #pragma endregion
 

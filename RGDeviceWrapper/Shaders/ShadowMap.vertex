@@ -1,0 +1,32 @@
+#include "stdInclude.h"
+#include "autoBinder.h"
+
+VS_CommonOutput main(VS_CommonInput l_Input)
+{
+	VS_CommonOutput l_Output = (VS_CommonOutput)0;
+	l_Output.m_InstanceID = l_Input.m_InstanceID;
+
+	TransformInfo l_Transform = m_NormalTransition[l_Input.m_InstanceID.x];
+	l_Output.m_Texcoord01 = l_Input.m_Texcoord01;
+	
+	float4x4 l_WorldTransform;
+	if( 0 != (l_Transform.m_VtxFlag & USE_SKIN) )
+	{
+		uint l_SkinBase = l_Transform.m_SkinMatBase;
+		l_WorldTransform = m_SkinTransition[l_SkinBase + l_Input.m_BoneID.x].m_Matrix * l_Input.m_Weight.x
+						 + m_SkinTransition[l_SkinBase + l_Input.m_BoneID.y].m_Matrix * l_Input.m_Weight.y
+						 + m_SkinTransition[l_SkinBase + l_Input.m_BoneID.z].m_Matrix * l_Input.m_Weight.z
+						 + m_SkinTransition[l_SkinBase + l_Input.m_BoneID.w].m_Matrix * l_Input.m_Weight.w;
+	}
+	else l_WorldTransform = float4x4(1.0, 0.0, 0.0, 0.0
+									,0.0, 1.0, 0.0, 0.0
+									,0.0, 0.0, 1.0, 0.0
+									,0.0, 0.0, 0.0, 1.0);
+	if( 0 != (l_Transform.m_VtxFlag & USE_WORLD_MAT) )
+	{
+		l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
+	}
+	l_Output.m_Position = mul(float4(l_Input.m_Position, 1.0), l_WorldTransform);
+	
+	return l_Output;
+}

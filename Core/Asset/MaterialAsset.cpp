@@ -225,6 +225,8 @@ void MaterialAsset::loadFile(boost::property_tree::ptree &a_Src)
 		if( "<xmlattr>" == it->first ) continue;
 
 		unsigned int l_Slot = it->second.get<unsigned int>("<xmlattr>.slot");
+		if( m_ReservedSRV.end() != m_ReservedSRV.find(l_Slot) ) continue;// modified manual
+
 		m_Textures[l_Slot] = AssetManager::singleton().getAsset(it->second.get<std::string>("<xmlattr>.asset")).second;
 	}
 }
@@ -254,6 +256,8 @@ void MaterialAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	boost::property_tree::ptree l_Textures;
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
+		if( m_ReservedSRV.end() != m_ReservedSRV.find(i) ) continue;
+
 		boost::property_tree::ptree l_Texture;
 		l_Texture.add("<xmlattr>.asset", m_Textures[i]->getKey().c_str());
 		l_Texture.add("<xmlattr>.slot", i);
@@ -303,18 +307,23 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	}
 	
 	m_UavBlocks.resize(l_UavBlock.size(), nullptr);
-	for( unsigned int i=0 ; i<l_UavBlock.size() ; ++i )
+	auto it = std::find(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "InstanceInfo"; });
+	if( l_UavBlock.end() != it )
 	{
-		if( "InstanceInfo" != l_UavBlock[i]->m_Name ) continue;
-
-		m_UavBlocks[i] = MaterialBlock::create(ShaderRegType::UavBuffer, l_UavBlock[i], BATCHDRAW_UNIT);
+		unsigned int l_Index = it - l_UavBlock.begin();
+		m_UavBlocks[l_Index] = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
 		for( int j=0 ; j<BATCHDRAW_UNIT ; ++j ) m_FreeInstanceSlot.push_back(j);
-		m_InstanceUavIndex = (int)i;
+		m_InstanceUavIndex = (int)l_Index;
 		m_CurrInstanceSize = BATCHDRAW_UNIT;
-		break;
 	}
 
-	m_Textures.resize(a_pRefProgram->getTextureDesc().size(), nullptr);
+	auto &l_TextureMap = a_pRefProgram->getTextureDesc();
+	m_Textures.resize(l_TextureMap.size(), nullptr);
+	for( auto it=l_TextureMap.begin() ; it!=l_TextureMap.end() ; ++it )
+	{
+		if( !it->second->m_bReserved ) continue;
+		m_ReservedSRV.insert(it->second->m_pRegInfo->m_Slot);
+	}
 }
 
 void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture)
@@ -361,8 +370,10 @@ int MaterialAsset::requestInstanceSlot()
 	return l_Res;
 }
 
-void MaterialAsset::freeInstanceSlot(unsigned int a_Slot)
+void MaterialAsset::freeInstanceSlot(int a_Slot)
 {
+	if( -1 == a_Slot ) return;
+
 	std::lock_guard<std::mutex> l_Lock(m_InstanceLock);
 	assert(m_FreeInstanceSlot.end() == std::find(m_FreeInstanceSlot.begin(), m_FreeInstanceSlot.end(), a_Slot));
 	m_FreeInstanceSlot.push_back(a_Slot);

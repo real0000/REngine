@@ -1,7 +1,7 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-[numthreads(1, 1, 1 )]
+[numthreads(4, 4, 4 )]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
     float3 l_Texcoord = c_PixelSize * (a_ThreadID.xyz + 0.5);

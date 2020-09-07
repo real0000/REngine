@@ -4,7 +4,8 @@
 VS_CommonOutput main(VS_CommonInput l_Input)
 {
 	VS_CommonOutput l_Output = (VS_CommonOutput)0;
-	TransformInfo l_Transform = InstanceInfo[l_Input.m_TransformID];
+	l_Output.m_InstanceID = l_Input.m_InstanceID;
+	TransformInfo l_Transform = m_NormalTransition[l_Input.m_InstanceID.x];
 
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD01) ) l_Output.m_Texcoord01 = l_Input.m_Texcoord01;
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD23) ) l_Output.m_Texcoord23 = l_Input.m_Texcoord23;
@@ -25,7 +26,11 @@ VS_CommonOutput main(VS_CommonInput l_Input)
 									,0.0, 1.0, 0.0, 0.0
 									,0.0, 0.0, 1.0, 0.0
 									,0.0, 0.0, 0.0, 1.0);
-	l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
+	if( 0 != (l_Transform.m_VtxFlag & USE_WORLD_MAT) )
+	{
+		l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
+	}
+	l_Output.m_Position = mul(float4(l_Input.m_Position, 1.0), l_WorldTransform);
 
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_NORMAL) )
 	{
@@ -35,12 +40,6 @@ VS_CommonOutput main(VS_CommonInput l_Input)
 			l_Output.m_Tangent = mul(float4(l_Input.m_Tangent, 0.0), l_WorldTransform);
 			l_Output.m_Binormal = mul(float4(l_Input.m_Binormal, 0.0), l_WorldTransform);
 		}
-	}
-
-	l_Output.m_Position = float4(l_Input.m_Position, 1.0);
-	if( 0 != (l_Transform.m_VtxFlag & USE_WORLD_MAT) )
-	{
-		l_Output.m_Position = mul(l_Output.m_Position, l_WorldTransform);
 	}
 
 	if( 0 == (l_Transform.m_VtxFlag & WITHOUT_VP_MAT) || 0 != (l_Transform.m_VtxFlag & USE_TESSELLATION) )

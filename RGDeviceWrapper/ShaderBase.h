@@ -57,6 +57,7 @@ struct ProgramTextureDesc
 	bool m_bWrite;
 	ShaderParamType::Key m_Type;// if write is true, default float4
 	RegisterInfo *m_pRegInfo;
+	bool m_bReserved;
 };
 
 struct ProgramParamDesc

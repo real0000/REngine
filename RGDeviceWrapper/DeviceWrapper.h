@@ -27,7 +27,7 @@ public:
 	// draw command
 	virtual void useProgram(unsigned int a_Key);
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram) = 0;
-	virtual void bindVertex(VertexBuffer *a_pBuffer) = 0;
+	virtual void bindVertex(VertexBuffer *a_pBuffer, int a_InstanceBuffer = -1) = 0;
 	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
 	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
 	virtual void bindSampler(int a_ID, unsigned int a_Stage) = 0;
@@ -39,7 +39,7 @@ public:
 	virtual void clearBackBuffer(GraphicCanvas *a_pCanvas, glm::vec4 a_Color) = 0;
 	virtual void clearDepthTarget(int a_DSVHandle, bool a_bClearDepth, float a_Depth, bool a_bClearStencil, unsigned char a_Stencil) = 0;
 	virtual void drawVertex(int a_NumVtx, int a_BaseVtx) = 0;
-	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx) = 0;
+	virtual void drawElement(int a_BaseIdx, int a_NumIdx, int a_BaseVtx, unsigned int a_NumInstance, unsigned int a_BaseInstance) = 0;
 	virtual void drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *a_pCounterPtr, unsigned int a_BufferOffset) = 0;
 	virtual void drawIndirect(unsigned int a_MaxCmd, int a_BuffID) = 0;
 	virtual void compute(unsigned int a_CountX, unsigned int a_CountY = 1, unsigned int a_CountZ = 1) = 0;

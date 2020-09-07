@@ -10,6 +10,7 @@
 #include "Input/InputMediator.h"
 #include "Scene/Scene.h"
 #include "Asset/AssetBase.h"
+#include "Asset/MaterialAsset.h"
 #include "Asset/TextureAsset.h"
 
 #include <chrono>
@@ -161,9 +162,14 @@ EngineSetting::EngineSetting()
 	, m_DefaultSize(1280, 720)
 	, m_bFullScreen(false)
 	, m_FPS(60)
-	, m_ShadowMapSize(2048)
+	, m_ShadowMapSize(8192)
+	, m_LightMapSize(8192)
 	, m_TileSize(16.0f)
 	, m_NumRenderCommandList(20)
+	, m_OmniMaterial(wxT("OmniShadowMap.Material"))
+	, m_SpotMaterial(wxT("SpotShadowMap.Material"))
+	, m_DirMaterial(wxT("DirShadowMap.Material"))
+	, m_CDN(wxT(""))
 {
 	boost::property_tree::ptree l_IniFile;
 	try
@@ -183,9 +189,20 @@ EngineSetting::EngineSetting()
 	m_DefaultSize.y = l_IniFile.get("Graphic.DefaultHeight", 720);
 	m_bFullScreen = l_IniFile.get("Graphic.FullScreen", false);
 	m_FPS = l_IniFile.get("Graphic.FPS", 60);
-	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 2048);
+	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 8192);
+	m_LightMapSize = l_IniFile.get("Graphic.LightMapSize", 8192);
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
+
+	m_OmniMaterial = l_IniFile.get("Graphic.OmniShadowMap", "OmniShadowMap.Material");
+	if( !wxFileExists(m_OmniMaterial) )
+	{
+		std::shared_ptr<Asset> l_pShadowMapMat = AssetManager::singleton().createAsset(m_OmniMaterial).second;
+		MaterialAsset *l_pMaterialInst = l_pShadowMapMat->getComponent<MaterialAsset>();
+		l_pMaterialInst->init(ProgramManager::singleton().getData(DefaultPrograms::OmniShadowMap));
+		AssetManager::singleton().saveAsset(l_pShadowMapMat);
+		l_pShadowMapMat = nullptr;
+	}
 
 	std::vector<wxString> l_Path;
 	splitString(wxT('|'), l_IniFile.get("Asset.ImportPath", "./"), l_Path);
@@ -202,7 +219,7 @@ EngineSetting::EngineSetting()
 	splitString(wxT('|'), l_IniFile.get("Asset.ResourcePath", "./"), l_Path);
 	for( unsigned int i=0 ; i<l_Path.size() ; ++i )
 	{
-
+		
 	}
 }
 
@@ -222,10 +239,12 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.FullScreen", m_bFullScreen);
 	l_IniFile.put("Graphic.FPS", m_FPS);
 	l_IniFile.put("Graphic.ShadowMapSize", m_ShadowMapSize);
+	l_IniFile.put("Graphic.LightMapSize", m_LightMapSize);
 	l_IniFile.put("Graphic.TileSize", m_TileSize);
 	l_IniFile.put("Graphic.NumRenderCommandList", m_NumRenderCommandList);
+	l_IniFile.put("Graphic.OmniShadowMap", m_OmniMaterial);
 
-	l_IniFile.put("Asset.", m_CDN);
+	l_IniFile.put("Asset.CDN", m_CDN);
 
 	boost::property_tree::ini_parser::write_ini(CONIFG_FILE, l_IniFile);
 }
