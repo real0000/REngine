@@ -477,6 +477,10 @@ std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc)
 				, l_pConvert[8], l_pConvert[9], l_pConvert[10], l_pConvert[11]
 				, l_pConvert[12], l_pConvert[13], l_pConvert[14], l_pConvert[15]);
 			}break;
+			
+		case ShaderParamType::double1:{
+			snprintf(l_Buff, 1024, "%lf", *reinterpret_cast<float*>(a_pSrc));
+			}break;
 
 		default:
 			assert(false && "invalid param type");
@@ -541,6 +545,10 @@ void parseShaderParamValue(ShaderParamType::Key a_Type, std::string a_Src, char 
 				, a_pDst + sizeof(float) * 8, a_pDst + sizeof(float) * 9, a_pDst + sizeof(float) * 10, a_pDst + sizeof(float) * 11
 				, a_pDst + sizeof(float) * 12, a_pDst + sizeof(float) * 13, a_pDst + sizeof(float) * 14, a_pDst + sizeof(float) * 15);
 			break;
+			
+		case ShaderParamType::double1:{
+			*reinterpret_cast<double *>(a_pDst) = atof(a_Src.c_str());
+			}break;
 
 		default:
 			assert(false && "invalid param type");

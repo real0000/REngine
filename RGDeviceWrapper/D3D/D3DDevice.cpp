@@ -165,6 +165,7 @@ unsigned int Dircet3DDevice::getParamAlignment(ShaderParamType::Key a_Key)
 		case ShaderParamType::float4:	return sizeof(float) * 4;
 		case ShaderParamType::float3x3:	return sizeof(float) * 4;
 		case ShaderParamType::float4x4:	return sizeof(float) * 4;
+		case ShaderParamType::double1:	return sizeof(double);
 		default:break;
 	}
 

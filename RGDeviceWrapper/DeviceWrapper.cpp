@@ -155,6 +155,7 @@ unsigned int GraphicDevice::getParamAlignmentSize(ShaderParamType::Key a_Key)
 		case ShaderParamType::float4:	return sizeof(float) * 4;
 		case ShaderParamType::float3x3:	return sizeof(float) * 12;
 		case ShaderParamType::float4x4:	return sizeof(float) * 16;
+		case ShaderParamType::double1:	return sizeof(double);
 	}
 
 	assert(false && "invalid argument type");

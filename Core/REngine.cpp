@@ -163,6 +163,8 @@ EngineSetting::EngineSetting()
 	, m_bFullScreen(false)
 	, m_FPS(60)
 	, m_ShadowMapSize(8192)
+	, m_LightMapSample(1024576)
+	, m_LightMapSampleDepth(64)
 	, m_LightMapSize(8192)
 	, m_TileSize(16.0f)
 	, m_NumRenderCommandList(20)
@@ -190,6 +192,8 @@ EngineSetting::EngineSetting()
 	m_bFullScreen = l_IniFile.get("Graphic.FullScreen", false);
 	m_FPS = l_IniFile.get("Graphic.FPS", 60);
 	m_ShadowMapSize = l_IniFile.get("Graphic.ShadowMapSize", 8192);
+	m_LightMapSample = l_IniFile.get("Graphic.LightMapSample", 1024576);
+	m_LightMapSampleDepth = l_IniFile.get("Graphic.LightMapSampleDepth", 64);
 	m_LightMapSize = l_IniFile.get("Graphic.LightMapSize", 8192);
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
@@ -239,6 +243,8 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.FullScreen", m_bFullScreen);
 	l_IniFile.put("Graphic.FPS", m_FPS);
 	l_IniFile.put("Graphic.ShadowMapSize", m_ShadowMapSize);
+	l_IniFile.put("Graphic.LightMapSample", m_LightMapSample);
+	l_IniFile.put("Graphic.LightMapSampleDepth", m_LightMapSampleDepth);
 	l_IniFile.put("Graphic.LightMapSize", m_LightMapSize);
 	l_IniFile.put("Graphic.TileSize", m_TileSize);
 	l_IniFile.put("Graphic.NumRenderCommandList", m_NumRenderCommandList);

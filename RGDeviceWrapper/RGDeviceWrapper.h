@@ -63,7 +63,8 @@ STRING_ENUM_CLASS(ShaderParamType,
 	float3,
 	float4,
 	float3x3,
-	float4x4)
+	float4x4,
+	double1)
 
 STRING_ENUM_CLASS(BlendKey,
 	zero,

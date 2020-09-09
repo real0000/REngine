@@ -133,6 +133,8 @@ public:
 	bool m_bFullScreen;
 	unsigned int m_FPS;
 	unsigned int m_ShadowMapSize;
+	unsigned int m_LightMapSample;
+	unsigned int m_LightMapSampleDepth;
 	unsigned int m_LightMapSize;
 	float m_TileSize;
 	unsigned int m_NumRenderCommandList;

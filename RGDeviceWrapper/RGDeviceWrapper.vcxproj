@@ -321,6 +321,10 @@
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\OmniShadowMap.xml" />
+    <Xml Include="Shaders\RayIntersection.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\RayIntersection.compute" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

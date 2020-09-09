@@ -124,5 +124,13 @@
     <Xml Include="Shaders\OmniShadowMap.xml">
       <Filter>Shaders</Filter>
     </Xml>
+    <Xml Include="Shaders\RayIntersection.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\RayIntersection.compute">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

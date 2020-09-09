@@ -33,7 +33,7 @@ private:
 	struct LightMapUnit
 	{
 		glm::daabb m_Box;
-		float m_SHResult[64][16];
+		glm::vec4 m_SHResult[64][16];
 		int m_Children[8];
 	};
 	struct LightMapNode
@@ -42,7 +42,6 @@ private:
 		LightMapUnit *m_pRefUnit;
 		
 		glm::ivec2 m_SrcRange;
-
 	};
 	struct LightMapVtxSrc
 	{
@@ -51,15 +50,22 @@ private:
 		glm::vec2 m_UV;
 		unsigned int m_MaterialID;
 	};
-	struct LightMapTriangleSrc
+	struct LightIntersectResult
 	{
-		unsigned int m_Index[3];
+		glm::vec3 m_Origin;
+		unsigned int m_TriangleStartIdx;
+		glm::vec3 m_Direction;
+		unsigned int m_Depth;
+		glm::vec3 m_Color;
+		unsigned int m_BoxID;
+		glm::vec3 m_Emmited;
+		unsigned int m_HarmonicsID;
 	};
 
 	boost::property_tree::ptree m_Cache;
 	unsigned int m_UavID;
 	LightMapNode *m_pLightMapRoot;
-
+	std::vector<std::shared_ptr<Asset>> m_LightMapMaterialCache;
 };
 
 }

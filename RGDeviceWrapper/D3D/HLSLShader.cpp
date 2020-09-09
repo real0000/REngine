@@ -950,7 +950,8 @@ unsigned int HLSLComponent::calculateParamOffset(unsigned int &a_Offset, ShaderP
 				break;
 
 			case ShaderParamType::int2:
-			case ShaderParamType::float2:{
+			case ShaderParamType::float2:
+			case ShaderParamType::double1:{
 				int l_Size = sizeof(float) * 2;
 				if( (unsigned int)l_Size > l_LineSize - (a_Offset % l_LineSize) )
 				{
@@ -985,6 +986,7 @@ unsigned int HLSLComponent::calculateParamOffset(unsigned int &a_Offset, ShaderP
 				l_Res = a_Offset;
 				a_Offset += l_LineSize;
 				break;
+
 
 			case ShaderParamType::float3x3:
 				if( 0 != (a_Offset % l_LineSize) ) a_Offset = (a_Offset + l_LineSize - 1) & ~l_LineSize;

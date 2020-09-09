@@ -52,4 +52,12 @@
     <Param name="m_bCastShadow" desc="" type="int1"/>
     <Param name="m_ShadowMapProj" desc="" type="float4x4"/>
   </UavBuffer>
+  <UavBuffer name="ScenePartitionBox">
+    <Param name="m_BoxCenterX" desc="" type="double1"/>
+    <Param name="m_BoxCenterY" desc="" type="double1"/>
+    <Param name="m_BoxCenterZ" desc="" type="double1"/>
+    <Param name="m_BoxSizeX" desc="" type="double1"/>
+    <Param name="m_BoxSizeY" desc="" type="double1"/>
+    <Param name="m_BoxSizeZ" desc="" type="double1"/>
+  </UavBuffer>  
 </root>

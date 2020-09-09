@@ -1,4 +1,4 @@
-#include "stdInclude.h"
+#include <StdInclude.h>
 #include "autoBinder.h"
 
 VS_CommonOutput main(VS_CommonInput l_Input)
