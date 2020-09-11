@@ -221,7 +221,11 @@ STRING_ENUM_CLASS(AddressMode,
     border,
     mirror_once)
 
-#define SHADER_PATH "Shaders/"
+const wxString c_ShaderPath[] = {
+	wxT("Shaders/"), 
+	wxT("Shaders/Lightmap/")
+	wxT("Shaders/Shadowmap/")};
+const unsigned int c_NumShaderPath = sizeof(c_ShaderPath) / sizeof(wxString);
 #define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"
 STRING_ENUM_CLASS(DefaultPrograms,
 
@@ -235,11 +239,17 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	Copy,
 	CopyDepth,
 	CopyFrame,
+	TextureOnly,
+	TiledDeferredLighting,
+
+	// shadow map
 	DirShadowMap,
 	OmniShadowMap,
 	SpotShadowMap,
-	TextureOnly,
-	TiledDeferredLighting,
+
+	// Lightmap
+	RayIntersection,
+	RayScatter,
 
 	num_default_program)
 

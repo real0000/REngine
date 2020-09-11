@@ -52,12 +52,32 @@
     <Param name="m_bCastShadow" desc="" type="int1"/>
     <Param name="m_ShadowMapProj" desc="" type="float4x4"/>
   </UavBuffer>
-  <UavBuffer name="ScenePartitionBox">
+  <UavBuffer name="LightmapBox">
     <Param name="m_BoxCenterX" desc="" type="double1"/>
     <Param name="m_BoxCenterY" desc="" type="double1"/>
     <Param name="m_BoxCenterZ" desc="" type="double1"/>
     <Param name="m_BoxSizeX" desc="" type="double1"/>
     <Param name="m_BoxSizeY" desc="" type="double1"/>
     <Param name="m_BoxSizeZ" desc="" type="double1"/>
-  </UavBuffer>  
+    <Param name="m_SHResult" desc="" type="float4" size="1024"/>
+    <Param name="m_Children" desc="" type="int4" size="2"/>
+    <Param name="m_TriangleRange" desc="" type="int2"/>
+    <Param name="m_LightRange" desc="" type="int2"/>
+  </UavBuffer>
+  <UavBuffer name="LightmapVertex">
+    <Param name="m_Position" desc="" type="float3"/>
+    <Param name="m_U" desc="" type="float1"/>
+    <Param name="m_Normal" desc="" type="float3"/>
+    <Param name="m_V" desc="" type="float1"/>
+  </UavBuffer>
+  <UavBuffer name="LightmapIntersectResult">
+    <Param name="m_RayOrigin" desc="" type="float3"/>
+    <Param name="m_TriangleIdx" desc="" type="int1"/>
+    <Param name="m_RayDir" desc="" type="float3"/>
+    <Param name="m_StateAndDepth" desc="" type="int1"/>
+    <Param name="m_Color" desc="" type="float3"/>
+    <Param name="m_BoxID" desc="" type="int1"/>
+    <Param name="m_Emissive" desc="" type="float3"/>
+    <Param name="m_HarmonicsID" desc="" type="int1"/>
+  </UavBuffer>
 </root>

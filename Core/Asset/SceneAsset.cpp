@@ -40,13 +40,6 @@ void SceneAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	a_Dst.add_child("NodeTree", m_Cache);
 }
 
-void SceneAsset::bake(std::shared_ptr<SceneNode> a_pRefSceneNode, SharedSceneMember *a_pMember)
-{
-	m_Cache.clear();
-
-
-}
-
 void SceneAsset::setup(std::shared_ptr<SceneNode> a_pRefSceneNode)
 {
 	

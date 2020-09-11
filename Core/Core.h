@@ -35,6 +35,15 @@ enum ComponentDefine
 	CUSTOM_COMPONENT,// all custom component type id must >= this value
 };
 
+enum MaterialSlot
+{
+	MATSLOT_NORMAL = 0,
+	MATSLOT_OMNI_SHADOWMAP,
+	MATSLOT_SPOT_SHADOWMAP,
+	MATSLOT_DIR_SHADOWMAP,
+	MATSLOT_LIGHTMAP,
+};
+
 struct InputData;
 struct SharedSceneMember;
 class Asset;
@@ -138,6 +147,8 @@ public:
 	unsigned int m_LightMapSize;
 	float m_TileSize;
 	unsigned int m_NumRenderCommandList;
+
+	// default shadow map
 	wxString m_OmniMaterial;
 	wxString m_SpotMaterial;
 	wxString m_DirMaterial;

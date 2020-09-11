@@ -10,6 +10,12 @@
     <Filter Include="D3D">
       <UniqueIdentifier>{df3309db-5e44-4200-a3b2-4196271dfc29}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Shadowmap">
+      <UniqueIdentifier>{db7782c1-bf85-4344-b32d-b2950dfd23ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Lightmap">
+      <UniqueIdentifier>{0f432cde-f170-4367-b790-b3bdd5e68af0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeviceWrapper.cpp" />
@@ -110,27 +116,27 @@
     <None Include="Shaders\CopyFrame.xml">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Shaders\OmniShadowMap.geometry">
-      <Filter>Shaders</Filter>
+    <None Include="Shaders\Shadowmap\OmniShadowMap.geometry">
+      <Filter>Shaders\Shadowmap</Filter>
     </None>
-    <None Include="Shaders\ShadowMap.pixel">
-      <Filter>Shaders</Filter>
+    <None Include="Shaders\Shadowmap\ShadowMap.pixel">
+      <Filter>Shaders\Shadowmap</Filter>
     </None>
-    <None Include="Shaders\ShadowMap.vertex">
-      <Filter>Shaders</Filter>
+    <None Include="Shaders\Shadowmap\ShadowMap.vertex">
+      <Filter>Shaders\Shadowmap</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="Shaders\OmniShadowMap.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-    <Xml Include="Shaders\RayIntersection.xml">
-      <Filter>Shaders</Filter>
-    </Xml>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\RayIntersection.compute">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\Lightmap\RayIntersection.compute">
+      <Filter>Shaders\Lightmap</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="Shaders\Lightmap\RayIntersection.xml">
+      <Filter>Shaders\Lightmap</Filter>
+    </Xml>
+    <Xml Include="Shaders\Shadowmap\OmniShadowMap.xml">
+      <Filter>Shaders\Shadowmap</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

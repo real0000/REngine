@@ -173,6 +173,7 @@
     <ClInclude Include="Asset\MeshAsset.h" />
     <ClInclude Include="Asset\SceneAsset.h" />
     <ClInclude Include="Asset\TextureAsset.h" />
+    <ClInclude Include="Asset\WorldAsset.h" />
     <ClInclude Include="Core.h" />
     <ClInclude Include="Input\InputMediator.h" />
     <ClInclude Include="Input\KeyboardInput.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="Asset\MeshAsset.cpp" />
     <ClCompile Include="Asset\SceneAsset.cpp" />
     <ClCompile Include="Asset\TextureAsset.cpp" />
+    <ClCompile Include="Asset\WorldAsset.cpp" />
     <ClCompile Include="Input\InputMediator.cpp" />
     <ClCompile Include="Input\KeyboardInput.cpp" />
     <ClCompile Include="Input\MouseInput.cpp" />

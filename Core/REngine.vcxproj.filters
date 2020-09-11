@@ -82,6 +82,9 @@
     <ClInclude Include="Asset\MaterialAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
+    <ClInclude Include="Asset\WorldAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -142,6 +145,9 @@
       <Filter>RenderObject</Filter>
     </ClCompile>
     <ClCompile Include="Asset\MaterialAsset.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\WorldAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
   </ItemGroup>

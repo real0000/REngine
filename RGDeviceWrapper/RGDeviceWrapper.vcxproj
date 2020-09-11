@@ -183,9 +183,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </None>
-    <None Include="Shaders\OmniShadowMap.geometry" />
-    <None Include="Shaders\ShadowMap.pixel" />
-    <None Include="Shaders\ShadowMap.vertex" />
+    <None Include="Shaders\Shadowmap\OmniShadowMap.geometry" />
+    <None Include="Shaders\Shadowmap\ShadowMap.pixel" />
+    <None Include="Shaders\Shadowmap\ShadowMap.vertex" />
     <None Include="Shaders\StdInclude.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
@@ -320,11 +320,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="Shaders\OmniShadowMap.xml" />
-    <Xml Include="Shaders\RayIntersection.xml" />
+    <FxCompile Include="Shaders\Lightmap\RayIntersection.compute" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\RayIntersection.compute" />
+    <Xml Include="Shaders\Lightmap\RayIntersection.xml" />
+    <Xml Include="Shaders\Shadowmap\OmniShadowMap.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

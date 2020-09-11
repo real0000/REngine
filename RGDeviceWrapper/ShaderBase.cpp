@@ -277,8 +277,8 @@ void ProgramManager::init(ProgramManagerComponent *a_pComponent)
 	wxString l_Path(wxGetCwd());
 	l_Path.Replace("\\", "/");
 	if( !l_Path.EndsWith("/") ) l_Path += wxT("/");
-	ProgramManager::singleton().addSearchPath(l_Path + SHADER_PATH);
-	ProgramManager::singleton().initBlockDefine(l_Path + SHADER_PATH + SAHDER_BLOCK_DEFINE_FILE);
+	for( unsigned int i=0 ; i<c_NumShaderPath ; ++i ) ProgramManager::singleton().addSearchPath(l_Path + c_ShaderPath[i]);
+	ProgramManager::singleton().initBlockDefine(l_Path + c_ShaderPath[0] + SAHDER_BLOCK_DEFINE_FILE);
 	ProgramManager::singleton().initDefaultProgram();
 }
 

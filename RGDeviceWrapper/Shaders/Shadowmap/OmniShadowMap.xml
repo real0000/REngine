@@ -7,19 +7,19 @@
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="ShadowMap.vertex">
+      <Vertex file="Shadowmap/ShadowMap.vertex">
         g_Camera, m_SkinTransition, m_NormalTransition
       </Vertex>
       <!--TessCtrl file="">  
       </TessCtrl>
       <TessEval file="">
       </TessEval-->
-      <Geometry file="OmniShadowMap.geometry">
+      <Geometry file="Shadowmap/OmniShadowMap.geometry">
         g_Camera, m_NormalTransition
       </Geometry>
       <!--Compute>
       </Compute>-->
-      <Fragment file="ShadowMap.pixel">
+      <Fragment file="Shadowmap/ShadowMap.pixel">
         m_DiffTex
       </Fragment>
     </Model_5_1>

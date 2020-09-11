@@ -1,0 +1,19 @@
+<root isCompute="true" isIndexed="false">
+  <ParamList>
+    <UavBuffer name="g_Triangles" preDef="PackedInt" write="true"/>
+    <UavBuffer name="g_Lights" preDef="PackedInt" write="false"/>
+    <UavBuffer name="g_DirLights" preDef="DirLight" write="false"/>
+    <UavBuffer name="g_OmniLights" preDef="OmniLight" write="false"/>
+    <UavBuffer name="g_SpotLights" preDef="SpotLight" write="false"/>
+    <UavBuffer name="g_Box" preDef="LightmapBox" write="true"/>
+    <UavBuffer name="g_Vertex" preDef="LightmapVertex" write="false"/>
+    <UavBuffer name="g_Result" preDef="LightmapIntersectResult" write="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Compute file="Lightmap/RayIntersection.compute">
+        g_Triangles, g_Lights, g_DirLights, g_OmniLights, g_SpotLights, g_Box, g_Vertex, g_Result
+      </Compute>
+    </Model_5_1>
+  </Shaders>
+</root>
