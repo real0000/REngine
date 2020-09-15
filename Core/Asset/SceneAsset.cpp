@@ -8,9 +8,6 @@
 #include "RImporters.h"
 
 #include "Core.h"
-#include "MaterialAsset.h"
-#include "MeshAsset.h"
-#include "RenderObject/Mesh.h"
 #include "SceneAsset.h"
 #include "Scene/Graph/ScenePartition.h"
 #include "Scene/Scene.h"
