@@ -136,13 +136,13 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		for( unsigned int i=0 ; i<l_TempTriangleData.size() ; i+=3 )
 		{
 			std::set<LightMapBoxCache *> l_IntersectBox;
+			l_IntersectBox.clear();
 			assignTriangle(l_TempVertexData[i].m_Position, l_TempVertexData[i+1].m_Position, l_TempVertexData[i+2].m_Position, l_pRoot, l_IntersectBox);
 			for( auto it=l_IntersectBox.begin() ; it!=l_IntersectBox.end() ; ++it ) (*it)->m_Triangles.push_back(i);
 		}
 	}
 
 	// assign lights
-	std::vector<glm::ivec2> l_UavLightData;
 	for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
 	{
 		if( l_Lights[i]->isHidden() ) continue;
@@ -251,18 +251,11 @@ void WorldAsset::stopBake()
 	m_bBaking = false;
 }
 
-void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pRoot, std::set<LightMapBoxCache*> &a_Output)
+void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output)
 {
-	a_Output.clear();
+	a_Output.insert(a_pCurrNode);
+	if( a_pCurrNode->m_Box.m_Size.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
 
-	a_Output.insert(a_pRoot);
-	assignTriangle(a_Pos1, a_Pos2, a_pRoot, a_Output);
-	assignTriangle(a_Pos2, a_Pos3, a_pRoot, a_Output);
-	assignTriangle(a_Pos3, a_Pos1, a_pRoot, a_Output);
-}
-
-void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output)
-{
 	for( unsigned int i=0 ; i<8 ; ++i )
 	{
 		glm::daabb l_Box;
@@ -308,9 +301,8 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, LightMapBo
 		}
 		else l_Box = a_pCurrNode->m_pChildren[i]->m_Box;
 		
-		/*
-		*/
-
+		if( !l_Box.intersect(a_Pos1, a_Pos2, a_Pos3) ) continue;
+		
 		LightMapBoxCache *a_pTargetNode = a_pCurrNode->m_pChildren[i];
 		if( nullptr == a_pTargetNode )
 		{
@@ -319,15 +311,51 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, LightMapBo
 			memset(a_pTargetNode->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
 		}
 
-		a_Output.insert(a_pTargetNode);
+		assignTriangle(a_Pos1, a_Pos2, a_Pos3, a_pTargetNode, a_Output);
 	}
 }
 
 void WorldAsset::assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::vector<LightMapBoxCache*> &a_Output)
 {
 	a_Output.clear();
+	a_Output.push_back(a_pRoot);
 
+	std::function<bool(Light*, LightMapBoxCache*)> l_pCheckFunc = nullptr;
+	switch( a_pLight->typeID() )
+	{
+		case COMPONENT_OMNI_LIGHT:
+			l_pCheckFunc = [&](Light *a_pThisLight, LightMapBoxCache *a_pCurrNode) -> bool
+			{
+				OmniLight *l_pInst = reinterpret_cast<OmniLight *>(a_pThisLight);
+				glm::sphere l_Sphere(l_pInst->getPosition(), l_pInst->getRange());
+				return a_pCurrNode->m_Box.intersect(l_Sphere);
+			};
+			break;
 
+		case COMPONENT_SPOT_LIGHT:
+			l_pCheckFunc = [&](Light *a_pThisLight, LightMapBoxCache *a_pCurrNode) -> bool
+			{
+				SpotLight *l_pInst = reinterpret_cast<SpotLight *>(a_pThisLight);
+				glm::daabb l_SpotBox(l_pInst->getPosition() + 0.5f * l_pInst->getRange() * l_pInst->getDirection(), l_pInst->getDirection() * l_pInst->getRange());
+				return a_pCurrNode->m_Box.intersect(l_SpotBox);
+			};
+			break;
+
+		case COMPONENT_DIR_LIGHT:
+			l_pCheckFunc = [&](Light*, LightMapBoxCache*) -> bool{ return true; };
+			break;
+
+		default:break;
+	}
+
+	for( unsigned int i=0 ; i<a_Output.size() ; ++i )
+	{
+		for( unsigned int j=0 ; j<8 ; ++j )
+		{
+			if( nullptr != a_Output[i]->m_pChildren[j] &&
+				l_pCheckFunc(a_pLight, a_Output[i]->m_pChildren[j])) a_Output.push_back(a_Output[i]->m_pChildren[j]);
+		}
+	}
 }
 #pragma endregion
 

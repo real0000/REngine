@@ -404,6 +404,84 @@ struct taabb
 		return true;
 	}
 
+	template<typename T2>
+	bool intersect(tsphere<T2> &a_Sphere)
+	{
+		tvec3<T> l_Nearest(glm::max(getMin(), glm::min(a_Sphere.m_Center, getMax())));
+		return glm::distance(l_Nearest, a_Sphere) < a_Sphere.m_Range;
+	}
+
+	template<typename T2>
+	bool intersect(tvec3<T2> &a_Pos1, tvec3<T2> &a_Pos2, tvec3<T2> &a_Pos3)
+	{
+		{
+			tvec3<T> l_BoxMin(l_Box.getMin());
+			tvec3<T> l_BoxMax(l_Box.getMax());
+			tvec3<T2> l_TriangleMax(glm::max(glm::max(a_Pos1, a_Pos2), a_Pos3));
+			tvec3<T2> l_TriangleMin(glm::min(glm::min(a_Pos1, a_Pos2), a_Pos3));
+			for( unsigned int i=0 ; i<3 ; ++i )
+			{
+				if( l_TriangleMin[i] > l_BoxMax[i] || l_TriangleMax[i] < l_BoxMin[i] ) return false;
+			}
+		}
+
+		tvec3<T> l_BoxVtx[8] = {
+			tvec3<T>(m_Center + m_Size * tvec3<T>(-0.5, -0.5, -0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(-0.5, -0.5, 0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(-0.5, 0.5, -0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(-0.5, 0.5, 0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(0.5, -0.5, -0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(0.5, -0.5, 0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(0.5, 0.5, -0.5)),
+			tvec3<T>(m_Center + m_Size * tvec3<T>(0.5, 0.5, 0.5))};
+		tvec3<T2> l_TriangleEdge[3] = {a_Pos2 - a_Pos1, a_Pos3 - a_Pos2, a_Pos1 - a_Pos3};
+		{
+			glm::tvec3<T2> l_TriangleNormal(glm::normalize(glm::cross(l_TriangleEdge[0], -l_TriangleEdge[2])));
+			T l_TrianglePos = glm::dot(l_TriangleNormal, a_Pos1);
+			glm::tvec2<T> l_MinMax(std::numeric_limits<T>(), -std::numeric_limits<T>());
+			for( unsigned int i=0 ; i<8 ; ++i )
+			{
+				T l_Project = glm::dot(l_TriangleNormal, l_BoxVtx[i]);
+				l_MinMax.x = std::min(l_Project, l_MinMax.x);
+				l_MinMax.y = std::max(l_Project, l_MinMax.y);
+			}
+			if( l_MinMax.x > l_TrianglePos || l_MinMax.y < l_TrianglePos ) return false;
+		}
+		
+		{
+			tvec3<T2> l_TrianglePos[3] = {a_Pos1, a_Pos2, a_Pos3};
+			tvec3<T> l_Axis;
+			for( unsigned int axis=0 ; axis<3 ; ++axis )
+			{
+				l_Axis = glm::zero<T>();
+				l_Axis[axis] = 1.0;
+				for( unsigned int i=0 ; i<3 ; ++i )
+				{
+					glm::tvec3<T> l_Vec(glm::cross(l_TriangleEdge[i], l_Axis));
+					glm::tvec2<T> l_TriangleMinMax(std::numeric_limits<T>(), -std::numeric_limits<T>());
+					glm::tvec2<T> l_BoxMinMax(std::numeric_limits<T>(), -std::numeric_limits<T>());
+					for( unsigned int j=0 ; j<8 ; ++j )
+					{
+						T l_Project = glm::dot(l_BoxVtx[j], l_Vec);
+						l_BoxMinMax.x = std::min(l_Project, l_BoxMinMax.x);
+						l_BoxMinMax.y = std::max(l_Project, l_BoxMinMax.y);
+					}
+
+					for( unsigned int j=0 ; j<3 ; ++j )
+					{
+						T l_Project = glm::dot(l_TrianglePos[j], l_Vec);
+						l_TriangleMinMax.x = std::min(l_Project, l_TriangleMinMax.x);
+						l_TriangleMinMax.y = std::max(l_Project, l_TriangleMinMax.y);
+					}
+
+					if( l_TriangleMinMax.x > l_BoxMinMax.y || l_TriangleMinMax.y < l_BoxMinMax.x ) return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
     bool inRange(taabb<T> &a_Box)
 	{
 		for( unsigned int i=0 ; i<3 ; ++i )

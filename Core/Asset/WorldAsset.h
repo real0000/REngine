@@ -65,8 +65,7 @@ private:
 		glm::vec3 m_Emmited;
 		int m_HarmonicsID;
 	};
-	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pRoot, std::set<LightMapBoxCache*> &a_Output);
-	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output);
+	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output);
 	void assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::vector<LightMapBoxCache*> &a_Output);
 
 	boost::property_tree::ptree m_Cache;
