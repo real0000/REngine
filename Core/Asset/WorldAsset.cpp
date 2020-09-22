@@ -132,6 +132,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	LightMapBoxCache *l_pRoot = new LightMapBoxCache();
 	{
 		l_pRoot->m_Box = l_Bounding;
+		l_pRoot->m_pParent = nullptr;
 		memset(l_pRoot->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
 		for( unsigned int i=0 ; i<l_TempTriangleData.size() ; i+=3 )
 		{
@@ -163,12 +164,16 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	std::vector<glm::ivec2> l_UavLightData;
 	{
 		std::vector<LightMapBoxCache *> l_CacheList(1, l_pRoot);
+		std::map<LightMapBoxCache *, int> l_ParentMap;
 		for( unsigned int i=0 ; i<l_CacheList.size() ; ++i )
 		{
 			LightMapBoxCache *l_pThisNode = l_CacheList[i];
+			l_ParentMap.insert(std::make_pair(l_pThisNode, i));
 
 			LightMapBox l_Temp;
-			l_Temp.m_Box = l_pThisNode->m_Box;
+			l_Temp.m_BoxCenter = l_pThisNode->m_Box.m_Center;
+			l_Temp.m_BoxSize = l_pThisNode->m_Box.m_Size;
+			l_Temp.m_Parent = 0 == i ? -1 : l_ParentMap[l_pThisNode->m_pParent];
 			
 			for( unsigned int j=0 ; j<8 ; ++j )
 			{
@@ -193,6 +198,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 				glm::ivec4 l_Triangle(l_pThisNode->m_Triangles[j*4], l_pThisNode->m_Triangles[j*4 + 1], l_pThisNode->m_Triangles[j*4 + 2], l_pThisNode->m_Triangles[j*4 + 3]);
 				l_UavTriangleData.push_back(l_Triangle);
 			}
+			l_Temp.m_TriangleRange.y += l_Temp.m_TriangleRange.x;
 
 			memset(l_Temp.m_SHResult, 0, sizeof(glm::vec4) * 1024);
 
@@ -200,6 +206,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 			delete l_pThisNode;
 		}
 		l_UavTriangleData[0].z = l_CacheList.size();
+		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample;
 	}
 
 	m_pTriangles = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Triangles", l_UavTriangleData.size());
@@ -219,11 +226,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	m_pVertex->sync(true);
 	
 	m_pResult = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Result", EngineSetting::singleton().m_LightMapSample);
-	for( unsigned int i=0 ; i<EngineSetting::singleton().m_LightMapSample ; ++i )
-	{
-		LightIntersectResult *l_pThis = reinterpret_cast<LightIntersectResult*>(m_pResult->getBlockPtr(i));
-		l_pThis->m_BoxID = l_pThis->m_HarmonicsID = -1;
-	}
+	memset(m_pResult->getBlockPtr(0), 0, sizeof(LightIntersectResult) * EngineSetting::singleton().m_LightMapSample);
 	m_pResult->sync(true);
 	
 	m_pRayIntersectMatInst->setBlock("g_Triangles", m_pTriangles);
@@ -235,6 +238,11 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	m_pRayIntersectMatInst->setBlock("g_Result", m_pResult);
 
 	m_bBaking = true;
+}
+
+void WorldAsset::stepBake(GraphicCommander *a_pCmd)
+{
+	//a_pCmd->useProgram(m_p);
 }
 
 void WorldAsset::stopBake()
@@ -307,6 +315,7 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 		if( nullptr == a_pTargetNode )
 		{
 			a_pTargetNode = a_pCurrNode->m_pChildren[i] = new LightMapBoxCache();
+			a_pTargetNode->m_pParent = a_pCurrNode;
 			a_pTargetNode->m_Box = l_Box;
 			memset(a_pTargetNode->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
 		}

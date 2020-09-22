@@ -53,12 +53,10 @@
     <Param name="m_ShadowMapProj" desc="" type="float4x4"/>
   </UavBuffer>
   <UavBuffer name="LightmapBox">
-    <Param name="m_BoxCenterX" desc="" type="double1"/>
-    <Param name="m_BoxCenterY" desc="" type="double1"/>
-    <Param name="m_BoxCenterZ" desc="" type="double1"/>
-    <Param name="m_BoxSizeX" desc="" type="double1"/>
-    <Param name="m_BoxSizeY" desc="" type="double1"/>
-    <Param name="m_BoxSizeZ" desc="" type="double1"/>
+    <Param name="m_BoxCenter" desc="" type="float3"/>
+    <Param name="m_Parent" desc="" type="int1"/>
+    <Param name="m_BoxSize" desc="" type="float3"/>
+    <Param name="m_Padding" desc="" type="int1"/>
     <Param name="m_SHResult" desc="" type="float4" size="1024"/>
     <Param name="m_Children" desc="" type="int4" size="2"/>
     <Param name="m_TriangleRange" desc="" type="int2"/>
@@ -74,10 +72,10 @@
     <Param name="m_RayOrigin" desc="" type="float3"/>
     <Param name="m_TriangleIdx" desc="" type="int1"/>
     <Param name="m_RayDir" desc="" type="float3"/>
-    <Param name="m_StateAndDepth" desc="" type="int1"/>
+    <Param name="m_StateDepth" desc="" type="int1"/>
     <Param name="m_Color" desc="" type="float3"/>
-    <Param name="m_BoxID" desc="" type="int1"/>
+    <Param name="m_BoxHarmonicsID" desc="" type="int1"/>
     <Param name="m_Emissive" desc="" type="float3"/>
-    <Param name="m_HarmonicsID" desc="" type="int1"/>
+    <Param name="m_CurrBoxID" desc="" type="int1"/>
   </UavBuffer>
 </root>

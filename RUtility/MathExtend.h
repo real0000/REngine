@@ -130,12 +130,12 @@ struct tray
 	template<typename AABBType>
     bool intersectAABB(AABBType a_AABB, T &a_OutLength)
 	{
-		tplane<T> l_Plans[6] = {Plane(1.0, 0.0, 0.0, -a_AABB.getMaxX()),
-							Plane(1.0, 0.0, 0.0, -a_AABB.getMinX()),
-							Plane(0.0, 1.0, 0.0, -a_AABB.getMaxY()),
-							Plane(0.0, 1.0, 0.0, -a_AABB.getMinY()),
-							Plane(0.0, 0.0, 1.0, -a_AABB.getMaxZ()),
-							Plane(0.0, 0.0, 1.0, -a_AABB.getMinZ())};
+		tplane<T> l_Plans[6] = {tplane<T>(1.0, 0.0, 0.0, -a_AABB.getMaxX()),
+							tplane<T>(1.0, 0.0, 0.0, -a_AABB.getMinX()),
+							tplane<T>(0.0, 1.0, 0.0, -a_AABB.getMaxY()),
+							tplane<T>(0.0, 1.0, 0.0, -a_AABB.getMinY()),
+							tplane<T>(0.0, 0.0, 1.0, -a_AABB.getMaxZ()),
+							tplane<T>(0.0, 0.0, 1.0, -a_AABB.getMinZ())};
 		tvec3<T> l_Min(a_AABB.getMin()), l_Max(a_AABB.getMax());
 
 		a_OutLength = std::numeric_limits<T>::max();
@@ -187,6 +187,21 @@ struct tray
 	bool intersect(dobb a_OBB, T &a_OutLength)
 	{
 		return intersectOBB<dobb>(a_OBB, a_OutLength);
+	}
+
+	template<typename T2>
+	bool intersect(tvec3<T2> &a_Pos1, tvec3<T2> &a_Pos2, tvec3<T2> &a_Pos3)
+	{
+		tplane<T> l_Plane(a_Pos1, glm::cross(a_Pos2 - a_Pos1, a_Pos3 - a_Pos1));
+		T l_OutLength = 0.0;
+		if( intersect(l_Plane, l_OutLength) )
+		{
+			tvec3<T> l_Pt(m_Origin + l_OutLength * m_Direction);
+			return dot(l_Pt - a_Pos1, a_Pos2 - a_Pos1) >= 0.0 
+				&& dot(l_Pt - a_Pos2, a_Pos3 - a_Pos2) >= 0.0
+				&& dot(l_Pt - a_Pos3, a_Pos1 - a_Pos3) >= 0.0;
+		}
+		return false;
 	}
 
 	template<typename SphereType>

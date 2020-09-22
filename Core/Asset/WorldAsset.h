@@ -28,12 +28,16 @@ public:
 	virtual void saveFile(boost::property_tree::ptree &a_Dst);
 
 	void bake(SharedSceneMember *a_pMember);
+	void stepBake(GraphicCommander *a_pCmd);
 	void stopBake();
 
 private:
 	struct LightMapBox
 	{
-		glm::daabb m_Box;
+		glm::vec3 m_BoxCenter;
+		int m_Parent;
+		glm::vec3 m_BoxSize;
+		int m_Padding;
 		glm::vec4 m_SHResult[1024];// 64(4*4*4), 16
 		int m_Children[8];
 		glm::ivec2 m_TriangleRange;
@@ -42,6 +46,7 @@ private:
 	struct LightMapBoxCache
 	{
 		glm::daabb m_Box;
+		LightMapBoxCache *m_pParent;
 		LightMapBoxCache *m_pChildren[8];
 		std::vector<unsigned int> m_Triangles;
 		std::vector<glm::ivec2> m_Lights;
@@ -59,17 +64,15 @@ private:
 		glm::vec3 m_Origin;
 		int m_TriangleStartIdx;
 		glm::vec3 m_Direction;
-		int m_StateAndDepth;
+		int m_StateDepth;
 		glm::vec3 m_Color;
-		int m_BoxID;
+		int m_BoxHarmonicsID;
 		glm::vec3 m_Emmited;
-		int m_HarmonicsID;
+		int m_CurrBoxID;
 	};
 	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output);
 	void assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::vector<LightMapBoxCache*> &a_Output);
-
-	boost::property_tree::ptree m_Cache;
-
+	
 	bool m_bBaking;
 	std::shared_ptr<Asset> m_pRayIntersectMat;
 	MaterialAsset *m_pRayIntersectMatInst;
