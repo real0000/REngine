@@ -56,11 +56,21 @@
     <Param name="m_BoxCenter" desc="" type="float3"/>
     <Param name="m_Parent" desc="" type="int1"/>
     <Param name="m_BoxSize" desc="" type="float3"/>
-    <Param name="m_Padding" desc="" type="int1"/>
-    <Param name="m_SHResult" desc="" type="float4" size="1024"/>
+    <Param name="m_Edge" desc="" type="int1"/>
+    <Param name="m_SHResult" desc="" type="int4" size="16"/>
     <Param name="m_Children" desc="" type="int4" size="2"/>
-    <Param name="m_TriangleRange" desc="" type="int2"/>
-    <Param name="m_LightRange" desc="" type="int2"/>
+  </UavBuffer>  
+  <UavBuffer name="LightmapBoxCache">
+    <Param name="m_BoxCenter" desc="" type="float3"/>
+    <Param name="m_TriangleStart" desc="" type="int1"/>
+    <Param name="m_BoxSize" desc="" type="float3"/>
+    <Param name="m_TriangleEnd" desc="" type="int1"/>
+    <Param name="m_PositiveNeighbor" desc="" type="float3"/>
+    <Param name="m_LightStart" desc="" type="int1"/>
+    <Param name="m_NegitiveNeighbor" desc="" type="float3"/>
+    <Param name="m_LightEnd" desc="" type="int1"/>
+    <Param name="m_SHResult" desc="" type="int4" size="16"/>
+    <Param name="m_Children" desc="" type="int4" size="2"/>
   </UavBuffer>
   <UavBuffer name="LightmapVertex">
     <Param name="m_Position" desc="" type="float3"/>
@@ -77,5 +87,7 @@
     <Param name="m_BoxHarmonicsID" desc="" type="int1"/>
     <Param name="m_Emissive" desc="" type="float3"/>
     <Param name="m_CurrBoxID" desc="" type="int1"/>
+    <Param name="m_OriginNormal" desc="" type="float3"/>
+    <Param name="m_Padding" desc="" type="int1"/>
   </UavBuffer>
 </root>

@@ -129,17 +129,26 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	}
 
 	// create boxes, assign triangles
-	LightMapBoxCache *l_pRoot = new LightMapBoxCache();
+	std::vector<std::vector<int>> l_TriangleInBox;
+	std::vector<std::vector<glm::ivec2>> l_LightInBox;
+	std::vector<LightMapBoxCache> l_Container(1, LightMapBoxCache());
 	{
-		l_pRoot->m_Box = l_Bounding;
-		l_pRoot->m_pParent = nullptr;
-		memset(l_pRoot->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
+		LightMapBoxCache &l_Root = l_Container[0];
+		l_Root.m_BoxCenter = l_Bounding.m_Center;
+		l_Root.m_BoxSize = l_Bounding.m_Size;
+		memset(l_Root.m_Children, -1, sizeof(int) * 8);
+		memset(l_Root.m_SHResult, -1, sizeof(int) * 16);
+		memset(l_Root.m_Neighbor, -1, sizeof(int) * 28);
 		for( unsigned int i=0 ; i<l_TempTriangleData.size() ; i+=3 )
 		{
-			std::set<LightMapBoxCache *> l_IntersectBox;
+			std::set<int> l_IntersectBox;
 			l_IntersectBox.clear();
-			assignTriangle(l_TempVertexData[i].m_Position, l_TempVertexData[i+1].m_Position, l_TempVertexData[i+2].m_Position, l_pRoot, l_IntersectBox);
-			for( auto it=l_IntersectBox.begin() ; it!=l_IntersectBox.end() ; ++it ) (*it)->m_Triangles.push_back(i);
+			assignTriangle(l_TempVertexData[i].m_Position, l_TempVertexData[i+1].m_Position, l_TempVertexData[i+2].m_Position, l_Container, 0, l_IntersectBox);
+			for( auto it=l_IntersectBox.begin() ; it!=l_IntersectBox.end() ; ++it )
+			{
+				while( l_TriangleInBox.size() <= *it ) l_TriangleInBox.push_back(std::vector<int>());
+				l_TriangleInBox[*it].push_back(i);
+			}
 		}
 	}
 
@@ -150,13 +159,17 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 
 		Light *l_pLightObj = reinterpret_cast<Light*>(l_Lights[i].get());
 		
-		std::vector<LightMapBoxCache*> l_IntersectBox;
-		assignLight(l_pLightObj, l_pRoot, l_IntersectBox);
+		std::vector<int> l_IntersectBox;
+		assignLight(l_pLightObj, l_Container, 0, l_IntersectBox);
 
 		glm::ivec2 l_TempData;
 		l_TempData.x = l_pLightObj->typeID();
 		l_TempData.y = l_pLightObj->getID();
-		for( unsigned int j=0 ; j<l_IntersectBox.size() ; ++j ) l_IntersectBox[j]->m_Lights.push_back(l_TempData);
+		for( unsigned int j=0 ; j<l_IntersectBox.size() ; ++j )
+		{
+			while( l_Lights.size() <= l_IntersectBox[j] ) l_LightInBox.push_back(std::vector<glm::ivec2>());
+			l_LightInBox[l_IntersectBox[j]].push_back(l_TempData);
+		}
 	}
 
 	// LightMapBoxCache -> LightMapBox, init uav triangle/light data
@@ -164,16 +177,14 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	std::vector<glm::ivec2> l_UavLightData;
 	{
 		std::vector<LightMapBoxCache *> l_CacheList(1, l_pRoot);
-		std::map<LightMapBoxCache *, int> l_ParentMap;
 		for( unsigned int i=0 ; i<l_CacheList.size() ; ++i )
 		{
 			LightMapBoxCache *l_pThisNode = l_CacheList[i];
-			l_ParentMap.insert(std::make_pair(l_pThisNode, i));
 
 			LightMapBox l_Temp;
-			l_Temp.m_BoxCenter = l_pThisNode->m_Box.m_Center;
-			l_Temp.m_BoxSize = l_pThisNode->m_Box.m_Size;
-			l_Temp.m_Parent = 0 == i ? -1 : l_ParentMap[l_pThisNode->m_pParent];
+			l_Temp.m_BoxCenter = l_pThisNode->m_BoxCenter;
+			l_Temp.m_BoxSize = l_pThisNode->m_BoxSize;
+			l_Temp.m_NegitiveNeighbor = l_Temp.m_PositiveNeighbor = glm::ivec3(-1, -1, -1);
 			
 			for( unsigned int j=0 ; j<8 ; ++j )
 			{
@@ -187,18 +198,19 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 				l_CacheList.push_back(l_pThisNode->m_pChildren[j]);
 			}
 
-			l_Temp.m_LightRange.x = l_UavLightData.size();
-			l_Temp.m_LightRange.y = l_pThisNode->m_Lights.size();
-			for( unsigned int j=0 ; j<l_Temp.m_LightRange.y ; ++j ) l_UavLightData.push_back(l_pThisNode->m_Lights[j]);
+			l_Temp.m_LightStart = l_UavLightData.size();
+			l_Temp.m_LightEnd = l_pThisNode->m_Lights.size();
+			for( unsigned int j=0 ; j<l_Temp.m_LightEnd ; ++j ) l_UavLightData.push_back(l_pThisNode->m_Lights[j]);
+			l_Temp.m_LightEnd += l_Temp.m_LightStart;
 
-			l_Temp.m_TriangleRange.x = l_UavTriangleData.size();
-			l_Temp.m_TriangleRange.y = l_pThisNode->m_Triangles.size() / 4;
-			for( unsigned int j=0 ; j<l_Temp.m_TriangleRange.y ; ++j )
+			l_Temp.m_TriangleStart = l_UavTriangleData.size();
+			l_Temp.m_TriangleEnd = l_pThisNode->m_Triangles.size() / 4;
+			for( unsigned int j=0 ; j<l_Temp.m_TriangleEnd ; ++j )
 			{
 				glm::ivec4 l_Triangle(l_pThisNode->m_Triangles[j*4], l_pThisNode->m_Triangles[j*4 + 1], l_pThisNode->m_Triangles[j*4 + 2], l_pThisNode->m_Triangles[j*4 + 3]);
 				l_UavTriangleData.push_back(l_Triangle);
 			}
-			l_Temp.m_TriangleRange.y += l_Temp.m_TriangleRange.x;
+			l_Temp.m_TriangleEnd += l_Temp.m_TriangleStart;
 
 			memset(l_Temp.m_SHResult, 0, sizeof(glm::vec4) * 1024);
 
@@ -208,6 +220,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		l_UavTriangleData[0].z = l_CacheList.size();
 		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample;
 	}
+	assignNeighbor(0, -1, 0);
 
 	m_pTriangles = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Triangles", l_UavTriangleData.size());
 	memcpy(m_pTriangles->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
@@ -259,63 +272,71 @@ void WorldAsset::stopBake()
 	m_bBaking = false;
 }
 
-void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, LightMapBoxCache *a_pCurrNode, std::set<LightMapBoxCache*> &a_Output)
+void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::set<int> &a_Output)
 {
-	a_Output.insert(a_pCurrNode);
-	if( a_pCurrNode->m_Box.m_Size.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
+	a_Output.insert(a_CurrNode);
 
+	LightMapBoxCache *a_pCurrNode = &a_NodeList[a_CurrNode];
+	if( a_pCurrNode->m_BoxSize.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
+	
+	glm::aabb l_ThisBox(a_pCurrNode->m_BoxCenter, a_pCurrNode->m_BoxSize);
 	for( unsigned int i=0 ; i<8 ; ++i )
 	{
-		glm::daabb l_Box;
-		if( nullptr == a_pCurrNode->m_pChildren[i] )
+		glm::aabb l_Box;
+		LightMapBoxCache *a_pTargetNode = nullptr;
+		if( -1 == a_pCurrNode->m_Children[i] )
 		{
-			l_Box.m_Size = a_pCurrNode->m_Box.m_Size * 0.5;
-			glm::dvec3 l_Edge;
+			l_Box.m_Size = a_pCurrNode->m_BoxSize * 0.5f;
+
+			glm::vec3 l_Edge;
 			switch(i)
 			{
 				case OctreePartition::NX_NY_NZ:
-					l_Edge = a_pCurrNode->m_Box.getMin();
+					l_Edge = l_ThisBox.getMin();
 					break;
 
 				case OctreePartition::NX_NY_PZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMinX(), a_pCurrNode->m_Box.getMinY(), a_pCurrNode->m_Box.getMaxZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMinY(), l_ThisBox.getMaxZ());
 					break;
 
 				case OctreePartition::NX_PY_NZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMinX(), a_pCurrNode->m_Box.getMaxY(), a_pCurrNode->m_Box.getMinZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMaxY(), l_ThisBox.getMinZ());
 					break;
 
 				case OctreePartition::NX_PY_PZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMinX(), a_pCurrNode->m_Box.getMaxY(), a_pCurrNode->m_Box.getMaxZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMaxY(), l_ThisBox.getMaxZ());
 					break;
 
 				case OctreePartition::PX_NY_NZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMaxX(), a_pCurrNode->m_Box.getMinY(), a_pCurrNode->m_Box.getMinZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMinY(), l_ThisBox.getMinZ());
 					break;
 
 				case OctreePartition::PX_NY_PZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMaxX(), a_pCurrNode->m_Box.getMinY(), a_pCurrNode->m_Box.getMaxZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMinY(), l_ThisBox.getMaxZ());
 					break;
 
 				case OctreePartition::PX_PY_NZ:
-					l_Edge = glm::dvec3(a_pCurrNode->m_Box.getMaxX(), a_pCurrNode->m_Box.getMaxY(), a_pCurrNode->m_Box.getMinZ());
+					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMaxY(), l_ThisBox.getMinZ());
 					break;
 
 				case OctreePartition::PX_PY_PZ:
-					l_Edge = a_pCurrNode->m_Box.getMax();
+					l_Edge = l_ThisBox.getMax();
 					break;
 			}
-			l_Box.m_Center = (a_pCurrNode->m_Box.m_Center + l_Edge) * 0.5;
+			l_Box.m_Center = (l_ThisBox.m_Center + l_Edge) * 0.5f;
 		}
-		else l_Box = a_pCurrNode->m_pChildren[i]->m_Box;
+		else
+		{
+			a_pTargetNode = &a_NodeList[a_pCurrNode->m_Children[i]];
+			l_Box = glm::aabb(a_pTargetNode->m_BoxCenter, a_pTargetNode->m_BoxSize);
+		}
 		
 		if( !l_Box.intersect(a_Pos1, a_Pos2, a_Pos3) ) continue;
 		
-		LightMapBoxCache *a_pTargetNode = a_pCurrNode->m_pChildren[i];
+		LightMapBoxCache *a_pTargetNode = &a_NodeList[a_pCurrNode->m_Children[i]];
 		if( nullptr == a_pTargetNode )
 		{
 			a_pTargetNode = a_pCurrNode->m_pChildren[i] = new LightMapBoxCache();
-			a_pTargetNode->m_pParent = a_pCurrNode;
 			a_pTargetNode->m_Box = l_Box;
 			memset(a_pTargetNode->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
 		}
@@ -324,10 +345,10 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 	}
 }
 
-void WorldAsset::assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::vector<LightMapBoxCache*> &a_Output)
+void WorldAsset::assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::vector<int> &a_Output)
 {
 	a_Output.clear();
-	a_Output.push_back(a_pRoot);
+	a_Output.push_back(a_CurrNode);
 
 	std::function<bool(Light*, LightMapBoxCache*)> l_pCheckFunc = nullptr;
 	switch( a_pLight->typeID() )
@@ -337,7 +358,8 @@ void WorldAsset::assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::ve
 			{
 				OmniLight *l_pInst = reinterpret_cast<OmniLight *>(a_pThisLight);
 				glm::sphere l_Sphere(l_pInst->getPosition(), l_pInst->getRange());
-				return a_pCurrNode->m_Box.intersect(l_Sphere);
+				glm::aabb l_Box(a_pCurrNode->m_BoxCenter, a_pCurrNode->m_BoxSize);
+				return l_Box.intersect(l_Sphere);
 			};
 			break;
 
@@ -346,7 +368,8 @@ void WorldAsset::assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::ve
 			{
 				SpotLight *l_pInst = reinterpret_cast<SpotLight *>(a_pThisLight);
 				glm::daabb l_SpotBox(l_pInst->getPosition() + 0.5f * l_pInst->getRange() * l_pInst->getDirection(), l_pInst->getDirection() * l_pInst->getRange());
-				return a_pCurrNode->m_Box.intersect(l_SpotBox);
+				glm::daabb l_Box(a_pCurrNode->m_BoxCenter, a_pCurrNode->m_BoxSize);
+				return l_Box.intersect(l_SpotBox);
 			};
 			break;
 
@@ -361,9 +384,86 @@ void WorldAsset::assignLight(Light *a_pLight, LightMapBoxCache *a_pRoot, std::ve
 	{
 		for( unsigned int j=0 ; j<8 ; ++j )
 		{
-			if( nullptr != a_Output[i]->m_pChildren[j] &&
+			if( -1 != a_Output[i]->m_pChildren[j] &&
 				l_pCheckFunc(a_pLight, a_Output[i]->m_pChildren[j])) a_Output.push_back(a_Output[i]->m_pChildren[j]);
 		}
+	}
+}
+
+void WorldAsset::assignNeighbor(int a_CurrNode, int a_ParentNode, int a_Edge)
+{
+	LightMapBox &l_CurrNode = m_LightMap[a_CurrNode];
+	if( -1 != a_ParentNode )
+	{
+		LightMapBox &l_ParentNode = m_LightMap[a_ParentNode];
+		switch( a_Edge )
+		{
+			case OctreePartition::NX_NY_NZ:{
+				l_CurrNode.m_PositiveNeighbor.x = l_ParentNode.m_Children[OctreePartition::PX_NY_NZ];
+				if( -1 == l_CurrNode.m_PositiveNeighbor.x ) l_CurrNode.m_PositiveNeighbor.x = a_ParentNode;
+
+				l_CurrNode.m_PositiveNeighbor.y = l_ParentNode.m_Children[OctreePartition::NX_PY_NZ];
+				if( -1 == l_CurrNode.m_PositiveNeighbor.y ) l_CurrNode.m_PositiveNeighbor.y = a_ParentNode;
+
+				l_CurrNode.m_PositiveNeighbor.z = l_ParentNode.m_Children[OctreePartition::NX_NY_PZ];
+				if( -1 == l_CurrNode.m_PositiveNeighbor.z ) l_CurrNode.m_PositiveNeighbor.z = a_ParentNode;
+
+				if( -1 != l_ParentNode.m_NegitiveNeighbor.x )
+				{
+					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.x];
+					l_CurrNode.m_NegitiveNeighbor.x = l_NightborBox.m_Children[OctreePartition::PX_NY_NZ];
+					if( -1 == l_CurrNode.m_NegitiveNeighbor.x ) l_CurrNode.m_NegitiveNeighbor.x = l_ParentNode.m_NegitiveNeighbor.x;
+				}
+
+				if( -1 != l_ParentNode.m_NegitiveNeighbor.y )
+				{
+					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.y];
+					l_CurrNode.m_NegitiveNeighbor.y = l_NightborBox.m_Children[OctreePartition::NX_PY_NZ];
+					if( -1 == l_CurrNode.m_NegitiveNeighbor.y ) l_CurrNode.m_NegitiveNeighbor.y = l_ParentNode.m_NegitiveNeighbor.y;
+				}
+
+				if( -1 != l_ParentNode.m_NegitiveNeighbor.z )
+				{
+					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.z];
+					l_CurrNode.m_NegitiveNeighbor.z = l_NightborBox.m_Children[OctreePartition::NX_NY_PZ];
+					if( -1 == l_CurrNode.m_NegitiveNeighbor.z ) l_CurrNode.m_NegitiveNeighbor.z = l_ParentNode.m_NegitiveNeighbor.z;
+				}
+				}break;
+
+			case OctreePartition::NX_NY_PZ:{
+				l_CurrNode.m_PositiveNeighbor.x = l_ParentNode.m_Children[OctreePartition::PX_NY_PZ];
+				if( -1 == l_CurrNode.m_PositiveNeighbor.x ) l_CurrNode.m_PositiveNeighbor.x = a_ParentNode;
+
+				l_CurrNode.m_PositiveNeighbor.y = l_ParentNode.m_Children[OctreePartition::NX_PY_PZ];
+				if( -1 == l_CurrNode.m_PositiveNeighbor.y ) l_CurrNode.m_PositiveNeighbor.y = a_ParentNode;
+
+				l_CurrNode.m_NegitiveNeighbor.z = l_ParentNode.m_Children[OctreePartition::NX_NY_NZ];
+				if( -1 == l_CurrNode.m_NegitiveNeighbor.z ) l_CurrNode.m_NegitiveNeighbor.z = a_ParentNode;
+				}break;
+
+			case OctreePartition::NX_PY_NZ:
+				break;
+
+			case OctreePartition::NX_PY_PZ:
+				break;
+
+			case OctreePartition::PX_NY_NZ:
+				break;
+
+			case OctreePartition::PX_NY_PZ:
+				break;
+
+			case OctreePartition::PX_PY_NZ:
+				break;
+
+			case OctreePartition::PX_PY_PZ:
+				break;
+		}
+	}
+	for( unsigned int i=0 ; i<8 ; ++i )
+	{
+		if( -1 == l_CurrNode.m_Children[i] ) continue;
+		assignNeighbor(l_CurrNode.m_Children[i], a_CurrNode, i);
 	}
 }
 #pragma endregion

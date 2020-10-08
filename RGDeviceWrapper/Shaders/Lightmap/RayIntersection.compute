@@ -2,10 +2,62 @@
 #include "autoBinder.h"
 
 #deifne LIGHTMAP_STATE_IDLE		0
-#define LIGHTMAP_STATE_SCATTER	(1*256)
-#define LIGHTMAP_STATE_THROUGH	(2*256)
-#define LIGHTMAP_STATE_NEXTBOX	(3*256)
-#define LIGHTMAP_STATE_TREADEND	(4*256)
+#define LIGHTMAP_STATE_SCATTER	(1*0x00000100)
+#define LIGHTMAP_STATE_THROUGH	(2*0x00000100)
+#define LIGHTMAP_STATE_NEXTBOX	(3*0x00000100)
+#define LIGHTMAP_STATE_TREADEND	(4*0x00000100)
+
+void assignResult(LightmapIntersectResult a_Res)
+{
+	/* deocde
+	float x = a_Res.m_OriginNormal.x;
+    float y = a_Res.m_OriginNormal.y;
+    float z = a_Res.m_OriginNormal.z;
+    float x2 = x*x;
+    float y2 = y*y;
+    float z2 = z*z;
+
+	basis[0]  = 1.0 / 2.0 * sqrt(1.0 / MATH_PI);
+    basis[1]  = sqrt(3.0 / (4.0 * MATH_PI))*z;
+    basis[2]  = sqrt(3.0 / (4.0 * MATH_PI))*y;
+    basis[3]  = sqrt(3.0 / (4.0 * MATH_PI))*x;
+    basis[4]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * x * z;
+    basis[5]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * z * y;
+    basis[6]  = 1.0 / 4.0 * sqrt(5.0 / MATH_PI) * (-x*x - z*z + 2 * y*y);
+    basis[7]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * y * x;
+    basis[8]  = 1.0 / 4.0 * sqrt(15.0 / MATH_PI) * (x*x - z*z);
+    basis[9]  = 1.0 / 4.0 * sqrt(35.0 / (2.f*MATH_PI))*(3 * x2 - z2)*z;
+    basis[10] = 1.0 / 2.0 * sqrt(105.0 / MATH_PI)*x*z*y;
+    basis[11] = 1.0 / 4.0 * sqrt(21.0 / (2.f * MATH_PI))*z*(4 * y2 - x2 - z2);
+    basis[12] = 1.0 / 4.0 * sqrt(7.0 / MATH_PI)*y*(2 * y2 - 3 * x2 - 3 * z2);
+    basis[13] = 1.0 / 4.0 * sqrt(21.0 / (2.f * MATH_PI))*x*(4 * y2 - x2 - z2);
+    basis[14] = 1.0 / 4.0 * sqrt(105.0 / MATH_PI)*(x2 - z2)*y;
+    basis[15] = 1.0 / 4.0 * sqrt(35.0 / (2 * MATH_PI))*(x2 - 3 * z2)*x;
+
+	vec3 c = vec3(0,0,0);
+    for (int i = 0; i < 16; i++)
+    {
+        c += coef[i] * basis[i];
+    }
+    
+    FragColor = vec4(c, 1);
+
+	// encode
+	double weight =4.0 * PI;
+    for(int i=0; i<n_samples; ++i) 
+    {
+        for(int n=0; n<n_coeff; ++n)
+        {
+        result[n] += lightColor * samples[i].SH_basis_coeff[n];
+        }
+    }
+    double factor = weight / n_samples;
+    for(i=0; i<n_coeff; ++i)
+    {
+        result[i] = result[i] * factor;
+    }
+	*/
+}
 
 [numthreads(16, 1, 1 )]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
@@ -66,12 +118,31 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 		case LIGHTMAP_STATE_TREADEND: return;
 
 		case LIGHTMAP_STATE_NEXTBOX:{
-			int l_CurrBox = l_Res.m_CurrBoxID;
-			for( int i=0 ; i<g_Triangles[0].z ; ++i )
+			LightmapBox l_ThisBox = g_Box[l_Res.m_CurrBoxID];
+			float3 l_LengthSign = sign(l_Res.m_RayDir) * 0.5;
+			float3 l_LengthVec = abs((l_ThisBox.m_BoxCenter + l_LengthSign * l_ThisBox.m_BoxSize - l_Res.m_RayOrigin) / l_Res.m_RayDir);
+			
+			int l_NextBox = 0;
+			if( 0.0 != l_LengthSign.x && l_LengthVec.x < l_LengthVec.y && l_LengthVec.x < l_LengthVec.z )
 			{
-				LightmapBox l_ThisBox = g_Box[l_CurrBox];
-				
+				if( l_LengthSign.x < 0 ) l_NextBox = l_ThisBox.m_NegitiveNeighbor.x;
+				else l_NextBox = l_ThisBox.m_PositiveNeighbor.x;
+
+				if( -1 == l_NextBox )
+				{
+					l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+					assignResult(l_Res);
+					g_Result[a_ThreadID.x] = l_Res;
+					return;
+				}
+
+				int l_CheckTimes = round(log2(l_ThisBox.m_BoxSize.x));
 			}
+			else if( 0.0 != l_LengthSign.y && l_LengthVec.y < l_LengthVec.x && l_LengthVec.y < l_LengthVec.z )
+			{
+			}
+
+			 
 			}break;
 
 		//case LIGHTMAP_STATE_THROUGH:
