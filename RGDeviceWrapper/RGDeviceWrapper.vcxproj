@@ -320,7 +320,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\Lightmap\RayIntersection.compute" />
+    <None Include="Shaders\Lightmap\RayIntersection.compute">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\Lightmap\RayIntersection.xml" />

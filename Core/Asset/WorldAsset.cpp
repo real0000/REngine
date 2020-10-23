@@ -21,6 +21,10 @@ namespace R
 {
 
 #define LIGHTMAP_INTERSECT_ASSET_NAME wxT("LightmapIntersection.Material")
+#define NEIGHBOR_INDEX(x, y, z) (9*z+3*y+x)
+#define NP 0
+#define ZP 1
+#define PP 2
 
 #pragma region WorldAsset
 //
@@ -136,9 +140,6 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		LightMapBoxCache &l_Root = l_Container[0];
 		l_Root.m_BoxCenter = l_Bounding.m_Center;
 		l_Root.m_BoxSize = l_Bounding.m_Size;
-		memset(l_Root.m_Children, -1, sizeof(int) * 8);
-		memset(l_Root.m_SHResult, -1, sizeof(int) * 16);
-		memset(l_Root.m_Neighbor, -1, sizeof(int) * 28);
 		for( unsigned int i=0 ; i<l_TempTriangleData.size() ; i+=3 )
 		{
 			std::set<int> l_IntersectBox;
@@ -172,55 +173,124 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		}
 	}
 
-	// LightMapBoxCache -> LightMapBox, init uav triangle/light data
+	// init uav triangle/light/harmonics data
 	std::vector<glm::ivec4> l_UavTriangleData(1, glm::ivec4(0, 0, 0, 0));
 	std::vector<glm::ivec2> l_UavLightData;
+	unsigned int l_NumHarmonics = 0;
 	{
-		std::vector<LightMapBoxCache *> l_CacheList(1, l_pRoot);
-		for( unsigned int i=0 ; i<l_CacheList.size() ; ++i )
+		for( unsigned int i=0 ; i<l_Container.size() ; ++i )
 		{
-			LightMapBoxCache *l_pThisNode = l_CacheList[i];
-
-			LightMapBox l_Temp;
-			l_Temp.m_BoxCenter = l_pThisNode->m_BoxCenter;
-			l_Temp.m_BoxSize = l_pThisNode->m_BoxSize;
-			l_Temp.m_NegitiveNeighbor = l_Temp.m_PositiveNeighbor = glm::ivec3(-1, -1, -1);
-			
+			LightMapBoxCache &l_ThisNode = l_Container[i];
 			for( unsigned int j=0 ; j<8 ; ++j )
 			{
-				if( nullptr == l_pThisNode->m_pChildren[j] )
+				if( -1 != l_ThisNode.m_Children[j] ) continue;
+				glm::ivec2 l_XRange, l_YRange, l_ZRange;
+				switch(j)
 				{
-					l_Temp.m_Children[j] = -1;
-					continue;
+					case OCT_NX_NY_NZ:
+						l_XRange.x = 0;
+						l_XRange.y = 1;
+						l_YRange.x = 0;
+						l_YRange.y = 1;
+						l_ZRange.x = 0;
+						l_ZRange.y = 1;
+						break;
+
+					case OCT_NX_NY_PZ:
+						l_XRange.x = 0;
+						l_XRange.y = 1;
+						l_YRange.x = 0;
+						l_YRange.y = 1;
+						l_ZRange.x = 2;
+						l_ZRange.y = 3;
+						break;
+
+					case OCT_NX_PY_NZ:
+						l_XRange.x = 0;
+						l_XRange.y = 1;
+						l_YRange.x = 2;
+						l_YRange.y = 3;
+						l_ZRange.x = 0;
+						l_ZRange.y = 1;
+						break;
+
+					case OCT_NX_PY_PZ:
+						l_XRange.x = 0;
+						l_XRange.y = 1;
+						l_YRange.x = 2;
+						l_YRange.y = 3;
+						l_ZRange.x = 2;
+						l_ZRange.y = 3;
+						break;
+
+					case OCT_PX_NY_NZ:
+						l_XRange.x = 2;
+						l_XRange.y = 3;
+						l_YRange.x = 0;
+						l_YRange.y = 1;
+						l_ZRange.x = 0;
+						l_ZRange.y = 1;
+						break;
+
+					case OCT_PX_NY_PZ:
+						l_XRange.x = 2;
+						l_XRange.y = 3;
+						l_YRange.x = 0;
+						l_YRange.y = 1;
+						l_ZRange.x = 2;
+						l_ZRange.y = 3;
+						break;
+
+					case OCT_PX_PY_NZ:
+						l_XRange.x = 2;
+						l_XRange.y = 3;
+						l_YRange.x = 2;
+						l_YRange.y = 3;
+						l_ZRange.x = 0;
+						l_ZRange.y = 1;
+						break;
+
+					case OCT_PX_PY_PZ:
+						l_XRange.x = 2;
+						l_XRange.y = 3;
+						l_YRange.x = 2;
+						l_YRange.y = 3;
+						l_ZRange.x = 2;
+						l_ZRange.y = 3;
+						break;
 				}
-				
-				l_Temp.m_Children[j] = l_CacheList.size();
-				l_CacheList.push_back(l_pThisNode->m_pChildren[j]);
+				for( int z=l_ZRange.x ; z<=l_ZRange.y ; ++z )
+				{
+					for( int y=l_YRange.x ; y<=l_YRange.y ; ++y )
+					{
+						for( int x=l_XRange.x ; x<=l_XRange.y ; ++x )
+						{
+							l_ThisNode.m_SHResult[z*16 + y*4 + x] = l_NumHarmonics;
+							l_NumHarmonics += 16;
+						}
+					}
+				}
 			}
 
-			l_Temp.m_LightStart = l_UavLightData.size();
-			l_Temp.m_LightEnd = l_pThisNode->m_Lights.size();
-			for( unsigned int j=0 ; j<l_Temp.m_LightEnd ; ++j ) l_UavLightData.push_back(l_pThisNode->m_Lights[j]);
-			l_Temp.m_LightEnd += l_Temp.m_LightStart;
+			l_ThisNode.m_Light.x = l_UavLightData.size();
+			l_ThisNode.m_Light.y = l_LightInBox[i].size();
+			for( unsigned int j=0 ; j<l_ThisNode.m_Light.y ; ++j ) l_UavLightData.push_back(l_LightInBox[i][j]);
+			l_ThisNode.m_Light.y += l_ThisNode.m_Light.x;
 
-			l_Temp.m_TriangleStart = l_UavTriangleData.size();
-			l_Temp.m_TriangleEnd = l_pThisNode->m_Triangles.size() / 4;
-			for( unsigned int j=0 ; j<l_Temp.m_TriangleEnd ; ++j )
+			l_ThisNode.m_Triangle.x = l_UavTriangleData.size();
+			l_ThisNode.m_Triangle.y = l_TriangleInBox[i].size() / 4;
+			for( unsigned int j=0 ; j<l_ThisNode.m_Triangle.y ; ++j )
 			{
-				glm::ivec4 l_Triangle(l_pThisNode->m_Triangles[j*4], l_pThisNode->m_Triangles[j*4 + 1], l_pThisNode->m_Triangles[j*4 + 2], l_pThisNode->m_Triangles[j*4 + 3]);
+				glm::ivec4 l_Triangle(l_TriangleInBox[i][j*4], l_TriangleInBox[i][j*4 + 1], l_TriangleInBox[i][j*4 + 2], l_TriangleInBox[i][j*4 + 3]);
 				l_UavTriangleData.push_back(l_Triangle);
 			}
-			l_Temp.m_TriangleEnd += l_Temp.m_TriangleStart;
-
-			memset(l_Temp.m_SHResult, 0, sizeof(glm::vec4) * 1024);
-
-			m_LightMap.push_back(l_Temp);
-			delete l_pThisNode;
+			l_ThisNode.m_Triangle.y += l_ThisNode.m_Triangle.x;
 		}
-		l_UavTriangleData[0].z = l_CacheList.size();
+		l_UavTriangleData[0].z = l_Container.size();
 		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample;
 	}
-	assignNeighbor(0, -1, 0);
+
+	assignNeighbor(l_Container, 0);
 
 	m_pTriangles = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Triangles", l_UavTriangleData.size());
 	memcpy(m_pTriangles->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
@@ -276,50 +346,50 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 {
 	a_Output.insert(a_CurrNode);
 
-	LightMapBoxCache *a_pCurrNode = &a_NodeList[a_CurrNode];
-	if( a_pCurrNode->m_BoxSize.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
+	LightMapBoxCache *l_pCurrNode = &a_NodeList[a_CurrNode];
+	if( l_pCurrNode->m_BoxSize.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
 	
-	glm::aabb l_ThisBox(a_pCurrNode->m_BoxCenter, a_pCurrNode->m_BoxSize);
+	glm::aabb l_ThisBox(l_pCurrNode->m_BoxCenter, l_pCurrNode->m_BoxSize);
 	for( unsigned int i=0 ; i<8 ; ++i )
 	{
 		glm::aabb l_Box;
-		LightMapBoxCache *a_pTargetNode = nullptr;
-		if( -1 == a_pCurrNode->m_Children[i] )
+		int l_TargetNode = l_pCurrNode->m_Children[i];
+		if( -1 == l_TargetNode )
 		{
-			l_Box.m_Size = a_pCurrNode->m_BoxSize * 0.5f;
+			l_Box.m_Size = l_pCurrNode->m_BoxSize * 0.5f;
 
 			glm::vec3 l_Edge;
 			switch(i)
 			{
-				case OctreePartition::NX_NY_NZ:
+				case OCT_NX_NY_NZ:
 					l_Edge = l_ThisBox.getMin();
 					break;
 
-				case OctreePartition::NX_NY_PZ:
+				case OCT_NX_NY_PZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMinY(), l_ThisBox.getMaxZ());
 					break;
 
-				case OctreePartition::NX_PY_NZ:
+				case OCT_NX_PY_NZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMaxY(), l_ThisBox.getMinZ());
 					break;
 
-				case OctreePartition::NX_PY_PZ:
+				case OCT_NX_PY_PZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMinX(), l_ThisBox.getMaxY(), l_ThisBox.getMaxZ());
 					break;
 
-				case OctreePartition::PX_NY_NZ:
+				case OCT_PX_NY_NZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMinY(), l_ThisBox.getMinZ());
 					break;
 
-				case OctreePartition::PX_NY_PZ:
+				case OCT_PX_NY_PZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMinY(), l_ThisBox.getMaxZ());
 					break;
 
-				case OctreePartition::PX_PY_NZ:
+				case OCT_PX_PY_NZ:
 					l_Edge = glm::dvec3(l_ThisBox.getMaxX(), l_ThisBox.getMaxY(), l_ThisBox.getMinZ());
 					break;
 
-				case OctreePartition::PX_PY_PZ:
+				case OCT_PX_PY_PZ:
 					l_Edge = l_ThisBox.getMax();
 					break;
 			}
@@ -327,21 +397,26 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 		}
 		else
 		{
-			a_pTargetNode = &a_NodeList[a_pCurrNode->m_Children[i]];
-			l_Box = glm::aabb(a_pTargetNode->m_BoxCenter, a_pTargetNode->m_BoxSize);
+			LightMapBoxCache &l_BoxOwner = a_NodeList[l_TargetNode];
+			l_Box = glm::aabb(l_BoxOwner.m_BoxCenter, l_BoxOwner.m_BoxSize);
 		}
 		
 		if( !l_Box.intersect(a_Pos1, a_Pos2, a_Pos3) ) continue;
 		
-		LightMapBoxCache *a_pTargetNode = &a_NodeList[a_pCurrNode->m_Children[i]];
-		if( nullptr == a_pTargetNode )
+		if( -1 == l_TargetNode )
 		{
-			a_pTargetNode = a_pCurrNode->m_pChildren[i] = new LightMapBoxCache();
-			a_pTargetNode->m_Box = l_Box;
-			memset(a_pTargetNode->m_pChildren, 0, sizeof(LightMapBoxCache *) * 8);
+			LightMapBoxCache l_NewBox;
+			l_TargetNode = a_NodeList.size();
+			l_pCurrNode->m_Children[i] = l_TargetNode;
+
+			l_NewBox.m_BoxCenter = l_Box.m_Center;
+			l_NewBox.m_BoxSize = l_Box.m_Size;
+			l_NewBox.m_Level = l_pCurrNode->m_Level + 1;
+			l_NewBox.m_Parent = a_CurrNode;
+			a_NodeList.push_back(l_NewBox);
 		}
 
-		assignTriangle(a_Pos1, a_Pos2, a_Pos3, a_pTargetNode, a_Output);
+		assignTriangle(a_Pos1, a_Pos2, a_Pos3, a_NodeList, l_TargetNode, a_Output);
 	}
 }
 
@@ -382,88 +457,154 @@ void WorldAsset::assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_N
 
 	for( unsigned int i=0 ; i<a_Output.size() ; ++i )
 	{
+		LightMapBoxCache &l_ThisBox = a_NodeList[a_Output[i]];
 		for( unsigned int j=0 ; j<8 ; ++j )
 		{
-			if( -1 != a_Output[i]->m_pChildren[j] &&
-				l_pCheckFunc(a_pLight, a_Output[i]->m_pChildren[j])) a_Output.push_back(a_Output[i]->m_pChildren[j]);
+			if( -1 != l_ThisBox.m_Children[j] &&
+				l_pCheckFunc(a_pLight, &a_NodeList[l_ThisBox.m_Children[j]])) a_Output.push_back(l_ThisBox.m_Children[j]);
 		}
 	}
 }
 
-void WorldAsset::assignNeighbor(int a_CurrNode, int a_ParentNode, int a_Edge)
+void WorldAsset::assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode)
 {
-	LightMapBox &l_CurrNode = m_LightMap[a_CurrNode];
-	if( -1 != a_ParentNode )
-	{
-		LightMapBox &l_ParentNode = m_LightMap[a_ParentNode];
-		switch( a_Edge )
-		{
-			case OctreePartition::NX_NY_NZ:{
-				l_CurrNode.m_PositiveNeighbor.x = l_ParentNode.m_Children[OctreePartition::PX_NY_NZ];
-				if( -1 == l_CurrNode.m_PositiveNeighbor.x ) l_CurrNode.m_PositiveNeighbor.x = a_ParentNode;
+	LightMapBoxCache &l_CurrNode = a_NodeList[a_CurrNode];
+	l_CurrNode.m_Neighbor[NEIGHBOR_INDEX(ZP, ZP, ZP)] = a_CurrNode;
 
-				l_CurrNode.m_PositiveNeighbor.y = l_ParentNode.m_Children[OctreePartition::NX_PY_NZ];
-				if( -1 == l_CurrNode.m_PositiveNeighbor.y ) l_CurrNode.m_PositiveNeighbor.y = a_ParentNode;
+#define ASSIGN_NEIGHBOR(dst, src, oct) {						\
+	int l_Corner = l_CurrNode.m_Neighbor[src];					\
+	if( -1 != l_Corner ) {										\
+		LightMapBoxCache &l_CornerNode = a_NodeList[l_Corner];	\
+		int l_Neighbor = l_CornerNode.m_Children[oct];			\
+		l_TargetNode.m_Neighbor[dst] = -1 != l_Neighbor ? l_Neighbor : l_Corner; }}
 
-				l_CurrNode.m_PositiveNeighbor.z = l_ParentNode.m_Children[OctreePartition::NX_NY_PZ];
-				if( -1 == l_CurrNode.m_PositiveNeighbor.z ) l_CurrNode.m_PositiveNeighbor.z = a_ParentNode;
-
-				if( -1 != l_ParentNode.m_NegitiveNeighbor.x )
-				{
-					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.x];
-					l_CurrNode.m_NegitiveNeighbor.x = l_NightborBox.m_Children[OctreePartition::PX_NY_NZ];
-					if( -1 == l_CurrNode.m_NegitiveNeighbor.x ) l_CurrNode.m_NegitiveNeighbor.x = l_ParentNode.m_NegitiveNeighbor.x;
-				}
-
-				if( -1 != l_ParentNode.m_NegitiveNeighbor.y )
-				{
-					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.y];
-					l_CurrNode.m_NegitiveNeighbor.y = l_NightborBox.m_Children[OctreePartition::NX_PY_NZ];
-					if( -1 == l_CurrNode.m_NegitiveNeighbor.y ) l_CurrNode.m_NegitiveNeighbor.y = l_ParentNode.m_NegitiveNeighbor.y;
-				}
-
-				if( -1 != l_ParentNode.m_NegitiveNeighbor.z )
-				{
-					LightMapBox &l_NightborBox = m_LightMap[l_ParentNode.m_NegitiveNeighbor.z];
-					l_CurrNode.m_NegitiveNeighbor.z = l_NightborBox.m_Children[OctreePartition::NX_NY_PZ];
-					if( -1 == l_CurrNode.m_NegitiveNeighbor.z ) l_CurrNode.m_NegitiveNeighbor.z = l_ParentNode.m_NegitiveNeighbor.z;
-				}
-				}break;
-
-			case OctreePartition::NX_NY_PZ:{
-				l_CurrNode.m_PositiveNeighbor.x = l_ParentNode.m_Children[OctreePartition::PX_NY_PZ];
-				if( -1 == l_CurrNode.m_PositiveNeighbor.x ) l_CurrNode.m_PositiveNeighbor.x = a_ParentNode;
-
-				l_CurrNode.m_PositiveNeighbor.y = l_ParentNode.m_Children[OctreePartition::NX_PY_PZ];
-				if( -1 == l_CurrNode.m_PositiveNeighbor.y ) l_CurrNode.m_PositiveNeighbor.y = a_ParentNode;
-
-				l_CurrNode.m_NegitiveNeighbor.z = l_ParentNode.m_Children[OctreePartition::NX_NY_NZ];
-				if( -1 == l_CurrNode.m_NegitiveNeighbor.z ) l_CurrNode.m_NegitiveNeighbor.z = a_ParentNode;
-				}break;
-
-			case OctreePartition::NX_PY_NZ:
-				break;
-
-			case OctreePartition::NX_PY_PZ:
-				break;
-
-			case OctreePartition::PX_NY_NZ:
-				break;
-
-			case OctreePartition::PX_NY_PZ:
-				break;
-
-			case OctreePartition::PX_PY_NZ:
-				break;
-
-			case OctreePartition::PX_PY_PZ:
-				break;
-		}
-	}
 	for( unsigned int i=0 ; i<8 ; ++i )
 	{
 		if( -1 == l_CurrNode.m_Children[i] ) continue;
-		assignNeighbor(l_CurrNode.m_Children[i], a_CurrNode, i);
+
+		LightMapBoxCache &l_TargetNode = a_NodeList[l_CurrNode.m_Children[i]];
+		int l_X = (i & 0x04) >> 2;
+		int l_Y = (i & 0x02) >> 1;
+		int l_Z = i & 0x01;
+		for( unsigned int x=NP ; x<=PP ; ++x )
+		{
+			for( unsigned int y=NP ; y<=PP ; ++y )
+			{
+				for( unsigned int z=NP ; z<=PP ; ++z )
+				{
+					if( ZP == x && ZP == y && ZP == z ) continue;
+
+					int l_SrcIdx = NEIGHBOR_INDEX(x, y, z);
+					int l_Block = i;
+					//glm::ivec3 l_Neibor(x + l_X - 1, 0, 0)
+				}
+			}
+		}/*
+		switch(i)
+		{
+			case OCT_NX_NY_NZ:// need check
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, NP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, NP, NP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, NP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
+				break;
+
+			case OCT_NX_NY_PZ:// need check
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, NP, PP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, PP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, ZP, PP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, NP, PP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_NX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_NX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, NP, PP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_PX_PY_NZ)
+				break;
+
+			case OCT_NX_PY_NZ:
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, PP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, PP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, PP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, PP, NP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_NX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_NX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, PP, NP), OCT_PX_NY_PZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_PX_NY_NZ)
+				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_PX_NY_PZ)
+				break;
+
+			case OCT_NX_PY_PZ:
+				break;
+
+			case OCT_PX_NY_NZ:
+				break;
+
+			case OCT_PX_NY_PZ:
+				break;
+
+			case OCT_PX_PY_NZ:
+				break;
+
+			case OCT_PX_PY_PZ:
+				break;
+		}*/
+		//assignNeighbor(l_CurrNode.m_Children[i], a_CurrNode, i);
 	}
 }
 #pragma endregion

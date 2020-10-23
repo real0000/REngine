@@ -47,23 +47,23 @@ private:
 			: m_BoxCenter()
 			, m_Parent(-1)
 			, m_BoxSize()
-			, m_Edge(-1)
+			, m_Level(0)
 			, m_Triangle(0, 0)
 			, m_Light(0, 0)
 		{
 			memset(m_Neighbor, -1, sizeof(int) * 28);
-			memset(m_SHResult, -1, sizeof(int) * 16);
+			memset(m_SHResult, -1, sizeof(int) * 64);
 			memset(m_Children, -1, sizeof(int) * 8);
 		}
 
 		glm::vec3 m_BoxCenter;
 		int m_Parent;
 		glm::vec3 m_BoxSize;
-		int m_Edge;
+		int m_Level;
 		int m_Neighbor[28];// ---, --0, --+, -0-, -00, -0+, -+-, -+0, -++, 0--, 0-0, 0-+, 00-, 000, 00+, 0+-, 0+0, 0++, +--, +-0, +-+, +0-, +00, +0+, ++-, ++0, +++, ???
 		glm::ivec2 m_Triangle;
 		glm::ivec2 m_Light;
-		int m_SHResult[16];
+		int m_SHResult[64];
 		int m_Children[8];
 	};
 	struct LightMapVtxSrc
@@ -87,7 +87,7 @@ private:
 	};
 	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::set<int> &a_Output);
 	void assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::vector<int> &a_Output);
-	void assignNeighbor(int a_CurrNode, int a_ParentNode, int a_Edge);
+	void assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode);
 	
 	bool m_bBaking;
 	std::shared_ptr<Asset> m_pRayIntersectMat;

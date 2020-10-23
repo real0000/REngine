@@ -17,19 +17,6 @@ namespace R
 class OctreePartition : public ScenePartition
 {
 public:
-	enum
-	{
-		NX_NY_NZ = 0,
-		NX_NY_PZ,
-		NX_PY_NZ,
-		NX_PY_PZ,
-		PX_NY_NZ,
-		PX_NY_PZ,
-		PX_PY_NZ,
-		PX_PY_PZ,
-
-		NUM_NODE
-	};
 	struct Node
 	{
 		Node();
@@ -41,7 +28,7 @@ public:
 		unsigned int m_ID;
 		unsigned int m_RelationID;// parent idx
 		bool m_bValid;
-		std::shared_ptr<Node> m_Children[NUM_NODE];
+		std::shared_ptr<Node> m_Children[NUM_OCT_POS];
 		std::shared_ptr<Node> m_pParent;
 		glm::daabb m_Bounding;
 

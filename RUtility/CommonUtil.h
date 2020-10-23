@@ -389,6 +389,20 @@ STRING_ENUM_CLASS(PixelFormat,
     uint)
 unsigned int getPixelSize(PixelFormat::Key a_Key);
 
+enum OctreePos
+{
+	OCT_NX_NY_NZ = 0,
+	OCT_NX_NY_PZ,
+	OCT_NX_PY_NZ,
+	OCT_NX_PY_PZ,
+	OCT_PX_NY_NZ,
+	OCT_PX_NY_PZ,
+	OCT_PX_PY_NZ,
+	OCT_PX_PY_PZ,
+
+	NUM_OCT_POS
+};
+
 template<typename T>
 class SearchPathSystem
 { 

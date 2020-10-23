@@ -24,7 +24,7 @@ OctreePartition::Node::Node()
 	, m_bValid(false)
 	, m_pParent(nullptr)
 {
-	for( unsigned int i=0 ; i<OctreePartition::NUM_NODE ; ++i ) m_Children[i] = nullptr;
+	for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i ) m_Children[i] = nullptr;
 }
 
 OctreePartition::Node::~Node()
@@ -33,7 +33,7 @@ OctreePartition::Node::~Node()
 
 bool OctreePartition::Node::isLeaf()
 {
-	for( unsigned int i=0 ; i<OctreePartition::NUM_NODE ; ++i )
+	for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i )
 	{
 		if( nullptr != m_Children[0] ) return false;
 	}
@@ -43,7 +43,7 @@ bool OctreePartition::Node::isLeaf()
 void OctreePartition::Node::clear()
 {
 	m_Models.clear();
-	for( unsigned int i=0 ; i<OctreePartition::NUM_NODE ; ++i )
+	for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i )
 	{
 		if( nullptr != m_Children[i] ) m_Children[i]->clear();
 		m_Children[i] = nullptr;
@@ -171,7 +171,7 @@ void OctreePartition::extend()
 	l_pNewRoot->m_pParent = nullptr;
 	l_pNewRoot->m_Bounding.m_Size = m_pRoot->m_Bounding.m_Size * 2.0;
 	l_pNewRoot->m_Bounding.m_Center = glm::zero<glm::vec3>();
-	for( unsigned int i=0 ; i<NUM_NODE ; ++i )
+	for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i )
 	{
 		unsigned int l_ChildID = m_NodePool.retain(&(l_pNewRoot->m_Children[i]));
 		l_pNewRoot->m_Children[i]->m_ID = l_ChildID;
@@ -183,53 +183,53 @@ void OctreePartition::extend()
 
 	glm::vec3 l_Min(m_pRoot->m_Bounding.getMin()), l_Max(m_pRoot->m_Bounding.getMax());
 
-	l_pNewRoot->m_Children[NX_NY_NZ]->m_Bounding.m_Center = l_Min;
-	l_pNewRoot->m_Children[NX_NY_NZ]->m_Children[PX_PY_PZ] = m_pRoot->m_Children[NX_NY_NZ];
-	m_pRoot->m_Children[NX_NY_NZ]->m_RelationID = PX_PY_PZ;
-	m_pRoot->m_Children[NX_NY_NZ]->m_pParent = l_pNewRoot->m_Children[NX_NY_NZ];
-	m_pRoot->m_Children[NX_NY_NZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_NX_NY_NZ]->m_Bounding.m_Center = l_Min;
+	l_pNewRoot->m_Children[OCT_NX_NY_NZ]->m_Children[OCT_PX_PY_PZ] = m_pRoot->m_Children[OCT_NX_NY_NZ];
+	m_pRoot->m_Children[OCT_NX_NY_NZ]->m_RelationID = OCT_PX_PY_PZ;
+	m_pRoot->m_Children[OCT_NX_NY_NZ]->m_pParent = l_pNewRoot->m_Children[OCT_NX_NY_NZ];
+	m_pRoot->m_Children[OCT_NX_NY_NZ] = nullptr;
 
-	l_pNewRoot->m_Children[NX_NY_PZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Min.y, l_Max.z);
-	l_pNewRoot->m_Children[NX_NY_PZ]->m_Children[PX_PY_NZ] = m_pRoot->m_Children[NX_NY_PZ];
-	m_pRoot->m_Children[NX_NY_PZ]->m_RelationID = PX_PY_NZ;
-	m_pRoot->m_Children[NX_NY_PZ]->m_pParent = l_pNewRoot->m_Children[NX_NY_PZ];
-	m_pRoot->m_Children[NX_NY_PZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_NX_NY_PZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Min.y, l_Max.z);
+	l_pNewRoot->m_Children[OCT_NX_NY_PZ]->m_Children[OCT_PX_PY_NZ] = m_pRoot->m_Children[OCT_NX_NY_PZ];
+	m_pRoot->m_Children[OCT_NX_NY_PZ]->m_RelationID = OCT_PX_PY_NZ;
+	m_pRoot->m_Children[OCT_NX_NY_PZ]->m_pParent = l_pNewRoot->m_Children[OCT_NX_NY_PZ];
+	m_pRoot->m_Children[OCT_NX_NY_PZ] = nullptr;
 	
-	l_pNewRoot->m_Children[NX_PY_NZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Max.y, l_Min.z);
-	l_pNewRoot->m_Children[NX_PY_NZ]->m_Children[PX_NY_PZ] = m_pRoot->m_Children[NX_PY_NZ];
-	m_pRoot->m_Children[NX_PY_NZ]->m_RelationID = PX_NY_PZ;
-	m_pRoot->m_Children[NX_PY_NZ]->m_pParent = l_pNewRoot->m_Children[NX_PY_NZ];
-	m_pRoot->m_Children[NX_PY_NZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_NX_PY_NZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Max.y, l_Min.z);
+	l_pNewRoot->m_Children[OCT_NX_PY_NZ]->m_Children[OCT_PX_NY_PZ] = m_pRoot->m_Children[OCT_NX_PY_NZ];
+	m_pRoot->m_Children[OCT_NX_PY_NZ]->m_RelationID = OCT_PX_NY_PZ;
+	m_pRoot->m_Children[OCT_NX_PY_NZ]->m_pParent = l_pNewRoot->m_Children[OCT_NX_PY_NZ];
+	m_pRoot->m_Children[OCT_NX_PY_NZ] = nullptr;
 
-	l_pNewRoot->m_Children[NX_PY_PZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Max.y, l_Max.z);
-	l_pNewRoot->m_Children[NX_PY_PZ]->m_Children[PX_NY_NZ] = m_pRoot->m_Children[NX_PY_PZ];
-	m_pRoot->m_Children[NX_PY_PZ]->m_RelationID = PX_NY_NZ;
-	m_pRoot->m_Children[NX_PY_PZ]->m_pParent = l_pNewRoot->m_Children[NX_PY_PZ];
-	m_pRoot->m_Children[NX_PY_PZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_NX_PY_PZ]->m_Bounding.m_Center = glm::vec3(l_Min.x, l_Max.y, l_Max.z);
+	l_pNewRoot->m_Children[OCT_NX_PY_PZ]->m_Children[OCT_PX_NY_NZ] = m_pRoot->m_Children[OCT_NX_PY_PZ];
+	m_pRoot->m_Children[OCT_NX_PY_PZ]->m_RelationID = OCT_PX_NY_NZ;
+	m_pRoot->m_Children[OCT_NX_PY_PZ]->m_pParent = l_pNewRoot->m_Children[OCT_NX_PY_PZ];
+	m_pRoot->m_Children[OCT_NX_PY_PZ] = nullptr;
 	
-	l_pNewRoot->m_Children[PX_NY_NZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Min.y, l_Min.z);
-	l_pNewRoot->m_Children[PX_NY_NZ]->m_Children[NX_PY_PZ] = m_pRoot->m_Children[PX_NY_NZ];
-	m_pRoot->m_Children[PX_NY_NZ]->m_RelationID = NX_PY_PZ;
-	m_pRoot->m_Children[PX_NY_NZ]->m_pParent = l_pNewRoot->m_Children[PX_NY_NZ];
-	m_pRoot->m_Children[PX_NY_NZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_PX_NY_NZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Min.y, l_Min.z);
+	l_pNewRoot->m_Children[OCT_PX_NY_NZ]->m_Children[OCT_NX_PY_PZ] = m_pRoot->m_Children[OCT_PX_NY_NZ];
+	m_pRoot->m_Children[OCT_PX_NY_NZ]->m_RelationID = OCT_NX_PY_PZ;
+	m_pRoot->m_Children[OCT_PX_NY_NZ]->m_pParent = l_pNewRoot->m_Children[OCT_PX_NY_NZ];
+	m_pRoot->m_Children[OCT_PX_NY_NZ] = nullptr;
 
-	l_pNewRoot->m_Children[PX_NY_PZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Min.y, l_Max.z);
-	l_pNewRoot->m_Children[PX_NY_PZ]->m_Children[NX_PY_NZ] = m_pRoot->m_Children[PX_NY_PZ];
-	m_pRoot->m_Children[PX_NY_PZ]->m_RelationID = NX_PY_NZ;
-	m_pRoot->m_Children[PX_NY_PZ]->m_pParent = l_pNewRoot->m_Children[PX_NY_PZ];
-	m_pRoot->m_Children[PX_NY_PZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_PX_NY_PZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Min.y, l_Max.z);
+	l_pNewRoot->m_Children[OCT_PX_NY_PZ]->m_Children[OCT_NX_PY_NZ] = m_pRoot->m_Children[OCT_PX_NY_PZ];
+	m_pRoot->m_Children[OCT_PX_NY_PZ]->m_RelationID = OCT_NX_PY_NZ;
+	m_pRoot->m_Children[OCT_PX_NY_PZ]->m_pParent = l_pNewRoot->m_Children[OCT_PX_NY_PZ];
+	m_pRoot->m_Children[OCT_PX_NY_PZ] = nullptr;
 
-	l_pNewRoot->m_Children[PX_PY_NZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Max.y, l_Min.z);
-	l_pNewRoot->m_Children[PX_PY_NZ]->m_Children[NX_NY_PZ] = m_pRoot->m_Children[PX_PY_NZ];
-	m_pRoot->m_Children[PX_PY_NZ]->m_RelationID = NX_NY_PZ;
-	m_pRoot->m_Children[PX_PY_NZ]->m_pParent = l_pNewRoot->m_Children[PX_PY_NZ];
-	m_pRoot->m_Children[PX_PY_NZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_PX_PY_NZ]->m_Bounding.m_Center = glm::vec3(l_Max.x, l_Max.y, l_Min.z);
+	l_pNewRoot->m_Children[OCT_PX_PY_NZ]->m_Children[OCT_NX_NY_PZ] = m_pRoot->m_Children[OCT_PX_PY_NZ];
+	m_pRoot->m_Children[OCT_PX_PY_NZ]->m_RelationID = OCT_NX_NY_PZ;
+	m_pRoot->m_Children[OCT_PX_PY_NZ]->m_pParent = l_pNewRoot->m_Children[OCT_PX_PY_NZ];
+	m_pRoot->m_Children[OCT_PX_PY_NZ] = nullptr;
 	
-	l_pNewRoot->m_Children[PX_PY_PZ]->m_Bounding.m_Center = l_Max;
-	l_pNewRoot->m_Children[PX_PY_PZ]->m_Children[NX_NY_NZ] = m_pRoot->m_Children[PX_PY_PZ];
-	m_pRoot->m_Children[PX_PY_PZ]->m_RelationID = NX_NY_NZ;
-	m_pRoot->m_Children[PX_PY_PZ]->m_pParent = l_pNewRoot->m_Children[PX_PY_PZ];
-	m_pRoot->m_Children[PX_PY_PZ] = nullptr;
+	l_pNewRoot->m_Children[OCT_PX_PY_PZ]->m_Bounding.m_Center = l_Max;
+	l_pNewRoot->m_Children[OCT_PX_PY_PZ]->m_Children[OCT_NX_NY_NZ] = m_pRoot->m_Children[OCT_PX_PY_PZ];
+	m_pRoot->m_Children[OCT_PX_PY_PZ]->m_RelationID = OCT_NX_NY_NZ;
+	m_pRoot->m_Children[OCT_PX_PY_PZ]->m_pParent = l_pNewRoot->m_Children[OCT_PX_PY_PZ];
+	m_pRoot->m_Children[OCT_PX_PY_PZ] = nullptr;
 
 	for( auto it = m_pRoot->m_Models.begin() ; it != m_pRoot->m_Models.end() ; ++it )
 	{
@@ -262,29 +262,29 @@ int OctreePartition::insertNode(std::shared_ptr<Node> a_pNode, glm::daabb &a_Box
 	{
 		if( l_BoxCenter.y <= a_pNode->m_Bounding.m_Center.y )
 		{
-			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? NX_NY_NZ : NX_NY_PZ;
+			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? OCT_NX_NY_NZ : OCT_NX_NY_PZ;
 		}
 		else
 		{
-			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? NX_PY_NZ : NX_PY_PZ;
+			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? OCT_NX_PY_NZ : OCT_NX_PY_PZ;
 		}
 	}
 	else
 	{
 		if( l_BoxCenter.y <= a_pNode->m_Bounding.m_Center.y )
 		{
-			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? PX_NY_NZ : PX_NY_PZ;
+			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? OCT_PX_NY_NZ : OCT_PX_NY_PZ;
 		}
 		else
 		{
-			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? PX_PY_NZ : PX_PY_PZ;
+			l_RelationID = l_BoxCenter.z <= a_pNode->m_Bounding.m_Center.z ? OCT_PX_PY_NZ : OCT_PX_PY_PZ;
 		}
 	}
 
 	std::shared_ptr<Node> l_pTargetNode = nullptr;
 	if( nullptr == a_pNode->m_Children[l_RelationID] )
 	{
-		const glm::dvec3 c_Multiply[NUM_NODE] = {
+		const glm::dvec3 c_Multiply[NUM_OCT_POS] = {
 			glm::dvec3(-1.0, -1.0, -1.0),
 			glm::dvec3(-1.0, -1.0, 1.0),
 			glm::dvec3(-1.0, 1.0, -1.0),
@@ -330,7 +330,7 @@ void OctreePartition::assignBoxIntersect(glm::frustumface &a_Frustum, std::share
 		if( a_Frustum.intersect((*it)->boundingBox(), l_bInside) ) a_Output.push_back(*it);
 	}
 
-	for( unsigned int i=0 ; i<NUM_NODE ; ++i )
+	for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i )
 	{
 		if( nullptr == a_pNode->m_Children[i] ) continue;
 		if( a_Frustum.intersect(a_pNode->m_Children[i]->m_Bounding, l_bInside) )
@@ -348,7 +348,7 @@ void OctreePartition::assignBoxInside(std::shared_ptr<Node> a_pNode, std::vector
 	for( auto it = l_NodeList.begin() ; it != l_NodeList.end() ; ++it )
 	{
 		for( auto l_ModelIt = (*it)->m_Models.begin() ; l_ModelIt != (*it)->m_Models.end() ; ++l_ModelIt ) a_Output.push_back(*l_ModelIt);
-		for( unsigned int i=0 ; i<NUM_NODE ; ++i )
+		for( unsigned int i=0 ; i<NUM_OCT_POS ; ++i )
 		{
 			if( nullptr == (*it)->m_Children[i] ) continue;
 			l_NodeList.push_back((*it));
