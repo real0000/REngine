@@ -61,7 +61,7 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
 	, m_ThreadPool(std::thread::hardware_concurrency())
 {
-	std::tuple<std::shared_ptr<Asset>&, std::shared_ptr<MaterialBlock>&, wxString> l_ShadowMaps[] = {
+	std::tuple<std::shared_ptr<Asset>, std::shared_ptr<MaterialBlock>, wxString> l_ShadowMaps[] = {
 		std::make_tuple(m_pDirShadowMat, getSharedMember()->m_pDirLights->getMaterialBlock(), EngineSetting::singleton().m_DirMaterial),
 		std::make_tuple(m_pOmniShadowMat, getSharedMember()->m_pOmniLights->getMaterialBlock(), EngineSetting::singleton().m_OmniMaterial),
 		std::make_tuple(m_pSpotShadowMat, getSharedMember()->m_pSpotLights->getMaterialBlock(), EngineSetting::singleton().m_SpotMaterial)};
@@ -164,8 +164,8 @@ DeferredRenderer::~DeferredRenderer()
 
 void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_StaticMeshes, l_Meshes;
-	if( !setupVisibleList(a_pCamera, l_Lights, l_StaticMeshes, l_Meshes) )
+	std::vector<std::shared_ptr<RenderableComponent>> l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes;
+	if( !setupVisibleList(a_pCamera, l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes) )
 	{
 		// clear backbuffer only if mesh list is empty
 		m_pCmdInit->begin(false);
@@ -564,7 +564,7 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 
 void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
 {
-	unsigned int l_StageID = static_cast<RenderableMesh *>(a_Mesh.front().get())->getStage();
+	/*unsigned int l_StageID = static_cast<RenderableMesh *>(a_Mesh.front().get())->getStage();
 	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
 	{
 		unsigned int l_CurrStageID = static_cast<RenderableMesh *>(a_Mesh[i].get())->getStage();
@@ -581,7 +581,7 @@ void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera
 		}
 			
 		if( l_CurrStageID > OPAQUE_STAGE_END ) return ;
-	}
+	}*/
 }
 
 void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
@@ -600,7 +600,7 @@ void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int 
 		l_pCommandList->begin(false);
 		for( unsigned int j=a_Start+i ; j<a_End ; j+=l_CommandCount )
 		{
-			RenderableMesh *l_pMesh = static_cast<RenderableMesh *>(a_Mesh[j].get());
+			/*RenderableMesh *l_pMesh = static_cast<RenderableMesh *>(a_Mesh[j].get());
 			for( unsigned int k=0 ; k<l_pMesh->getNumSubMesh() ; ++k )
 			{
 				std::shared_ptr<Material> l_pMaterial = l_pMesh->getMaterial(k);
@@ -615,8 +615,8 @@ void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int 
 				l_pCommandList->bindVertex(l_pMesh->getVtxBuffer().get());
 				l_pCommandList->bindIndex(l_pMesh->getIndexBuffer().get());
 				l_pMaterial->bindAll(l_pCommandList);
-				l_pCommandList->drawElement(0, l_pMesh->getIndexBuffer()->getNumIndicies(), 0);*/
-			}
+				l_pCommandList->drawElement(0, l_pMesh->getIndexBuffer()->getNumIndicies(), 0);
+			}*/
 		}
 		l_pCommandList->end();
 	}

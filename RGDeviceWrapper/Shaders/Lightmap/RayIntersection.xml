@@ -12,7 +12,7 @@
   <Shaders>
     <Model_5_1>
       <Compute file="Lightmap/RayIntersection.compute">
-        g_Triangles, g_Lights, g_DirLights, g_OmniLights, g_SpotLights, g_Box, g_Vertex, g_Result
+        g_Indicies, g_Harmonics, g_DirLights, g_OmniLights, g_SpotLights, g_Box, g_Vertex, g_Result
       </Compute>
     </Model_5_1>
   </Shaders>

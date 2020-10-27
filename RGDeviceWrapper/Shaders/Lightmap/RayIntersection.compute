@@ -4,8 +4,24 @@
 #deifne LIGHTMAP_STATE_IDLE		0
 #define LIGHTMAP_STATE_SCATTER	(1*0x00000100)
 #define LIGHTMAP_STATE_THROUGH	(2*0x00000100)
-#define LIGHTMAP_STATE_NEXTBOX	(3*0x00000100)
-#define LIGHTMAP_STATE_TREADEND	(4*0x00000100)
+#define LIGHTMAP_STATE_CHILDBOX	(3*0x00000100)
+#define LIGHTMAP_STATE_NEXTBOX	(4*0x00000100)
+#define LIGHTMAP_STATE_TREADEND	(5*0x00000100)
+
+#define CURR_BOX		g_Indicies[0].x
+#define CURR_HARMONIC	g_Indicies[0].y
+#define CURR_SAMPLE		g_Indicies[0].z
+#define MAX_SAMPLE		g_Indicies[0].w
+#define LIGHT_OFFSET	g_Indicies[1].x
+#define NEXT_BOX		g_Indicies[1].y
+#define NEXT_HARMONIC	g_Indicies[1].z
+#define VALID_THREAD	g_Indicies[1].w
+
+#define EDGE_THREASHOLD 0.1
+#define NEIGHBOR_INDEX(x, y, z) (9*z+3*y+x)
+#define NP 0
+#define ZP 1
+#define PP 2
 
 void assignResult(LightmapIntersectResult a_Res)
 {
@@ -63,48 +79,52 @@ void assignResult(LightmapIntersectResult a_Res)
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	LightmapIntersectResult l_Res = g_Result[a_ThreadID.x];
-	LightmapBox l_Box = (LightmapBox)0;
-	int l_MaxSampleCount = g_Triangles[0].w;
+	LightmapBoxCache l_Box = (LightmapBoxCache)0;
 	switch( l_Res.m_StateDepth & 0xffffff00 )
 	{
 		case LIGHTMAP_STATE_IDLE:{
 			int l_RayID = 0;
-			InterlockedAdd(g_Triangles[0].y, 1, l_RayID);
-			if( l_RayID >= l_MaxSampleCount )
+			InterlockedAdd(CURR_SAMPLE, 1, l_RayID);
+			bool l_bUseNext = l_RayID >= MAX_SAMPLE;
+			if( l_bUseNext )
 			{
-				int l_NextTarget = g_Triangles[0].x + 1;
-				if( l_NextTarget > g_Triangles[0].z * 64 + 63 )
+				if( 0 > NEXT_HARMONIC )
 				{
 					l_Res.m_StateDepth = LIGHTMAP_STATE_TREADEND;
 					g_Result[a_ThreadID.x] = l_Res;
-					InterlockedAdd(g_Triangles[0].w, -1);
+					InterlockedAdd(VALID_THREAD, -1);
 					return;
 				}
 
-				l_RayID -= l_MaxSampleCount;
-				l_Res.m_BoxHarmonicsID = l_NextTarget;
+				l_RayID -= MAX_SAMPLE;
+				l_Res.m_HarmonicsID = NEXT_HARMONIC;
 			}
-			else l_Res.m_BoxHarmonicsID = g_Triangles[0].x;
+			else l_Res.m_HarmonicsID = CURR_HARMONIC;
 
-			l_Res.m_StateDepth = l_Res.m_StateDepth & 0xffffff00;
+			l_Res.m_StateDepth = 0;
 			l_Res.m_Color = float3(1.0, 1.0, 1.0);
 			l_Res.m_Emissive = float3(0.0, 0.0, 0.0);
 			l_Res.m_TriangleIdx = -1;
-			l_Res.m_CurrID = (l_Res.m_BoxHarmonicsID & 0xffc0) / 64;
+			l_Res.m_CurrBoxID = l_bUseNext ? NEXT_BOX : CURR_BOX;
 
-			l_Box = g_Box[l_Res.m_CurrID];
+			l_Box = g_Box[l_Res.m_CurrBoxID];
 			l_Res.m_RayOrigin = l_Box.m_BoxCenter;
 			
 			int3 l_BoxIdx;
-			l_BoxIdx.x = l_Res.m_BoxHarmonicsID & 63;
-			l_BoxIdx.z = l_BoxIdx.x / 16;
-			l_BoxIdx.y = (l_BoxIdx.x / 4) % 4;
-			l_BoxIdx.x = l_BoxIdx.x % 4;
+			for( uint i=0 ; i<64 ; ++i )
+			{
+				if( l_Box.m_SHResult[i/4][i%4] != l_Res.m_HarmonicsID ) continue;
+
+				l_BoxIdx.z = i / 16;
+				l_BoxIdx.y = (i / 4) % 4;
+				l_BoxIdx.x = i % 4;
+				break;
+			}
 
 			const float c_Sub[4] = {-0.375, -0.125, 0.125, 0.375};
 			l_Res.m_RayOrigin += l_Box.m_BoxSize * float3(c_Sub[l_BoxIdx.x], c_Sub[l_BoxIdx.y], c_Sub[l_BoxIdx.z]);
 
-			float l_Quad = sqrt(l_MaxSampleCount);
+			float l_Quad = sqrt(MAX_SAMPLE);
 			float l_Phi = a_ThreadID.x / l_Quad;
 			float l_Theta = floor(l_Phi) / l_Quad;
 			l_Phi = frac(l_Phi);
@@ -117,33 +137,91 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 
 		case LIGHTMAP_STATE_TREADEND: return;
 
-		case LIGHTMAP_STATE_NEXTBOX:{
-			LightmapBox l_ThisBox = g_Box[l_Res.m_CurrBoxID];
-			float3 l_LengthSign = sign(l_Res.m_RayDir) * 0.5;
-			float3 l_LengthVec = abs((l_ThisBox.m_BoxCenter + l_LengthSign * l_ThisBox.m_BoxSize - l_Res.m_RayOrigin) / l_Res.m_RayDir);
-			
-			int l_NextBox = 0;
-			if( 0.0 != l_LengthSign.x && l_LengthVec.x < l_LengthVec.y && l_LengthVec.x < l_LengthVec.z )
-			{
-				if( l_LengthSign.x < 0 ) l_NextBox = l_ThisBox.m_NegitiveNeighbor.x;
-				else l_NextBox = l_ThisBox.m_PositiveNeighbor.x;
+		case LIGHTMAP_STATE_CHILDBOX:{
+			l_Box = g_Box[l_Res.m_CurrBoxID];
 
-				if( -1 == l_NextBox )
+			float l_Min = FLT_MAX;
+			bool l_bFoundMinBox = false;
+			bool l_bLeaf = true;
+			for( int i=0 ; i<8 ; ++i )
+			{
+				if( -1 == l_Box.m_Children[i] ) continue;
+				l_bLeaf = false;
+
+				LightmapBoxCache l_ChildBox = g_Box[l_Box.m_Children[i]];
+				if( abs(l_Res.m_RayOrigin.x - l_ChildBox.m_BoxCenter.x) - 0.5 * l_ChildBox.m_BoxSize.x <= EDGE_THREASHOLD &&
+					abs(l_Res.m_RayOrigin.y - l_ChildBox.m_BoxCenter.y) - 0.5 * l_ChildBox.m_BoxSize.y <= EDGE_THREASHOLD &&
+					abs(l_Res.m_RayOrigin.z - l_ChildBox.m_BoxCenter.z) - 0.5 * l_ChildBox.m_BoxSize.z <= EDGE_THREASHOLD )
 				{
-					l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
-					assignResult(l_Res);
+					l_Res.m_CurrBoxID = l_Box.m_Children[i];
 					g_Result[a_ThreadID.x] = l_Res;
 					return;
 				}
 
-				int l_CheckTimes = round(log2(l_ThisBox.m_BoxSize.x));
+				float l_Dist = intersectRayAABB(l_Res.m_RayOrigin, l_Res.m_RayDir, l_ChildBox.m_BoxCenter, l_ChildBox.m_BoxSize);
+				if( l_Dist > 0 && l_Dist < l_Min )
+				{
+					l_Min = l_Dist;
+					l_bFoundMinBox = true;
+					l_Res.m_CurrBoxID = l_Box.m_Children[i];
+				}
 			}
-			else if( 0.0 != l_LengthSign.y && l_LengthVec.y < l_LengthVec.x && l_LengthVec.y < l_LengthVec.z )
+			if( l_bFoundMinBox )
 			{
+				l_Res.m_RayOrigin += l_Min * l_Res.m_RayDir;
+				g_Result[a_ThreadID.x] = l_Res;
+				return;
+			}
+			else if( !l_bLeaf )
+			{
+				l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+				l_Res.m_StateDepth += LIGHTMAP_STATE_NEXTBOX;
+				g_Result[a_ThreadID.x] = l_Res;
+				return;
+			}
+			}break;
+
+		case LIGHTMAP_STATE_NEXTBOX:{
+			l_Box = g_Box[l_Res.m_CurrBoxID];
+
+			float3 l_LengthSign = sign(l_Res.m_RayDir) * 0.5;
+			float3 l_LengthVec = abs((l_Box.m_BoxCenter + l_LengthSign * l_Box.m_BoxSize - l_Res.m_RayOrigin) / l_Res.m_RayDir);
+			int3 l_DirOffset = int3(ZP, ZP, ZP);
+			if( abs(l_LengthVec.x - l_LengthVec.y) < EDGE_THREASHOLD && abs(l_LengthVec.x - l_LengthVec.z) < EDGE_THREASHOLD && abs(l_LengthVec.z - l_LengthVec.y) < EDGE_THREASHOLD )
+			{
+				l_DirOffset.x = l_LengthSign.x < 0.0 ? NP : PP;
+				l_DirOffset.y = l_LengthSign.y < 0.0 ? NP : PP;
+				l_DirOffset.z = l_LengthSign.z < 0.0 ? NP : PP;
+			}
+			else
+			{
+				l_Min = min(l_LengthVec.x, min(l_LengthVec.y, l_LengthVec.z));
+				if( l_Min == l_LengthVec.x )
+				{
+					l_DirOffset.x = l_LengthSign.x < 0.0 ? NP : PP;
+					if( abs(l_Min - l_LengthVec.y) < EDGE_THREASHOLD )		l_DirOffset.y = l_LengthSign.y < 0.0 ? NP : PP;
+					else if( abs(l_Min - l_LengthVec.z) < EDGE_THREASHOLD )	l_DirOffset.z = l_LengthSign.z < 0.0 ? NP : PP;
+				}
+				else if( l_Min == l_LengthVec.y )
+				{
+					l_DirOffset.y = l_LengthSign.y < 0.0 ? NP : PP;
+					if( abs(l_Min - l_LengthVec.x) < EDGE_THREASHOLD )		l_DirOffset.x = l_LengthSign.x < 0.0 ? NP : PP;
+					else if( abs(l_Min - l_LengthVec.z) < EDGE_THREASHOLD )	l_DirOffset.z = l_LengthSign.z < 0.0 ? NP : PP;
+				}
+				else
+				{
+					l_DirOffset.z = l_LengthSign.z < 0.0 ? NP : PP;
+					if( abs(l_Min - l_LengthVec.x) < EDGE_THREASHOLD )		l_DirOffset.x = l_LengthSign.x < 0.0 ? NP : PP;
+					else if( abs(l_Min - l_LengthVec.y) < EDGE_THREASHOLD )	l_DirOffset.y = l_LengthSign.y < 0.0 ? NP : PP;
+				}
 			}
 
-			 
-			}break;
+			l_Res.m_CurrBoxID = l_Box.m_Neighbor[NEIGHBOR_INDEX(l_DirOffset.x, l_DirOffset.y, l_DirOffset.z)];
+			l_Res.m_RayOrigin += l_Min * l_Res.m_RayDir;
+			l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+			l_Res.m_StateDepth += LIGHTMAP_STATE_CHILDBOX;
+			g_Result[a_ThreadID.x] = l_Res;
+			}return;
 
 		//case LIGHTMAP_STATE_THROUGH:
 		default:break;
@@ -155,9 +233,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	{
 		if( l_Res.m_TriangleIdx == i ) continue;
 
-		LightmapVertex l_Pos1 = g_Vertex[g_Triangles[i].x];
-		LightmapVertex l_Pos2 = g_Vertex[g_Triangles[i].y];
-		LightmapVertex l_Pos3 = g_Vertex[g_Triangles[i].z];
+		LightmapVertex l_Pos1 = g_Vertex[g_Indicies[i].x];
+		LightmapVertex l_Pos2 = g_Vertex[g_Indicies[i].y];
+		LightmapVertex l_Pos3 = g_Vertex[g_Indicies[i].z];
 
 		float l_Dist = intersectRayTriangle(l_Res.m_RayOrigin, l_Res.m_RayDir, l_Pos1.m_Position, l_Pos2.m_Position, l_Pos3.m_Position);
 		if( l_Dist >= 0.0 && l_Dist < l_MinDist )

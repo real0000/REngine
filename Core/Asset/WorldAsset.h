@@ -60,7 +60,7 @@ private:
 		int m_Parent;
 		glm::vec3 m_BoxSize;
 		int m_Level;
-		int m_Neighbor[28];// ---, --0, --+, -0-, -00, -0+, -+-, -+0, -++, 0--, 0-0, 0-+, 00-, 000, 00+, 0+-, 0+0, 0++, +--, +-0, +-+, +0-, +00, +0+, ++-, ++0, +++, ???
+		int m_Neighbor[28];// ---, --0, --+, -0-, -00, -0+, -+-, -+0, -++, 0--, 0-0, 0-+, 00-, 000, 00+, 0+-, 0+0, 0++, +--, +-0, +-+, +0-, +00, +0+, ++-, ++0, +++, padding
 		glm::ivec2 m_Triangle;
 		glm::ivec2 m_Light;
 		int m_SHResult[64];
@@ -85,17 +85,18 @@ private:
 		glm::vec3 m_Emmited;
 		int m_CurrBoxID;
 	};
-	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::set<int> &a_Output);
-	void assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::vector<int> &a_Output);
-	void assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode);
+	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, int a_CurrNode, std::set<int> &a_Output);
+	void assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &a_Output);
+	void assignNeighbor(int a_CurrNode);
 	
 	bool m_bBaking;
 	std::shared_ptr<Asset> m_pRayIntersectMat;
 	MaterialAsset *m_pRayIntersectMatInst;
-	std::shared_ptr<MaterialBlock> m_pTriangles, m_pLightIdx, m_pVertex, m_pResult;
+	std::vector<LightMapBoxCache> m_BoxCache;
+	std::shared_ptr<MaterialBlock> m_pIndicies, m_pHarmonicsCache, m_pBoxCache, m_pVertex, m_pResult;
 	std::mutex m_BakeLock;
 
-	std::shared_ptr<MaterialBlock> m_pBoxes;
+	std::shared_ptr<MaterialBlock> m_pHarmonics, m_pBoxes;
 	std::vector<LightMapBox> m_LightMap;
 	std::vector<std::shared_ptr<Asset>> m_LightMapMaterialCache;
 

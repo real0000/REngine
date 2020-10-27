@@ -34,7 +34,8 @@ WorldAsset::WorldAsset()
 	: m_bBaking(false)
 	, m_pRayIntersectMat(AssetManager::singleton().createAsset(LIGHTMAP_INTERSECT_ASSET_NAME).second)
 	, m_pRayIntersectMatInst(nullptr)
-	, m_pTriangles(nullptr), m_pLightIdx(nullptr), m_pVertex(nullptr), m_pResult(nullptr), m_pBoxes(nullptr)
+	, m_pIndicies(nullptr), m_pHarmonicsCache(nullptr), m_pBoxCache(nullptr), m_pVertex(nullptr), m_pResult(nullptr)
+	, m_pHarmonics(nullptr), m_pBoxes(nullptr)
 {
 	m_pRayIntersectMatInst = m_pRayIntersectMat->getComponent<MaterialAsset>();
 	m_pRayIntersectMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayIntersection));
@@ -135,16 +136,16 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	// create boxes, assign triangles
 	std::vector<std::vector<int>> l_TriangleInBox;
 	std::vector<std::vector<glm::ivec2>> l_LightInBox;
-	std::vector<LightMapBoxCache> l_Container(1, LightMapBoxCache());
+	m_BoxCache.push_back(LightMapBoxCache());
 	{
-		LightMapBoxCache &l_Root = l_Container[0];
+		LightMapBoxCache &l_Root = m_BoxCache[0];
 		l_Root.m_BoxCenter = l_Bounding.m_Center;
 		l_Root.m_BoxSize = l_Bounding.m_Size;
 		for( unsigned int i=0 ; i<l_TempTriangleData.size() ; i+=3 )
 		{
 			std::set<int> l_IntersectBox;
 			l_IntersectBox.clear();
-			assignTriangle(l_TempVertexData[i].m_Position, l_TempVertexData[i+1].m_Position, l_TempVertexData[i+2].m_Position, l_Container, 0, l_IntersectBox);
+			assignTriangle(l_TempVertexData[i].m_Position, l_TempVertexData[i+1].m_Position, l_TempVertexData[i+2].m_Position, 0, l_IntersectBox);
 			for( auto it=l_IntersectBox.begin() ; it!=l_IntersectBox.end() ; ++it )
 			{
 				while( l_TriangleInBox.size() <= *it ) l_TriangleInBox.push_back(std::vector<int>());
@@ -161,7 +162,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		Light *l_pLightObj = reinterpret_cast<Light*>(l_Lights[i].get());
 		
 		std::vector<int> l_IntersectBox;
-		assignLight(l_pLightObj, l_Container, 0, l_IntersectBox);
+		assignLight(l_pLightObj, 0, l_IntersectBox);
 
 		glm::ivec2 l_TempData;
 		l_TempData.x = l_pLightObj->typeID();
@@ -174,96 +175,37 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	}
 
 	// init uav triangle/light/harmonics data
-	std::vector<glm::ivec4> l_UavTriangleData(1, glm::ivec4(0, 0, 0, 0));
-	std::vector<glm::ivec2> l_UavLightData;
+	std::vector<glm::ivec4> l_UavTriangleData(2, glm::ivec4(0, 0, 0, 0));
 	unsigned int l_NumHarmonics = 0;
 	{
-		for( unsigned int i=0 ; i<l_Container.size() ; ++i )
+		std::vector<glm::ivec2> l_UavLightData;
+		for( unsigned int i=0 ; i<m_BoxCache.size() ; ++i )
 		{
-			LightMapBoxCache &l_ThisNode = l_Container[i];
+			LightMapBoxCache &l_ThisNode = m_BoxCache[i];
 			for( unsigned int j=0 ; j<8 ; ++j )
 			{
 				if( -1 != l_ThisNode.m_Children[j] ) continue;
-				glm::ivec2 l_XRange, l_YRange, l_ZRange;
-				switch(j)
+				glm::ivec2 l_Range[3];
+				
+				glm::ivec3 l_OctreeSign((i & 0x04) >> 2, (i & 0x02) >> 1, i & 0x01);
+				for( unsigned int axis=0 ; axis<3 ; ++axis )
 				{
-					case OCT_NX_NY_NZ:
-						l_XRange.x = 0;
-						l_XRange.y = 1;
-						l_YRange.x = 0;
-						l_YRange.y = 1;
-						l_ZRange.x = 0;
-						l_ZRange.y = 1;
-						break;
-
-					case OCT_NX_NY_PZ:
-						l_XRange.x = 0;
-						l_XRange.y = 1;
-						l_YRange.x = 0;
-						l_YRange.y = 1;
-						l_ZRange.x = 2;
-						l_ZRange.y = 3;
-						break;
-
-					case OCT_NX_PY_NZ:
-						l_XRange.x = 0;
-						l_XRange.y = 1;
-						l_YRange.x = 2;
-						l_YRange.y = 3;
-						l_ZRange.x = 0;
-						l_ZRange.y = 1;
-						break;
-
-					case OCT_NX_PY_PZ:
-						l_XRange.x = 0;
-						l_XRange.y = 1;
-						l_YRange.x = 2;
-						l_YRange.y = 3;
-						l_ZRange.x = 2;
-						l_ZRange.y = 3;
-						break;
-
-					case OCT_PX_NY_NZ:
-						l_XRange.x = 2;
-						l_XRange.y = 3;
-						l_YRange.x = 0;
-						l_YRange.y = 1;
-						l_ZRange.x = 0;
-						l_ZRange.y = 1;
-						break;
-
-					case OCT_PX_NY_PZ:
-						l_XRange.x = 2;
-						l_XRange.y = 3;
-						l_YRange.x = 0;
-						l_YRange.y = 1;
-						l_ZRange.x = 2;
-						l_ZRange.y = 3;
-						break;
-
-					case OCT_PX_PY_NZ:
-						l_XRange.x = 2;
-						l_XRange.y = 3;
-						l_YRange.x = 2;
-						l_YRange.y = 3;
-						l_ZRange.x = 0;
-						l_ZRange.y = 1;
-						break;
-
-					case OCT_PX_PY_PZ:
-						l_XRange.x = 2;
-						l_XRange.y = 3;
-						l_YRange.x = 2;
-						l_YRange.y = 3;
-						l_ZRange.x = 2;
-						l_ZRange.y = 3;
-						break;
-				}
-				for( int z=l_ZRange.x ; z<=l_ZRange.y ; ++z )
-				{
-					for( int y=l_YRange.x ; y<=l_YRange.y ; ++y )
+					if( 0 == l_OctreeSign[axis] )
 					{
-						for( int x=l_XRange.x ; x<=l_XRange.y ; ++x )
+						l_Range[axis].x = 0;
+						l_Range[axis].y = 1;
+					}
+					else
+					{
+						l_Range[axis].x = 2;
+						l_Range[axis].y = 3;
+					}
+				}
+				for( int z=l_Range[2].x ; z<=l_Range[2].y ; ++z )
+				{
+					for( int y=l_Range[1].x ; y<=l_Range[1].y ; ++y )
+					{
+						for( int x=l_Range[0].x ; x<=l_Range[0].y ; ++x )
 						{
 							l_ThisNode.m_SHResult[z*16 + y*4 + x] = l_NumHarmonics;
 							l_NumHarmonics += 16;
@@ -274,35 +216,44 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 
 			l_ThisNode.m_Light.x = l_UavLightData.size();
 			l_ThisNode.m_Light.y = l_LightInBox[i].size();
-			for( unsigned int j=0 ; j<l_ThisNode.m_Light.y ; ++j ) l_UavLightData.push_back(l_LightInBox[i][j]);
+			for( int j=0 ; j<l_ThisNode.m_Light.y ; ++j ) l_UavLightData.push_back(l_LightInBox[i][j]);
 			l_ThisNode.m_Light.y += l_ThisNode.m_Light.x;
 
 			l_ThisNode.m_Triangle.x = l_UavTriangleData.size();
 			l_ThisNode.m_Triangle.y = l_TriangleInBox[i].size() / 4;
-			for( unsigned int j=0 ; j<l_ThisNode.m_Triangle.y ; ++j )
+			for( int j=0 ; j<l_ThisNode.m_Triangle.y ; ++j )
 			{
 				glm::ivec4 l_Triangle(l_TriangleInBox[i][j*4], l_TriangleInBox[i][j*4 + 1], l_TriangleInBox[i][j*4 + 2], l_TriangleInBox[i][j*4 + 3]);
 				l_UavTriangleData.push_back(l_Triangle);
 			}
 			l_ThisNode.m_Triangle.y += l_ThisNode.m_Triangle.x;
 		}
-		l_UavTriangleData[0].z = l_Container.size();
+
+		// packed info data, [0] : {curr box, curr harmonic, curr sample, max sample}, [1] : {light start offset, next box, next harmonic, num running thread}
+		l_UavTriangleData[0].z = m_BoxCache.size();
 		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample;
+		l_UavTriangleData[1].x = l_UavTriangleData.size();
+		l_UavTriangleData[1].w = EngineSetting::singleton().m_LightMapSample;
+		if( 0 != (l_UavLightData.size() % 2) ) l_UavLightData.push_back(glm::ivec2(0, 0));
+		for( unsigned int i=0 ; l_UavLightData.size() ; i+=2 )
+		{
+			glm::ivec4 l_Pack(l_UavLightData[i].x, l_UavLightData[i].y, l_UavLightData[i+1].x, l_UavLightData[i+1].y);
+			l_UavTriangleData.push_back(l_Pack);
+		}
 	}
+	assignNeighbor(0);
 
-	assignNeighbor(l_Container, 0);
+	m_pIndicies = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Indicies", l_UavTriangleData.size());
+	memcpy(m_pIndicies->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
+	m_pIndicies->sync(true);
 
-	m_pTriangles = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Triangles", l_UavTriangleData.size());
-	memcpy(m_pTriangles->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
-	m_pTriangles->sync(true);
+	m_pHarmonicsCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumHarmonics);
+	memset(m_pHarmonicsCache->getBlockPtr(0), 0, sizeof(glm::vec4) * l_NumHarmonics);
+	m_pHarmonicsCache->sync(true);
 
-	m_pLightIdx = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Lights", l_UavLightData.size() / 2);
-	memcpy(m_pLightIdx->getBlockPtr(0), l_UavLightData.data(), sizeof(glm::ivec2) * l_UavLightData.size());
-	m_pLightIdx->sync(true);
-
-	m_pBoxes = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Box", m_LightMap.size());
-	memcpy(m_pBoxes->getBlockPtr(0), m_LightMap.data(), sizeof(LightMapBox) * m_LightMap.size());
-	m_pBoxes->sync(true);
+	m_pBoxCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Box", m_BoxCache.size());
+	memcpy(m_pBoxes->getBlockPtr(0), m_BoxCache.data(), sizeof(LightMapBoxCache) * m_BoxCache.size());
+	m_pBoxCache->sync(true);
 
 	m_pVertex = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Vertex", l_TempVertexData.size());
 	memcpy(m_pVertex->getBlockPtr(0), l_TempVertexData.data(), sizeof(LightMapVtxSrc) * l_TempVertexData.size());
@@ -312,12 +263,13 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	memset(m_pResult->getBlockPtr(0), 0, sizeof(LightIntersectResult) * EngineSetting::singleton().m_LightMapSample);
 	m_pResult->sync(true);
 	
-	m_pRayIntersectMatInst->setBlock("g_Triangles", m_pTriangles);
-	m_pRayIntersectMatInst->setBlock("g_Lights", m_pLightIdx);
+	m_pRayIntersectMatInst->setBlock("g_Indicies", m_pIndicies);
+	m_pRayIntersectMatInst->setBlock("g_Harmonics", m_pHarmonicsCache);
 	m_pRayIntersectMatInst->setBlock("g_DirLights", a_pMember->m_pDirLights->getMaterialBlock());
 	m_pRayIntersectMatInst->setBlock("g_OmniLights", a_pMember->m_pOmniLights->getMaterialBlock());
 	m_pRayIntersectMatInst->setBlock("g_SpotLights", a_pMember->m_pSpotLights->getMaterialBlock());
-	m_pRayIntersectMatInst->setBlock("g_Box", m_pBoxes);
+	m_pRayIntersectMatInst->setBlock("g_Box", m_pBoxCache);
+	m_pRayIntersectMatInst->setBlock("g_Vertex", m_pVertex);
 	m_pRayIntersectMatInst->setBlock("g_Result", m_pResult);
 
 	m_bBaking = true;
@@ -331,22 +283,23 @@ void WorldAsset::stepBake(GraphicCommander *a_pCmd)
 void WorldAsset::stopBake()
 {
 	if( !m_bBaking ) return;
-
-	m_pTriangles = nullptr;
-	m_pLightIdx = nullptr;
+	
+	m_BoxCache.clear();
+	m_pIndicies = nullptr;
+	m_pBoxCache = nullptr;
 	m_pVertex = nullptr;
 	m_pResult = nullptr;
-	m_pBoxes = nullptr;
+	m_pHarmonicsCache = nullptr;
 	m_LightMap.clear();
 
 	m_bBaking = false;
 }
 
-void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::set<int> &a_Output)
+void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, int a_CurrNode, std::set<int> &a_Output)
 {
 	a_Output.insert(a_CurrNode);
 
-	LightMapBoxCache *l_pCurrNode = &a_NodeList[a_CurrNode];
+	LightMapBoxCache *l_pCurrNode = &m_BoxCache[a_CurrNode];
 	if( l_pCurrNode->m_BoxSize.x - DEFAULT_OCTREE_EDGE < FLT_EPSILON ) return;
 	
 	glm::aabb l_ThisBox(l_pCurrNode->m_BoxCenter, l_pCurrNode->m_BoxSize);
@@ -397,7 +350,7 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 		}
 		else
 		{
-			LightMapBoxCache &l_BoxOwner = a_NodeList[l_TargetNode];
+			LightMapBoxCache &l_BoxOwner = m_BoxCache[l_TargetNode];
 			l_Box = glm::aabb(l_BoxOwner.m_BoxCenter, l_BoxOwner.m_BoxSize);
 		}
 		
@@ -406,21 +359,21 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 		if( -1 == l_TargetNode )
 		{
 			LightMapBoxCache l_NewBox;
-			l_TargetNode = a_NodeList.size();
+			l_TargetNode = m_BoxCache.size();
 			l_pCurrNode->m_Children[i] = l_TargetNode;
 
 			l_NewBox.m_BoxCenter = l_Box.m_Center;
 			l_NewBox.m_BoxSize = l_Box.m_Size;
 			l_NewBox.m_Level = l_pCurrNode->m_Level + 1;
 			l_NewBox.m_Parent = a_CurrNode;
-			a_NodeList.push_back(l_NewBox);
+			m_BoxCache.push_back(l_NewBox);
 		}
 
-		assignTriangle(a_Pos1, a_Pos2, a_Pos3, a_NodeList, l_TargetNode, a_Output);
+		assignTriangle(a_Pos1, a_Pos2, a_Pos3, l_TargetNode, a_Output);
 	}
 }
 
-void WorldAsset::assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode, std::vector<int> &a_Output)
+void WorldAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &a_Output)
 {
 	a_Output.clear();
 	a_Output.push_back(a_CurrNode);
@@ -457,24 +410,24 @@ void WorldAsset::assignLight(Light *a_pLight, std::vector<LightMapBoxCache> &a_N
 
 	for( unsigned int i=0 ; i<a_Output.size() ; ++i )
 	{
-		LightMapBoxCache &l_ThisBox = a_NodeList[a_Output[i]];
+		LightMapBoxCache &l_ThisBox = m_BoxCache[a_Output[i]];
 		for( unsigned int j=0 ; j<8 ; ++j )
 		{
 			if( -1 != l_ThisBox.m_Children[j] &&
-				l_pCheckFunc(a_pLight, &a_NodeList[l_ThisBox.m_Children[j]])) a_Output.push_back(l_ThisBox.m_Children[j]);
+				l_pCheckFunc(a_pLight, &m_BoxCache[l_ThisBox.m_Children[j]])) a_Output.push_back(l_ThisBox.m_Children[j]);
 		}
 	}
 }
 
-void WorldAsset::assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a_CurrNode)
+void WorldAsset::assignNeighbor(int a_CurrNode)
 {
-	LightMapBoxCache &l_CurrNode = a_NodeList[a_CurrNode];
+	LightMapBoxCache &l_CurrNode = m_BoxCache[a_CurrNode];
 	l_CurrNode.m_Neighbor[NEIGHBOR_INDEX(ZP, ZP, ZP)] = a_CurrNode;
 
 #define ASSIGN_NEIGHBOR(dst, src, oct) {						\
 	int l_Corner = l_CurrNode.m_Neighbor[src];					\
 	if( -1 != l_Corner ) {										\
-		LightMapBoxCache &l_CornerNode = a_NodeList[l_Corner];	\
+		LightMapBoxCache &l_CornerNode = m_BoxCache[l_Corner];	\
 		int l_Neighbor = l_CornerNode.m_Children[oct];			\
 		l_TargetNode.m_Neighbor[dst] = -1 != l_Neighbor ? l_Neighbor : l_Corner; }}
 
@@ -482,7 +435,7 @@ void WorldAsset::assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a
 	{
 		if( -1 == l_CurrNode.m_Children[i] ) continue;
 
-		LightMapBoxCache &l_TargetNode = a_NodeList[l_CurrNode.m_Children[i]];
+		LightMapBoxCache &l_TargetNode = m_BoxCache[l_CurrNode.m_Children[i]];
 		int l_X = (i & 0x04) >> 2;
 		int l_Y = (i & 0x02) >> 1;
 		int l_Z = i & 0x01;
@@ -496,116 +449,30 @@ void WorldAsset::assignNeighbor(std::vector<LightMapBoxCache> &a_NodeList, int a
 
 					int l_SrcIdx = NEIGHBOR_INDEX(x, y, z);
 					int l_Block = i;
-					//glm::ivec3 l_Neibor(x + l_X - 1, 0, 0)
+					glm::ivec3 l_BlockOffset(x + l_X - 1, y + l_Y - 1, z + l_Z - 1);
+					glm::ivec3 l_Neighbor(ZP, ZP, ZP);
+					for( int axis=0 ; axis<3 ; ++i )
+					{
+						if( l_BlockOffset[axis] < 0 )
+						{
+							l_BlockOffset[axis] = 1;
+							l_Neighbor[axis] = NP;
+						}
+						else if( l_BlockOffset[axis] >= 2 )
+						{
+							l_BlockOffset[axis] = 0;
+							l_Neighbor[axis] = PP;
+						}
+					}
+					ASSIGN_NEIGHBOR(l_SrcIdx, NEIGHBOR_INDEX(l_Neighbor.x, l_Neighbor.y, l_Neighbor.z), l_BlockOffset.x << 4 | l_BlockOffset.y << 2 | l_BlockOffset.z)
 				}
 			}
-		}/*
-		switch(i)
-		{
-			case OCT_NX_NY_NZ:// need check
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, NP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, NP, NP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, NP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
-				break;
-
-			case OCT_NX_NY_PZ:// need check
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, NP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, NP, PP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, PP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, ZP, PP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, NP, PP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_NX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_NX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, NP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, NP, PP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, ZP, PP), OCT_PX_PY_NZ)
-				break;
-
-			case OCT_NX_PY_NZ:
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, NP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, NP), NEIGHBOR_INDEX(NP, ZP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, ZP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, ZP, PP), NEIGHBOR_INDEX(NP, ZP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, NP), NEIGHBOR_INDEX(NP, PP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, ZP), NEIGHBOR_INDEX(NP, PP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(NP, PP, PP), NEIGHBOR_INDEX(NP, PP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, NP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_NX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, NP), NEIGHBOR_INDEX(ZP, PP, NP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, ZP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_NX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(ZP, PP, PP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_NX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, NP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, NP), NEIGHBOR_INDEX(ZP, ZP, NP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, ZP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, ZP, PP), NEIGHBOR_INDEX(ZP, ZP, ZP), OCT_PX_PY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, NP), NEIGHBOR_INDEX(ZP, PP, NP), OCT_PX_NY_PZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, ZP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_PX_NY_NZ)
-				ASSIGN_NEIGHBOR(NEIGHBOR_INDEX(PP, PP, PP), NEIGHBOR_INDEX(ZP, PP, ZP), OCT_PX_NY_PZ)
-				break;
-
-			case OCT_NX_PY_PZ:
-				break;
-
-			case OCT_PX_NY_NZ:
-				break;
-
-			case OCT_PX_NY_PZ:
-				break;
-
-			case OCT_PX_PY_NZ:
-				break;
-
-			case OCT_PX_PY_PZ:
-				break;
-		}*/
-		//assignNeighbor(l_CurrNode.m_Children[i], a_CurrNode, i);
+		}
+		
+		assignNeighbor(l_CurrNode.m_Children[i]);
 	}
+
+#undef ASSIGN_NEIGHBOR
 }
 #pragma endregion
 

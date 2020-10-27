@@ -59,10 +59,10 @@ bool BasicApp::OnInit()
 
 	std::shared_ptr<R::SceneNode> l_pMeshNode = l_pScene->getRootNode()->addChild();
 	std::shared_ptr<R::RenderableMesh> l_pNewMesh = l_pMeshNode->addComponent<R::RenderableMesh>();
-	l_pNewMesh->setMesh(wxT("Cube.FBX"), nullptr);
+	//l_pNewMesh->setMesh(wxT("Cube.FBX"), nullptr);
 
 	auto l_Texture = R::AssetManager::singleton().getAsset(wxT("lion.Image"));
-	l_pNewMesh->getMaterial(0)->setTexture("m_DiffTex", l_Texture.second);
+	l_pNewMesh->getMaterial(0)->getComponent<R::MaterialAsset>()->setTexture("m_DiffTex", l_Texture.second);
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	l_pCameraNode->addComponent<TempComponent>();

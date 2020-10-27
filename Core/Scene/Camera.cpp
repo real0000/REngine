@@ -73,6 +73,14 @@ void CameraComponent::hiddenFlagChanged()
 	}
 }
 
+void CameraComponent::loadComponent(boost::property_tree::ptree &a_Src)
+{
+}
+
+void CameraComponent::saveComponent(boost::property_tree::ptree &a_Dst)
+{
+}
+
 void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);

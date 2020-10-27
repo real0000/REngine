@@ -1783,10 +1783,14 @@ int D3D12Device::requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int 
 	}
 	l_pTargetBinder->m_pResource = l_pNewResource;
 	a_pOutputBuff = l_pTargetBinder->m_pTargetBuffer;
+	return l_BuffID;
 }
 
 void D3D12Device::freeIndrectCommandBuffer(int a_BuffID)
 {
+	std::shared_ptr<IndirectCommandBinder> l_pTargetBinder = m_ManagedIndirectCommandBuffer[a_BuffID];
+	SAFE_RELEASE(l_pTargetBinder->m_pResource);
+	m_ManagedIndirectCommandBuffer.release(a_BuffID);
 }
 
 // thread part

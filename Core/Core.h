@@ -78,9 +78,10 @@ public:
 	virtual void end(){}
 	virtual void hiddenFlagChanged(){}
 
+
 	virtual unsigned int typeID() = 0;
-	virtual void loadComponent(boost::property_tree::ptree &a_Src) = 0;
-	virtual void saveComponent(boost::property_tree::ptree &a_Dst) = 0;
+	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(glm::mat4x4 &a_NewTransform){}

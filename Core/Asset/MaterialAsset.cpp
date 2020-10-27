@@ -56,6 +56,7 @@ MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDes
 	for( auto it = a_pDesc->m_ParamDesc.begin() ; it != a_pDesc->m_ParamDesc.end() ; ++it )
 	{
 		if( 0 == it->second->m_Offset ) m_FirstParam = it->first;
+
 		MaterialParam *l_pNewParam = new MaterialParam();
 		m_Params.insert(std::make_pair(it->first, l_pNewParam));
 
@@ -307,7 +308,7 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	}
 	
 	m_UavBlocks.resize(l_UavBlock.size(), nullptr);
-	auto it = std::find(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "InstanceInfo"; });
+	auto it = std::find_if(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return 0 == strcmp(a_pBlock->m_StructureName.c_str(), "InstanceInfo"); });
 	if( l_UavBlock.end() != it )
 	{
 		unsigned int l_Index = it - l_UavBlock.begin();

@@ -109,6 +109,14 @@ void DirLight::transformListener(glm::mat4x4 &a_NewTransform)
 	Light::transformListener(a_NewTransform);
 }
 
+void DirLight::loadComponent(boost::property_tree::ptree &a_Src)
+{
+}
+
+void DirLight::saveComponent(boost::property_tree::ptree &a_Dst)
+{
+}
+
 void DirLight::setShadowed(bool a_bShadow)
 {
 	assert(nullptr != m_pRefParam);
@@ -230,6 +238,14 @@ void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
 	getShadowCamera()->setCubeView(a_NewTransform);
 
 	Light::transformListener(a_NewTransform);
+}
+
+void OmniLight::loadComponent(boost::property_tree::ptree &a_Src)
+{
+}
+
+void OmniLight::saveComponent(boost::property_tree::ptree &a_Dst)
+{
 }
 
 void OmniLight::setShadowed(bool a_bShadow)
@@ -365,6 +381,13 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 	Light::transformListener(a_NewTransform);
 }
 
+void SpotLight::loadComponent(boost::property_tree::ptree &a_Src)
+{
+}
+
+void SpotLight::saveComponent(boost::property_tree::ptree &a_Dst)
+{
+}
 
 void SpotLight::setShadowed(bool a_bShadow)
 {

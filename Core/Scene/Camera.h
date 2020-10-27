@@ -58,6 +58,9 @@ public:
 	virtual void setShadowed(bool a_bShadow){}
 	virtual bool getShadowed(){ return false; }
 	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
+	
+	virtual void loadComponent(boost::property_tree::ptree &a_Src);
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
 	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform);
     void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform);

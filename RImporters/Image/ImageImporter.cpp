@@ -70,7 +70,7 @@ void ImageData::loadExr(wxString a_Filepath)
 
 	if( l_Version.non_image )
 	{
-		printf("NOT YET IMPLEMENTED : %s", a_Filepath.c_str());
+		printf("NOT YET IMPLEMENTED : %s", static_cast<const char *>(a_Filepath.c_str()));
 		delete[] l_pFileBuffer;
 		return;
 	}
@@ -98,7 +98,7 @@ void ImageData::loadExr(wxString a_Filepath)
 		}
 
 		l_Header = *l_ppHeaders[0];
-		for( unsigned int i=0 ; i<l_NumPart ; ++i )
+		for( int i=0 ; i<l_NumPart ; ++i )
 		{
 			if( 0 != i ) FreeEXRHeader(l_ppHeaders[i]);
 			delete[] l_pFileBuffer;
@@ -137,12 +137,12 @@ void ImageData::loadExr(wxString a_Filepath)
 			unsigned char *l_pDst = m_RefSurfacePtr[a_Layer];
 			unsigned int l_PixelSize = getPixelSize(m_Formats[a_Layer]);
 
-			for( unsigned int i=0 ; i<l_Image.num_tiles ; ++i )
+			for( int i=0 ; i<l_Image.num_tiles ; ++i )
 			{
 				EXRTile &l_Tile = l_Image.tiles[i];
-				for( unsigned int y=0 ; y<l_Tile.height ; ++y )
+				for( int y=0 ; y<l_Tile.height ; ++y )
 				{
-					for( unsigned int x=0 ; x<l_Tile.width ; ++x )
+					for( int x=0 ; x<l_Tile.width ; ++x )
 					{
 						unsigned char *l_pSrc = l_Tile.images[a_Layer] + l_PixelSize * (y * l_Tile.width + x);
 						unsigned char *l_pPixel = l_pDst + l_PixelSize * (l_Tile.offset_x * l_Header.tile_size_x + x + (l_Tile.offset_y * l_Header.tile_size_y + y) * m_Dim.x);
@@ -160,7 +160,7 @@ void ImageData::loadExr(wxString a_Filepath)
 	
 	unsigned int l_TotalSize = 0;
 	std::vector<unsigned int> l_Offsets;
-	for( unsigned int i=0 ; i<m_Dim.z ; ++i )
+	for( int i=0 ; i<m_Dim.z ; ++i )
 	{
 		l_Offsets.push_back(l_TotalSize);
 		switch( l_Header.pixel_types[i] )
@@ -183,7 +183,7 @@ void ImageData::loadExr(wxString a_Filepath)
 	}
 
 	m_pImageData = new unsigned char[l_TotalSize];
-	for( unsigned int i=0 ; i<m_Dim.z ; ++i )
+	for( int i=0 ; i<m_Dim.z ; ++i )
 	{
 		m_RefSurfacePtr.push_back(m_pImageData + l_Offsets[i]);
 		l_pLoadFunc(i);
