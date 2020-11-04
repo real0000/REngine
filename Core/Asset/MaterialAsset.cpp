@@ -155,6 +155,13 @@ void MaterialBlock::sync(bool a_bToGpu)
 	GDEVICE()->syncUavBuffer(a_bToGpu, 1, m_ID);
 }
 
+void MaterialBlock::sync(bool a_bToGpu, unsigned int a_Offset, unsigned int a_SizeInByte)
+{
+	assert(ShaderRegType::UavBuffer == m_Type);
+	std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> l_BuffIDList(1, std::make_tuple(m_ID, a_Offset, a_SizeInByte));
+	GDEVICE()->syncUavBuffer(a_bToGpu, l_BuffIDList);
+}
+
 char* MaterialBlock::getBlockPtr(unsigned int a_Slot)
 {
 	return m_pBuffer + a_Slot * m_BlockSize;

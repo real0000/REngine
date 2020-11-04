@@ -1,0 +1,18 @@
+<root isCompute="true" isIndexed="false">
+  <ParamList>
+    <UavBuffer name="g_Indicies" preDef="PackedInt" write="false"/>
+    <UavBuffer name="g_Harmonics" preDef="PackedInt" write="true"/>
+    <UavBuffer name="g_Vertex" preDef="LightmapVertex" write="false"/>
+    <UavBuffer name="g_Result" preDef="LightmapIntersectResult" write="true"/>
+    <Srv2D name="g_BaseColor" desc="" reserved="true"/>
+    <Srv2D name="g_Normal" desc="" reserved="true"/>
+    <Srv2D name="g_Surface" desc="" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Compute file="Lightmap/RayScatter.compute">
+        g_Indicies, g_Harmonics, g_Vertex, g_Result, g_BaseColor, g_Normal, g_Surface
+      </Compute>
+    </Model_5_1>
+  </Shaders>
+</root>

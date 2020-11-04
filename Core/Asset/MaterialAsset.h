@@ -37,6 +37,7 @@ public:
 	// uav only
 	void extend(unsigned int a_Size);
 	void sync(bool a_bToGpu);
+	void sync(bool a_bToGpu, unsigned int a_Offset, unsigned int a_SizeInByte);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T& a_Param)
@@ -63,6 +64,7 @@ public:
 	}
 	char* getBlockPtr(unsigned int a_Slot);
 	unsigned int getBlockSize(){ return m_BlockSize; }
+	unsigned int getNumSlot(){ return m_NumSlot; }
 	void bind(GraphicCommander *a_pBinder, int a_Stage);
 
 	std::string getName(){ return m_BlockName; }

@@ -1,11 +1,11 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
     <UavBuffer name="g_Indicies" preDef="PackedInt" write="true"/>
-    <UavBuffer name="g_Harmonics" preDef="PackedFloat" write="true"/>
+    <UavBuffer name="g_Harmonics" preDef="PackedInt" write="true"/>
     <UavBuffer name="g_DirLights" preDef="DirLight" write="false"/>
     <UavBuffer name="g_OmniLights" preDef="OmniLight" write="false"/>
     <UavBuffer name="g_SpotLights" preDef="SpotLight" write="false"/>
-    <UavBuffer name="g_Box" preDef="LightmapBoxCache" write="true"/>
+    <UavBuffer name="g_Box" preDef="LightmapBoxCache" write="false"/>
     <UavBuffer name="g_Vertex" preDef="LightmapVertex" write="false"/>
     <UavBuffer name="g_Result" preDef="LightmapIntersectResult" write="true"/>
   </ParamList>

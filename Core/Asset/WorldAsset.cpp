@@ -95,6 +95,8 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 			auto &l_Indicies = l_pMeshAssetInst->getIndicies();
 			auto &l_Position = l_pMeshAssetInst->getPosition();
 			auto &l_Normal = l_pMeshAssetInst->getNormal();
+			auto &l_Tangent = l_pMeshAssetInst->getTangent();
+			auto &l_Binormal = l_pMeshAssetInst->getBinormal();
 			auto &l_UV = l_pMeshAssetInst->getTexcoord(0);
 
 			unsigned int l_MaxIdx = 0;
@@ -115,12 +117,16 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 				glm::mat4x4 l_Matrix(l_pMeshObj->getOwnerNode()->getTransform());
 				glm::vec4 l_WorldPos(glm::vec4(l_Position[l_VtxIdx], 1.0) * l_Matrix);
 				glm::vec4 l_WorldNormal(glm::vec4(l_Normal[l_VtxIdx], 0.0) * l_Matrix);
+				glm::vec4 l_WorldTangent(glm::vec4(l_Tangent[l_VtxIdx], 0.0) * l_Matrix);
+				glm::vec4 l_WorldBinormal(glm::vec4(l_Binormal[l_VtxIdx], 0.0) * l_Matrix);
 
 				LightMapVtxSrc l_Temp;
 				l_Temp.m_Position = glm::vec3(l_WorldPos.x, l_WorldPos.y, l_WorldPos.z);
 				l_Temp.m_Normal = glm::vec3(l_WorldNormal.x, l_WorldNormal.y, l_WorldNormal.z);
 				l_Temp.m_U = l_UV[l_VtxIdx].x;
 				l_Temp.m_V = l_UV[l_VtxIdx].y;
+				l_Temp.m_Tangent = glm::vec3(l_WorldTangent.x, l_WorldTangent.y, l_WorldTangent.z);
+				l_Temp.m_Binormal = glm::vec3(l_WorldBinormal.x, l_WorldBinormal.y, l_WorldBinormal.z);
 				l_TempVertexData.push_back(l_Temp);
 
 				l_Bounding.m_Size.x = std::max<double>(l_Bounding.m_Size.x * 0.5, l_Temp.m_Position.x) * 2.0;
@@ -230,9 +236,13 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		}
 
 		// packed info data, [0] : {curr box, curr harmonic, curr sample, max sample}, [1] : {light start offset, next box, next harmonic, num running thread}
-		l_UavTriangleData[0].z = m_BoxCache.size();
-		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample;
+		l_UavTriangleData[0].x = -1;
+		l_UavTriangleData[0].y = -1;
+		l_UavTriangleData[0].z = -1;
+		l_UavTriangleData[0].w = EngineSetting::singleton().m_LightMapSample | (EngineSetting::singleton().m_LightMapSampleDepth << 24);
 		l_UavTriangleData[1].x = l_UavTriangleData.size();
+		l_UavTriangleData[1].y = -1;
+		l_UavTriangleData[1].z = -1;
 		l_UavTriangleData[1].w = EngineSetting::singleton().m_LightMapSample;
 		if( 0 != (l_UavLightData.size() % 2) ) l_UavLightData.push_back(glm::ivec2(0, 0));
 		for( unsigned int i=0 ; l_UavLightData.size() ; i+=2 )
@@ -245,6 +255,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 
 	m_pIndicies = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Indicies", l_UavTriangleData.size());
 	memcpy(m_pIndicies->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
+	assignInitRaytraceInfo();
 	m_pIndicies->sync(true);
 
 	m_pHarmonicsCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumHarmonics);
@@ -277,7 +288,17 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 
 void WorldAsset::stepBake(GraphicCommander *a_pCmd)
 {
-	//a_pCmd->useProgram(m_p);
+	m_pIndicies->sync(false, 0, sizeof(int) * 8);
+	
+	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
+	if( l_pRefInfo->z >= EngineSetting::singleton().m_LightMapSample )
+	{
+		l_pRefInfo->z -= EngineSetting::singleton().m_LightMapSample;
+		assignRaytraceInfo();
+		m_pIndicies->sync(true, 0, sizeof(int) * 8);
+	}
+
+
 }
 
 void WorldAsset::stopBake()
@@ -473,6 +494,90 @@ void WorldAsset::assignNeighbor(int a_CurrNode)
 	}
 
 #undef ASSIGN_NEIGHBOR
+}
+
+void WorldAsset::assignInitRaytraceInfo()
+{
+	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
+	glm::ivec4 *l_pCurrRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
+	glm::ivec4 *l_pNextRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));
+	
+	std::function<void(int, int)> l_CurrFunc = nullptr;
+	std::function<void(int, int)> l_NextFunc = [&](int a_Box, int a_Harmonic)
+	{
+		l_pNextRefInfo->y = a_Box;
+		l_pNextRefInfo->z = a_Harmonic;
+		l_CurrFunc = nullptr;
+	};
+	std::function<void(int, int)> l_FirstFunc = [&](int a_Box, int a_Harmonic)
+	{
+		l_pCurrRefInfo->x = a_Box;
+		l_pCurrRefInfo->y = a_Harmonic;
+		l_CurrFunc = l_NextFunc;
+	};
+	l_CurrFunc = l_FirstFunc;
+
+	for( int i=0 ; i<l_NumBox ; ++i )
+	{
+		LightMapBoxCache *l_pBox = reinterpret_cast<LightMapBoxCache *>(m_pBoxCache->getBlockPtr(i));
+		for( unsigned int j=0 ; j<64 ; ++j )
+		{
+			if( -1 == l_pBox->m_SHResult[j] ) continue;
+
+			l_CurrFunc(i, l_pBox->m_SHResult[j]);
+			if( nullptr == l_CurrFunc ) goto assignInitRaytraceInfoEnd;
+		}
+	}
+assignInitRaytraceInfoEnd:
+	l_pCurrRefInfo->z = 0;
+	if( nullptr != l_CurrFunc )
+	{
+		l_pNextRefInfo->y = -1;
+		l_pNextRefInfo->z = -1;
+	}
+}
+
+void WorldAsset::assignRaytraceInfo()
+{
+	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
+	glm::ivec4 *l_pCurrRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
+	glm::ivec4 *l_pNextRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));
+	
+	std::function<void(int, int)> l_CurrFunc = nullptr;
+	std::function<void(int, int)> l_NextFunc = [&](int a_Box, int a_Harmonic)
+	{
+		l_pNextRefInfo->y = a_Box;
+		l_pNextRefInfo->z = a_Harmonic;
+		l_CurrFunc = nullptr;
+	};
+	std::function<void(int, int)> l_FirstFunc = [&](int a_Box, int a_Harmonic)
+	{
+		l_pCurrRefInfo->x = a_Box;
+		l_pCurrRefInfo->y = a_Harmonic;
+		l_CurrFunc = l_NextFunc;
+	};
+	std::function<void(int, int)> l_PrepareFunc = [&](int a_Box, int a_Harmonic)
+	{
+		if( a_Harmonic == l_pCurrRefInfo->y ) l_CurrFunc = l_FirstFunc;
+	};
+	l_CurrFunc = l_PrepareFunc;
+
+	for( unsigned int i=l_pCurrRefInfo->x ; i<l_NumBox ; ++i )
+	{
+		LightMapBoxCache *l_pBox = reinterpret_cast<LightMapBoxCache *>(m_pBoxCache->getBlockPtr(i));
+		for( unsigned int j=0 ; j<64 ; ++j )
+		{
+			if( -1 == l_pBox->m_SHResult[j] ) continue;
+			l_CurrFunc(i, l_pBox->m_SHResult[j]);
+			if( nullptr == l_CurrFunc ) goto assignRaytraceInfoEnd;
+		}
+	}
+assignRaytraceInfoEnd:
+	if( nullptr != l_CurrFunc )
+	{
+		l_pNextRefInfo->y = -1;
+		l_pNextRefInfo->z = -1;
+	}
 }
 #pragma endregion
 

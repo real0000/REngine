@@ -1,79 +1,13 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-#deifne LIGHTMAP_STATE_IDLE		0
-#define LIGHTMAP_STATE_SCATTER	(1*0x00000100)
-#define LIGHTMAP_STATE_THROUGH	(2*0x00000100)
-#define LIGHTMAP_STATE_CHILDBOX	(3*0x00000100)
-#define LIGHTMAP_STATE_NEXTBOX	(4*0x00000100)
-#define LIGHTMAP_STATE_TREADEND	(5*0x00000100)
-
-#define CURR_BOX		g_Indicies[0].x
-#define CURR_HARMONIC	g_Indicies[0].y
-#define CURR_SAMPLE		g_Indicies[0].z
-#define MAX_SAMPLE		g_Indicies[0].w
-#define LIGHT_OFFSET	g_Indicies[1].x
-#define NEXT_BOX		g_Indicies[1].y
-#define NEXT_HARMONIC	g_Indicies[1].z
-#define VALID_THREAD	g_Indicies[1].w
+#include "Lightmap.h"
 
 #define EDGE_THREASHOLD 0.1
 #define NEIGHBOR_INDEX(x, y, z) (9*z+3*y+x)
 #define NP 0
 #define ZP 1
 #define PP 2
-
-void assignResult(LightmapIntersectResult a_Res)
-{
-	/* deocde
-	float x = a_Res.m_OriginNormal.x;
-    float y = a_Res.m_OriginNormal.y;
-    float z = a_Res.m_OriginNormal.z;
-    float x2 = x*x;
-    float y2 = y*y;
-    float z2 = z*z;
-
-	basis[0]  = 1.0 / 2.0 * sqrt(1.0 / MATH_PI);
-    basis[1]  = sqrt(3.0 / (4.0 * MATH_PI))*z;
-    basis[2]  = sqrt(3.0 / (4.0 * MATH_PI))*y;
-    basis[3]  = sqrt(3.0 / (4.0 * MATH_PI))*x;
-    basis[4]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * x * z;
-    basis[5]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * z * y;
-    basis[6]  = 1.0 / 4.0 * sqrt(5.0 / MATH_PI) * (-x*x - z*z + 2 * y*y);
-    basis[7]  = 1.0 / 2.0 * sqrt(15.0 / MATH_PI) * y * x;
-    basis[8]  = 1.0 / 4.0 * sqrt(15.0 / MATH_PI) * (x*x - z*z);
-    basis[9]  = 1.0 / 4.0 * sqrt(35.0 / (2.f*MATH_PI))*(3 * x2 - z2)*z;
-    basis[10] = 1.0 / 2.0 * sqrt(105.0 / MATH_PI)*x*z*y;
-    basis[11] = 1.0 / 4.0 * sqrt(21.0 / (2.f * MATH_PI))*z*(4 * y2 - x2 - z2);
-    basis[12] = 1.0 / 4.0 * sqrt(7.0 / MATH_PI)*y*(2 * y2 - 3 * x2 - 3 * z2);
-    basis[13] = 1.0 / 4.0 * sqrt(21.0 / (2.f * MATH_PI))*x*(4 * y2 - x2 - z2);
-    basis[14] = 1.0 / 4.0 * sqrt(105.0 / MATH_PI)*(x2 - z2)*y;
-    basis[15] = 1.0 / 4.0 * sqrt(35.0 / (2 * MATH_PI))*(x2 - 3 * z2)*x;
-
-	vec3 c = vec3(0,0,0);
-    for (int i = 0; i < 16; i++)
-    {
-        c += coef[i] * basis[i];
-    }
-    
-    FragColor = vec4(c, 1);
-
-	// encode
-	double weight =4.0 * PI;
-    for(int i=0; i<n_samples; ++i) 
-    {
-        for(int n=0; n<n_coeff; ++n)
-        {
-        result[n] += lightColor * samples[i].SH_basis_coeff[n];
-        }
-    }
-    double factor = weight / n_samples;
-    for(i=0; i<n_coeff; ++i)
-    {
-        result[i] = result[i] * factor;
-    }
-	*/
-}
 
 [numthreads(16, 1, 1 )]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
@@ -124,15 +58,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 			const float c_Sub[4] = {-0.375, -0.125, 0.125, 0.375};
 			l_Res.m_RayOrigin += l_Box.m_BoxSize * float3(c_Sub[l_BoxIdx.x], c_Sub[l_BoxIdx.y], c_Sub[l_BoxIdx.z]);
 
-			float l_Quad = sqrt(MAX_SAMPLE);
-			float l_Phi = a_ThreadID.x / l_Quad;
-			float l_Theta = floor(l_Phi) / l_Quad;
-			l_Phi = frac(l_Phi);
-
-			l_Theta = acos(1.0 - 2.0 * l_Theta);
-			l_Phi = 2.0 * MATH_PI * l_Phi;
-
-			l_Res.m_RayDir = normalize(float3(cos(l_Theta) * sin(l_Phi), cos(l_Theta) * cos(l_Phi), sin(l_Theta)));
+			float2 l_PhiTheta = sphereRandom(a_ThreadID.x);
+			l_Res.m_RayDir = normalize(float3(cos(l_PhiTheta.y) * sin(l_PhiTheta.x), cos(l_PhiTheta.y) * cos(l_PhiTheta.x), sin(l_PhiTheta.y)));
+			l_Res.m_OriginNormal = l_Res.m_RayDir;
 			}break;
 
 		case LIGHTMAP_STATE_TREADEND: return;
@@ -217,9 +145,17 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 			}
 
 			l_Res.m_CurrBoxID = l_Box.m_Neighbor[NEIGHBOR_INDEX(l_DirOffset.x, l_DirOffset.y, l_DirOffset.z)];
-			l_Res.m_RayOrigin += l_Min * l_Res.m_RayDir;
-			l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
-			l_Res.m_StateDepth += LIGHTMAP_STATE_CHILDBOX;
+			if( -1 == l_Res.m_CurrBoxID )
+			{
+				l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+				l_Res.m_StateDepth += LIGHTMAP_STATE_TOSKY;
+			}
+			else
+			{
+				l_Res.m_RayOrigin += l_Min * l_Res.m_RayDir;
+				l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+				l_Res.m_StateDepth += LIGHTMAP_STATE_CHILDBOX;
+			}
 			g_Result[a_ThreadID.x] = l_Res;
 			}return;
 
@@ -229,7 +165,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 
 	float l_MinDist = FLT_MAX;
 	int l_TargetTriangle = -1;
-	for( int i=l_Box.m_TriangleRange.x ; i<l_Box.m_TriangleRange.y ; ++i )
+	for( int i=l_Box.m_Triangle.x ; i<l_Box.m_Triangle.y ; ++i )
 	{
 		if( l_Res.m_TriangleIdx == i ) continue;
 
@@ -243,6 +179,52 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 			l_MinDist = l_Dist;
 			l_TargetTriangle = i;
 		}
+	}
+
+	int l_TargetLight = -1;
+	float3 l_LightColor;
+	for( int i=l_Box.m_Light.x ; i<l_Box.m_Light.y ; ++i )
+	{
+		int l_Offset = LIGHT_OFFSET + i/2;
+		int2 l_LightIdx = (0 == (i%2)) ? g_Indicies[l_Offset].xy : g_Indicies[l_Offset].zw;
+		switch( l_LightIdx.x )
+		{
+			case LIGHT_TYPE_OMNI:{
+				OmniLight l_Light = g_OmniLights[l_LightIdx.y];
+				float l_Dist = intersectRaySphere(l_Res.m_RayOrigin, l_Res.m_RayDir, l_Light.m_Position, l_Light.m_PhysicRange);
+				if( l_Dist >= 0.0 && l_Dist < l_MinDist )
+				{
+					l_TargetLight = i;
+					l_MinDist = l_Dist;
+					l_LightColor = l_Light.m_Color;
+				}
+				}break;
+
+			case LIGHT_TYPE_SPOT:{
+				SpotLight l_Light = g_SpotLights[l_LightIdx.y];
+				float l_Dist = intersectRaySphere(l_Res.m_RayOrigin, l_Res.m_RayDir, l_Light.m_Position, l_Light.m_PhysicRange);
+				if( l_Dist >= 0.0 && l_Dist < l_MinDist )
+				{
+					if( acos(dot(-l_Res.m_RayDir, l_Light.m_Direction)) <= l_Light.m_Angle )
+					{
+						l_TargetLight = i;
+						l_MinDist = l_Dist;
+						l_LightColor = l_Light.m_Color;
+					}
+				}
+				}break;
+
+			//case LIGHT_TYPE_DIR:
+			default:break;
+		}
+	}
+	if( -1 != l_TargetLight )
+	{
+		l_Res.m_Emissive += l_Res.m_Color * l_LightColor;
+		encodeHarmonic(l_Res);
+		l_Res.m_StateDepth = LIGHTMAP_STATE_IDLE;
+		g_Result[a_ThreadID.x] = l_Res;
+		return;
 	}
 
 	l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;

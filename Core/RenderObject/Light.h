@@ -202,6 +202,8 @@ public:
 
 	glm::vec3 getPosition();
 	float getRange();
+	void setPhysicRange(float a_Range);
+	float getPhysicRange();
 	void setColor(glm::vec3 a_Color);
 	glm::vec3 getColor();
 	void setIntensity(float a_Intensity);
@@ -224,7 +226,8 @@ private:
 		glm::vec4 m_ShadowMapUV;
 		int m_Layer;
 		int m_bCastShadow;
-		glm::vec2 m_Padding1;
+		float m_PhysicRange;// for light map
+		float m_Padding1;
 		glm::mat4x4 m_ShadowMapProj[4];
 	};
 	OmniLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
@@ -252,6 +255,8 @@ public:
 
 	glm::vec3 getPosition();
 	float getRange();
+	void setPhysicRange(float a_Range);
+	float getPhysicRange();
 	void setColor(glm::vec3 a_Color);
 	glm::vec3 getColor();
 	void setIntensity(float a_Intensity);
@@ -278,7 +283,8 @@ private:
 		glm::vec4 m_ShadowMapUV;
 		int m_Layer;
 		int m_bCastShadow;
-		glm::vec2 m_Padding1;
+		float m_PhysicRange;
+		float m_Padding1;
 		glm::mat4x4 m_ShadowMapProj;
 	};
 	SpotLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);

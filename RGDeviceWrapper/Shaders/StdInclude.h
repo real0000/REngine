@@ -24,63 +24,6 @@
 #define LIGHT_TYPE_SPOT	3
 #define LIGHT_TYPE_DIR	4
 
-float intersectRayPlane(float3 a_RayOrigin, float3 a_RayDir, float4 a_Plane)
-{
-	float l_Den = dot(a_Plane, a_RayDir);
-	if( 0.0 == l_Den ) return -FLT_MAX;
-
-	float l_Num = -a_Plane.w - dot(a_Plane, a_RayOrigin);
-	float l_Res = l_Num / l_Den;
-	return l_Res;
-}
-
-float intersectRayAABB(float3 a_RayOrigin, float3 a_RayDir, float3 a_BoxCenter, float3 a_BoxSize)
-{
-	float3 l_Min = a_BoxCenter.xyz - 0.5 * a_BoxSize.xyz;
-	float3 l_Max = a_BoxCenter.xyz + 0.5 * a_BoxSize.xyz;
-	float4 l_Plans[6] = {float4(1.0, 0.0, 0.0, -l_Max.x)
-						,float4(1.0, 0.0, 0.0, -l_Min.x)
-						,float4(0.0, 1.0, 0.0, -l_Max.y)
-						,float4(0.0, 1.0, 0.0, -l_Min.y)
-						,float4(0.0, 0.0, 1.0, -l_Max.z)
-						,float4(0.0, 0.0, 1.0, -l_Min.z)};
-
-	bool l_bIntersect = false;
-	float l_Res = FLT_MAX;
-	for( unsigned int i=0 ; i<6 ; ++i )
-	{
-		float l_Length = intersectRayPlane(a_RayOrigin, a_RayDir, l_Plans[i]);
-		if( l_Length >= 0.0 )
-		{
-			float3 l_Pt = a_RayOrigin + l_Length * m_Direction;
-			if( l_Pt.x >= l_Min.x && l_Pt.y >= l_Min.y && l_Pt.z >= l_Min.z &&
-				l_Pt.x <= l_Max.x && l_Pt.y <= l_Max.y && l_Pt.z <= l_Max.z )
-			{
-				l_bIntersect = true;
-				if( l_Length < l_Res ) l_Res = l_Length;
-			}
-		}
-	}
-	if( !l_bIntersect ) return -FLT_MAX;
-	return l_Res;
-}
-
-float intersectRayTriangle(float3 a_RayOrigin, float3 a_RayDir, float3 a_Pos1, float3 a_Pos2, float3 a_Pos3)
-{
-	float3 l_PlaneNormal = cross(a_Pos2 - a_Pos1, a_Pos3 - a_Pos1);
-	float4 l_Plane = float4(l_PlaneNormal.x, l_PlaneNormal.y, l_PlaneNormal.z, - dot(l_PlaneNormal, a_Pos1));
-
-	float l_OutLength = intersectRayPlane(a_RayOrigin, a_RayDir, l_Plane);
-	if( l_OutLength >= 0 )
-	{
-		float3 l_Pt = float3(a_RayOrigin + l_OutLength * a_RayDir);
-		if( dot(l_Pt - a_Pos1, a_Pos2 - a_Pos1) >= 0.0 
-			&& dot(l_Pt - a_Pos2, a_Pos3 - a_Pos2) >= 0.0
-			&& dot(l_Pt - a_Pos3, a_Pos1 - a_Pos3) >= 0.0 ) return l_OutLength;
-	}
-	return -FLT_MAX;
-}
-
 #ifdef COMPUTE_SHADER
 
 #else
@@ -134,7 +77,7 @@ float intersectRayTriangle(float3 a_RayOrigin, float3 a_RayDir, float3 a_Pos1, f
 	struct PS_CommonOutput
 	{
 		float4 m_Target0 : SV_TARGET0;// rgb : world normal, a : distance/height map flag
-		uint4 m_Target1 : SV_TARGET1;// r : metallic, g : specular, b : roughness, a : shaing mode id(7 bit), decal mask(1 bit)
+		uint4 m_Target1 : SV_TARGET1;// r : metallic, g : roughness, b : refractive, a : shaing mode id(7 bit), decal mask(1 bit)
 		float4 m_Target2 : SV_TARGET2;// rgb : diffuse, (a : ao?)
 		float4 m_Target3 : SV_TARGET3;// r : opacity, gba : mask g-buffer(ssao, subsurface scattering, wet surface mask, skylight mask ...)
 		float4 m_Target4 : SV_TARGET4;// pre compute shader factor

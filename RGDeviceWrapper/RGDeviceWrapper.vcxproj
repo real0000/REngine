@@ -326,7 +326,13 @@
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\Lightmap\RayIntersection.xml" />
+    <Xml Include="Shaders\Lightmap\RayScatter.xml" />
     <Xml Include="Shaders\Shadowmap\OmniShadowMap.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Lightmap\RayScatter.compute">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

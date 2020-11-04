@@ -72,6 +72,10 @@ private:
 		float m_U;
 		glm::vec3 m_Normal;
 		float m_V;
+		glm::vec3 m_Tangent;
+		float m_Padding1;
+		glm::vec3 m_Binormal;
+		float m_Padding2;
 	};
 	//struct LightMapIndexSrc index * 3, material id
 	struct LightIntersectResult
@@ -88,6 +92,8 @@ private:
 	void assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, int a_CurrNode, std::set<int> &a_Output);
 	void assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &a_Output);
 	void assignNeighbor(int a_CurrNode);
+	void assignInitRaytraceInfo();
+	void assignRaytraceInfo();
 	
 	bool m_bBaking;
 	std::shared_ptr<Asset> m_pRayIntersectMat;

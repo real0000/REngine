@@ -78,7 +78,6 @@ public:
 	virtual void end(){}
 	virtual void hiddenFlagChanged(){}
 
-
 	virtual unsigned int typeID() = 0;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}

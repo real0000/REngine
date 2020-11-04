@@ -1,0 +1,122 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+#include "Lightmap.h"
+
+void calculateUVNormal(LightmapIntersectResult a_Res, out float3 a_OutputPos, out float2 a_OutputUV, out float3 a_OutputNormal, out float3 a_OutputTangent, out float3 a_OutputBinormal)
+{
+	float4 l_TriangleIdx = g_Indicies[a_Res.m_TriangleIdx];
+	LightmapVertex l_Pos1 = g_Vertex[l_TriangleIdx.x];
+	LightmapVertex l_Pos2 = g_Vertex[l_TriangleIdx.y];
+	LightmapVertex l_Pos3 = g_Vertex[l_TriangleIdx.z];
+
+	float l_Dist = intersectRayTriangle(l_Res.m_RayOrigin, l_Res.m_RayDir, l_Pos1.m_Position, l_Pos2.m_Position, l_Pos3.m_Position);
+	a_OutputPos = l_Res.m_RayOrigin + l_Dist * l_Res.m_RayDir;
+
+	float3 l_V1 = l_Pos1.m_Position - a_OutputPos;
+	float3 l_V2 = l_Pos2.m_Position - a_OutputPos;
+	float3 l_V3 = l_Pos3.m_Position - a_OutputPos;
+	float l_Total = length(cross(l_Pos2.m_Position - l_Pos1.m_Position, l_Pos3.m_Position - l_Pos1.m_Position));
+	float l_Area1 = length(cross(l_V2, l_V3)) / l_Total;
+	float l_Area2 = length(cross(l_V3, l_V1)) / l_Total;
+	float l_Area3 = length(cross(l_V1, l_V2)) / l_Total;
+
+	float2 l_UV1 = float2(l_Pos1.m_U, l_Pos1.m_V);
+	float2 l_UV2 = float2(l_Pos2.m_U, l_Pos2.m_V);
+	float2 l_UV3 = float2(l_Pos3.m_U, l_Pos3.m_V);
+
+	a_OutputUV = l_UV1 * l_Area1 + l_UV2 * l_Area2 + l_UV3 * l_Area3;
+	a_OutputNormal = normalize(l_Pos1.m_Normal * l_Area1 + l_Pos2.m_Normal * l_Area2 + l_Pos3.m_Normal * l_Area3);
+	a_OutputTangent = normalize(l_Pos1.m_Tangent * l_Area1 + l_Pos2.m_Tangent * l_Area2 + l_Pos3.m_Tangent * l_Area3);
+	a_OutputBinormal = normalize(l_Pos1.m_Binormal * l_Area1 + l_Pos2.m_Binormal * l_Area2 + l_Pos3.m_Binormal * l_Area3);
+}
+
+[numthreads(16, 1, 1 )]
+void main(uint3 a_ThreadID : SV_DispatchThreadID)
+{
+	LightmapIntersectResult l_Res = g_Result[a_ThreadID.x];
+	if( l_Res.m_StateDepth & 0xffffff00 != LIGHTMAP_STATE_SCATTER ) return;
+
+	float3 l_Position;
+	float3 l_Normal;
+	float3 l_Tangent;
+	float3 l_Binormal;
+	float2 l_UV;
+	calculateUVNormal(l_Res, l_Position, l_UV, l_Normal, l_Tangent, l_Binormal);
+
+	float4 l_BaseColor = g_BaseColor.SampleLevel(g_BaseColorSampler, l_UV, 0);
+	if( 0.0 >= l_BaseColor.w )
+	{
+		l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+		l_Res.m_StateDepth += LIGHTMAP_STATE_THROUGH;
+		g_Result[a_ThreadID.x] = l_Res;
+		return;
+	}
+	
+	bool l_bRefraction = false;
+	float4 l_Surface = g_Surface.SampleLevel(g_SurfaceSampler, l_UV, 0);// r : metallic, g : roughness, b : refractive(/ 4.0)
+	float4 l_SurfaceNormal = g_Normal.SampleLevel(g_NormalSampler, l_UV, 0) * 2.0 - 1.0;
+	l_Normal = normalize(l_SurfaceNormal.x * l_Tangent + l_SurfaceNormal.y * l_Binormal + l_SurfaceNormal.z * l_Normal);
+
+	float l_ReflectAngle = dot(l_Normal, l_Res.m_RayDir);
+	if( abs(l_ReflectAngle) <= 0.01 )
+	{
+		l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+		l_Res.m_StateDepth += LIGHTMAP_STATE_THROUGH;
+		g_Result[a_ThreadID.x] = l_Res;
+		return;
+	}
+
+	if( l_BaseColor.w >= 1.0 )
+	{
+		if( l_ReflectAngle > 0.0 ) l_Normal = -l_Normal;
+		if( l_Surface.x >= 0.7 )//reflect
+		{
+			l_Normal = normalize(l_Res.m_RayDir - 2.0 * dot(l_Res.m_RayDir, l_Normal) * l_Normal);
+			float2 l_PhiTheta = sphereRandom(a_ThreadID.x + (l_Res.m_StateDepth & 0x000000ff));
+			l_Normal += l_Surface.y * float3(cos(l_PhiTheta.y) * sin(l_PhiTheta.x), cos(l_PhiTheta.y) * cos(l_PhiTheta.x), sin(l_PhiTheta.y));
+		}
+		else // diffuse
+		{
+			float2 l_PhiTheta = sphereRandom(a_ThreadID.x + (l_Res.m_StateDepth & 0x000000ff));
+			l_Normal += float3(cos(l_PhiTheta.y) * sin(l_PhiTheta.x), cos(l_PhiTheta.y) * cos(l_PhiTheta.x), sin(l_PhiTheta.y));
+		}
+
+		l_Res.m_RayDir = normalize(l_Normal);
+	}
+	else // reflect or refract
+	{
+		float l_NOverNP = l_ReflectAngle < 0 ? (1.0 / (l_Surface.z*4.0)) : (l_Surface.z*4.0);
+		float l_Discriminant = 1.0 - l_NOverNP * l_NOverNP * (1.0 - l_ReflectAngle * l_ReflectAngle);
+		if( l_ReflectAngle > 0.0 ) l_Normal = -l_Normal;
+		if( l_Discriminant > 0.0 ) // refract
+		{
+			l_Res.m_RayDir = l_NOverNP * (l_Res.m_RayDir - l_Normal * l_ReflectAngle) - l_Normal * sqrt(l_Discriminant);
+		}
+		else // reflect
+		{
+			l_Normal = normalize(l_Res.m_RayDir - 2.0 * dot(l_Res.m_RayDir, l_Normal) * l_Normal);
+			float2 l_PhiTheta = sphereRandom(a_ThreadID.x + (l_Res.m_StateDepth & 0x000000ff));
+			l_Normal += l_Surface.y * float3(cos(l_PhiTheta.y) * sin(l_PhiTheta.x), cos(l_PhiTheta.y) * cos(l_PhiTheta.x), sin(l_PhiTheta.y));
+
+			l_Res.m_RayDir = normalize(l_Normal);
+		}
+	}
+	
+	l_Res.m_Color *= l_BaseColor.xyz;
+	l_Res.m_RayOrigin = l_Position;
+	++l_Res.m_StateDepth;
+
+	if( (l_Res.m_StateDepth & 0x000000ff) >= MAX_DEPTH )
+	{
+		encodeHarmonic(l_Res);
+		l_Res.m_StateDepth = LIGHTMAP_STATE_IDLE;
+	}
+	else
+	{
+		l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
+		l_Res.m_StateDepth += LIGHTMAP_STATE_THROUGH;
+	}
+
+	g_Result[a_ThreadID.x] = l_Res;
+}

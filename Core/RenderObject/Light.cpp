@@ -14,6 +14,8 @@
 namespace R
 {
 
+#define MIN_PHYSIC_DIST 0.5f
+
 #pragma region Light
 //
 // Light
@@ -230,6 +232,10 @@ void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
 	decomposeTRS(a_NewTransform, m_pRefParam->m_Position, l_Scale, l_Rot);
 
 	m_pRefParam->m_Range = std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z);
+	if( m_pRefParam->m_PhysicRange + MIN_PHYSIC_DIST >= m_pRefParam->m_Range )
+	{
+		m_pRefParam->m_PhysicRange = std::max(0.0f, m_pRefParam->m_Range - MIN_PHYSIC_DIST);
+	}
 	
 	boundingBox().m_Center = m_pRefParam->m_Position;
 	boundingBox().m_Size = glm::vec3(m_pRefParam->m_Range, m_pRefParam->m_Range, m_pRefParam->m_Range);
@@ -271,6 +277,24 @@ float OmniLight::getRange()
 {
 	assert(nullptr != m_pRefParam);
 	return m_pRefParam->m_Range;
+}
+
+void OmniLight::setPhysicRange(float a_Range)
+{
+	assert(nullptr != m_pRefParam);
+	a_Range = std::abs(a_Range);
+	if( a_Range + MIN_PHYSIC_DIST >= m_pRefParam->m_Range )
+	{
+		a_Range = std::max(m_pRefParam->m_Range - MIN_PHYSIC_DIST, 0.0f);
+	}
+	m_pRefParam->m_PhysicRange = a_Range;
+	getSharedMember()->m_pOmniLights->setDirty();
+}
+
+float OmniLight::getPhysicRange()
+{
+	assert(nullptr != m_pRefParam);
+	return m_pRefParam->m_PhysicRange;
 }
 
 void OmniLight::setColor(glm::vec3 a_Color)
@@ -368,6 +392,11 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 	decomposeTRS(a_NewTransform, m_pRefParam->m_Position, l_Scale, l_Rot);
 
 	m_pRefParam->m_Range = std::max(l_Scale.x, 0.01f);
+	if( m_pRefParam->m_PhysicRange + MIN_PHYSIC_DIST >= m_pRefParam->m_Range )
+	{
+		m_pRefParam->m_PhysicRange = std::max(0.0f, m_pRefParam->m_Range - MIN_PHYSIC_DIST);
+	}
+
 	m_pRefParam->m_Direction = glm::normalize(glm::vec3(a_NewTransform[0][0], a_NewTransform[1][0], a_NewTransform[2][0]));
 	float l_Size = std::max(l_Scale.y, l_Scale.z);
 	m_pRefParam->m_Angle = std::atan2(l_Size, l_Scale.x);
@@ -412,6 +441,24 @@ float SpotLight::getRange()
 {
 	assert(nullptr != m_pRefParam);
 	return m_pRefParam->m_Range;
+}
+
+void SpotLight::setPhysicRange(float a_Range)
+{
+	assert(nullptr != m_pRefParam);
+	a_Range = std::abs(a_Range);
+	if( a_Range + MIN_PHYSIC_DIST >= m_pRefParam->m_Range )
+	{
+		a_Range = std::max(m_pRefParam->m_Range - MIN_PHYSIC_DIST, 0.0f);
+	}
+	m_pRefParam->m_PhysicRange = a_Range;
+	getSharedMember()->m_pOmniLights->setDirty();
+}
+
+float SpotLight::getPhysicRange()
+{
+	assert(nullptr != m_pRefParam);
+	return m_pRefParam->m_PhysicRange;
 }
 
 void SpotLight::setColor(glm::vec3 a_Color)
