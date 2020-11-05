@@ -98,8 +98,8 @@ void MeshAsset::importFile(wxString a_File)
 			l_pDst->m_Name = l_pSrc->m_Name;
 			l_pDst->m_StartIndex = m_Indicies.size();
 			l_pDst->m_pMaterial = AssetManager::singleton().createAsset("Default.Material").second;
-			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture("m_DiffTex", EngineCore::singleton().getWhiteTexture());
-			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture("m_NormalTex", EngineCore::singleton().getWhiteTexture());
+			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, EngineCore::singleton().getWhiteTexture());
+			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_NORMAL, EngineCore::singleton().getBlueTexture());
 
 			for( unsigned int j=0 ; j<l_pSrc->m_Vertex.size() ; ++j )
 			{

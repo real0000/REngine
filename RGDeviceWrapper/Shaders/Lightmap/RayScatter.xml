@@ -4,14 +4,15 @@
     <UavBuffer name="g_Harmonics" preDef="PackedInt" write="true"/>
     <UavBuffer name="g_Vertex" preDef="LightmapVertex" write="false"/>
     <UavBuffer name="g_Result" preDef="LightmapIntersectResult" write="true"/>
-    <Srv2D name="g_BaseColor" desc="" reserved="true"/>
-    <Srv2D name="g_Normal" desc="" reserved="true"/>
-    <Srv2D name="g_Surface" desc="" reserved="true"/>
+    <Constant name="c_MatID" type="int1" reserved="false"/>
+    <Srv2D name="BaseColor" desc="" reserved="true"/>
+    <Srv2D name="Normal" desc="" reserved="true"/>
+    <Srv2D name="Surface" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Compute file="Lightmap/RayScatter.compute">
-        g_Indicies, g_Harmonics, g_Vertex, g_Result, g_BaseColor, g_Normal, g_Surface
+        g_Indicies, g_Harmonics, g_Vertex, g_Result, BaseColor, Normal, Surface
       </Compute>
     </Model_5_1>
   </Shaders>

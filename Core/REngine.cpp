@@ -273,7 +273,8 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
-	, m_WhiteTexture(std::make_pair(-1, nullptr)), m_pQuad(nullptr)
+	, m_WhiteTexture(std::make_pair(-1, nullptr)), m_BlueTexture(std::make_pair(-1, nullptr))
+	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 {
 }
@@ -318,6 +319,7 @@ void EngineCore::shutDown()
 	
 	m_MainLoop.join();
 	m_WhiteTexture.second = nullptr;
+	m_BlueTexture.second = nullptr;
 	m_pQuad = nullptr;
 
 	ImageManager::singleton().finalize();
@@ -352,11 +354,16 @@ bool EngineCore::init()
 		default:break;
 	}
 
-	unsigned int l_White[64];
-	memset(l_White, 0xffffffff, sizeof(unsigned int) * 64);
+	unsigned int l_Color[64];
+	memset(l_Color, 0xffffffff, sizeof(unsigned int) * 64);
 	m_WhiteTexture = AssetManager::singleton().createAsset(wxT("Default_White.Image"));
-	m_WhiteTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_White);
+	m_WhiteTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_WhiteTexture.second->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	
+	memset(l_Color, 0x0000ffff, sizeof(unsigned int) * 64);
+	m_BlueTexture = AssetManager::singleton().createAsset(wxT("Default_Normal.Image"));
+	m_BlueTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
+	m_BlueTexture.second->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 	const glm::vec3 c_QuadVtx[] = {

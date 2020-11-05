@@ -36,6 +36,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	LightmapIntersectResult l_Res = g_Result[a_ThreadID.x];
 	if( l_Res.m_StateDepth & 0xffffff00 != LIGHTMAP_STATE_SCATTER ) return;
+	
+	float4 l_TriangleIdx = g_Indicies[l_Res.m_TriangleIdx];
+	if( c_MatID != l_TriangleIdx.w ) return;
 
 	float3 l_Position;
 	float3 l_Normal;
@@ -44,7 +47,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	float2 l_UV;
 	calculateUVNormal(l_Res, l_Position, l_UV, l_Normal, l_Tangent, l_Binormal);
 
-	float4 l_BaseColor = g_BaseColor.SampleLevel(g_BaseColorSampler, l_UV, 0);
+	float4 l_BaseColor = BaseColor.SampleLevel(BaseColorSampler, l_UV, 0);
 	if( 0.0 >= l_BaseColor.w )
 	{
 		l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
@@ -54,8 +57,8 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	}
 	
 	bool l_bRefraction = false;
-	float4 l_Surface = g_Surface.SampleLevel(g_SurfaceSampler, l_UV, 0);// r : metallic, g : roughness, b : refractive(/ 4.0)
-	float4 l_SurfaceNormal = g_Normal.SampleLevel(g_NormalSampler, l_UV, 0) * 2.0 - 1.0;
+	float4 l_Surface = Surface.SampleLevel(SurfaceSampler, l_UV, 0);// r : metallic, g : roughness, b : refractive(/ 4.0)
+	float4 l_SurfaceNormal = Normal.SampleLevel(NormalSampler, l_UV, 0) * 2.0 - 1.0;
 	l_Normal = normalize(l_SurfaceNormal.x * l_Tangent + l_SurfaceNormal.y * l_Binormal + l_SurfaceNormal.z * l_Normal);
 
 	float l_ReflectAngle = dot(l_Normal, l_Res.m_RayDir);

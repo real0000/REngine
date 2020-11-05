@@ -109,6 +109,7 @@ public:
 
 	std::shared_ptr<ShaderProgram> getProgram(){ return m_pRefProgram; }
 	void setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture);
+	std::shared_ptr<Asset> getTexture(std::string a_Name);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
 	// for shadow map rendering

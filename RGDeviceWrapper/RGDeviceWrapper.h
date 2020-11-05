@@ -227,6 +227,9 @@ const wxString c_ShaderPath[] = {
 	wxT("Shaders/Shadowmap/")};
 const unsigned int c_NumShaderPath = sizeof(c_ShaderPath) / sizeof(wxString);
 #define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"
+#define STANDARD_TEXTURE_BASECOLOR	"BaseColor"
+#define STANDARD_TEXTURE_NORMAL		"Normal"
+#define STANDARD_TEXTURE_SURFACE	"Surface"
 STRING_ENUM_CLASS(DefaultPrograms,
 
 	// compute

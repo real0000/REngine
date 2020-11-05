@@ -125,7 +125,14 @@
     <None Include="Shaders\Shadowmap\ShadowMap.vertex">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
-    <None Include="Shaders\Lightmap\RayIntersection.compute" />
+    <None Include="Shaders\Lightmap\Lightmap.h" />
+    <None Include="Shaders\Lightmap\RayScatter.compute" />
+    <None Include="Shaders\Standard.pixel">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Lightmap\RayIntersection.compute">
+      <Filter>Shaders\Lightmap</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\Lightmap\RayIntersection.xml">
@@ -137,10 +144,8 @@
     <Xml Include="Shaders\Lightmap\RayScatter.xml">
       <Filter>Shaders\Lightmap</Filter>
     </Xml>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Lightmap\RayScatter.compute">
-      <Filter>Shaders\Lightmap</Filter>
-    </FxCompile>
+    <Xml Include="Shaders\Standard.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

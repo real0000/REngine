@@ -7,6 +7,7 @@
     <Srv2D name="GBuff4" desc="" reserved="true"/>
     <Srv2D name="GBuff5" desc="" reserved="true"/>
     <Srv2D name="GBuff6" desc="" reserved="true"/>
+    <UavBuffer name="RootBox" preDef="LightmapBox" write="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>

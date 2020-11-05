@@ -177,6 +177,7 @@ public:
 
 	// utility
 	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture.second; }
+	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture.second; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
 
 private:
@@ -189,7 +190,7 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 
-	std::pair<int, std::shared_ptr<Asset>> m_WhiteTexture;
+	std::pair<int, std::shared_ptr<Asset>> m_WhiteTexture, m_BlueTexture;
 	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
 	std::thread m_MainLoop;

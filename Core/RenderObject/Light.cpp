@@ -113,10 +113,35 @@ void DirLight::transformListener(glm::mat4x4 &a_NewTransform)
 
 void DirLight::loadComponent(boost::property_tree::ptree &a_Src)
 {
+	assert(nullptr != m_pRefParam);
+
+	boost::property_tree::ptree &l_Attr = a_Src.get_child("<xmlattr>");
+	m_pRefParam->m_Color.x = l_Attr.get("r", 1.0f);
+	m_pRefParam->m_Color.y = l_Attr.get("g", 1.0f);
+	m_pRefParam->m_Color.z = l_Attr.get("b", 1.0f);
+	m_pRefParam->m_Intensity = l_Attr.get("intensity", 1.0f);
+	m_pRefParam->m_bCastShadow = l_Attr.get("castShadow", true) ? 1 : 0;
+
+	getSharedMember()->m_pDirLights->setDirty();
 }
 
 void DirLight::saveComponent(boost::property_tree::ptree &a_Dst)
 {
+	assert(nullptr != m_pRefParam);
+
+	boost::property_tree::ptree l_Root;
+
+	boost::property_tree::ptree l_Attr;
+	
+	l_Attr.add("r", m_pRefParam->m_Color.x);
+	l_Attr.add("g", m_pRefParam->m_Color.y);
+	l_Attr.add("b", m_pRefParam->m_Color.z);
+	l_Attr.add("intensity", m_pRefParam->m_Intensity);
+	l_Attr.add("castShadow", m_pRefParam->m_bCastShadow != 0);
+
+	l_Root.add_child("<xmlattr>", l_Attr);
+	
+	a_Dst.add_child("DirLight", l_Root);
 }
 
 void DirLight::setShadowed(bool a_bShadow)

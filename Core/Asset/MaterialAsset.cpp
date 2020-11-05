@@ -342,6 +342,14 @@ void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTex
 	m_Textures[it->second->m_pRegInfo->m_Slot] = a_pTexture;
 }
 
+std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
+{
+	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
+	auto it = l_TextureSlotMap.find(a_Name);
+	if( l_TextureSlotMap.end() == it ) return a_Name == STANDARD_TEXTURE_NORMAL ? EngineCore::singleton().getBlueTexture() : EngineCore::singleton().getWhiteTexture();
+	return m_Textures[it->second->m_pRegInfo->m_Slot];
+}
+
 void MaterialAsset::setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock)
 {
 	int l_TargetSlot = -1;

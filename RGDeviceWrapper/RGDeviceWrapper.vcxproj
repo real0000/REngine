@@ -177,6 +177,7 @@
     <ClInclude Include="DrawBuffer.h" />
     <ClInclude Include="RGDeviceWrapper.h" />
     <ClInclude Include="ShaderBase.h" />
+    <None Include="Shaders\Lightmap\Lightmap.h" />
     <None Include="Shaders\CopyDepth.pixel">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
@@ -186,6 +187,7 @@
     <None Include="Shaders\Shadowmap\OmniShadowMap.geometry" />
     <None Include="Shaders\Shadowmap\ShadowMap.pixel" />
     <None Include="Shaders\Shadowmap\ShadowMap.vertex" />
+    <None Include="Shaders\Standard.pixel" />
     <None Include="Shaders\StdInclude.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
@@ -326,8 +328,11 @@
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\Lightmap\RayIntersection.xml" />
-    <Xml Include="Shaders\Lightmap\RayScatter.xml" />
+    <Xml Include="Shaders\Lightmap\RayScatter.xml">
+      <SubType>Designer</SubType>
+    </Xml>
     <Xml Include="Shaders\Shadowmap\OmniShadowMap.xml" />
+    <Xml Include="Shaders\Standard.xml" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Lightmap\RayScatter.compute">

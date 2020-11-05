@@ -35,9 +35,9 @@ private:
 	struct LightMapBox
 	{
 		glm::vec3 m_BoxCenter;
-		int m_Parent;
+		int m_Level;
 		glm::vec3 m_BoxSize;
-		int m_Edge;
+		int m_LeafDist;
 		int m_SHResult[16];
 		int m_Children[8];
 	};
@@ -65,6 +65,19 @@ private:
 		glm::ivec2 m_Light;
 		int m_SHResult[64];
 		int m_Children[8];
+	};
+	struct LightMapTextureCache
+	{
+		LightMapTextureCache() :
+			m_BaseColor(nullptr), m_Normal(nullptr), m_Surface(nullptr){}
+		~LightMapTextureCache()
+		{
+			m_BaseColor = nullptr;
+			m_Normal = nullptr;
+			m_Surface = nullptr;
+		}
+
+		std::shared_ptr<Asset> m_BaseColor, m_Normal, m_Surface;
 	};
 	struct LightMapVtxSrc
 	{
@@ -94,18 +107,17 @@ private:
 	void assignNeighbor(int a_CurrNode);
 	void assignInitRaytraceInfo();
 	void assignRaytraceInfo();
+	void moveCacheData();
 	
 	bool m_bBaking;
-	std::shared_ptr<Asset> m_pRayIntersectMat;
-	MaterialAsset *m_pRayIntersectMatInst;
+	std::shared_ptr<Asset> m_pRayIntersectMat, m_pRayScatterMat;
+	MaterialAsset *m_pRayIntersectMatInst, *m_pRayScatterMatInst;
 	std::vector<LightMapBoxCache> m_BoxCache;
 	std::shared_ptr<MaterialBlock> m_pIndicies, m_pHarmonicsCache, m_pBoxCache, m_pVertex, m_pResult;
+	std::vector<LightMapTextureCache> m_LightMapMaterialCache;
 	std::mutex m_BakeLock;
 
 	std::shared_ptr<MaterialBlock> m_pHarmonics, m_pBoxes;
-	std::vector<LightMapBox> m_LightMap;
-	std::vector<std::shared_ptr<Asset>> m_LightMapMaterialCache;
-
 };
 
 }

@@ -21,6 +21,7 @@ namespace R
 {
 
 #define LIGHTMAP_INTERSECT_ASSET_NAME wxT("LightmapIntersection.Material")
+#define LIGHTMAP_SCATTER_ASSET_NAME wxT("LightmapScatter.Material")
 #define NEIGHBOR_INDEX(x, y, z) (9*z+3*y+x)
 #define NP 0
 #define ZP 1
@@ -33,25 +34,38 @@ namespace R
 WorldAsset::WorldAsset()
 	: m_bBaking(false)
 	, m_pRayIntersectMat(AssetManager::singleton().createAsset(LIGHTMAP_INTERSECT_ASSET_NAME).second)
-	, m_pRayIntersectMatInst(nullptr)
+	, m_pRayScatterMat(AssetManager::singleton().createAsset(LIGHTMAP_SCATTER_ASSET_NAME).second)
+	, m_pRayIntersectMatInst(nullptr), m_pRayScatterMatInst(nullptr)
 	, m_pIndicies(nullptr), m_pHarmonicsCache(nullptr), m_pBoxCache(nullptr), m_pVertex(nullptr), m_pResult(nullptr)
 	, m_pHarmonics(nullptr), m_pBoxes(nullptr)
 {
 	m_pRayIntersectMatInst = m_pRayIntersectMat->getComponent<MaterialAsset>();
 	m_pRayIntersectMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayIntersection));
+
+	m_pRayScatterMatInst = m_pRayScatterMat->getComponent<MaterialAsset>();
+	m_pRayScatterMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayScatter));
 }
 
 WorldAsset::~WorldAsset()
 {
 	stopBake();
+
+	m_pHarmonics = nullptr;
+	m_pBoxes = nullptr;
+	m_pRayIntersectMatInst = nullptr;
+	m_pRayIntersectMat = nullptr;
+	m_pRayScatterMatInst = nullptr;
+	m_pRayScatterMat = nullptr;
 }
 
 void WorldAsset::loadFile(boost::property_tree::ptree &a_Src)
 {
+	
 }
 
 void WorldAsset::saveFile(boost::property_tree::ptree &a_Dst)
 {
+	
 }
 
 void WorldAsset::bake(SharedSceneMember *a_pMember)
@@ -137,6 +151,19 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 		l_Bounding.m_Size.x = std::pow(2.0, std::ceil(std::log(l_Bounding.m_Size.x * 0.5))) * 2.0;
 		l_Bounding.m_Size.y = std::pow(2.0, std::ceil(std::log(l_Bounding.m_Size.y * 0.5))) * 2.0;
 		l_Bounding.m_Size.z = std::pow(2.0, std::ceil(std::log(l_Bounding.m_Size.z * 0.5))) * 2.0;
+	}
+
+	// init material cache
+	{
+		m_LightMapMaterialCache.resize(l_TempMatSet.size());
+		for( auto it=l_TempMatSet.begin() ; it!=l_TempMatSet.end() ; ++it )
+		{
+			LightMapTextureCache &l_Cache = m_LightMapMaterialCache[it->second];
+			MaterialAsset *l_pMat = it->first->getComponent<MaterialAsset>();
+			l_Cache.m_BaseColor = l_pMat->getTexture(STANDARD_TEXTURE_BASECOLOR);
+			l_Cache.m_Normal = l_pMat->getTexture(STANDARD_TEXTURE_NORMAL);
+			l_Cache.m_Surface = l_pMat->getTexture(STANDARD_TEXTURE_SURFACE);
+		}
 	}
 
 	// create boxes, assign triangles
@@ -283,22 +310,57 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	m_pRayIntersectMatInst->setBlock("g_Vertex", m_pVertex);
 	m_pRayIntersectMatInst->setBlock("g_Result", m_pResult);
 
+	m_pRayScatterMatInst->setBlock("g_Indicies", m_pIndicies);
+	m_pRayScatterMatInst->setBlock("g_Harmonics", m_pHarmonicsCache);
+	m_pRayScatterMatInst->setBlock("g_Vertex", m_pVertex);
+	m_pRayScatterMatInst->setBlock("g_Result", m_pResult);
+
 	m_bBaking = true;
 }
 
 void WorldAsset::stepBake(GraphicCommander *a_pCmd)
 {
 	m_pIndicies->sync(false, 0, sizeof(int) * 8);
-	
 	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
-	if( l_pRefInfo->z >= EngineSetting::singleton().m_LightMapSample )
+	glm::ivec4 *l_pEndInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));
+	if( 0 >= l_pEndInfo->z )
+	{
+		std::lock_guard<std::mutex> l_Guard(m_BakeLock);
+		moveCacheData();
+		stopBake();
+		return;
+	}
+
+	if( l_pRefInfo->z >= int(EngineSetting::singleton().m_LightMapSample) )
 	{
 		l_pRefInfo->z -= EngineSetting::singleton().m_LightMapSample;
 		assignRaytraceInfo();
 		m_pIndicies->sync(true, 0, sizeof(int) * 8);
 	}
 
+	a_pCmd->begin(true);
 
+	a_pCmd->useProgram(m_pRayIntersectMatInst->getProgram());
+	m_pRayIntersectMatInst->bindAll(a_pCmd);
+	a_pCmd->compute(EngineSetting::singleton().m_LightMapSample / 16);
+	
+	a_pCmd->end();
+
+	for( unsigned int i=0 ; i<m_LightMapMaterialCache.size() ; ++i )
+	{
+		a_pCmd->begin(true);
+		
+		a_pCmd->useProgram(m_pRayScatterMatInst->getProgram());
+
+		m_pRayIntersectMatInst->setParam("c_MatID", 0, i);
+		m_pRayIntersectMatInst->setTexture("BaseColor", m_LightMapMaterialCache[i].m_BaseColor);
+		m_pRayIntersectMatInst->setTexture("Normal", m_LightMapMaterialCache[i].m_Normal);
+		m_pRayIntersectMatInst->setTexture("Surface", m_LightMapMaterialCache[i].m_Surface);
+		m_pRayIntersectMatInst->bindAll(a_pCmd);
+		a_pCmd->compute(EngineSetting::singleton().m_LightMapSample / 16);
+
+		a_pCmd->end();
+	}
 }
 
 void WorldAsset::stopBake()
@@ -306,12 +368,29 @@ void WorldAsset::stopBake()
 	if( !m_bBaking ) return;
 	
 	m_BoxCache.clear();
+	m_LightMapMaterialCache.clear();
 	m_pIndicies = nullptr;
 	m_pBoxCache = nullptr;
 	m_pVertex = nullptr;
 	m_pResult = nullptr;
 	m_pHarmonicsCache = nullptr;
-	m_LightMap.clear();
+
+	m_pRayIntersectMatInst->setBlock("g_Indicies", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_Harmonics", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_DirLights", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_OmniLights", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_SpotLights", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_Box", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_Vertex", nullptr);
+	m_pRayIntersectMatInst->setBlock("g_Result", nullptr);
+
+	m_pRayScatterMatInst->setBlock("g_Indicies", nullptr);
+	m_pRayScatterMatInst->setBlock("g_Harmonics", nullptr);
+	m_pRayScatterMatInst->setBlock("g_Vertex", nullptr);
+	m_pRayScatterMatInst->setBlock("g_Result", nullptr);
+	m_pRayScatterMatInst->setTexture("g_BaseColor", nullptr);
+    m_pRayScatterMatInst->setTexture("g_Normal", nullptr);
+    m_pRayScatterMatInst->setTexture("g_Surface", nullptr);
 
 	m_bBaking = false;
 }
@@ -517,7 +596,7 @@ void WorldAsset::assignInitRaytraceInfo()
 	};
 	l_CurrFunc = l_FirstFunc;
 
-	for( int i=0 ; i<l_NumBox ; ++i )
+	for( unsigned int i=0 ; i<l_NumBox ; ++i )
 	{
 		LightMapBoxCache *l_pBox = reinterpret_cast<LightMapBoxCache *>(m_pBoxCache->getBlockPtr(i));
 		for( unsigned int j=0 ; j<64 ; ++j )
@@ -578,6 +657,30 @@ assignRaytraceInfoEnd:
 		l_pNextRefInfo->y = -1;
 		l_pNextRefInfo->z = -1;
 	}
+}
+
+void WorldAsset::moveCacheData()
+{
+	m_pHarmonics = m_pHarmonicsCache;
+
+	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
+	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
+	std::vector<ProgramBlockDesc *> &l_Blocks = l_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
+ 	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "RootBox" == a_pDesc->m_Name; });
+	m_pBoxes = MaterialBlock::create(ShaderRegType::UavBuffer, *it, l_NumBox);
+	for( unsigned int i=0 ; i<l_NumBox ; ++i )
+	{
+		LightMapBoxCache *l_pSrc = reinterpret_cast<LightMapBoxCache*>(m_pBoxCache->getBlockPtr(i));
+		LightMapBox *l_pDst = reinterpret_cast<LightMapBox*>(m_pBoxes->getBlockPtr(i));
+
+		l_pDst->m_BoxCenter = l_pSrc->m_BoxCenter;
+		l_pDst->m_BoxSize = l_pDst->m_BoxSize;
+		memcpy(l_pDst->m_Children, l_pSrc->m_Children, sizeof(int) * 8);
+		l_pDst->m_Level = l_pSrc->m_Level;
+		l_pDst->m_LeafDist = std::roundf(std::log2f(l_pDst->m_BoxSize.x)) - l_pDst->m_Level;
+		memcpy(l_pDst->m_SHResult, l_pSrc->m_SHResult, sizeof(int) * 64);
+	}
+	m_pBoxes->sync(true);
 }
 #pragma endregion
 

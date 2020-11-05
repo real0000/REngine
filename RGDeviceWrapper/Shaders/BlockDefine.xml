@@ -56,9 +56,9 @@
   </UavBuffer>
   <UavBuffer name="LightmapBox">
     <Param name="m_BoxCenter" desc="" type="float3"/>
-    <Param name="m_Parent" desc="" type="int1"/>
+    <Param name="m_Level" desc="" type="int1"/>
     <Param name="m_BoxSize" desc="" type="float3"/>
-    <Param name="m_Edge" desc="" type="int1"/>
+    <Param name="m_LeafDist" desc="" type="int1"/>
     <Param name="m_SHResult" desc="" type="int4" size="16"/>
     <Param name="m_Children" desc="" type="int4" size="2"/>
   </UavBuffer>  

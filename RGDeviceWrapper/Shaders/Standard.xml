@@ -5,6 +5,7 @@
     <UavBuffer name="m_NormalTransition" preDef="TransformInfo" write="false"/>
     <Srv2D name="BaseColor" desc="" reserved="false"/>
     <Srv2D name="Normal" desc="" reserved="false"/>
+    <Srv2D name="Surface" desc="" reserved="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
@@ -19,8 +20,8 @@
       </TessEval>
       <Compute>
       </Compute>-->
-      <Fragment file="TextureOnly.pixel">
-        BaseColor, Normal
+      <Fragment file="Standard.pixel">
+        BaseColor, Normal, Surface
       </Fragment>
     </Model_5_1>
   </Shaders>
