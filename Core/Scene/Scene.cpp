@@ -27,8 +27,7 @@ namespace R
 // SharedSceneMember
 //
 SharedSceneMember::SharedSceneMember()
-	: m_pRenderer(nullptr)
-	, m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
+	: m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
 	, m_pScene(nullptr)
 	, m_pSceneNode(nullptr)
 {
@@ -45,7 +44,6 @@ SharedSceneMember::~SharedSceneMember()
 SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
 {
 	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
-	m_pRenderer = a_Src.m_pRenderer;
 	m_pBatcher = a_Src.m_pBatcher;
 	m_pDirLights = a_Src.m_pDirLights;
 	m_pOmniLights = a_Src.m_pOmniLights;
@@ -473,6 +471,7 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 Scene::Scene()
 	: m_bLoading(false), m_LoadingProgress(0.0f), m_LoadingCompleteCallback(nullptr)
+	, m_pRenderer(nullptr)
 	, m_pMembers(new SharedSceneMember)
 	, m_pCurrCamera(nullptr)
 	, m_bActivate(true)
@@ -507,7 +506,7 @@ void Scene::initEmpty()
 	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
 	m_pMembers->m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pMembers->m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
-	m_pMembers->m_pRenderer = new DeferredRenderer(m_pMembers);
+	m_pRenderer = new DeferredRenderer(m_pMembers);
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pMembers->m_pSceneNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
@@ -604,7 +603,7 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	// to do : update shadow map, enviroment map ... etc
 	//
 
-	m_pMembers->m_pRenderer->render(m_pCurrCamera, a_pCanvas);
+	m_pRenderer->render(m_pCurrCamera, a_pCanvas);
 	m_pMembers->m_pBatcher->renderEnd();
 }
 
@@ -677,7 +676,7 @@ void Scene::clear()
 		}
 		memset(m_pMembers->m_pGraphs, NULL, sizeof(ScenePartition *) * SharedSceneMember::NUM_GRAPH_TYPE);
 	}
-	SAFE_DELETE(m_pMembers->m_pRenderer)
+	SAFE_DELETE(m_pRenderer)
 	SAFE_DELETE(m_pMembers->m_pBatcher)
 	if( nullptr != m_pMembers->m_pDirLights ) m_pMembers->m_pDirLights->clear();
 	if( nullptr != m_pMembers->m_pOmniLights ) m_pMembers->m_pOmniLights->clear();

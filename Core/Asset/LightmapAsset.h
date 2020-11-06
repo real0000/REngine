@@ -1,10 +1,10 @@
-// WorldAsset.h
+// LightmapAsset.h
 //
 // 2020/09/11 Ian Wu/Real0000
 //
 
-#ifndef _WORLD_ASSET_H_
-#define _WORLD_ASSET_H_
+#ifndef _LIGHTMAP_ASSET_H_
+#define _LIGHTMAP_ASSET_H_
 
 #include "AssetBase.h"
 
@@ -12,17 +12,20 @@ namespace R
 {
 
 struct SharedSceneMember;
+class Light;
+class MaterialAsset;
+class MaterialBlock;
 
-class WorldAsset : public AssetComponent
+class LightmapAsset : public AssetComponent
 {
 public:
-	WorldAsset();
-	virtual ~WorldAsset();
+	LightmapAsset();
+	virtual ~LightmapAsset();
 
 	static void validImportExt(std::vector<wxString> &a_Output){}
-	static wxString validAssetKey(){ return wxT("World"); }
+	static wxString validAssetKey(){ return wxT("Lightmap"); }
 
-	virtual wxString getAssetExt(){ return WorldAsset::validAssetKey(); }
+	virtual wxString getAssetExt(){ return LightmapAsset::validAssetKey(); }
 	virtual void importFile(wxString a_File){}
 	virtual void loadFile(boost::property_tree::ptree &a_Src);
 	virtual void saveFile(boost::property_tree::ptree &a_Dst);

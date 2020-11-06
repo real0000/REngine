@@ -49,7 +49,6 @@ struct SharedSceneMember
 	SharedSceneMember& operator=(const SharedSceneMember &a_Src);
 	
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
-	RenderPipeline *m_pRenderer;
 	SceneBatcher *m_pBatcher;
 	LightContainer<DirLight> *m_pDirLights;
 	LightContainer<OmniLight> *m_pOmniLights;
@@ -242,7 +241,8 @@ private:
 	bool m_bLoading;
 	float m_LoadingProgress;
 	std::function<void(bool)> m_LoadingCompleteCallback;
-
+	
+	RenderPipeline *m_pRenderer;
 	SharedSceneMember *m_pMembers;
 	std::shared_ptr<CameraComponent> m_pCurrCamera;
 	std::map<wxString, SceneAssetInstance*> m_SceneAssets;

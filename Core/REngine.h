@@ -18,9 +18,9 @@
 #include "StateMachine.h"
 
 #include "Asset/AssetBase.h"
+#include "Asset/LightmapAsset.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
-#include "Asset/SceneAsset.h"
 #include "Asset/TextureAsset.h"
 
 #include "Input/InputMediator.h"

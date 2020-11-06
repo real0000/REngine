@@ -70,9 +70,6 @@
     <ClInclude Include="Asset\MeshAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Asset\SceneAsset.h">
-      <Filter>Asset</Filter>
-    </ClInclude>
     <ClInclude Include="Asset\TextureAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
@@ -82,7 +79,7 @@
     <ClInclude Include="Asset\MaterialAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Asset\WorldAsset.h">
+    <ClInclude Include="Asset\LightmapAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
   </ItemGroup>
@@ -135,9 +132,6 @@
     <ClCompile Include="Asset\MeshAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
-    <ClCompile Include="Asset\SceneAsset.cpp">
-      <Filter>Asset</Filter>
-    </ClCompile>
     <ClCompile Include="Asset\TextureAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
@@ -147,7 +141,7 @@
     <ClCompile Include="Asset\MaterialAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
-    <ClCompile Include="Asset\WorldAsset.cpp">
+    <ClCompile Include="Asset\LightmapAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,4 +1,4 @@
-// WorldAsset.cpp
+// LightmapAsset.cpp
 //
 // 2020/09/11 Ian Wu/Real0000
 //
@@ -15,7 +15,7 @@
 #include "Scene/Graph/Octree.h"
 #include "Scene/Graph/ScenePartition.h"
 #include "Scene/Scene.h"
-#include "WorldAsset.h"
+#include "LightmapAsset.h"
 
 namespace R
 {
@@ -31,7 +31,7 @@ namespace R
 //
 // WorldAsset
 //
-WorldAsset::WorldAsset()
+LightmapAsset::LightmapAsset()
 	: m_bBaking(false)
 	, m_pRayIntersectMat(AssetManager::singleton().createAsset(LIGHTMAP_INTERSECT_ASSET_NAME).second)
 	, m_pRayScatterMat(AssetManager::singleton().createAsset(LIGHTMAP_SCATTER_ASSET_NAME).second)
@@ -46,7 +46,7 @@ WorldAsset::WorldAsset()
 	m_pRayScatterMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayScatter));
 }
 
-WorldAsset::~WorldAsset()
+LightmapAsset::~LightmapAsset()
 {
 	stopBake();
 
@@ -58,17 +58,58 @@ WorldAsset::~WorldAsset()
 	m_pRayScatterMat = nullptr;
 }
 
-void WorldAsset::loadFile(boost::property_tree::ptree &a_Src)
+void LightmapAsset::loadFile(boost::property_tree::ptree &a_Src)
 {
-	
+	std::lock_guard<std::mutex> l_Locker(m_BakeLock);
+	stopBake();
+
+	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
+
+	unsigned int l_NumBox = l_Root.get("Box.<xmlattr>.num", 0);
+	unsigned int l_NumHarmonic = l_Root.get("Harmonics.<xmlattr>.num", 0);
+
+	std::vector<char> l_Buffer;
+	base642Binary(l_Root.get_child("Box").data(), l_Buffer);
+
+	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
+	std::vector<ProgramBlockDesc *> &l_Blocks = l_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
+ 	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "RootBox" == a_pDesc->m_Name; });
+	m_pBoxes = MaterialBlock::create(ShaderRegType::UavBuffer, *it, l_NumBox);
+	memcpy(m_pBoxes->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
+	m_pBoxes->sync(true);
+
+	base642Binary(l_Root.get_child("Harmonics").data(), l_Buffer);
+	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumBox);
+	memcpy(m_pHarmonics->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
+	m_pHarmonics->sync(true);
 }
 
-void WorldAsset::saveFile(boost::property_tree::ptree &a_Dst)
+void LightmapAsset::saveFile(boost::property_tree::ptree &a_Dst)
 {
+	std::lock_guard<std::mutex> l_Locker(m_BakeLock);
+	if( nullptr == m_pBoxes ) return;
+
+	boost::property_tree::ptree l_Root;
+
+	std::string l_RawData;
+	binary2Base64(m_pBoxes->getBlockPtr(0), m_pBoxes->getNumSlot() * sizeof(LightMapBox), l_RawData);
+	l_Root.put("Box", l_RawData);
+
+	boost::property_tree::ptree l_BoxAttr;
+	l_BoxAttr.add("num", m_pBoxes->getNumSlot());
+	l_Root.add_child("Box.<xmlattr>", l_BoxAttr);
 	
+	binary2Base64(m_pHarmonics->getBlockPtr(0), m_pHarmonics->getNumSlot() * sizeof(glm::ivec4), l_RawData);
+	l_Root.put("Harmonics", l_RawData);
+	
+	boost::property_tree::ptree l_HarmonicAttr;
+	l_BoxAttr.add("num", m_pHarmonics->getNumSlot());
+	l_Root.add_child("Harmonics.<xmlattr>", l_HarmonicAttr);
+
+	a_Dst.add_child("root", l_Root);
 }
 
-void WorldAsset::bake(SharedSceneMember *a_pMember)
+void LightmapAsset::bake(SharedSceneMember *a_pMember)
 {
 	std::lock_guard<std::mutex> l_Locker(m_BakeLock);
 
@@ -318,7 +359,7 @@ void WorldAsset::bake(SharedSceneMember *a_pMember)
 	m_bBaking = true;
 }
 
-void WorldAsset::stepBake(GraphicCommander *a_pCmd)
+void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 {
 	m_pIndicies->sync(false, 0, sizeof(int) * 8);
 	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
@@ -363,7 +404,7 @@ void WorldAsset::stepBake(GraphicCommander *a_pCmd)
 	}
 }
 
-void WorldAsset::stopBake()
+void LightmapAsset::stopBake()
 {
 	if( !m_bBaking ) return;
 	
@@ -395,7 +436,7 @@ void WorldAsset::stopBake()
 	m_bBaking = false;
 }
 
-void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, int a_CurrNode, std::set<int> &a_Output)
+void LightmapAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 &a_Pos3, int a_CurrNode, std::set<int> &a_Output)
 {
 	a_Output.insert(a_CurrNode);
 
@@ -473,7 +514,7 @@ void WorldAsset::assignTriangle(glm::vec3 &a_Pos1, glm::vec3 &a_Pos2, glm::vec3 
 	}
 }
 
-void WorldAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &a_Output)
+void LightmapAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &a_Output)
 {
 	a_Output.clear();
 	a_Output.push_back(a_CurrNode);
@@ -519,7 +560,7 @@ void WorldAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int> &
 	}
 }
 
-void WorldAsset::assignNeighbor(int a_CurrNode)
+void LightmapAsset::assignNeighbor(int a_CurrNode)
 {
 	LightMapBoxCache &l_CurrNode = m_BoxCache[a_CurrNode];
 	l_CurrNode.m_Neighbor[NEIGHBOR_INDEX(ZP, ZP, ZP)] = a_CurrNode;
@@ -575,7 +616,7 @@ void WorldAsset::assignNeighbor(int a_CurrNode)
 #undef ASSIGN_NEIGHBOR
 }
 
-void WorldAsset::assignInitRaytraceInfo()
+void LightmapAsset::assignInitRaytraceInfo()
 {
 	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
 	glm::ivec4 *l_pCurrRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
@@ -616,7 +657,7 @@ assignInitRaytraceInfoEnd:
 	}
 }
 
-void WorldAsset::assignRaytraceInfo()
+void LightmapAsset::assignRaytraceInfo()
 {
 	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
 	glm::ivec4 *l_pCurrRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
@@ -659,9 +700,10 @@ assignRaytraceInfoEnd:
 	}
 }
 
-void WorldAsset::moveCacheData()
+void LightmapAsset::moveCacheData()
 {
 	m_pHarmonics = m_pHarmonicsCache;
+	m_pHarmonics->sync(false);
 
 	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
 	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);

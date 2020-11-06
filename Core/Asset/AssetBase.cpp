@@ -6,9 +6,9 @@
 #include "RGDeviceWrapper.h"
 
 #include "AssetBase.h"
+#include "LightmapAsset.h"
 #include "MaterialAsset.h"
 #include "MeshAsset.h"
-#include "SceneAsset.h"
 #include "TextureAsset.h"
 
 namespace R
@@ -27,10 +27,10 @@ AssetManager& AssetManager::singleton()
 AssetManager::AssetManager()
 	: SearchPathSystem(std::bind(&AssetManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&defaultNewFunc<Asset>))
 {
-	registAssetComponent<TextureAsset>();
+	registAssetComponent<LightmapAsset>();
 	registAssetComponent<MaterialAsset>();
 	registAssetComponent<MeshAsset>();
-	registAssetComponent<SceneAsset>();
+	registAssetComponent<TextureAsset>();
 }
 
 AssetManager::~AssetManager()
