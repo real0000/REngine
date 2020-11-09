@@ -10,7 +10,7 @@ namespace R
 {
 
 struct SharedSceneMember;
-class CameraComponent;
+class Camera;
 class RenderableComponent;
 
 #define INIT_CONTAINER_SIZE 1024// general setting
@@ -23,7 +23,7 @@ public:
 	RenderPipeline(SharedSceneMember *a_pSharedMember);
 	virtual ~RenderPipeline();
 
-	virtual void render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
+	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
 
 protected:
 	SharedSceneMember* getSharedMember(){ return m_pSharedMember; }

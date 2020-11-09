@@ -44,7 +44,7 @@ void NoPartition::clear()
 	m_Container.clear();
 }
 
-void NoPartition::getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
+void NoPartition::getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
 {
 	getAllComponent(a_Output);
 }

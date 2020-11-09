@@ -15,9 +15,10 @@ struct SharedSceneMember;
 class MaterialBlock;
 class TextureAsset;
 
-class CameraComponent : public RenderableComponent
+class Camera : public RenderableComponent
 {
 	friend class EngineComponent;
+	COMPONENT_HEADER(Camera)
 public:
 	enum
 	{
@@ -48,7 +49,7 @@ public:
 		TETRAHEDRON,
 		CUBE,
 	};
-	virtual ~CameraComponent();// don't call this method directly
+	virtual ~Camera();// don't call this method directly
 	
 	virtual void postInit();
 	virtual void start();
@@ -57,7 +58,6 @@ public:
 
 	virtual void setShadowed(bool a_bShadow){}
 	virtual bool getShadowed(){ return false; }
-	virtual unsigned int typeID(){ return COMPONENT_CAMERA; }
 	
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
@@ -78,11 +78,11 @@ public:
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 
 private:
-	CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	Camera(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
 
-	void calView(glm::mat4x4 &a_NewTransform);
-	void calProjection(glm::mat4x4 &a_NewTransform);
-	void calViewProjection(glm::mat4x4 &a_NewTransform);
+	void calView(const glm::mat4x4 &a_NewTransform);
+	void calProjection(const glm::mat4x4 &a_NewTransform);
+	void calViewProjection(const glm::mat4x4 &a_NewTransform);
 
 	glm::mat4x4 m_Matrices[NUM_MATRIX];
 	glm::vec4 m_ViewParam;

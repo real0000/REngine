@@ -204,6 +204,13 @@ void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_Sc
 	a_RotOut = glm::quat_cast(glm::mat3x3(l_Col1, l_Col2, l_Col3));
 }
 
+void composeTRS(const glm::vec3 &a_Trans, const glm::vec3 &a_Scale, const glm::quat &a_Rot, glm::mat4 &a_MatOut)
+{
+	a_MatOut = glm::scale(glm::identity<glm::mat4x4>(), a_Scale);
+	a_MatOut = glm::mat4_cast(a_Rot) * a_MatOut;
+	a_MatOut = glm::translate(a_MatOut, a_Trans);
+}
+
 unsigned int getPixelSize(PixelFormat::Key a_Key)
 {
 	assert(PixelFormat::unknown != a_Key);

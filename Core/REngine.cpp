@@ -8,7 +8,12 @@
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 #include "Input/InputMediator.h"
+
+#include "RenderObject/Light.h"
+#include "RenderObject/Mesh.h"
+#include "Scene/Camera.h"
 #include "Scene/Scene.h"
+
 #include "Asset/AssetBase.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/TextureAsset.h"
@@ -277,6 +282,11 @@ EngineCore::EngineCore()
 	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 {
+	SceneNode::registComponentReflector<Camera>();
+	SceneNode::registComponentReflector<RenderableMesh>();
+	SceneNode::registComponentReflector<OmniLight>();
+	SceneNode::registComponentReflector<SpotLight>();
+	SceneNode::registComponentReflector<DirLight>();
 }
 
 EngineCore::~EngineCore()

@@ -11,7 +11,7 @@
 namespace R
 {
 	
-class CameraComponent;
+class Camera;
 class MaterialBlock;
 class SceneNode;
 
@@ -31,10 +31,10 @@ public:
 
 	virtual unsigned int getID() = 0;
 
-	std::shared_ptr<CameraComponent> getShadowCamera(){ return m_pShadowCamera; }
+	std::shared_ptr<Camera> getShadowCamera(){ return m_pShadowCamera; }
 
 private:
-	std::shared_ptr<CameraComponent> m_pShadowCamera;
+	std::shared_ptr<Camera> m_pShadowCamera;
 	bool m_bStatic;
 };
 
@@ -141,12 +141,12 @@ class DirLight : public Light
 {
 	friend class EngineComponent;
 	friend class LightContainer<DirLight>;// for id set
+	COMPONENT_HEADER(DirLight)
 public:
 	virtual ~DirLight();
 	
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
-	virtual unsigned int typeID(){ return COMPONENT_DIR_LIGHT; }
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
@@ -183,17 +183,16 @@ private:
 	unsigned int m_ID;
 };
 
-// use OmniLights::create to create this class instance
 class OmniLight : public Light
 {
 	friend class EngineComponent;
 	friend class LightContainer<OmniLight>;// for id set
+	COMPONENT_HEADER(OmniLight)
 public:
 	virtual ~OmniLight();
 	
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
-	virtual unsigned int typeID(){ return COMPONENT_OMNI_LIGHT; }
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	
@@ -236,17 +235,16 @@ private:
 	unsigned int m_ID;
 };
 
-// use SpotLights::create to create this class instance
 class SpotLight : public Light
 {
 	friend class EngineComponent;
 	friend class LightContainer<SpotLight>;// for id set
+	COMPONENT_HEADER(SpotLight)
 public:
 	virtual ~SpotLight();
 	
 	virtual void end();
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
-	virtual unsigned int typeID(){ return COMPONENT_SPOT_LIGHT; }
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	

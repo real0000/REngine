@@ -16,11 +16,11 @@
 namespace R
 {
 
-#pragma region CameraComponent
+#pragma region Camera
 //
 // Camera
 //
-CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+Camera::Camera(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
 	, m_ViewParam(glm::pi<float>() / 3.0f, 16.0f / 9.0f, 0.1f, 10000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
@@ -36,52 +36,52 @@ CameraComponent::CameraComponent(SharedSceneMember *a_pSharedMember, std::shared
 	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
 }
 
-CameraComponent::~CameraComponent()
+Camera::~Camera()
 {
 	m_pCameraBlock = nullptr;
 }
 
-void CameraComponent::postInit()
+void Camera::postInit()
 {
 	RenderableComponent::postInit();
 	addTransformListener();
 }
 
-void CameraComponent::start()
+void Camera::start()
 {
-	auto l_pThis = shared_from_base<CameraComponent>();
+	auto l_pThis = shared_from_base<Camera>();
 	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(l_pThis);
 }
 
-void CameraComponent::end()
+void Camera::end()
 {
-	auto l_pThis = shared_from_base<CameraComponent>();
+	auto l_pThis = shared_from_base<Camera>();
 	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(l_pThis);
 }
 
-void CameraComponent::hiddenFlagChanged()
+void Camera::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(shared_from_base<CameraComponent>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(shared_from_base<Camera>());
 		removeTransformListener();
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(shared_from_base<CameraComponent>());
+		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(shared_from_base<Camera>());
 		addTransformListener();
 	}
 }
 
-void CameraComponent::loadComponent(boost::property_tree::ptree &a_Src)
+void Camera::loadComponent(boost::property_tree::ptree &a_Src)
 {
 }
 
-void CameraComponent::saveComponent(boost::property_tree::ptree &a_Dst)
+void Camera::saveComponent(boost::property_tree::ptree &a_Dst)
 {
 }
 
-void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
+void Camera::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
@@ -90,7 +90,7 @@ void CameraComponent::setOrthoView(float a_Width, float a_Height, float a_Near, 
 	calProjection(a_Transform);
 }
     
-void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform)
+void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, m_ViewParam.w);
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
@@ -98,19 +98,19 @@ void CameraComponent::setPerspectiveView(float a_Fovy, float a_Aspect, float a_N
 	calProjection(a_Transform);
 }
 
-void CameraComponent::setTetrahedonView(glm::mat4x4 &a_Transform)
+void Camera::setTetrahedonView(glm::mat4x4 &a_Transform)
 {
 	m_Type = TETRAHEDRON;
 	calViewProjection(a_Transform);
 }
 
-void CameraComponent::setCubeView(glm::mat4x4 &a_Transform)
+void Camera::setCubeView(glm::mat4x4 &a_Transform)
 {
 	m_Type = CUBE;
 	calViewProjection(a_Transform);
 }
 
-void CameraComponent::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
+void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 {
 	assert(m_Type == ORTHO || m_Type == PERSPECTIVE);
 
@@ -120,12 +120,12 @@ void CameraComponent::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::ve
 	a_Up  = glm::normalize(glm::vec3(l_World[1][0], l_World[1][1], l_World[1][2]));
 }
 
-void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
+void Camera::transformListener(glm::mat4x4 &a_NewTransform)
 {
 	calView(a_NewTransform);
 	
 	SharedSceneMember *l_pMember = getSharedMember();
-	auto l_pThis = shared_from_base<CameraComponent>();
+	auto l_pThis = shared_from_base<Camera>();
 	if( !isHidden() )
 	{
 		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
@@ -135,7 +135,7 @@ void CameraComponent::transformListener(glm::mat4x4 &a_NewTransform)
 	}
 }
 
-void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
+void Camera::calView(const glm::mat4x4 &a_NewTransform)
 {
 	switch( m_Type )
 	{
@@ -157,7 +157,7 @@ void CameraComponent::calView(glm::mat4x4 &a_NewTransform)
 	calViewProjection(a_NewTransform);
 }
 
-void CameraComponent::calProjection(glm::mat4x4 &a_NewTransform)
+void Camera::calProjection(const glm::mat4x4 &a_NewTransform)
 {
     switch( m_Type )
 	{
@@ -178,7 +178,7 @@ void CameraComponent::calProjection(glm::mat4x4 &a_NewTransform)
 	calViewProjection(a_NewTransform);
 }
 
-void CameraComponent::calViewProjection(glm::mat4x4 &a_NewTransform)
+void Camera::calViewProjection(const glm::mat4x4 &a_NewTransform)
 {
 	switch( m_Type )
 	{

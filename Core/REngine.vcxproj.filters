@@ -82,6 +82,12 @@
     <ClInclude Include="Asset\LightmapAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
+    <ClInclude Include="Asset\PrefabAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset\SceneAsset.h">
+      <Filter>Asset</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -142,6 +148,12 @@
       <Filter>Asset</Filter>
     </ClCompile>
     <ClCompile Include="Asset\LightmapAsset.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\PrefabAsset.cpp">
+      <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Asset\SceneAsset.cpp">
       <Filter>Asset</Filter>
     </ClCompile>
   </ItemGroup>

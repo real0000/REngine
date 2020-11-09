@@ -162,7 +162,7 @@ DeferredRenderer::~DeferredRenderer()
 	m_TiledValidLightIdx = nullptr;
 }
 
-void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, GraphicCanvas *a_pCanvas)
+void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)
 {
 	std::vector<std::shared_ptr<RenderableComponent>> l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes;
 	if( !setupVisibleList(a_pCamera, l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes) )
@@ -206,9 +206,9 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 				});
 				switch( l_pLight->getID() )
 				{
-					case COMPONENT_DIR_LIGHT:	l_DirLights.push_back(l_Lights[i]->shared_from_base<DirLight>());	break;
-					case COMPONENT_OMNI_LIGHT:	l_OmniLights.push_back(l_Lights[i]->shared_from_base<OmniLight>());	break;
-					case COMPONENT_SPOT_LIGHT:	l_SpotLights.push_back(l_Lights[i]->shared_from_base<SpotLight>());	break;
+					case COMPONENT_DirLight:	l_DirLights.push_back(l_Lights[i]->shared_from_base<DirLight>());	break;
+					case COMPONENT_OmniLight:	l_OmniLights.push_back(l_Lights[i]->shared_from_base<OmniLight>());	break;
+					case COMPONENT_SpotLight:	l_SpotLights.push_back(l_Lights[i]->shared_from_base<SpotLight>());	break;
 					default:break;
 				}
 			}
@@ -450,7 +450,7 @@ void DeferredRenderer::render(std::shared_ptr<CameraComponent> a_pCamera, Graphi
 	}
 }
 
-bool DeferredRenderer::setupVisibleList(std::shared_ptr<CameraComponent> a_pCamera
+bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
 {
@@ -488,16 +488,16 @@ void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComp
 	m_LightIdx->sync(true);
 }
 
-unsigned int DeferredRenderer::calculateShadowMapRegion(std::shared_ptr<CameraComponent> a_pCamera, std::shared_ptr<Light> &a_Light)
+unsigned int DeferredRenderer::calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light)
 {
-	if( COMPONENT_DIR_LIGHT == a_Light->typeID() ) return 1024;
-	assert(a_pCamera->getCameraType() == CameraComponent::ORTHO || a_pCamera->getCameraType() == CameraComponent::PERSPECTIVE);
+	if( COMPONENT_DirLight == a_Light->typeID() ) return 1024;
+	assert(a_pCamera->getCameraType() == Camera::ORTHO || a_pCamera->getCameraType() == Camera::PERSPECTIVE);
 
 	glm::sphere l_Sphere(glm::vec3(a_Light->boundingBox().m_Center), glm::length(a_Light->boundingBox().m_Size) * 0.5);
 	if( l_Sphere.m_Range <= glm::epsilon<float>() ) return 32;
 
 	float l_SliceLength = 0.0f;
-	if( a_pCamera->getCameraType() == CameraComponent::ORTHO ) l_SliceLength = std::min(a_pCamera->getViewParam().x, a_pCamera->getViewParam().y);
+	if( a_pCamera->getCameraType() == Camera::ORTHO ) l_SliceLength = std::min(a_pCamera->getViewParam().x, a_pCamera->getViewParam().y);
 	else
 	{
 		glm::vec3 l_Eye, l_Dir, l_Up;
@@ -528,7 +528,7 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 	glm::vec4 l_UV[4];
 	unsigned int l_LayerID[4];
 
-	unsigned int l_Loop = COMPONENT_DIR_LIGHT == a_Light->typeID() ? 4 : 1;
+	unsigned int l_Loop = COMPONENT_DirLight == a_Light->typeID() ? 4 : 1;
 	{
 		std::lock_guard<std::mutex> l_Guard(m_ShadowMapLock);
 		for( unsigned int i=0 ; i<l_Loop ; ++i )
@@ -542,17 +542,17 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 	
 	switch( a_Light->typeID() )
 	{
-		case COMPONENT_OMNI_LIGHT:{
+		case COMPONENT_OmniLight:{
 			OmniLight *l_pCasted = reinterpret_cast<OmniLight *>(a_Light.get());
 			l_pCasted->setShadowMapUV(l_UV[0], l_LayerID[0]);
 			}return;
 
-		case COMPONENT_SPOT_LIGHT:{
+		case COMPONENT_SpotLight:{
 			SpotLight *l_pCasted = reinterpret_cast<SpotLight *>(a_Light.get());
 			l_pCasted->setShadowMapUV(l_UV[0], l_LayerID[0]);
 			}return;
 
-		case COMPONENT_DIR_LIGHT:{
+		case COMPONENT_DirLight:{
 			DirLight *l_pCasted = reinterpret_cast<DirLight *>(a_Light.get());
 			for( unsigned int i=0 ; i<4 ; ++i ) l_pCasted->setShadowMapLayer(i, l_UV[i], l_LayerID[i]);
 			}return;
@@ -562,7 +562,7 @@ void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_p
 	assert(false && "invalid light type");
 }
 
-void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
+void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)
 {
 	/*unsigned int l_StageID = static_cast<RenderableMesh *>(a_Mesh.front().get())->getStage();
 	for( unsigned int i=0 ; i<a_Mesh.size() ; ++i )
@@ -584,7 +584,7 @@ void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<CameraComponent> a_pCamera
 	}*/
 }
 
-void DeferredRenderer::drawMesh(std::shared_ptr<CameraComponent> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
+void DeferredRenderer::drawMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End)
 {
 	unsigned int l_CommandCount = m_DrawCommand.size();
 

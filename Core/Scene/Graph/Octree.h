@@ -44,7 +44,7 @@ public:
 	virtual void remove(std::shared_ptr<RenderableComponent> a_pComponent);
 	virtual void clear();
 
-	virtual void getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
+	virtual void getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 
 	void setEdge(float a_Edge){ m_Edge = a_Edge; }

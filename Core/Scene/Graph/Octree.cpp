@@ -128,7 +128,7 @@ void OctreePartition::clear()
 	m_pRoot->clear();
 }
 
-void OctreePartition::getVisibleList(std::shared_ptr<CameraComponent> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output)
+void OctreePartition::getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output)
 {
 	flush();
 	assignBoxIntersect(a_pTargetCamera->getFrustum(), m_pRoot, a_Output);

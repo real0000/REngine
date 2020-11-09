@@ -69,6 +69,7 @@ void base642Binary(std::string &a_Src, std::vector<char> &a_Output);
 //void showOpenGLErrorCode(wxString a_StepInfo);
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut);
+void composeTRS(const glm::vec3 &a_Trans, const glm::vec3 &a_Scale, const glm::quat &a_Rot, glm::mat4 &a_MatOut);
 
 template<typename T>
 std::shared_ptr<T> defaultNewFunc()

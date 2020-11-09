@@ -522,7 +522,7 @@ void LightmapAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int
 	std::function<bool(Light*, LightMapBoxCache*)> l_pCheckFunc = nullptr;
 	switch( a_pLight->typeID() )
 	{
-		case COMPONENT_OMNI_LIGHT:
+		case COMPONENT_OmniLight:
 			l_pCheckFunc = [&](Light *a_pThisLight, LightMapBoxCache *a_pCurrNode) -> bool
 			{
 				OmniLight *l_pInst = reinterpret_cast<OmniLight *>(a_pThisLight);
@@ -532,7 +532,7 @@ void LightmapAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int
 			};
 			break;
 
-		case COMPONENT_SPOT_LIGHT:
+		case COMPONENT_SpotLight:
 			l_pCheckFunc = [&](Light *a_pThisLight, LightMapBoxCache *a_pCurrNode) -> bool
 			{
 				SpotLight *l_pInst = reinterpret_cast<SpotLight *>(a_pThisLight);
@@ -542,7 +542,7 @@ void LightmapAsset::assignLight(Light *a_pLight, int a_CurrNode, std::vector<int
 			};
 			break;
 
-		case COMPONENT_DIR_LIGHT:
+		case COMPONENT_DirLight:
 			l_pCheckFunc = [&](Light*, LightMapBoxCache*) -> bool{ return true; };
 			break;
 

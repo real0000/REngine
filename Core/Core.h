@@ -25,11 +25,11 @@ STRING_ENUM_CLASS(GraphicApi,
 enum ComponentDefine
 {
 	// common component
-	COMPONENT_CAMERA = 0,
-	COMPONENT_MESH,
-	COMPONENT_OMNI_LIGHT,
-	COMPONENT_SPOT_LIGHT,
-	COMPONENT_DIR_LIGHT,
+	COMPONENT_Camera = 0,
+	COMPONENT_RenderableMesh,
+	COMPONENT_OmniLight,
+	COMPONENT_SpotLight,
+	COMPONENT_DirLight,
 	//COMPONENT_VOXEL_TERRAIN,
 
 	CUSTOM_COMPONENT,// all custom component type id must >= this value
@@ -79,11 +79,11 @@ public:
 	virtual void hiddenFlagChanged(){}
 
 	virtual unsigned int typeID() = 0;
-	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
-	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
+	virtual void loadComponent(boost::property_tree::ptree &a_Src) = 0;
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst) = 0;
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
-	virtual void transformListener(glm::mat4x4 &a_NewTransform){}
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform){}
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
@@ -125,6 +125,10 @@ private:
 	wxString m_Name;
 	SharedSceneMember *m_pMembers;
 };
+#define COMPONENT_HEADER(className) \
+	public:\
+		virtual unsigned int typeID(){ return COMPONENT_##className; }\
+		static std::string typeName(){ return #className; }
 
 class EngineSetting
 {
@@ -171,7 +175,7 @@ public:
 	GraphicCanvas* createCanvas();
 	// for tool window
 	GraphicCanvas* createCanvas(wxWindow *a_pParent);
-	
+
 	bool isShutdown();
 	void shutDown();
 

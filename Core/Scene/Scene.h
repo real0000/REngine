@@ -11,7 +11,7 @@ namespace R
 
 struct InputData;
 struct SharedBatchData;
-class CameraComponent;
+class Camera;
 class DirLight;
 class EngineComponent;
 class GraphicCommander;
@@ -124,25 +124,44 @@ public:
 	static std::shared_ptr<SceneNode> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name = wxT("NoName"));
 
 	std::shared_ptr<SceneNode> addChild();
+	void addChild(boost::property_tree::ptree &a_pTreeNode);
+	
+	template<typename T>
+	static void registComponentReflector()
+	{
+		std::string l_Name(T::typeName());
+		assert(m_ComponentReflector.end() == m_ComponentReflector.find(l_Name));
+		m_ComponentReflector.insert(std::make_pair(l_Name, [=](std::shared_ptr<SceneNode> a_pOwner) -> std::shared_ptr<EngineComponent>
+		{
+			return a_pOwner->addComponent<T>();
+		}));
+	}
 	template<typename T>
 	std::shared_ptr<T> addComponent()
 	{
 		return EngineComponent::create<T>(m_pMembers, shared_from_this());
 	}
+	std::shared_ptr<EngineComponent> addComponent(std::string a_Name);
+	void bakeNode(boost::property_tree::ptree &a_pTreeNode);
 	
 	void destroy();
 	void setParent(std::shared_ptr<SceneNode> a_pNewParent);
 	std::shared_ptr<SceneNode> find(wxString a_Name);
 
-	void setTransform(glm::mat4x4 a_Transform);
+	void setTransform(glm::vec3 a_Pos, glm::vec3 a_Scale, glm::quat a_Rot);
+	void setPosition(glm::vec3 a_Pos);
+	void setScale(glm::vec3 a_Scale);
+	void setRotate(glm::quat a_Rot);
 	void update(glm::mat4x4 a_ParentTranform);
 
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	const std::list<std::shared_ptr<SceneNode>>& getChildren(){ return m_Children; }
 	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
-	glm::mat4x4& getTransform(){ return m_World; }
-	glm::mat4x4& getLocalTransform(){ return m_LocalTransform; }
+	const glm::mat4x4& getTransform(){ return m_World; }
+	const glm::vec3& getLocalPos(){ return m_LocalPos; }
+	const glm::vec3& getLocalScale(){ return m_LocalScale; }
+	const glm::quat& getLocalRotate(){ return m_LocalRot; }
 
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector<std::shared_ptr<EngineComponent>> &a_Output);
@@ -167,14 +186,18 @@ private:
 
 	wxString m_Name;
 	glm::mat4x4 m_World;
-	glm::mat4x4 m_LocalTransform;
+	glm::vec3 m_LocalPos, m_LocalScale;
+	glm::quat m_LocalRot;
+	glm::mat4x4 m_LocalTransformCache;
 
 	std::list<std::shared_ptr<SceneNode>> m_Children;
 	SharedSceneMember *m_pMembers;// scene node -> parent
-	std::shared_ptr<Asset> m_pLinkedAsset;//must be scene asset
+	std::shared_ptr<Asset> m_pLinkedAsset;//must be PrefabAsset
 
 	std::list<std::shared_ptr<EngineComponent>> m_TransformListener;// use std::set instead ?
 	std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>> m_Components;
+
+	static std::map<std::string, std::function<std::shared_ptr<EngineComponent>(std::shared_ptr<SceneNode>)>> m_ComponentReflector; 
 };
 
 class Scene : public std::enable_shared_from_this<Scene>
@@ -244,7 +267,7 @@ private:
 	
 	RenderPipeline *m_pRenderer;
 	SharedSceneMember *m_pMembers;
-	std::shared_ptr<CameraComponent> m_pCurrCamera;
+	std::shared_ptr<Camera> m_pCurrCamera;
 	std::map<wxString, SceneAssetInstance*> m_SceneAssets;
 	
 	std::mutex m_InputLocker;

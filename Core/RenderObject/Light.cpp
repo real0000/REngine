@@ -22,7 +22,7 @@ namespace R
 //
 Light::Light(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pSharedMember, a_pOwner)
-	, m_pShadowCamera(EngineComponent::create<CameraComponent>(a_pSharedMember, nullptr))
+	, m_pShadowCamera(EngineComponent::create<Camera>(a_pSharedMember, nullptr))
 	, m_bStatic(false)
 {
 }

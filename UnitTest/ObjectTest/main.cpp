@@ -35,8 +35,11 @@ public:
 		glm::mat4x4 l_World(1.0f);
 		glm::vec3 l_CameraPos(glm::vec3(200.0f * std::sin(m_Angle), 0.0f, 200.0f * std::cos(m_Angle)));
 		l_World = glm::translate(l_World, l_CameraPos);
-		getSharedMember()->m_pSceneNode->setTransform(l_World);
+		//getSharedMember()->m_pSceneNode->setTransform(l_World);
 	}
+
+	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
 
 private:
 	TempComponent(R::SharedSceneMember *a_pSharedMember, std::shared_ptr<R::SceneNode> a_pOwner)

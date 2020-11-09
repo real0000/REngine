@@ -18,6 +18,7 @@ class RenderableMesh : public RenderableComponent
 	friend class EngineComponent;
 	friend class MeshBatcher;
 	typedef std::pair<int, std::shared_ptr<Asset>> MaterialData;
+	COMPONENT_HEADER(RenderableMesh)
 public:
 	virtual ~RenderableMesh();
 	
@@ -27,7 +28,6 @@ public:
 	virtual void updateListener(float a_Delta);
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 
-	virtual unsigned int typeID(){ return COMPONENT_MESH; }
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
