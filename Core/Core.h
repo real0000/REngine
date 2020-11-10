@@ -45,7 +45,6 @@ enum MaterialSlot
 };
 
 struct InputData;
-struct SharedSceneMember;
 class Asset;
 class InputMediator;
 class GraphicCanvas;
@@ -59,9 +58,9 @@ class EngineComponent : public std::enable_shared_from_this<EngineComponent>
 	friend class EngineComponent;
 public:
 	template<typename T>
-	static std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+	static std::shared_ptr<T> create(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
 	{
-		std::shared_ptr<T> l_pNewComponent = std::shared_ptr<T>(new T(a_pSharedMember, a_pOwner));
+		std::shared_ptr<T> l_pNewComponent = std::shared_ptr<T>(new T(a_pRefScene, a_pOwner));
 		l_pNewComponent->postInit();
 		l_pNewComponent->start();
 		return l_pNewComponent;
@@ -79,8 +78,8 @@ public:
 	virtual void hiddenFlagChanged(){}
 
 	virtual unsigned int typeID() = 0;
-	virtual void loadComponent(boost::property_tree::ptree &a_Src) = 0;
-	virtual void saveComponent(boost::property_tree::ptree &a_Dst) = 0;
+	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
+	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
 	virtual bool inputListener(InputData &a_Input){ return false; }
 	virtual void updateListener(float a_Delta){}
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform){}
@@ -97,7 +96,7 @@ public:
 	void detach();
 
 protected:
-	EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	EngineComponent(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~EngineComponent();
 
 	// listener
@@ -111,7 +110,8 @@ protected:
 	void removeTransformListener();
 	
 	//
-	SharedSceneMember* getSharedMember(){ return m_pMembers; }
+	std::shared_ptr<Scene> getScene(){ return m_pRefScene; }
+	std::shared_ptr<SceneNode> getOwner(){ return m_pOwner; }
 
 private:
 	struct
@@ -123,7 +123,8 @@ private:
 
 	bool m_bHidden;
 	wxString m_Name;
-	SharedSceneMember *m_pMembers;
+	std::shared_ptr<Scene> m_pRefScene;
+	std::shared_ptr<SceneNode> m_pOwner;
 };
 #define COMPONENT_HEADER(className) \
 	public:\

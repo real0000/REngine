@@ -19,7 +19,7 @@ class Light : public RenderableComponent
 {
 	friend class EngineComponent;
 public:
-	Light(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	Light(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~Light();
 	
 	virtual void start();
@@ -73,11 +73,12 @@ public:
 		m_ExtendSize = a_NewSize;
 	}
 
-	std::shared_ptr<T> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+	std::shared_ptr<T> create(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
 	{
 		std::lock_guard<std::mutex> l_Guard(m_Locker);
 
-		m_pSharedMember = a_pSharedMember;
+		// for retain use
+		m_pRefScene = a_pRefScene;
 		m_pOwner = a_pOwner;
 
 		std::shared_ptr<T> l_pTarget = nullptr;
@@ -112,8 +113,7 @@ public:
 private:
 	std::shared_ptr<T> newLight()
 	{
-		std::shared_ptr<T> l_pNewLight = EngineComponent::create<T>(m_pSharedMember, m_pOwner);
-		m_pSharedMember = nullptr;
+		std::shared_ptr<T> l_pNewLight = EngineComponent::create<T>(m_pRefScene, m_pOwner);
 		m_pOwner = nullptr;
 		if( 0 == m_FreeCount )
 		{
@@ -126,7 +126,7 @@ private:
 	}
 
 	// temp data
-	SharedSceneMember *m_pSharedMember;
+	std::shared_ptr<Scene> m_pRefScene;
 	std::shared_ptr<SceneNode> m_pOwner;
 
 	bool m_bDirty;
@@ -177,7 +177,7 @@ private:
 		glm::vec4 m_ShadowMapUV[4];
 		glm::mat4x4 m_ShadowMapProj[4];
 	};
-	DirLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	DirLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
@@ -229,7 +229,7 @@ private:
 		float m_Padding1;
 		glm::mat4x4 m_ShadowMapProj[4];
 	};
-	OmniLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	OmniLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 
 	Data *m_pRefParam;
 	unsigned int m_ID;
@@ -285,7 +285,7 @@ private:
 		float m_Padding1;
 		glm::mat4x4 m_ShadowMapProj;
 	};
-	SpotLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	SpotLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 
 	Data *m_pRefParam;
 	unsigned int m_ID;

@@ -16,15 +16,14 @@ namespace R
 //
 // RenderPipeline
 //
-RenderPipeline::RenderPipeline(SharedSceneMember *a_pSharedMember)
-	: m_pSharedMember(new SharedSceneMember())
+RenderPipeline::RenderPipeline(std::shared_ptr<Scene> a_pScene)
+	: m_pRefScene(a_pScene)
 {
-	*m_pSharedMember = *a_pSharedMember;
 }
 
 RenderPipeline::~RenderPipeline()
 {
-	SAFE_DELETE(m_pSharedMember)
+	m_pRefScene = nullptr;
 }
 #pragma endregion
 

@@ -20,8 +20,8 @@ namespace R
 //
 // RenderableComponent
 //
-RenderableComponent::RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: EngineComponent(a_pSharedMember, a_pOwner)
+RenderableComponent::RenderableComponent(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: EngineComponent(a_pRefScene, a_pOwner)
 {
 }
 

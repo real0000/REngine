@@ -30,13 +30,12 @@ STRING_ENUM_CLASS_INST(GraphicApi)
 //
 // EngineComponent
 //
-EngineComponent::EngineComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
+EngineComponent::EngineComponent(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
 	: m_bHidden(false)
 	, m_Name(wxT(""))
-	, m_pMembers(new SharedSceneMember)
+	, m_pRefScene(a_pRefScene)
+	, m_pOwner(a_pOwner)
 {
-	*m_pMembers = *a_pSharedMember;
-	m_pMembers->m_pSceneNode = a_pOwner;
 	memset(&m_Flags, 0, sizeof(m_Flags));
 }
 
@@ -46,7 +45,7 @@ EngineComponent::~EngineComponent()
 
 void EngineComponent::postInit()
 {
-	if( nullptr != m_pMembers->m_pSceneNode ) m_pMembers->m_pSceneNode->add(shared_from_this());
+	if( nullptr != m_pOwner ) m_pOwner->add(shared_from_this());
 }
 
 void EngineComponent::setHidden(bool a_bHidden)
@@ -58,40 +57,47 @@ void EngineComponent::setHidden(bool a_bHidden)
 
 std::shared_ptr<SceneNode> EngineComponent::getOwnerNode()
 {
-	return m_pMembers->m_pSceneNode;
+	return m_pOwner;
 }
 
 void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 {
 	assert(nullptr != a_pOwner);
 	
-	bool l_bTransformListener = 0 != m_Flags.m_bTransformListener;
-	removeTransformListener();
+	bool l_bTransformListener = 0 == m_Flags.m_bTransformListener;
+	if( nullptr != m_pOwner )
+	{
+		removeTransformListener();
+		m_pOwner->remove(shared_from_this());
+	}
 
-	m_pMembers->m_pSceneNode->remove(shared_from_this());
-	m_pMembers->m_pSceneNode = a_pOwner;
-	m_pMembers->m_pSceneNode->add(shared_from_this());
+	m_pRefScene = a_pOwner->getScene();
+	m_pOwner = a_pOwner;
+	m_pOwner->add(shared_from_this());
 
 	if( l_bTransformListener )
 	{
 		addTransformListener();
-		transformListener(a_pOwner->getTransform());
 	}
 }
 
 void EngineComponent::remove()
 {
 	end();
-	m_pMembers->m_pSceneNode->remove(shared_from_this());
+	m_pOwner->remove(shared_from_this());
 	removeAllListener();
-	SAFE_DELETE(m_pMembers)
+	
+	m_pRefScene = nullptr;
+	m_pOwner = nullptr;
 }
 
 void EngineComponent::detach()
 {
 	end();
 	removeAllListener();
-	SAFE_DELETE(m_pMembers)
+
+	m_pRefScene = nullptr;
+	m_pOwner = nullptr;
 }
 
 void EngineComponent::addAllListener()
@@ -111,42 +117,43 @@ void EngineComponent::removeAllListener()
 void EngineComponent::addInputListener()
 {
 	if( 0 != m_Flags.m_bInputListener ) return;
-	m_pMembers->m_pScene->addInputListener(shared_from_this());
+	m_pRefScene->addInputListener(shared_from_this());
 	m_Flags.m_bInputListener = 1;
 }
 
 void EngineComponent::removeInputListener()
 {
 	if( 0 == m_Flags.m_bInputListener ) return;
-	m_pMembers->m_pScene->removeInputListener(shared_from_this());
+	m_pRefScene->removeInputListener(shared_from_this());
 	m_Flags.m_bInputListener = 0;
 }
 
 void EngineComponent::addUpdateListener()
 {
 	if( 0 != m_Flags.m_bUpdateListener ) return;
-	m_pMembers->m_pScene->addUpdateListener(shared_from_this());
+	m_pRefScene->addUpdateListener(shared_from_this());
 	m_Flags.m_bUpdateListener = 1;
 }
 
 void EngineComponent::removeUpdateListener()
 {
 	if( 0 == m_Flags.m_bUpdateListener ) return;
-	m_pMembers->m_pScene->removeUpdateListener(shared_from_this());
+	m_pRefScene->removeUpdateListener(shared_from_this());
 	m_Flags.m_bUpdateListener = 0;
 }
 
 void EngineComponent::addTransformListener()
 {
 	if( 0 != m_Flags.m_bTransformListener ) return;
-	m_pMembers->m_pSceneNode->addTranformListener(shared_from_this());
+	m_pOwner->addTranformListener(shared_from_this());
+	transformListener(m_pOwner->getTransform());
 	m_Flags.m_bTransformListener = 1;
 }
 
 void EngineComponent::removeTransformListener()
 {
 	if( 0 == m_Flags.m_bTransformListener ) return;
-	m_pMembers->m_pSceneNode->removeTranformListener(shared_from_this());
+	m_pOwner->removeTranformListener(shared_from_this());
 	m_Flags.m_bTransformListener = 0;
 }
 #pragma endregion

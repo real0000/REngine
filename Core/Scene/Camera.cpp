@@ -20,8 +20,8 @@ namespace R
 //
 // Camera
 //
-Camera::Camera(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: RenderableComponent(a_pSharedMember, a_pOwner)
+Camera::Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: RenderableComponent(a_pRefScene, a_pOwner)
 	, m_ViewParam(glm::pi<float>() / 3.0f, 16.0f / 9.0f, 0.1f, 10000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
 {
@@ -50,25 +50,25 @@ void Camera::postInit()
 void Camera::start()
 {
 	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(l_pThis);
+	if( !isHidden() ) getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->add(l_pThis);
 }
 
 void Camera::end()
 {
 	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(l_pThis);
+	if( !isHidden() ) getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->remove(l_pThis);
 }
 
 void Camera::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->remove(shared_from_base<Camera>());
+		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->remove(shared_from_base<Camera>());
 		removeTransformListener();
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->add(shared_from_base<Camera>());
+		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->add(shared_from_base<Camera>());
 		addTransformListener();
 	}
 }
@@ -114,7 +114,7 @@ void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 {
 	assert(m_Type == ORTHO || m_Type == PERSPECTIVE);
 
-	glm::mat4x4 l_World(getSharedMember()->m_pSceneNode->getTransform());
+	glm::mat4x4 l_World(getOwner()->getTransform());
 	a_Eye = glm::vec3(l_World[3][0], l_World[3][1], l_World[3][2]);
 	a_Dir = glm::normalize(glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
 	a_Up  = glm::normalize(glm::vec3(l_World[1][0], l_World[1][1], l_World[1][2]));
@@ -124,14 +124,13 @@ void Camera::transformListener(glm::mat4x4 &a_NewTransform)
 {
 	calView(a_NewTransform);
 	
-	SharedSceneMember *l_pMember = getSharedMember();
 	auto l_pThis = shared_from_base<Camera>();
 	if( !isHidden() )
 	{
 		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
 		if( TETRAHEDRON == m_Type || CUBE == m_Type ) boundingBox().m_Size = glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w);
 		else boundingBox().m_Size = glm::one<glm::vec3>();
-		l_pMember->m_pGraphs[SharedSceneMember::GRAPH_CAMERA]->update(l_pThis);
+		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->update(l_pThis);
 	}
 }
 

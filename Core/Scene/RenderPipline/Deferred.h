@@ -33,7 +33,7 @@ private:
 		GBUFFER_COUNT, 
 	};
 public:
-	DeferredRenderer(SharedSceneMember *a_pSharedMember);
+	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
 	virtual ~DeferredRenderer();
 
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);

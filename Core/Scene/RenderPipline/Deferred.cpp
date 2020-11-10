@@ -44,8 +44,8 @@ const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
 //
 // DeferredRenderer
 //
-DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
-	: RenderPipeline(a_pSharedMember)
+DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
+	: RenderPipeline(a_pScene)
 	, m_pCmdInit(nullptr)
 	, m_LightIdx(nullptr)
 	, m_ExtendSize(INIT_CONTAINER_SIZE)
@@ -62,17 +62,17 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	, m_ThreadPool(std::thread::hardware_concurrency())
 {
 	std::tuple<std::shared_ptr<Asset>, std::shared_ptr<MaterialBlock>, wxString> l_ShadowMaps[] = {
-		std::make_tuple(m_pDirShadowMat, getSharedMember()->m_pDirLights->getMaterialBlock(), EngineSetting::singleton().m_DirMaterial),
-		std::make_tuple(m_pOmniShadowMat, getSharedMember()->m_pOmniLights->getMaterialBlock(), EngineSetting::singleton().m_OmniMaterial),
-		std::make_tuple(m_pSpotShadowMat, getSharedMember()->m_pSpotLights->getMaterialBlock(), EngineSetting::singleton().m_SpotMaterial)};
+		std::make_tuple(m_pDirShadowMat, a_pScene->getDirLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_DirMaterial),
+		std::make_tuple(m_pOmniShadowMat, a_pScene->getOmniLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_OmniMaterial),
+		std::make_tuple(m_pSpotShadowMat, a_pScene->getSpotLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_SpotMaterial)};
 	const unsigned int c_NumShadowMap = sizeof(l_ShadowMaps) / sizeof(std::pair<std::shared_ptr<Asset>&, wxString>);
 	for( unsigned int i=0 ; i<c_NumShadowMap ; ++i )
 	{
 		std::get<0>(l_ShadowMaps[i]) = AssetManager::singleton().getAsset(std::get<2>(l_ShadowMaps[i])).second;
 
 		MaterialAsset *l_pMatInst = std::get<0>(l_ShadowMaps[i])->getComponent<MaterialAsset>();
-		l_pMatInst->setBlock("m_SkinTransition", getSharedMember()->m_pBatcher->getSkinMatrixBlock());
-		l_pMatInst->setBlock("m_NormalTransition", getSharedMember()->m_pBatcher->getWorldMatrixBlock());
+		l_pMatInst->setBlock("m_SkinTransition", a_pScene->getRenderBatcher()->getSkinMatrixBlock());
+		l_pMatInst->setBlock("m_NormalTransition", a_pScene->getRenderBatcher()->getWorldMatrixBlock());
 		l_pMatInst->setBlock("m_Lights", std::get<1>(l_ShadowMaps[i]));
 	}
 
@@ -114,8 +114,8 @@ DeferredRenderer::DeferredRenderer(SharedSceneMember *a_pSharedMember)
 	
 	m_pLightIndexMatInst->setBlock("g_SrcLights", m_LightIdx);
 	m_pLightIndexMatInst->setBlock("g_DstLights", m_TiledValidLightIdx);
-	m_pLightIndexMatInst->setBlock("g_OmniLights", a_pSharedMember->m_pOmniLights->getMaterialBlock());
-	m_pLightIndexMatInst->setBlock("g_SpotLights", a_pSharedMember->m_pSpotLights->getMaterialBlock());
+	m_pLightIndexMatInst->setBlock("g_OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
+	m_pLightIndexMatInst->setBlock("g_SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
 
 	m_pCopyMatInst->setTexture("m_SrcTex", m_pFrameBuffer);
 
@@ -216,9 +216,9 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		
 		m_ThreadPool.join();
 
-		getSharedMember()->m_pDirLights->flush();
-		getSharedMember()->m_pOmniLights->flush();
-		getSharedMember()->m_pSpotLights->flush();
+		getScene()->getDirLightContainer()->flush();
+		getScene()->getOmniLightContainer()->flush();
+		getScene()->getSpotLightContainer()->flush();
 
 		// add required command execute thread
 		while( m_ShadowCommands.size() <= m_pShadowMap->getArraySize() ) m_ShadowCommands.push_back(GDEVICE()->commanderFactory());
@@ -266,14 +266,14 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 								l_InstanceData[k*4 + l].z = l;
 							}
 						}
-						int l_InstanceBuffer = getSharedMember()->m_pBatcher->requestInstanceVtxBuffer();
+						int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
 						GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
 
 						m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
 						m_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
 						m_pDirShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
 						m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-						getSharedMember()->m_pBatcher->recycleInstanceVtxBuffer(l_InstanceBuffer);
+						getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
 					}
 
 					// draw omni shadow map
@@ -295,7 +295,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 						if( !l_InstanceData.empty() )
 						{
-							int l_InstanceBuffer = getSharedMember()->m_pBatcher->requestInstanceVtxBuffer();
+							int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
 							GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
 						
 							m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
@@ -303,7 +303,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 							m_pOmniShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
 
 							m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-							getSharedMember()->m_pBatcher->recycleInstanceVtxBuffer(l_InstanceBuffer);
+							getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
 						}
 					}
 
@@ -326,7 +326,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 						if( !l_InstanceData.empty() )
 						{
-							int l_InstanceBuffer = getSharedMember()->m_pBatcher->requestInstanceVtxBuffer();
+							int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
 							GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
 						
 							m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
@@ -334,7 +334,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 							m_pSpotShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
 
 							m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-							getSharedMember()->m_pBatcher->recycleInstanceVtxBuffer(l_InstanceBuffer);
+							getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
 						}
 					}
 				}
@@ -454,12 +454,12 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
 {
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->getVisibleList(a_pCamera, a_Mesh);
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getVisibleList(a_pCamera, a_StaticMesh);
+	getScene()->getSceneGraph(Scene::GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
+	getScene()->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getVisibleList(a_pCamera, a_StaticMesh);
 	if( a_Mesh.empty() && a_StaticMesh.empty() ) return false;
 
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->getVisibleList(a_pCamera, a_StaticLight);
-	getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->getVisibleList(a_pCamera, a_Light);
+	getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->getVisibleList(a_pCamera, a_StaticLight);
+	getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
 
 	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )
 	{

@@ -11,10 +11,10 @@
 namespace R
 {
 
-struct SharedSceneMember;
 class Light;
 class MaterialAsset;
 class MaterialBlock;
+class Scene;
 
 class LightmapAsset : public AssetComponent
 {
@@ -30,7 +30,7 @@ public:
 	virtual void loadFile(boost::property_tree::ptree &a_Src);
 	virtual void saveFile(boost::property_tree::ptree &a_Dst);
 
-	void bake(SharedSceneMember *a_pMember);
+	void bake(std::shared_ptr<Scene> a_pScene);
 	void stepBake(GraphicCommander *a_pCmd);
 	void stopBake();
 

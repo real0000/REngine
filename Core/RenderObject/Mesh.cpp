@@ -23,8 +23,8 @@ namespace R
 //
 // RenderableMesh
 //
-RenderableMesh::RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode)
-	: RenderableComponent(a_pMember, a_pNode)
+RenderableMesh::RenderableMesh(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pNode)
+	: RenderableComponent(a_pRefScene, a_pNode)
 	, m_pMesh(nullptr)
 	, m_MeshIdx(0)
 	, m_bStatic(false)
@@ -41,18 +41,17 @@ RenderableMesh::~RenderableMesh()
 void RenderableMesh::start()
 {
 	addTransformListener();
-	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_MESH : SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
-	m_WorldOffset = getSharedMember()->m_pBatcher->requestWorldSlot(shared_from_base<RenderableMesh>());
+	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_MESH : Scene::GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
+	m_WorldOffset = getScene()->getRenderBatcher()->requestWorldSlot(shared_from_base<RenderableMesh>());
 }
 
 void RenderableMesh::end()
 {
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
-	SharedSceneMember *l_pMembers = getSharedMember();
 	
-	if( !isHidden() ) l_pMembers->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_MESH : SharedSceneMember::GRAPH_MESH]->remove(l_pThis);
-	l_pMembers->m_pBatcher->recycleWorldSlot(l_pThis);
-	if( -1 != m_SkinOffset ) l_pMembers->m_pBatcher->recycleSkinSlot(m_pMesh);
+	if( !isHidden() ) getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_MESH : Scene::GRAPH_MESH)->remove(l_pThis);
+	getScene()->getRenderBatcher()->recycleWorldSlot(l_pThis);
+	if( -1 != m_SkinOffset ) getScene()->getRenderBatcher()->recycleSkinSlot(m_pMesh);
 
 	for( auto it=m_Materials.begin() ; it!=m_Materials.end() ; ++it )
 	{
@@ -65,12 +64,12 @@ void RenderableMesh::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_MESH : SharedSceneMember::GRAPH_MESH]->remove(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_MESH : Scene::GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
 		removeTransformListener();
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_MESH : SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_MESH : Scene::GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
 		addTransformListener();
 	}
 }
@@ -89,7 +88,7 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Center = l_Trans + l_Box.m_Center;
 	boundingBox().m_Size = l_Scale * l_Box.m_Size;
 
-	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_MESH : SharedSceneMember::GRAPH_MESH]->update(shared_from_base<RenderableMesh>());
+	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_MESH : Scene::GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
 }
 
 void RenderableMesh::loadComponent(boost::property_tree::ptree &a_Src)
@@ -113,24 +112,24 @@ void RenderableMesh::setStatic(bool a_bStatic)
 	if( m_bStatic == a_bStatic ) return;
 	if( m_bStatic )
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->remove(shared_from_base<RenderableMesh>());
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->add(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(Scene::GRAPH_STATIC_MESH)->remove(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(Scene::GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_MESH]->remove(shared_from_base<RenderableMesh>());
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->add(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(Scene::GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(Scene::GRAPH_STATIC_MESH)->add(shared_from_base<RenderableMesh>());
 	}
 	m_bStatic = a_bStatic;
 }
 
 void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_MeshIdx)
 {
-	getSharedMember()->m_pBatcher->requestSkinSlot(m_pMesh);
+	getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 	m_pMesh = a_pAsset;
 	m_MeshIdx = a_MeshIdx;
 	
-	m_SkinOffset = getSharedMember()->m_pBatcher->requestSkinSlot(m_pMesh);
+	m_SkinOffset = getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 
 	MeshAsset::Instance *l_pMeshInst = a_pAsset->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
 	setMaterial(0, l_pMeshInst->m_pMaterial);
@@ -144,7 +143,7 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	glm::vec3 l_Trans, l_Scale;
 	glm::quat l_Rot;
 	glm::aabb &l_Box = l_pMeshInst->m_VisibleBoundingBox;
-	decomposeTRS(getSharedMember()->m_pSceneNode->getTransform(), l_Trans, l_Scale, l_Rot);
+	decomposeTRS(getOwner()->getTransform(), l_Trans, l_Scale, l_Rot);
 	boundingBox().m_Center = l_Trans + l_Box.m_Center;
 	boundingBox().m_Size = l_Scale * l_Box.m_Size;
 }
@@ -172,12 +171,12 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	MeshAsset *l_pMeshRootInst = a_pAsset->getComponent<MeshAsset>();
 	MeshAsset::Instance *l_pMeshInst = l_pMeshRootInst->getMeshes()[m_MeshIdx];
 	
-	l_pMaterialInst->setParam("m_World", m_WorldOffset, getSharedMember()->m_pSceneNode->getTransform());
+	l_pMaterialInst->setParam("m_World", m_WorldOffset, getOwner()->getTransform());
 	l_pMaterialInst->setParam("m_VtxFlag", m_WorldOffset, l_pMeshInst->m_VtxFlag);
 	l_pMaterialInst->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
 
-	l_pMaterialInst->setBlock("m_SkinTransition", getSharedMember()->m_pBatcher->getSkinMatrixBlock());
-	l_pMaterialInst->setBlock("m_NormalTransition", getSharedMember()->m_pBatcher->getWorldMatrixBlock());
+	l_pMaterialInst->setBlock("m_SkinTransition", getScene()->getRenderBatcher()->getSkinMatrixBlock());
+	l_pMaterialInst->setBlock("m_NormalTransition", getScene()->getRenderBatcher()->getWorldMatrixBlock());
 }
 
 std::shared_ptr<Asset> RenderableMesh::getMaterial(unsigned int a_Slot)

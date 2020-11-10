@@ -9,7 +9,6 @@
 namespace R
 {
 
-struct SharedSceneMember;
 class Camera;
 class RenderableComponent;
 
@@ -20,16 +19,16 @@ class RenderableComponent;
 class RenderPipeline
 {
 public:
-	RenderPipeline(SharedSceneMember *a_pSharedMember);
+	RenderPipeline(std::shared_ptr<Scene> a_pScene);
 	virtual ~RenderPipeline();
 
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
 
 protected:
-	SharedSceneMember* getSharedMember(){ return m_pSharedMember; }
+	 std::shared_ptr<Scene> getScene(){ return m_pRefScene; }
 
 private:
-	SharedSceneMember *m_pSharedMember;// scene node will be null
+	std::shared_ptr<Scene> m_pRefScene;// scene node will be null
 };
 
 }

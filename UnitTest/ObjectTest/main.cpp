@@ -42,8 +42,8 @@ public:
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
 
 private:
-	TempComponent(R::SharedSceneMember *a_pSharedMember, std::shared_ptr<R::SceneNode> a_pOwner)
-		: R::EngineComponent(a_pSharedMember, a_pOwner)
+	TempComponent(std::shared_ptr<R::Scene> a_pRefScene, std::shared_ptr<R::SceneNode> a_pOwner)
+		: R::EngineComponent(a_pRefScene, a_pOwner)
 		, m_Angle(0.0f)
 	{
 	}

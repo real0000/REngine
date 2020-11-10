@@ -13,7 +13,7 @@ class RenderableComponent : public EngineComponent
 {
 	friend class RenderableComponent;
 public:
-	RenderableComponent(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	RenderableComponent(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~RenderableComponent(); // don't call this method directly
 	
 	virtual void setShadowed(bool a_bShadow) = 0;

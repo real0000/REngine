@@ -22,38 +22,6 @@
 namespace R
 {
 
-#pragma region SharedSceneMember
-//
-// SharedSceneMember
-//
-SharedSceneMember::SharedSceneMember()
-	: m_pDirLights(nullptr), m_pOmniLights(nullptr), m_pSpotLights(nullptr)
-	, m_pScene(nullptr)
-	, m_pSceneNode(nullptr)
-{
-	memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
-}
-
-SharedSceneMember::~SharedSceneMember()
-{
-	memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
-	m_pScene = nullptr;
-	m_pSceneNode = nullptr;
-}
-
-SharedSceneMember& SharedSceneMember::operator=(const SharedSceneMember &a_Src)
-{
-	memcpy(m_pGraphs, a_Src.m_pGraphs, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
-	m_pBatcher = a_Src.m_pBatcher;
-	m_pDirLights = a_Src.m_pDirLights;
-	m_pOmniLights = a_Src.m_pOmniLights;
-	m_pSpotLights = a_Src.m_pSpotLights;
-	m_pScene = a_Src.m_pScene;
-	m_pSceneNode = a_Src.m_pSceneNode;
-	return *this;
-}
-#pragma endregion
-
 #pragma region SceneBatcher
 #pragma region SceneBatcher::SingletonBatchData
 SceneBatcher::SingletonBatchData::SingletonBatchData()
@@ -210,7 +178,7 @@ void SceneBatcher::recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent
 	m_pSingletonBatchData->m_WorldCache.erase(it);
 }
 
-void SceneBatcher::calculateStaticBatch(SharedSceneMember *a_pGraphOwner)
+void SceneBatcher::calculateStaticBatch(std::shared_ptr<Scene> &a_GraphOwner)
 {
 	m_VertexBufffer = nullptr;
 	m_IndexBuffer = nullptr;
@@ -219,7 +187,7 @@ void SceneBatcher::calculateStaticBatch(SharedSceneMember *a_pGraphOwner)
 	m_StaticMeshes.clear();
 
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes;
-	a_pGraphOwner->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getAllComponent(l_Meshes);
+	a_GraphOwner->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
 
 	std::set<std::shared_ptr<Asset>> l_MeshAssets;
 	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
@@ -318,20 +286,19 @@ void SceneBatcher::bindBatchDrawData(GraphicCommander *a_pCommander)
 // SceneNode
 //
 std::map<std::string, std::function<std::shared_ptr<EngineComponent>(std::shared_ptr<SceneNode>)>> SceneNode::m_ComponentReflector; 
-std::shared_ptr<SceneNode> SceneNode::create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
+std::shared_ptr<SceneNode> SceneNode::create(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 {
-	return std::shared_ptr<SceneNode>(new SceneNode(a_pSharedMember, a_pOwner, a_Name));
+	return std::shared_ptr<SceneNode>(new SceneNode(a_pRefScene, a_pOwner, a_Name));
 }
 
-SceneNode::SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
+SceneNode::SceneNode(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name)
 	: m_Name(a_Name)
 	, m_World(1.0f)
 	, m_LocalPos(0.0f, 0.0f, 0.0f), m_LocalScale(1.0f, 1.0f, 1.0f), m_LocalRot(1.0f, 0.0f, 0.0f, 0.0f)
-	, m_pMembers(new SharedSceneMember)
+	, m_pRefScene(a_pRefScene)
+	, m_pParentNode(a_pOwner)
 	, m_pLinkedAsset(nullptr)
 {
-	*m_pMembers = *a_pSharedMember;
-	m_pMembers->m_pSceneNode = a_pOwner;
 }
 
 SceneNode::~SceneNode()
@@ -344,40 +311,70 @@ void SceneNode::setTransform(glm::vec3 a_Pos, glm::vec3 a_Scale, glm::quat a_Rot
 	m_LocalScale = a_Scale;
 	m_LocalRot = a_Rot;
 	composeTRS(m_LocalPos, m_LocalScale, m_LocalRot, m_LocalTransformCache);
-	update(m_pMembers->m_pSceneNode->m_World);
+	update(m_pParentNode->m_World);
 }
 
 void SceneNode::setPosition(glm::vec3 a_Pos)
 {
 	m_LocalPos = a_Pos;
 	composeTRS(m_LocalPos, m_LocalScale, m_LocalRot, m_LocalTransformCache);
-	update(m_pMembers->m_pSceneNode->m_World);
+	update(m_pParentNode->m_World);
 }
 
 void SceneNode::setScale(glm::vec3 a_Scale)
 {
 	m_LocalScale = a_Scale;
 	composeTRS(m_LocalPos, m_LocalScale, m_LocalRot, m_LocalTransformCache);
-	update(m_pMembers->m_pSceneNode->m_World);
+	update(m_pParentNode->m_World);
 }
 
 void SceneNode::setRotate(glm::quat a_Rot)
 {
 	m_LocalRot = a_Rot;
 	composeTRS(m_LocalPos, m_LocalScale, m_LocalRot, m_LocalTransformCache);
-	update(m_pMembers->m_pSceneNode->m_World);
+	update(m_pParentNode->m_World);
 }
 
 std::shared_ptr<SceneNode> SceneNode::addChild()
 {
-	std::shared_ptr<SceneNode> l_pNewNode = SceneNode::create(m_pMembers, shared_from_this());
+	std::shared_ptr<SceneNode> l_pNewNode = SceneNode::create(m_pRefScene, shared_from_this());
 	m_Children.push_back(l_pNewNode);
 	return l_pNewNode;
 }
 
-void SceneNode::addChild(boost::property_tree::ptree &a_pTreeNode)
+std::shared_ptr<SceneNode> SceneNode::addChild(boost::property_tree::ptree &a_TreeNode)
 {
-	
+	std::shared_ptr<SceneNode> l_pNewNode = SceneNode::create(m_pRefScene, shared_from_this());
+	m_Children.push_back(l_pNewNode);
+
+	l_pNewNode->setName(a_TreeNode.get("<xmlattr>.name", ""));
+	wxString l_LinkedAsset(a_TreeNode.get("<xmlattr>.prefab", ""));
+	if( !l_LinkedAsset.IsEmpty() ) m_pLinkedAsset = AssetManager::singleton().getAsset(l_LinkedAsset).second;
+
+	glm::vec3 l_Pos, l_Scale;
+	glm::quat l_Rot;
+	parseShaderParamValue(ShaderParamType::float3, a_TreeNode.get_child("Position").data(), reinterpret_cast<char*>(&l_Pos));
+	parseShaderParamValue(ShaderParamType::float3, a_TreeNode.get_child("Scale").data(), reinterpret_cast<char*>(&l_Scale));
+	parseShaderParamValue(ShaderParamType::float4, a_TreeNode.get_child("Rotate").data(), reinterpret_cast<char*>(&l_Rot));
+	l_pNewNode->setTransform(l_Pos, l_Scale, l_Rot);
+
+	boost::property_tree::ptree &l_Components = a_TreeNode.get_child("Components");
+	for( auto it=l_Components.begin() ; it!=l_Components.end() ; ++it )
+	{
+		if( "<xmlattr>" == it->first ) continue;
+
+		std::shared_ptr<EngineComponent> l_pComponent = l_pNewNode->addComponent(it->first);
+		l_pComponent->loadComponent(it->second);
+	}
+
+	boost::property_tree::ptree &l_Children = a_TreeNode.get_child("Children");
+	for( auto it=l_Children.begin() ; it!=l_Children.end() ; ++it )
+	{
+		if( "<xmlattr>" == it->first ) continue;
+		l_pNewNode->addChild(it->second);
+	}
+
+	return l_pNewNode;
 }
 
 std::shared_ptr<EngineComponent> SceneNode::addComponent(std::string a_Name)
@@ -387,12 +384,13 @@ std::shared_ptr<EngineComponent> SceneNode::addComponent(std::string a_Name)
 	return l_FuncIt->second(shared_from_this());
 }
 
-void SceneNode::bakeNode(boost::property_tree::ptree &a_pTreeNode)
+void SceneNode::bakeNode(boost::property_tree::ptree &a_TreeNode)
 {
 	boost::property_tree::ptree l_SceneNode;
 
 	boost::property_tree::ptree l_SceneNodeAttr;
 	l_SceneNodeAttr.add("name", m_Name.mbc_str());
+	if( nullptr != m_pLinkedAsset ) l_SceneNodeAttr.add("prefab", m_pLinkedAsset->getKey().mbc_str());
 	l_SceneNode.add_child("<xmlattr>", l_SceneNodeAttr);
 
 	l_SceneNode.put("Position", convertParamValue(ShaderParamType::float3, reinterpret_cast<char*>(&m_LocalPos)));
@@ -416,7 +414,9 @@ void SceneNode::bakeNode(boost::property_tree::ptree &a_pTreeNode)
 
 void SceneNode::destroy()
 {
-	SAFE_DELETE(m_pMembers)
+	m_pRefScene = nullptr;
+	m_pParentNode = nullptr;
+
 	m_pLinkedAsset = nullptr;
 	for( auto it = m_Components.begin() ; it != m_Components.end() ; ++it )
 	{
@@ -433,23 +433,23 @@ void SceneNode::destroy()
 
 void SceneNode::setParent(std::shared_ptr<SceneNode> a_pNewParent)
 {
-	if( a_pNewParent == m_pMembers->m_pSceneNode ) return;
+	if( a_pNewParent == m_pParentNode ) return;
 	assert( nullptr != a_pNewParent );
-	assert( nullptr != m_pMembers->m_pSceneNode );// don't do this to root node
+	assert( nullptr != m_pParentNode );// don't do this to root node
 	
-	auto it = m_pMembers->m_pSceneNode->m_Children.begin();
-	for( ; it != m_pMembers->m_pSceneNode->m_Children.end() ; ++it )
+	auto it = m_pParentNode->m_Children.begin();
+	for( ; it != m_pParentNode->m_Children.end() ; ++it )
 	{
 		if( (*it).get() == this )
 		{
-			m_pMembers->m_pSceneNode->m_Children.erase(it);
+			m_pParentNode->m_Children.erase(it);
 			break;
 		}
 	}
 
-	m_pMembers->m_pSceneNode = a_pNewParent;
-	m_pMembers->m_pSceneNode->m_Children.push_back(shared_from_this());
-	update(m_pMembers->m_pSceneNode->m_World);
+	m_pParentNode = a_pNewParent;
+	m_pParentNode->m_Children.push_back(shared_from_this());
+	update(m_pParentNode->m_World);
 }
 
 std::shared_ptr<SceneNode> SceneNode::find(wxString a_Name)
@@ -536,7 +536,7 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 Scene::Scene()
 	: m_bLoading(false), m_LoadingProgress(0.0f), m_LoadingCompleteCallback(nullptr)
 	, m_pRenderer(nullptr)
-	, m_pMembers(new SharedSceneMember)
+	, m_pRootNode(nullptr)
 	, m_pCurrCamera(nullptr)
 	, m_bActivate(true)
 {
@@ -552,10 +552,9 @@ Scene::~Scene()
 void Scene::destroy()
 {
 	clear();
-	delete m_pMembers->m_pDirLights;
-	delete m_pMembers->m_pOmniLights;
-	delete m_pMembers->m_pSpotLights;
-	SAFE_DELETE(m_pMembers)
+	delete m_pDirLights;
+	delete m_pOmniLights;
+	delete m_pSpotLights;
 }
 
 void Scene::initEmpty()
@@ -564,15 +563,15 @@ void Scene::initEmpty()
 	m_bLoading = true;
 	clear();
 	
-	m_pMembers->m_pScene = shared_from_this();
-	for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new NoPartition();//OctreePartition();
-	m_pMembers->m_pSceneNode = SceneNode::create(m_pMembers, nullptr, wxT("Root"));
-	m_pMembers->m_pDirLights = new LightContainer<DirLight>("DirLight");
-	m_pMembers->m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
-	m_pMembers->m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
-	m_pRenderer = new DeferredRenderer(m_pMembers);
+	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new NoPartition();//OctreePartition();
 
-	std::shared_ptr<SceneNode> l_pCameraNode = m_pMembers->m_pSceneNode->addChild();
+	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
+	m_pDirLights = new LightContainer<DirLight>("DirLight");
+	m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
+	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
+	m_pRenderer = new DeferredRenderer(shared_from_this());
+
+	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
 	m_pCurrCamera = l_pCameraNode->addComponent<Camera>();
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
@@ -595,8 +594,6 @@ bool Scene::load(wxString a_Path)
 		loadScenePartitionSetting(l_XMLTree.get_child("root.ScenePartition"));
 		loadRenderPipelineSetting(l_XMLTree.get_child("root.RenderPipeline"));
 		loadAssetSetting(l_XMLTree.get_child("root.Assets"));
-
-		m_pMembers->m_pScene = shared_from_this();
 	}
 	catch( ... )
 	{
@@ -668,7 +665,7 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	//
 
 	m_pRenderer->render(m_pCurrCamera, a_pCanvas);
-	m_pMembers->m_pBatcher->renderEnd();
+	m_pBatcher->renderEnd();
 }
 
 void Scene::addUpdateListener(std::shared_ptr<EngineComponent> a_pListener)
@@ -722,31 +719,30 @@ void Scene::clearInputListener()
 
 std::shared_ptr<SceneNode> Scene::getRootNode()
 {
-	return m_pMembers->m_pSceneNode;
+	return m_pRootNode;
 }
 
 void Scene::clear()
 {
 	m_LoadingProgress = 0.0f;
 	
-	if( nullptr != m_pMembers->m_pSceneNode ) m_pMembers->m_pSceneNode->destroy();
-	m_pMembers->m_pSceneNode = nullptr;
-	if( nullptr != m_pMembers->m_pGraphs[0] )
+	if( nullptr != m_pRootNode ) m_pRootNode->destroy();
+	m_pRootNode = nullptr;
+	if( nullptr != m_pGraphs[0] )
 	{
-		for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i )
+		for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i )
 		{
-			m_pMembers->m_pGraphs[i]->clear();
-			delete m_pMembers->m_pGraphs[i];
+			m_pGraphs[i]->clear();
+			delete m_pGraphs[i];
 		}
-		memset(m_pMembers->m_pGraphs, NULL, sizeof(ScenePartition *) * SharedSceneMember::NUM_GRAPH_TYPE);
+		memset(m_pGraphs, NULL, sizeof(ScenePartition *) * Scene::NUM_GRAPH_TYPE);
 	}
 	SAFE_DELETE(m_pRenderer)
-	SAFE_DELETE(m_pMembers->m_pBatcher)
-	if( nullptr != m_pMembers->m_pDirLights ) m_pMembers->m_pDirLights->clear();
-	if( nullptr != m_pMembers->m_pOmniLights ) m_pMembers->m_pOmniLights->clear();
-	if( nullptr != m_pMembers->m_pSpotLights ) m_pMembers->m_pSpotLights->clear();
-	for( auto it=m_SceneAssets.begin() ; it!=m_SceneAssets.end() ; ++it ) delete it->second;
-	m_SceneAssets.clear();
+	SAFE_DELETE(m_pBatcher)
+	if( nullptr != m_pDirLights ) m_pDirLights->clear();
+	if( nullptr != m_pOmniLights ) m_pOmniLights->clear();
+	if( nullptr != m_pSpotLights ) m_pSpotLights->clear();
+	m_pRefSceneAsset = nullptr;
 
 	m_pCurrCamera = nullptr;
 }
@@ -763,13 +759,13 @@ void Scene::loadScenePartitionSetting(boost::property_tree::ptree &a_Node)
 	switch( ScenePartitionType::fromString(l_Attr.get("type", "Octree")) )
 	{
 		case ScenePartitionType::None:{
-			for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new NoPartition();
+			for( unsigned int i=0 ; i<Scene::NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new NoPartition();
 			}break;
 
 		case ScenePartitionType::Octree:{
 			double l_RootEdge = a_Node.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
 			double l_MinEdge = a_Node.get("MinEdge", DEFAULT_OCTREE_EDGE);
-			for( unsigned int i=0 ; i<SharedSceneMember::NUM_GRAPH_TYPE ; ++i ) m_pMembers->m_pGraphs[i] = new OctreePartition(l_RootEdge, l_MinEdge);
+			for( unsigned int i=0 ; i<Scene::NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new OctreePartition(l_RootEdge, l_MinEdge);
 			}break;
 	}
 }

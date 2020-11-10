@@ -30,33 +30,6 @@ class VertexBuffer;
 template<typename T>
 class LightContainer;
 
-struct SharedSceneMember
-{
-	enum
-	{
-		GRAPH_MESH = 0,
-		GRAPH_STATIC_MESH,
-		GRAPH_LIGHT,
-		GRAPH_STATIC_LIGHT,
-		GRAPH_CAMERA,
-
-		NUM_GRAPH_TYPE
-	};
-
-	SharedSceneMember();
-	~SharedSceneMember();
-
-	SharedSceneMember& operator=(const SharedSceneMember &a_Src);
-	
-	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
-	SceneBatcher *m_pBatcher;
-	LightContainer<DirLight> *m_pDirLights;
-	LightContainer<OmniLight> *m_pOmniLights;
-	LightContainer<SpotLight> *m_pSpotLights;
-	std::shared_ptr<Scene> m_pScene;
-	std::shared_ptr<SceneNode> m_pSceneNode;
-};
-
 class SceneBatcher
 {
 public:
@@ -93,7 +66,7 @@ public:
 	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
 	int requestWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
 	void recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
-	void calculateStaticBatch(SharedSceneMember *a_pGraphOwner);
+	void calculateStaticBatch(std::shared_ptr<Scene> &a_GraphOwner);
 	bool getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput);
 	void bindBatchDrawData(GraphicCommander *a_pCommander);
 
@@ -121,10 +94,10 @@ class SceneNode : public std::enable_shared_from_this<SceneNode>
 	friend class SceneNode;
 public:
 	virtual ~SceneNode();// don't call this method directly
-	static std::shared_ptr<SceneNode> create(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name = wxT("NoName"));
+	static std::shared_ptr<SceneNode> create(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name = wxT("NoName"));
 
 	std::shared_ptr<SceneNode> addChild();
-	void addChild(boost::property_tree::ptree &a_pTreeNode);
+	std::shared_ptr<SceneNode> addChild(boost::property_tree::ptree &a_TreeNode);
 	
 	template<typename T>
 	static void registComponentReflector()
@@ -139,10 +112,10 @@ public:
 	template<typename T>
 	std::shared_ptr<T> addComponent()
 	{
-		return EngineComponent::create<T>(m_pMembers, shared_from_this());
+		return EngineComponent::create<T>(m_pRefScene, shared_from_this());
 	}
 	std::shared_ptr<EngineComponent> addComponent(std::string a_Name);
-	void bakeNode(boost::property_tree::ptree &a_pTreeNode);
+	void bakeNode(boost::property_tree::ptree &a_TreeNode);
 	
 	void destroy();
 	void setParent(std::shared_ptr<SceneNode> a_pNewParent);
@@ -157,7 +130,8 @@ public:
 	wxString getName(){ return m_Name; }
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	const std::list<std::shared_ptr<SceneNode>>& getChildren(){ return m_Children; }
-	const std::shared_ptr<SceneNode> getParent(){ return m_pMembers->m_pSceneNode; }
+	const std::shared_ptr<SceneNode> getParent(){ return m_pParentNode; }
+	const std::shared_ptr<Scene> getScene(){ return m_pRefScene; }
 	const glm::mat4x4& getTransform(){ return m_World; }
 	const glm::vec3& getLocalPos(){ return m_LocalPos; }
 	const glm::vec3& getLocalScale(){ return m_LocalScale; }
@@ -177,7 +151,7 @@ public:
 	const std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>>& getComponents(){ return m_Components; }
 	
 private:
-	SceneNode(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name);
+	SceneNode(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner, wxString a_Name);
 
 	void add(std::shared_ptr<EngineComponent> a_pComponent);
 	void remove(std::shared_ptr<EngineComponent> a_pComponent);
@@ -191,7 +165,9 @@ private:
 	glm::mat4x4 m_LocalTransformCache;
 
 	std::list<std::shared_ptr<SceneNode>> m_Children;
-	SharedSceneMember *m_pMembers;// scene node -> parent
+	std::shared_ptr<Scene> m_pRefScene;
+	std::shared_ptr<SceneNode> m_pParentNode;
+
 	std::shared_ptr<Asset> m_pLinkedAsset;//must be PrefabAsset
 
 	std::list<std::shared_ptr<EngineComponent>> m_TransformListener;// use std::set instead ?
@@ -204,6 +180,18 @@ class Scene : public std::enable_shared_from_this<Scene>
 {
 	friend class Scene;
 	friend class SceneManager;
+public:
+	enum GraphType
+	{
+		GRAPH_MESH = 0,
+		GRAPH_STATIC_MESH,
+		GRAPH_LIGHT,
+		GRAPH_STATIC_LIGHT,
+		GRAPH_CAMERA,
+
+		NUM_GRAPH_TYPE
+	};
+
 public:
 	virtual ~Scene();
 
@@ -229,30 +217,18 @@ public:
 	void removeInputListener(std::shared_ptr<EngineComponent> a_pComponent);
 	void clearInputListener();
 
-	// misc;
+	// misc
+	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
+	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
+	LightContainer<SpotLight>* getSpotLightContainer(){ return m_pSpotLights; }
+	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
+	ScenePartition* getSceneGraph(GraphType a_Slot){ return m_pGraphs[a_Slot]; }
+
 	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
 	void resume(){ m_bActivate = true; }
 
 private:
-	struct SceneAssetInstance
-	{
-		SceneAssetInstance()
-			: m_pSceneAsset(nullptr)
-			, m_pRefSceneNode(nullptr)
-			, m_bActive(false)
-			{}
-		virtual ~SceneAssetInstance()
-		{
-			m_pSceneAsset = nullptr;
-			m_pRefSceneNode = nullptr;
-		}
-
-		std::shared_ptr<Asset> m_pSceneAsset;
-		std::shared_ptr<SceneNode> m_pRefSceneNode;
-		bool m_bActive;
-	};
-
 	Scene();
 
 	void clear();
@@ -266,9 +242,14 @@ private:
 	std::function<void(bool)> m_LoadingCompleteCallback;
 	
 	RenderPipeline *m_pRenderer;
-	SharedSceneMember *m_pMembers;
+	std::shared_ptr<SceneNode> m_pRootNode;
+	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
+	SceneBatcher *m_pBatcher;
+	LightContainer<DirLight> *m_pDirLights;
+	LightContainer<OmniLight> *m_pOmniLights;
+	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Camera> m_pCurrCamera;
-	std::map<wxString, SceneAssetInstance*> m_SceneAssets;
+	std::shared_ptr<Asset> m_pRefSceneAsset;
 	
 	std::mutex m_InputLocker;
 	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;

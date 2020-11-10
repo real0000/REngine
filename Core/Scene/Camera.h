@@ -11,7 +11,6 @@
 namespace R
 {
 
-struct SharedSceneMember;
 class MaterialBlock;
 class TextureAsset;
 
@@ -78,7 +77,7 @@ public:
 	virtual void transformListener(glm::mat4x4 &a_NewTransform);
 
 private:
-	Camera(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner);
+	Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 
 	void calView(const glm::mat4x4 &a_NewTransform);
 	void calProjection(const glm::mat4x4 &a_NewTransform);

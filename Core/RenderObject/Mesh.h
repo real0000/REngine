@@ -53,7 +53,7 @@ public:
 	}
 
 private:
-	RenderableMesh(SharedSceneMember *a_pMember, std::shared_ptr<SceneNode> a_pNode);
+	RenderableMesh(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pNode);
 
 	std::shared_ptr<Asset> m_pMesh;
 	unsigned int m_MeshIdx;

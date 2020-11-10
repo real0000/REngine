@@ -20,9 +20,9 @@ namespace R
 //
 // Light
 //
-Light::Light(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: RenderableComponent(a_pSharedMember, a_pOwner)
-	, m_pShadowCamera(EngineComponent::create<Camera>(a_pSharedMember, nullptr))
+Light::Light(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: RenderableComponent(a_pRefScene, a_pOwner)
+	, m_pShadowCamera(EngineComponent::create<Camera>(a_pRefScene, nullptr))
 	, m_bStatic(false)
 {
 }
@@ -33,7 +33,7 @@ Light::~Light()
 
 void Light::start()
 {
-	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
 }
 
 void Light::end()
@@ -41,26 +41,26 @@ void Light::end()
 	m_pShadowCamera = nullptr;
 	if( isHidden() ) return;
 
-	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
 }
 
 void Light::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
 		removeTransformListener();
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
 		addTransformListener();
 	}
 }
 
 void Light::transformListener(glm::mat4x4 &a_NewTransform)
 {
-	getSharedMember()->m_pGraphs[m_bStatic ? SharedSceneMember::GRAPH_STATIC_LIGHT : SharedSceneMember::GRAPH_LIGHT]->update(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->update(shared_from_base<Light>());
 }
 
 void Light::setStatic(bool a_bStatic)
@@ -68,13 +68,13 @@ void Light::setStatic(bool a_bStatic)
 	if( m_bStatic == a_bStatic ) return;
 	if( m_bStatic )
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->remove(shared_from_base<Light>());
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
 	}
 	else
 	{
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_LIGHT]->remove(shared_from_base<Light>());
-		getSharedMember()->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->add(shared_from_base<Light>());
 	}
 	m_bStatic = a_bStatic;
 }
@@ -84,8 +84,8 @@ void Light::setStatic(bool a_bStatic)
 //
 // DirLight
 //
-DirLight::DirLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: Light(a_pSharedMember, a_pOwner)
+DirLight::DirLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: Light(a_pRefScene, a_pOwner)
 	, m_pRefParam(nullptr)
 	, m_ID(0)
 {
@@ -100,13 +100,13 @@ DirLight::~DirLight()
 void DirLight::end()
 {
 	Light::end();
-	getSharedMember()->m_pDirLights->recycle(shared_from_base<DirLight>());
+	getScene()->getDirLightContainer()->recycle(shared_from_base<DirLight>());
 }
 
 void DirLight::transformListener(glm::mat4x4 &a_NewTransform)
 {
 	m_pRefParam->m_Direction = glm::normalize(glm::vec3(a_NewTransform[0][0], a_NewTransform[1][0], a_NewTransform[2][0]));
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 
 	Light::transformListener(a_NewTransform);
 }
@@ -121,8 +121,9 @@ void DirLight::loadComponent(boost::property_tree::ptree &a_Src)
 	m_pRefParam->m_Color.z = l_Attr.get("b", 1.0f);
 	m_pRefParam->m_Intensity = l_Attr.get("intensity", 1.0f);
 	m_pRefParam->m_bCastShadow = l_Attr.get("castShadow", true) ? 1 : 0;
+	setHidden(l_Attr.get("isHidden", false));
 
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 void DirLight::saveComponent(boost::property_tree::ptree &a_Dst)
@@ -138,6 +139,7 @@ void DirLight::saveComponent(boost::property_tree::ptree &a_Dst)
 	l_Attr.add("b", m_pRefParam->m_Color.z);
 	l_Attr.add("intensity", m_pRefParam->m_Intensity);
 	l_Attr.add("castShadow", m_pRefParam->m_bCastShadow != 0);
+	l_Attr.add("isHidden", isHidden());
 
 	l_Root.add_child("<xmlattr>", l_Attr);
 	
@@ -148,7 +150,7 @@ void DirLight::setShadowed(bool a_bShadow)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 bool DirLight::getShadowed()
@@ -161,7 +163,7 @@ void DirLight::setColor(glm::vec3 a_Color)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Color = a_Color;
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 glm::vec3 DirLight::getColor()
@@ -174,7 +176,7 @@ void DirLight::setIntensity(float a_Intensity)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Intensity = a_Intensity;
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 float DirLight::getIntensity()
@@ -195,7 +197,7 @@ void DirLight::setShadowMapLayer(unsigned int a_Slot, glm::vec4 a_UV, int a_Laye
 	m_pRefParam->m_Layer[a_Slot] = a_Layer;
 	bool l_bXY = 0 == (a_Slot%2);
 	m_pRefParam->m_ShadowMapUV[a_Slot] = a_UV;
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 glm::vec4 DirLight::getShadowMapUV(unsigned int a_Slot)
@@ -214,7 +216,7 @@ void DirLight::setShadowMapProjection(unsigned int a_Slot, glm::mat4x4 a_Matrix)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapProj[a_Slot] = a_Matrix;
-	getSharedMember()->m_pDirLights->setDirty();
+	getScene()->getDirLightContainer()->setDirty();
 }
 
 glm::mat4x4 DirLight::getShadowMapProjection(unsigned int a_Slot)
@@ -233,8 +235,8 @@ unsigned int DirLight::getID()
 //
 // OmniLight
 //
-OmniLight::OmniLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: Light(a_pSharedMember, a_pOwner)
+OmniLight::OmniLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: Light(a_pRefScene, a_pOwner)
 	, m_pRefParam(nullptr)
 	, m_ID(0)
 {
@@ -247,7 +249,7 @@ OmniLight::~OmniLight()
 void OmniLight::end()
 {
 	Light::end();
-	getSharedMember()->m_pOmniLights->recycle(shared_from_base<OmniLight>());
+	getScene()->getOmniLightContainer()->recycle(shared_from_base<OmniLight>());
 }
 
 void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
@@ -264,7 +266,7 @@ void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
 	
 	boundingBox().m_Center = m_pRefParam->m_Position;
 	boundingBox().m_Size = glm::vec3(m_pRefParam->m_Range, m_pRefParam->m_Range, m_pRefParam->m_Range);
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 
 	getShadowCamera()->setCubeView(a_NewTransform);
 
@@ -282,8 +284,9 @@ void OmniLight::loadComponent(boost::property_tree::ptree &a_Src)
 	m_pRefParam->m_Intensity = l_Attr.get("intensity", 1.0f);
 	m_pRefParam->m_bCastShadow = l_Attr.get("castShadow", true) ? 1 : 0;
 	m_pRefParam->m_PhysicRange = l_Attr.get("physicRange", m_pRefParam->m_Range);
+	setHidden(l_Attr.get("isHidden", false));
 
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 void OmniLight::saveComponent(boost::property_tree::ptree &a_Dst)
@@ -300,6 +303,7 @@ void OmniLight::saveComponent(boost::property_tree::ptree &a_Dst)
 	l_Attr.add("intensity", m_pRefParam->m_Intensity);
 	l_Attr.add("castShadow", m_pRefParam->m_bCastShadow != 0);
 	l_Attr.add("physicRange", m_pRefParam->m_PhysicRange);
+	l_Attr.add("isHidden", isHidden());
 
 	l_Root.add_child("<xmlattr>", l_Attr);
 	
@@ -310,7 +314,7 @@ void OmniLight::setShadowed(bool a_bShadow)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 bool OmniLight::getShadowed()
@@ -340,7 +344,7 @@ void OmniLight::setPhysicRange(float a_Range)
 		a_Range = std::max(m_pRefParam->m_Range - MIN_PHYSIC_DIST, 0.0f);
 	}
 	m_pRefParam->m_PhysicRange = a_Range;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 float OmniLight::getPhysicRange()
@@ -353,7 +357,7 @@ void OmniLight::setColor(glm::vec3 a_Color)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Color = a_Color;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 glm::vec3 OmniLight::getColor()
@@ -366,7 +370,7 @@ void OmniLight::setIntensity(float a_Intensity)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Intensity = a_Intensity;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 float OmniLight::getIntensity()
@@ -380,7 +384,7 @@ void OmniLight::setShadowMapUV(glm::vec4 a_UV, int a_Layer)
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapUV = a_UV;
 	m_pRefParam->m_Layer = a_Layer;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 glm::vec4 OmniLight::getShadowMapUV()
@@ -400,7 +404,7 @@ void OmniLight::setShadowMapProjection(glm::mat4x4 a_Matrix, unsigned int a_Inde
 	assert(nullptr != m_pRefParam);
 	assert(a_Index < 4);
 	m_pRefParam->m_ShadowMapProj[a_Index] = a_Matrix;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getOmniLightContainer()->setDirty();
 }
 
 glm::mat4x4 OmniLight::getShadowMapProjection(unsigned int a_Index)
@@ -420,8 +424,8 @@ unsigned int OmniLight::getID()
 //
 // SpotLight
 //
-SpotLight::SpotLight(SharedSceneMember *a_pSharedMember, std::shared_ptr<SceneNode> a_pOwner)
-	: Light(a_pSharedMember, a_pOwner)
+SpotLight::SpotLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
+	: Light(a_pRefScene, a_pOwner)
 	, m_pRefParam(nullptr)
 	, m_ID(0)
 {
@@ -434,7 +438,7 @@ SpotLight::~SpotLight()
 void SpotLight::end()
 {
 	Light::end();
-	getSharedMember()->m_pSpotLights->recycle(shared_from_base<SpotLight>());
+	getScene()->getSpotLightContainer()->recycle(shared_from_base<SpotLight>());
 }
 
 void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
@@ -455,7 +459,7 @@ void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
 
 	boundingBox().m_Size = glm::vec3(l_Size, l_Size, l_Size);
 	boundingBox().m_Center = m_pRefParam->m_Position + m_pRefParam->m_Direction * 0.5f * m_pRefParam->m_Range;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 	
 	getShadowCamera()->setPerspectiveView(m_pRefParam->m_Angle, 1.0f, 0.01f, a_NewTransform);
 
@@ -473,8 +477,9 @@ void SpotLight::loadComponent(boost::property_tree::ptree &a_Src)
 	m_pRefParam->m_Intensity = l_Attr.get("intensity", 1.0f);
 	m_pRefParam->m_bCastShadow = l_Attr.get("castShadow", true) ? 1 : 0;
 	m_pRefParam->m_PhysicRange = l_Attr.get("physicRange", m_pRefParam->m_Range);
+	setHidden(l_Attr.get("isHidden", false));
 
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 void SpotLight::saveComponent(boost::property_tree::ptree &a_Dst)
@@ -491,6 +496,7 @@ void SpotLight::saveComponent(boost::property_tree::ptree &a_Dst)
 	l_Attr.add("intensity", m_pRefParam->m_Intensity);
 	l_Attr.add("castShadow", m_pRefParam->m_bCastShadow != 0);
 	l_Attr.add("physicRange", m_pRefParam->m_PhysicRange);
+	l_Attr.add("isHidden", isHidden());
 
 	l_Root.add_child("<xmlattr>", l_Attr);
 	
@@ -501,7 +507,7 @@ void SpotLight::setShadowed(bool a_bShadow)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_bCastShadow = a_bShadow ? 1 : 0;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 bool SpotLight::getShadowed()
@@ -531,7 +537,7 @@ void SpotLight::setPhysicRange(float a_Range)
 		a_Range = std::max(m_pRefParam->m_Range - MIN_PHYSIC_DIST, 0.0f);
 	}
 	m_pRefParam->m_PhysicRange = a_Range;
-	getSharedMember()->m_pOmniLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 float SpotLight::getPhysicRange()
@@ -544,7 +550,7 @@ void SpotLight::setColor(glm::vec3 a_Color)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Color = a_Color;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 glm::vec3 SpotLight::getColor()
@@ -557,7 +563,7 @@ void SpotLight::setIntensity(float a_Intensity)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_Intensity = a_Intensity;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 float SpotLight::getIntensity()
@@ -583,7 +589,7 @@ void SpotLight::setShadowMapUV(glm::vec4 a_UV, int a_Layer)
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapUV = a_UV;
 	m_pRefParam->m_Layer = a_Layer;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 glm::vec4 SpotLight::getShadowMapUV()
@@ -602,7 +608,7 @@ void SpotLight::setShadowMapProjection(glm::mat4x4 a_Matrix)
 {
 	assert(nullptr != m_pRefParam);
 	m_pRefParam->m_ShadowMapProj = a_Matrix;
-	getSharedMember()->m_pSpotLights->setDirty();
+	getScene()->getSpotLightContainer()->setDirty();
 }
 
 glm::mat4x4 SpotLight::getShadowMapProjection()

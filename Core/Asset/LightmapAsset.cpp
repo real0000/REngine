@@ -109,7 +109,7 @@ void LightmapAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	a_Dst.add_child("root", l_Root);
 }
 
-void LightmapAsset::bake(SharedSceneMember *a_pMember)
+void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 {
 	std::lock_guard<std::mutex> l_Locker(m_BakeLock);
 
@@ -118,8 +118,8 @@ void LightmapAsset::bake(SharedSceneMember *a_pMember)
 	unsigned int l_LightCount = 0;
 
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes, l_Lights;
-	a_pMember->m_pGraphs[SharedSceneMember::GRAPH_STATIC_MESH]->getAllComponent(l_Meshes);
-	a_pMember->m_pGraphs[SharedSceneMember::GRAPH_STATIC_LIGHT]->getAllComponent(l_Lights);
+	a_pScene->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
+	a_pScene->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
 
 	std::vector<unsigned int> l_TempTriangleData;
 	std::vector<LightMapVtxSrc> l_TempVertexData;
@@ -344,9 +344,9 @@ void LightmapAsset::bake(SharedSceneMember *a_pMember)
 	
 	m_pRayIntersectMatInst->setBlock("g_Indicies", m_pIndicies);
 	m_pRayIntersectMatInst->setBlock("g_Harmonics", m_pHarmonicsCache);
-	m_pRayIntersectMatInst->setBlock("g_DirLights", a_pMember->m_pDirLights->getMaterialBlock());
-	m_pRayIntersectMatInst->setBlock("g_OmniLights", a_pMember->m_pOmniLights->getMaterialBlock());
-	m_pRayIntersectMatInst->setBlock("g_SpotLights", a_pMember->m_pSpotLights->getMaterialBlock());
+	m_pRayIntersectMatInst->setBlock("g_DirLights", a_pScene->getDirLightContainer()->getMaterialBlock());
+	m_pRayIntersectMatInst->setBlock("g_OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
+	m_pRayIntersectMatInst->setBlock("g_SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
 	m_pRayIntersectMatInst->setBlock("g_Box", m_pBoxCache);
 	m_pRayIntersectMatInst->setBlock("g_Vertex", m_pVertex);
 	m_pRayIntersectMatInst->setBlock("g_Result", m_pResult);
