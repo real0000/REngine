@@ -33,7 +33,7 @@ Light::~Light()
 
 void Light::start()
 {
-	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->add(shared_from_base<Light>());
 }
 
 void Light::end()
@@ -41,26 +41,26 @@ void Light::end()
 	m_pShadowCamera = nullptr;
 	if( isHidden() ) return;
 
-	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->remove(shared_from_base<Light>());
 }
 
 void Light::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->remove(shared_from_base<Light>());
 		removeTransformListener();
 	}
 	else
 	{
-		getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->add(shared_from_base<Light>());
 		addTransformListener();
 	}
 }
 
 void Light::transformListener(glm::mat4x4 &a_NewTransform)
 {
-	getScene()->getSceneGraph(m_bStatic ? Scene::GRAPH_STATIC_LIGHT : Scene::GRAPH_LIGHT)->update(shared_from_base<Light>());
+	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->update(shared_from_base<Light>());
 }
 
 void Light::setStatic(bool a_bStatic)
@@ -68,13 +68,13 @@ void Light::setStatic(bool a_bStatic)
 	if( m_bStatic == a_bStatic ) return;
 	if( m_bStatic )
 	{
-		getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->remove(shared_from_base<Light>());
-		getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(GRAPH_LIGHT)->add(shared_from_base<Light>());
 	}
 	else
 	{
-		getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->remove(shared_from_base<Light>());
-		getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->add(shared_from_base<Light>());
+		getScene()->getSceneGraph(GRAPH_LIGHT)->remove(shared_from_base<Light>());
+		getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->add(shared_from_base<Light>());
 	}
 	m_bStatic = a_bStatic;
 }

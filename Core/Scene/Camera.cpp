@@ -50,25 +50,25 @@ void Camera::postInit()
 void Camera::start()
 {
 	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->add(l_pThis);
+	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_CAMERA)->add(l_pThis);
 }
 
 void Camera::end()
 {
 	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->remove(l_pThis);
+	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_CAMERA)->remove(l_pThis);
 }
 
 void Camera::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->remove(shared_from_base<Camera>());
+		getScene()->getSceneGraph(GRAPH_CAMERA)->remove(shared_from_base<Camera>());
 		removeTransformListener();
 	}
 	else
 	{
-		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->add(shared_from_base<Camera>());
+		getScene()->getSceneGraph(GRAPH_CAMERA)->add(shared_from_base<Camera>());
 		addTransformListener();
 	}
 }
@@ -130,7 +130,7 @@ void Camera::transformListener(glm::mat4x4 &a_NewTransform)
 		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
 		if( TETRAHEDRON == m_Type || CUBE == m_Type ) boundingBox().m_Size = glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w);
 		else boundingBox().m_Size = glm::one<glm::vec3>();
-		getScene()->getSceneGraph(Scene::GRAPH_CAMERA)->update(l_pThis);
+		getScene()->getSceneGraph(GRAPH_CAMERA)->update(l_pThis);
 	}
 }
 

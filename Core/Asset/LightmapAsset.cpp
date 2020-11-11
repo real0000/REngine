@@ -118,8 +118,8 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	unsigned int l_LightCount = 0;
 
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes, l_Lights;
-	a_pScene->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
-	a_pScene->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
+	a_pScene->getSceneGraph(GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
+	a_pScene->getSceneGraph(GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
 
 	std::vector<unsigned int> l_TempTriangleData;
 	std::vector<LightMapVtxSrc> l_TempVertexData;

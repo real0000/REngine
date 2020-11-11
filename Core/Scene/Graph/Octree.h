@@ -16,6 +16,7 @@ namespace R
 
 class OctreePartition : public ScenePartition
 {
+	friend class OctreePartition;
 public:
 	struct Node
 	{
@@ -36,7 +37,8 @@ public:
 	};
 
 public:
-	OctreePartition(double a_RootEdge = DEFAULT_OCTREE_ROOT_SIZE, double a_MinEdge = DEFAULT_OCTREE_EDGE);
+	static OctreePartition* create(boost::property_tree::ptree &a_Src);
+	static std::string typeName(){ return "OctreePartition"; }
 	virtual ~OctreePartition();
 
 	virtual void add(std::shared_ptr<RenderableComponent> a_pComponent);
@@ -50,6 +52,8 @@ public:
 	void setEdge(float a_Edge){ m_Edge = a_Edge; }
 
 private:
+	OctreePartition(double a_RootEdge = DEFAULT_OCTREE_ROOT_SIZE, double a_MinEdge = DEFAULT_OCTREE_EDGE);
+
 	void flush();
 	void extend();
 	bool checkNode(std::shared_ptr<Node> a_pNode, glm::daabb &a_Box);

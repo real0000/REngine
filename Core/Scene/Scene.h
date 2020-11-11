@@ -181,28 +181,12 @@ class Scene : public std::enable_shared_from_this<Scene>
 	friend class Scene;
 	friend class SceneManager;
 public:
-	enum GraphType
-	{
-		GRAPH_MESH = 0,
-		GRAPH_STATIC_MESH,
-		GRAPH_LIGHT,
-		GRAPH_STATIC_LIGHT,
-		GRAPH_CAMERA,
-
-		NUM_GRAPH_TYPE
-	};
-
-public:
 	virtual ~Scene();
 
 	void destroy();
 
 	// file part
 	void initEmpty();
-	bool load(wxString a_Path);
-	void loadAsync(wxString a_Path, std::function<void(bool)> a_Callback);
-	bool save(wxString a_Path);
-	float getLoadingProgress(){ return m_LoadingProgress; }
 
 	// update part
 	void preprocessInput();
@@ -222,7 +206,7 @@ public:
 	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
 	LightContainer<SpotLight>* getSpotLightContainer(){ return m_pSpotLights; }
 	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
-	ScenePartition* getSceneGraph(GraphType a_Slot){ return m_pGraphs[a_Slot]; }
+	ScenePartition* getSceneGraph(SceneGraphType a_Slot){ return m_pGraphs[a_Slot]; }
 
 	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
@@ -232,15 +216,8 @@ private:
 	Scene();
 
 	void clear();
-	void loadAsyncThread(wxString a_Path);
-	void loadScenePartitionSetting(boost::property_tree::ptree &a_Node);
-	void loadRenderPipelineSetting(boost::property_tree::ptree &a_Node);
-	void loadAssetSetting(boost::property_tree::ptree &a_Node);
-
-	bool m_bLoading;
-	float m_LoadingProgress;
-	std::function<void(bool)> m_LoadingCompleteCallback;
 	
+	// reference render data
 	RenderPipeline *m_pRenderer;
 	std::shared_ptr<SceneNode> m_pRootNode;
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
@@ -249,6 +226,8 @@ private:
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Camera> m_pCurrCamera;
+
+	// reference render data owner
 	std::shared_ptr<Asset> m_pRefSceneAsset;
 	
 	std::mutex m_InputLocker;

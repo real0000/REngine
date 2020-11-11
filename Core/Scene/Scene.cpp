@@ -187,7 +187,7 @@ void SceneBatcher::calculateStaticBatch(std::shared_ptr<Scene> &a_GraphOwner)
 	m_StaticMeshes.clear();
 
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes;
-	a_GraphOwner->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
+	a_GraphOwner->getSceneGraph(GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
 
 	std::set<std::shared_ptr<Asset>> l_MeshAssets;
 	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
@@ -534,8 +534,7 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 // Scene
 //
 Scene::Scene()
-	: m_bLoading(false), m_LoadingProgress(0.0f), m_LoadingCompleteCallback(nullptr)
-	, m_pRenderer(nullptr)
+	: m_pRenderer(nullptr)
 	, m_pRootNode(nullptr)
 	, m_pCurrCamera(nullptr)
 	, m_bActivate(true)
@@ -559,11 +558,10 @@ void Scene::destroy()
 
 void Scene::initEmpty()
 {
-	assert(!m_bLoading);
-	m_bLoading = true;
 	clear();
 	
-	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new NoPartition();//OctreePartition();
+	boost::property_tree::ptree l_Empty;
+	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = NoPartition::create(l_Empty);//OctreePartition();
 
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pDirLights = new LightContainer<DirLight>("DirLight");
@@ -575,45 +573,6 @@ void Scene::initEmpty()
 	l_pCameraNode->setName(wxT("Default Camera"));
 	m_pCurrCamera = l_pCameraNode->addComponent<Camera>();
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
-
-	m_bLoading = false;
-}
-
-bool Scene::load(wxString a_Path)
-{
-	try
-	{
-		assert(!m_bLoading);
-		m_bLoading = true;
-		clear();
-
-		boost::property_tree::ptree l_XMLTree;
-		boost::property_tree::xml_parser::read_xml(static_cast<const char *>(a_Path.c_str()), l_XMLTree);
-		assert( !l_XMLTree.empty() );
-
-		loadScenePartitionSetting(l_XMLTree.get_child("root.ScenePartition"));
-		loadRenderPipelineSetting(l_XMLTree.get_child("root.RenderPipeline"));
-		loadAssetSetting(l_XMLTree.get_child("root.Assets"));
-	}
-	catch( ... )
-	{
-		m_bLoading = false;
-		return false;
-	}
-
-	m_bLoading = false;
-	return true;
-}
-
-void Scene::loadAsync(wxString a_Path, std::function<void(bool)> a_Callback)
-{
-	m_LoadingCompleteCallback = a_Callback;
-	std::thread l_NewThread(&Scene::loadAsyncThread, this, a_Path);
-}
-
-bool Scene::save(wxString a_Path)
-{
-	return true;
 }
 
 void Scene::preprocessInput()
@@ -724,8 +683,6 @@ std::shared_ptr<SceneNode> Scene::getRootNode()
 
 void Scene::clear()
 {
-	m_LoadingProgress = 0.0f;
-	
 	if( nullptr != m_pRootNode ) m_pRootNode->destroy();
 	m_pRootNode = nullptr;
 	if( nullptr != m_pGraphs[0] )
@@ -735,7 +692,7 @@ void Scene::clear()
 			m_pGraphs[i]->clear();
 			delete m_pGraphs[i];
 		}
-		memset(m_pGraphs, NULL, sizeof(ScenePartition *) * Scene::NUM_GRAPH_TYPE);
+		memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
 	}
 	SAFE_DELETE(m_pRenderer)
 	SAFE_DELETE(m_pBatcher)
@@ -745,38 +702,6 @@ void Scene::clear()
 	m_pRefSceneAsset = nullptr;
 
 	m_pCurrCamera = nullptr;
-}
-
-void Scene::loadAsyncThread(wxString a_Path)
-{
-	bool l_bSuccess = load(a_Path);
-	m_LoadingCompleteCallback(l_bSuccess);
-}
-
-void Scene::loadScenePartitionSetting(boost::property_tree::ptree &a_Node)
-{
-	boost::property_tree::ptree &l_Attr = a_Node.get_child("<xmlattr>");
-	switch( ScenePartitionType::fromString(l_Attr.get("type", "Octree")) )
-	{
-		case ScenePartitionType::None:{
-			for( unsigned int i=0 ; i<Scene::NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new NoPartition();
-			}break;
-
-		case ScenePartitionType::Octree:{
-			double l_RootEdge = a_Node.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
-			double l_MinEdge = a_Node.get("MinEdge", DEFAULT_OCTREE_EDGE);
-			for( unsigned int i=0 ; i<Scene::NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = new OctreePartition(l_RootEdge, l_MinEdge);
-			}break;
-	}
-}
-
-void Scene::loadRenderPipelineSetting(boost::property_tree::ptree &a_Node)
-{
-}
-
-void Scene::loadAssetSetting(boost::property_tree::ptree &a_Node)
-{
-
 }
 #pragma endregion
 

@@ -35,6 +35,17 @@ enum ComponentDefine
 	CUSTOM_COMPONENT,// all custom component type id must >= this value
 };
 
+enum SceneGraphType
+{
+	GRAPH_MESH = 0,
+	GRAPH_STATIC_MESH,
+	GRAPH_LIGHT,
+	GRAPH_STATIC_LIGHT,
+	GRAPH_CAMERA,
+
+	NUM_GRAPH_TYPE
+};
+
 enum MaterialSlot
 {
 	MATSLOT_NORMAL = 0,
@@ -49,6 +60,7 @@ class Asset;
 class InputMediator;
 class GraphicCanvas;
 class Scene;
+class SceneAsset;
 class SceneNode;
 class TextureAsset;
 class VertexBuffer;
@@ -181,6 +193,12 @@ public:
 	void shutDown();
 
 	// utility
+	template<typename T>
+	void registComponentReflector(){ SceneNode::registComponentReflector<T>(); }
+	template<typename T>
+	void registSceneGraphReflector(){ SceneAsset::registSceneGraphReflector<T>(); }
+	template<typename T>
+	void registRenderPipelineReflector(){ SceneAsset::registRenderPipelineReflector<T>(); }
 	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture.second; }
 	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture.second; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }

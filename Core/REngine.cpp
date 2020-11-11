@@ -12,10 +12,13 @@
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 #include "Scene/Camera.h"
+#include "Scene/Graph/NoPartition.h"
+#include "Scene/Graph/Octree.h"
 #include "Scene/Scene.h"
 
 #include "Asset/AssetBase.h"
 #include "Asset/MaterialAsset.h"
+#include "Asset/SceneAsset.h"
 #include "Asset/TextureAsset.h"
 
 #include <chrono>
@@ -294,6 +297,9 @@ EngineCore::EngineCore()
 	SceneNode::registComponentReflector<OmniLight>();
 	SceneNode::registComponentReflector<SpotLight>();
 	SceneNode::registComponentReflector<DirLight>();
+
+	SceneAsset::registSceneGraphReflector<NoPartition>();
+	SceneAsset::registSceneGraphReflector<OctreePartition>();
 }
 
 EngineCore::~EngineCore()

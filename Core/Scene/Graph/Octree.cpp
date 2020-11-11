@@ -57,6 +57,13 @@ void OctreePartition::Node::clear()
 //
 // OctreePartition
 //
+OctreePartition* OctreePartition::create(boost::property_tree::ptree &a_Src)
+{
+	double l_RootEdge = a_Src.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
+	double l_MinEdge = a_Src.get("MinEdge", DEFAULT_OCTREE_EDGE);
+	return new OctreePartition(l_RootEdge, l_MinEdge);
+}
+
 OctreePartition::OctreePartition(double a_RootEdge, double a_MinEdge)
 	: m_Edge(a_MinEdge)
 	, m_NodePool(true)

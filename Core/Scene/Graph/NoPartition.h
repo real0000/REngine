@@ -13,8 +13,10 @@ namespace R
 	
 class NoPartition : public ScenePartition
 {
+	friend class NoPartition;
 public:
-	NoPartition();
+	static NoPartition* create(boost::property_tree::ptree &a_Src);
+	static std::string typeName(){ return "NoPartition"; }
 	virtual ~NoPartition();
 
 	virtual void add(std::shared_ptr<RenderableComponent> a_pComponent);
@@ -26,6 +28,8 @@ public:
 	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output);
 
 private:
+	NoPartition();
+
 	std::set< std::shared_ptr<RenderableComponent> > m_Container;
 };
 

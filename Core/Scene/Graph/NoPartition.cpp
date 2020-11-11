@@ -16,6 +16,11 @@ namespace R
 //
 // NoPartition
 //
+NoPartition* NoPartition::create(boost::property_tree::ptree &a_Src)
+{
+	return new NoPartition();
+}
+
 NoPartition::NoPartition()
 {
 }

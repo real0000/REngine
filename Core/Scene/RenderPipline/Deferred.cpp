@@ -454,12 +454,12 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
 {
-	getScene()->getSceneGraph(Scene::GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
-	getScene()->getSceneGraph(Scene::GRAPH_STATIC_MESH)->getVisibleList(a_pCamera, a_StaticMesh);
+	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
+	getScene()->getSceneGraph(GRAPH_STATIC_MESH)->getVisibleList(a_pCamera, a_StaticMesh);
 	if( a_Mesh.empty() && a_StaticMesh.empty() ) return false;
 
-	getScene()->getSceneGraph(Scene::GRAPH_STATIC_LIGHT)->getVisibleList(a_pCamera, a_StaticLight);
-	getScene()->getSceneGraph(Scene::GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
+	getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->getVisibleList(a_pCamera, a_StaticLight);
+	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
 
 	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )
 	{
