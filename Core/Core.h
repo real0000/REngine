@@ -15,6 +15,7 @@ namespace R
 #define CONIFG_FILE "Config.ini"
 
 #define BATCHDRAW_UNIT 1024
+#define DEFAULT_LIGHT_MAP "DefaultLightmap%d.Lightmap"
 
 STRING_ENUM_CLASS(GraphicApi,
 	d3d11,

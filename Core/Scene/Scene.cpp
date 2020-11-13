@@ -229,8 +229,6 @@ void SceneBatcher::calculateStaticBatch(std::shared_ptr<Scene> &a_GraphOwner)
 			l_SubMesh.m_IndexCount = l_List[j]->m_IndexCount;
 			l_SubMesh.m_VertexStart = l_BaseVtx + l_List[j]->m_BaseVertex;
 			l_pNewCache->push_back(l_SubMesh);
-
-
 		}
 
 		std::copy(l_pAssetInst->getPosition().begin(), l_pAssetInst->getPosition().end(), l_Position.begin() + l_BaseVtx);
@@ -532,12 +530,19 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 // Scene
 //
+unsigned int Scene::m_LightmapSerial = 0;
 std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> Scene::m_RenderPipeLineReflectors;
 std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> Scene::m_SceneGraphReflectors;
 Scene::Scene()
 	: m_pRenderer(nullptr)
 	, m_pRootNode(nullptr)
+	, m_pGraphs{nullptr, nullptr, nullptr, nullptr, nullptr}
+	, m_pBatcher(nullptr)
+	, m_pDirLights(nullptr)
+	, m_pOmniLights(nullptr)
+	, m_pSpotLights(nullptr)
 	, m_pCurrCamera(nullptr)
+	, m_pLightmap(nullptr)
 	, m_bActivate(true)
 {
 }
@@ -569,6 +574,9 @@ void Scene::initEmpty()
 	m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
 	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
+
+	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
+	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName).second;
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
@@ -607,7 +615,7 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pRootNode->addChild(l_pAssetInst->getNodeTree());
 	
-	m_pRefLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath()).second;
+	m_pLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath()).second;
 }
 
 void Scene::preprocessInput()
@@ -744,7 +752,7 @@ void Scene::clear()
 	if( nullptr != m_pDirLights ) m_pDirLights->clear();
 	if( nullptr != m_pOmniLights ) m_pOmniLights->clear();
 	if( nullptr != m_pSpotLights ) m_pSpotLights->clear();
-	m_pRefLightmap = nullptr;
+	m_pLightmap = nullptr;
 
 	m_pCurrCamera = nullptr;
 }

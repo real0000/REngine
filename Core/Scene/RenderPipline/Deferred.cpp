@@ -7,7 +7,7 @@
 #include "RGDeviceWrapper.h"
 
 #include "Core.h"
-#include "Asset/AssetBase.h"
+#include "Asset/LightmapAsset.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
 #include "Asset/TextureAsset.h"
@@ -177,8 +177,16 @@ void DeferredRenderer::saveSetting(boost::property_tree::ptree &a_Dst)
 
 void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	std::vector<std::shared_ptr<RenderableComponent>> l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes;
-	if( !setupVisibleList(a_pCamera, l_StaticLights, l_Lights, l_StaticMeshes, l_Meshes) )
+	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_StaticMeshes, l_Meshes;
+
+	std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
+	if( nullptr != l_pLightmap )
+	{
+		LightmapAsset *l_pLightmapInst = l_pLightmap->getComponent<LightmapAsset>();
+		l_pLightmapInst->stepBake(m_pCmdInit);
+	}
+
+	if( !setupVisibleList(a_pCamera, l_Lights, l_StaticMeshes, l_Meshes) )
 	{
 		// clear backbuffer only if mesh list is empty
 		m_pCmdInit->begin(false);
@@ -249,7 +257,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		unsigned int l_NumCommand = std::min(l_Meshes.size(), m_DrawCommand.size());
 		for( unsigned int i=0 ; i<l_NumCommand ; ++i )
 		{
-			m_ThreadPool.addJob([=, &i, &l_NumCommand, &l_DirLights, &l_OmniLights, &l_SpotLights, &l_Meshes]()
+			m_ThreadPool.addJob([=, &i, &l_NumCommand, &l_DirLights, &l_OmniLights, &l_SpotLights, &l_Meshes, &l_StaticMeshes]()
 			{
 				m_DrawCommand[i]->begin(false);
 
@@ -261,13 +269,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					MeshAsset *l_pMeshIst = l_pInst->getMesh()->getComponent<MeshAsset>();
 					MeshAsset::Instance *l_pSubMeshInst = l_pMeshIst->getMeshes()[l_pInst->getMeshIdx()];
 
-					std::shared_ptr<Asset> l_pTexture = l_pInst->getMaterial(0)->getComponent<MaterialAsset>()->getFirstTexture();
+					std::shared_ptr<Asset> l_pTexture = l_pInst->getMaterial(0)->getComponent<MaterialAsset>()->getTexture(STANDARD_TEXTURE_BASECOLOR);
 					if( nullptr == l_pTexture ) l_pTexture = EngineCore::singleton().getWhiteTexture();
 					
 					// draw dir shadow map
 					{
 						m_DrawCommand[i]->useProgram(m_pDirShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pDirShadowMat->getComponent<MaterialAsset>()->setTexture("m_DiffTex", l_pTexture);
+						m_pDirShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
 
 						std::vector<glm::ivec4> l_InstanceData(l_DirLights.size() * 4);
 						for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
@@ -292,7 +300,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					// draw omni shadow map
 					{
 						m_DrawCommand[i]->useProgram(m_pOmniShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pOmniShadowMat->getComponent<MaterialAsset>()->setTexture("m_DiffTex", l_pTexture);
+						m_pOmniShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
 
 						std::vector<glm::ivec4> l_InstanceData;
 						for( unsigned int k=0 ; k<l_OmniLights.size() ; ++k )
@@ -323,7 +331,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					// draw spot shadow map
 					{
 						m_DrawCommand[i]->useProgram(m_pSpotShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pSpotShadowMat->getComponent<MaterialAsset>()->setTexture("m_DiffTex", l_pTexture);
+						m_pSpotShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
 
 						std::vector<glm::ivec4> l_InstanceData;
 						for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
@@ -352,6 +360,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 				}
 				
+				for( unsigned int j=0 ; j<l_StaticMeshes.size() ; j+=l_NumCommand )
+				{
+					if( j+i >= l_StaticMeshes.size() ) break;
+					
+					RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[j+i].get());
+				}
+
 				m_DrawCommand[i]->end();
 			});
 		}
@@ -464,14 +479,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 }
 
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera
-		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
+		, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
 {
 	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
 	getScene()->getSceneGraph(GRAPH_STATIC_MESH)->getVisibleList(a_pCamera, a_StaticMesh);
 	if( a_Mesh.empty() && a_StaticMesh.empty() ) return false;
 
-	getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->getVisibleList(a_pCamera, a_StaticLight);
 	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
 
 	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )

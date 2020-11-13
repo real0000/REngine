@@ -361,6 +361,8 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 
 void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 {
+	if( !m_bBaking ) return;
+
 	m_pIndicies->sync(false, 0, sizeof(int) * 8);
 	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
 	glm::ivec4 *l_pEndInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));

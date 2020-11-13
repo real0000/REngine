@@ -205,7 +205,7 @@ public:
 	// misc
 	void saveSceneGraphSetting(boost::property_tree::ptree &a_Dst);
 	void saveRenderSetting(boost::property_tree::ptree &a_Dst);
-	std::shared_ptr<Asset> getLightmap(){ return m_pRefLightmap; }
+	std::shared_ptr<Asset> getLightmap(){ return m_pLightmap; }
 	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
 	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
 	LightContainer<SpotLight>* getSpotLightContainer(){ return m_pSpotLights; }
@@ -251,7 +251,7 @@ private:
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Camera> m_pCurrCamera;
-	std::shared_ptr<Asset> m_pRefLightmap;
+	std::shared_ptr<Asset> m_pLightmap;
 
 	std::mutex m_InputLocker;
 	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;
@@ -259,6 +259,7 @@ private:
 	std::list<std::shared_ptr<EngineComponent>> m_UpdateCallback;
 	bool m_bActivate;
 	
+	static unsigned int m_LightmapSerial;
 	static std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> m_RenderPipeLineReflectors;
 	static std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> m_SceneGraphReflectors;
 };

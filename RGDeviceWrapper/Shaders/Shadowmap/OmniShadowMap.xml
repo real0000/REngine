@@ -3,7 +3,7 @@
     <UavBuffer name="m_SkinTransition" preDef="SkinMatrix" write="false"/>
     <UavBuffer name="m_NormalTransition" preDef="TransformInfo" write="false"/>
     <UavBuffer name="m_Lights" preDef="OmniLight" write="false"/>
-    <Srv2D name="m_DiffTex" desc="" reserved="true"/>
+    <Srv2D name="BaseColor" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
@@ -20,7 +20,7 @@
       <!--Compute>
       </Compute>-->
       <Fragment file="Shadowmap/ShadowMap.pixel">
-        m_DiffTex
+        BaseColor
       </Fragment>
     </Model_5_1>
   </Shaders>

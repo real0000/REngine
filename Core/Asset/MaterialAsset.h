@@ -112,9 +112,6 @@ public:
 	std::shared_ptr<Asset> getTexture(std::string a_Name);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 
-	// for shadow map rendering
-	std::shared_ptr<Asset> getFirstTexture(){ return m_Textures.empty() ? nullptr : m_Textures[0]; }
-
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
 	{
