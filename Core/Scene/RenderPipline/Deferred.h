@@ -12,12 +12,14 @@ namespace R
 {
 
 class Asset;
+class MaterialAsset;
 class RenderTextureAtlas;
 class TextureAsset;
 class Light;
 
 class DeferredRenderer : public RenderPipeline
 {
+	friend class DeferredRenderer;
 private:
 	enum
 	{
@@ -33,12 +35,16 @@ private:
 		GBUFFER_COUNT, 
 	};
 public:
-	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
+	static DeferredRenderer* create(boost::property_tree::ptree &a_Src, std::shared_ptr<Scene> a_pScene);
 	virtual ~DeferredRenderer();
 
+	static std::string typeName(){ return "DeferredRenderer"; }
+	virtual void saveSetting(boost::property_tree::ptree &a_Dst);
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);
 
 private:
+	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
+
 	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticLight, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);

@@ -44,6 +44,11 @@ const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
 //
 // DeferredRenderer
 //
+DeferredRenderer* DeferredRenderer::create(boost::property_tree::ptree &a_Src, std::shared_ptr<Scene> a_pScene)
+{
+	return new DeferredRenderer(a_pScene);
+}
+
 DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	: RenderPipeline(a_pScene)
 	, m_pCmdInit(nullptr)
@@ -160,6 +165,14 @@ DeferredRenderer::~DeferredRenderer()
 	m_pLightIndexMat = nullptr;
 	m_LightIdx = nullptr;
 	m_TiledValidLightIdx = nullptr;
+}
+
+void DeferredRenderer::saveSetting(boost::property_tree::ptree &a_Dst)
+{
+	boost::property_tree::ptree l_Attr;
+	l_Attr.add("type", DeferredRenderer::typeName());
+
+	a_Dst.add_child("<xmlattr>", l_Attr);
 }
 
 void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)

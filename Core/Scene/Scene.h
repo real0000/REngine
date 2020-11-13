@@ -185,8 +185,9 @@ public:
 
 	void destroy();
 
-	// file part
+	// setup part
 	void initEmpty();
+	void setup(std::shared_ptr<Asset> a_pSceneAsset);
 
 	// update part
 	void preprocessInput();
@@ -202,9 +203,33 @@ public:
 	void clearInputListener();
 
 	// misc
+	void saveSceneGraphSetting(boost::property_tree::ptree &a_Dst);
+	void saveRenderSetting(boost::property_tree::ptree &a_Dst);
+	std::shared_ptr<Asset> getLightmap(){ return m_pRefLightmap; }
 	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
 	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
 	LightContainer<SpotLight>* getSpotLightContainer(){ return m_pSpotLights; }
+	
+	template<typename T>
+	static void registSceneGraphReflector()
+	{
+		std::string l_TypeName(T::typeName());
+		assert(m_SceneGraphReflectors.end() == m_SceneGraphReflectors.find(l_TypeName));
+		m_SceneGraphReflectors.insert(std::make_pair(l_TypeName, [=](boost::property_tree::ptree &a_Src) -> ScenePartition*
+		{
+			return T::create(a_Src);
+		}));
+	}
+	template<typename T>
+	static void registRenderPipelineReflector()
+	{
+		std::string l_TypeName(T::typeName());
+		assert(m_RenderPipeLineReflectors.end() == m_RenderPipeLineReflectors.find(l_TypeName));
+		m_RenderPipeLineReflectors.insert(std::make_pair(l_TypeName, [=](boost::property_tree::ptree &a_Src, std::shared_ptr<Scene> a_pScene) -> RenderPipeline*
+		{
+			return T::create(a_Src, a_pScene);
+		}));
+	}
 	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
 	ScenePartition* getSceneGraph(SceneGraphType a_Slot){ return m_pGraphs[a_Slot]; }
 
@@ -226,15 +251,16 @@ private:
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Camera> m_pCurrCamera;
+	std::shared_ptr<Asset> m_pRefLightmap;
 
-	// reference render data owner
-	std::shared_ptr<Asset> m_pRefSceneAsset;
-	
 	std::mutex m_InputLocker;
 	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;
 	std::set<std::shared_ptr<EngineComponent>> m_DroppedInputListener;
 	std::list<std::shared_ptr<EngineComponent>> m_UpdateCallback;
 	bool m_bActivate;
+	
+	static std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> m_RenderPipeLineReflectors;
+	static std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> m_SceneGraphReflectors;
 };
 
 class SceneManager

@@ -14,6 +14,7 @@
 #include "Asset/AssetBase.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
+#include "Asset/SceneAsset.h"
 #include "Scene/Camera.h"
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
@@ -386,16 +387,14 @@ std::shared_ptr<EngineComponent> SceneNode::addComponent(std::string a_Name)
 
 void SceneNode::bakeNode(boost::property_tree::ptree &a_TreeNode)
 {
-	boost::property_tree::ptree l_SceneNode;
-
 	boost::property_tree::ptree l_SceneNodeAttr;
 	l_SceneNodeAttr.add("name", m_Name.mbc_str());
 	if( nullptr != m_pLinkedAsset ) l_SceneNodeAttr.add("prefab", m_pLinkedAsset->getKey().mbc_str());
-	l_SceneNode.add_child("<xmlattr>", l_SceneNodeAttr);
+	a_TreeNode.add_child("<xmlattr>", l_SceneNodeAttr);
 
-	l_SceneNode.put("Position", convertParamValue(ShaderParamType::float3, reinterpret_cast<char*>(&m_LocalPos)));
-	l_SceneNode.put("Scale", convertParamValue(ShaderParamType::float3, reinterpret_cast<char*>(&m_LocalScale)));
-	l_SceneNode.put("Rotate", convertParamValue(ShaderParamType::float4, reinterpret_cast<char*>(&m_LocalRot)));
+	a_TreeNode.put("Position", convertParamValue(ShaderParamType::float3, reinterpret_cast<char*>(&m_LocalPos)));
+	a_TreeNode.put("Scale", convertParamValue(ShaderParamType::float3, reinterpret_cast<char*>(&m_LocalScale)));
+	a_TreeNode.put("Rotate", convertParamValue(ShaderParamType::float4, reinterpret_cast<char*>(&m_LocalRot)));
 
 	boost::property_tree::ptree l_Components;
 	for( auto it=m_Components.begin() ; it!=m_Components.end() ; ++it )
@@ -405,11 +404,11 @@ void SceneNode::bakeNode(boost::property_tree::ptree &a_TreeNode)
 			(*it2)->saveComponent(l_Components);
 		}
 	}
-	l_SceneNode.add_child("Components", l_Components);
+	a_TreeNode.add_child("Components", l_Components);
 
 	boost::property_tree::ptree l_Children;
 	for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->bakeNode(l_Children);
-	l_SceneNode.add_child("Children", l_Children);
+	a_TreeNode.add_child("Children", l_Children);
 }
 
 void SceneNode::destroy()
@@ -533,6 +532,8 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 // Scene
 //
+std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> Scene::m_RenderPipeLineReflectors;
+std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> Scene::m_SceneGraphReflectors;
 Scene::Scene()
 	: m_pRenderer(nullptr)
 	, m_pRootNode(nullptr)
@@ -567,12 +568,46 @@ void Scene::initEmpty()
 	m_pDirLights = new LightContainer<DirLight>("DirLight");
 	m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
-	m_pRenderer = new DeferredRenderer(shared_from_this());
+	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
 	m_pCurrCamera = l_pCameraNode->addComponent<Camera>();
 	m_pCurrCamera->setName(wxT("DefaultCamera"));
+}
+
+void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
+{
+	clear();
+
+	SceneAsset *l_pAssetInst = a_pSceneAsset->getComponent<SceneAsset>();
+
+	boost::property_tree::ptree &l_PipelineSetting = l_pAssetInst->getPipelineSetting();
+	std::string l_Typename(l_PipelineSetting.get("<xmlattr>.type", ""));
+	if( l_Typename.empty() ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
+	else
+	{
+		auto it = m_RenderPipeLineReflectors.find(l_Typename);
+		if( m_RenderPipeLineReflectors.end() == it ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
+		else m_pRenderer = it->second(l_PipelineSetting, shared_from_this());
+	}
+
+	std::function<ScenePartition*(boost::property_tree::ptree)> l_CreateFunc = nullptr;
+	boost::property_tree::ptree &l_SceneGraphSetting = l_pAssetInst->getSceneGraphSetting();
+	l_Typename = l_SceneGraphSetting.get("<xmlattr>.type", "");
+	if( l_Typename.empty() ) l_CreateFunc = &NoPartition::create;
+	else
+	{
+		auto it = m_SceneGraphReflectors.find(l_Typename);
+		if( m_SceneGraphReflectors.end() == it ) l_CreateFunc = &NoPartition::create;
+		else l_CreateFunc = it->second;
+	}
+	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = l_CreateFunc(l_SceneGraphSetting);
+	
+	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
+	m_pRootNode->addChild(l_pAssetInst->getNodeTree());
+	
+	m_pRefLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath()).second;
 }
 
 void Scene::preprocessInput()
@@ -676,6 +711,16 @@ void Scene::clearInputListener()
 	m_DroppedInputListener.clear();
 }
 
+void Scene::saveSceneGraphSetting(boost::property_tree::ptree &a_Dst)
+{
+	m_pGraphs[0]->saveSetting(a_Dst);
+}
+
+void Scene::saveRenderSetting(boost::property_tree::ptree &a_Dst)
+{
+	m_pRenderer->saveSetting(a_Dst);
+}
+
 std::shared_ptr<SceneNode> Scene::getRootNode()
 {
 	return m_pRootNode;
@@ -699,7 +744,7 @@ void Scene::clear()
 	if( nullptr != m_pDirLights ) m_pDirLights->clear();
 	if( nullptr != m_pOmniLights ) m_pOmniLights->clear();
 	if( nullptr != m_pSpotLights ) m_pSpotLights->clear();
-	m_pRefSceneAsset = nullptr;
+	m_pRefLightmap = nullptr;
 
 	m_pCurrCamera = nullptr;
 }

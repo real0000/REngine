@@ -49,6 +49,14 @@ void NoPartition::clear()
 	m_Container.clear();
 }
 
+void NoPartition::saveSetting(boost::property_tree::ptree &a_Dst)
+{
+	boost::property_tree::ptree l_Attr;
+	l_Attr.add("type", NoPartition::typeName());
+
+	a_Dst.add_child("<xmlattr>", l_Attr);
+}
+
 void NoPartition::getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
 {
 	getAllComponent(a_Output);

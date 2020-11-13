@@ -14,6 +14,7 @@
 #include "Scene/Camera.h"
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
+#include "Scene/RenderPipline/Deferred.h"
 #include "Scene/Scene.h"
 
 #include "Asset/AssetBase.h"
@@ -298,8 +299,10 @@ EngineCore::EngineCore()
 	SceneNode::registComponentReflector<SpotLight>();
 	SceneNode::registComponentReflector<DirLight>();
 
-	SceneAsset::registSceneGraphReflector<NoPartition>();
-	SceneAsset::registSceneGraphReflector<OctreePartition>();
+	Scene::registSceneGraphReflector<NoPartition>();
+	Scene::registSceneGraphReflector<OctreePartition>();
+
+	Scene::registRenderPipelineReflector<DeferredRenderer>();
 }
 
 EngineCore::~EngineCore()

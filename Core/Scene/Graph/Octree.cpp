@@ -59,8 +59,10 @@ void OctreePartition::Node::clear()
 //
 OctreePartition* OctreePartition::create(boost::property_tree::ptree &a_Src)
 {
-	double l_RootEdge = a_Src.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
-	double l_MinEdge = a_Src.get("MinEdge", DEFAULT_OCTREE_EDGE);
+	boost::property_tree::ptree &l_Attr = a_Src.get_child("<xmlattr>");
+	double l_RootEdge = l_Attr.get("RootEdge", DEFAULT_OCTREE_ROOT_SIZE);
+	double l_MinEdge = l_Attr.get("MinEdge", DEFAULT_OCTREE_EDGE);
+
 	return new OctreePartition(l_RootEdge, l_MinEdge);
 }
 
@@ -133,6 +135,16 @@ void OctreePartition::clear()
 	m_ModelMap.clear();
 	m_ModelUpdated.clear();
 	m_pRoot->clear();
+}
+
+void OctreePartition::saveSetting(boost::property_tree::ptree &a_Dst)
+{
+	boost::property_tree::ptree l_Attr;
+	l_Attr.add("type", OctreePartition::typeName());
+	l_Attr.add("RootEdge", m_pRoot->m_Bounding.m_Size.x);
+	l_Attr.add("MinEdge", m_Edge);
+
+	a_Dst.add_child("<xmlattr>", l_Attr);
 }
 
 void OctreePartition::getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector< std::shared_ptr<RenderableComponent> > &a_Output)

@@ -27,6 +27,7 @@ public:
 	virtual void update(std::shared_ptr<RenderableComponent> a_pComponent) = 0;
 	virtual void remove(std::shared_ptr<RenderableComponent> a_pComponent) = 0;
 	virtual void clear() = 0;
+	virtual void saveSetting(boost::property_tree::ptree &a_Dst) = 0;
 	
 	virtual void getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Output) = 0;
 	virtual void getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output) = 0;

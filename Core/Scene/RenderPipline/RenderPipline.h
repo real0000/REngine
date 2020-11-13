@@ -22,6 +22,7 @@ public:
 	RenderPipeline(std::shared_ptr<Scene> a_pScene);
 	virtual ~RenderPipeline();
 
+	virtual void saveSetting(boost::property_tree::ptree &a_Dst) = 0;
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
 
 protected:

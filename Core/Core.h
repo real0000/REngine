@@ -196,9 +196,9 @@ public:
 	template<typename T>
 	void registComponentReflector(){ SceneNode::registComponentReflector<T>(); }
 	template<typename T>
-	void registSceneGraphReflector(){ SceneAsset::registSceneGraphReflector<T>(); }
+	void registSceneGraphReflector(){ Scene::registSceneGraphReflector<T>(); }
 	template<typename T>
-	void registRenderPipelineReflector(){ SceneAsset::registRenderPipelineReflector<T>(); }
+	void registRenderPipelineReflector(){ Scene::registRenderPipelineReflector<T>(); }
 	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture.second; }
 	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture.second; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
