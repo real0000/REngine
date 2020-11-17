@@ -191,6 +191,7 @@
     <ClInclude Include="Scene\Graph\ScenePartition.h" />
     <ClInclude Include="Scene\RenderPipline\Deferred.h" />
     <ClInclude Include="Scene\RenderPipline\RenderPipline.h" />
+    <ClInclude Include="Scene\RenderPipline\ShadowMap.h" />
     <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="StateMachine.h" />
   </ItemGroup>
@@ -217,6 +218,7 @@
     <ClCompile Include="Scene\Graph\ScenePartition.cpp" />
     <ClCompile Include="Scene\RenderPipline\Deferred.cpp" />
     <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp" />
+    <ClCompile Include="Scene\RenderPipline\ShadowMap.cpp" />
     <ClCompile Include="Scene\Scene.cpp" />
     <ClCompile Include="StateMachine.cpp" />
   </ItemGroup>

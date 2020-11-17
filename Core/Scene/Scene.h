@@ -204,7 +204,8 @@ public:
 
 	// misc
 	void saveSceneGraphSetting(boost::property_tree::ptree &a_Dst);
-	void saveRenderSetting(boost::property_tree::ptree &a_Dst);
+	void saveRenderSetting(boost::property_tree::ptree &a_Dst, boost::property_tree::ptree &a_ShadowDst);
+	RenderPipeline* getShadowMapBaker(){ return m_pShadowMapBaker; }
 	std::shared_ptr<Asset> getLightmap(){ return m_pLightmap; }
 	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
 	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
@@ -230,8 +231,8 @@ public:
 			return T::create(a_Src, a_pScene);
 		}));
 	}
-	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
 	ScenePartition* getSceneGraph(SceneGraphType a_Slot){ return m_pGraphs[a_Slot]; }
+	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
 
 	std::shared_ptr<SceneNode> getRootNode();
 	void pause(){ m_bActivate = false; }
@@ -243,7 +244,7 @@ private:
 	void clear();
 	
 	// reference render data
-	RenderPipeline *m_pRenderer;
+	RenderPipeline *m_pRenderer, *m_pShadowMapBaker;
 	std::shared_ptr<SceneNode> m_pRootNode;
 	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
 	SceneBatcher *m_pBatcher;

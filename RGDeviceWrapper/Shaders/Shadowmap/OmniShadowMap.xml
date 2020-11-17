@@ -1,21 +1,21 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
-    <UavBuffer name="m_SkinTransition" preDef="SkinMatrix" write="false"/>
-    <UavBuffer name="m_NormalTransition" preDef="TransformInfo" write="false"/>
+    <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
+    <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
     <UavBuffer name="m_Lights" preDef="OmniLight" write="false"/>
     <Srv2D name="BaseColor" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Vertex file="Shadowmap/ShadowMap.vertex">
-        g_Camera, m_SkinTransition, m_NormalTransition
+        g_Camera, SkinTransition, NormalTransition
       </Vertex>
       <!--TessCtrl file="">  
       </TessCtrl>
       <TessEval file="">
       </TessEval-->
       <Geometry file="Shadowmap/OmniShadowMap.geometry">
-        g_Camera, m_NormalTransition
+        g_Camera, NormalTransition
       </Geometry>
       <!--Compute>
       </Compute>-->

@@ -15,6 +15,7 @@
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
 #include "Scene/RenderPipline/Deferred.h"
+#include "Scene/RenderPipline/ShadowMap.h"
 #include "Scene/Scene.h"
 
 #include "Asset/AssetBase.h"
@@ -292,6 +293,7 @@ EngineCore::EngineCore()
 	, m_WhiteTexture(std::make_pair(-1, nullptr)), m_BlueTexture(std::make_pair(-1, nullptr))
 	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
+	, m_ThreadPool(std::thread::hardware_concurrency())
 {
 	SceneNode::registComponentReflector<Camera>();
 	SceneNode::registComponentReflector<RenderableMesh>();
@@ -303,6 +305,7 @@ EngineCore::EngineCore()
 	Scene::registSceneGraphReflector<OctreePartition>();
 
 	Scene::registRenderPipelineReflector<DeferredRenderer>();
+	Scene::registRenderPipelineReflector<ShadowMapRenderer>();
 }
 
 EngineCore::~EngineCore()
@@ -355,6 +358,16 @@ void EngineCore::shutDown()
 
 	GDEVICE()->shutdown();
 	SDL_Quit();
+}
+
+void EngineCore::addJob(std::function<void()> a_Job)
+{
+	m_ThreadPool.addJob(a_Job);
+}
+
+void EngineCore::join()
+{
+	m_ThreadPool.join();
 }
 
 bool EngineCore::init()

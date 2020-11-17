@@ -119,4 +119,46 @@ void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned
 }
 #pragma endregion
 
+#pragma region IndirectDrawBuffer
+//
+// IndirectDrawBuffer
+//
+IndirectDrawBuffer::IndirectDrawBuffer()
+	: m_pBuff(nullptr)
+	, m_ID(-1)
+	, m_CurrOffset(0)
+	, m_MaxSize(1024)
+{
+	m_ID = GDEVICE()->requestIndrectCommandBuffer(m_pBuff, sizeof(IndirectDrawData) * m_MaxSize);
 }
+
+IndirectDrawBuffer::~IndirectDrawBuffer()
+{
+	GDEVICE()->freeIndrectCommandBuffer(m_ID);
+}
+
+void IndirectDrawBuffer::assign(IndirectDrawData &a_Data)
+{
+	if( m_CurrOffset <= m_MaxSize )
+	{
+		char *l_pNewBuff = nullptr;
+		int l_NewID = GDEVICE()->requestIndrectCommandBuffer(l_pNewBuff, sizeof(IndirectDrawData) * (m_MaxSize + 1024));
+		memcpy(l_pNewBuff, m_pBuff, m_MaxSize * sizeof(IndirectDrawData));
+		GDEVICE()->freeIndrectCommandBuffer(m_ID);
+		m_ID = l_NewID;
+		m_pBuff = l_pNewBuff;
+		m_MaxSize += 1024;
+	}
+
+	memcpy(m_pBuff + sizeof(IndirectDrawData) * m_CurrOffset, &a_Data, sizeof(IndirectDrawData));
+	++m_CurrOffset;
+}
+
+void IndirectDrawBuffer::reset()
+{
+	m_CurrOffset = 0;
+}
+#pragma endregion
+
+}
+

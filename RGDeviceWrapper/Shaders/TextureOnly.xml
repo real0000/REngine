@@ -1,15 +1,15 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
     <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
-    <UavBuffer name="m_SkinTransition" preDef="SkinMatrix" write="false"/>
-    <UavBuffer name="m_NormalTransition" preDef="TransformInfo" write="false"/>
+    <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
+    <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
     <Srv2D name="BaseColor" desc="" reserved="false"/>
     <Srv2D name="Normal" desc="" reserved="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Vertex file="VertexTransfer.vertex">
-        g_Camera, m_SkinTransition, m_NormalTransition
+        g_Camera, SkinTransition, NormalTransition
       </Vertex>
       <!--Geometry file="">
       </Geometry>

@@ -422,6 +422,15 @@ void MaterialAsset::bindBlocks(GraphicCommander *a_pBinder)
 	}
 }
 
+void MaterialAsset::bindBlock(GraphicCommander *a_pBinder, std::string a_Name, std::shared_ptr<MaterialBlock> a_pExtBlock)
+{
+	int l_TargetSlot = -1;
+	RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+	if( nullptr == l_pRegInfo ) return;
+
+	a_pExtBlock->bind(a_pBinder, l_pRegInfo->m_Slot);
+}
+
 void MaterialAsset::bindAll(GraphicCommander *a_pBinder)
 {
 	bindBlocks(a_pBinder);

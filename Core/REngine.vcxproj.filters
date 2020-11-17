@@ -88,6 +88,9 @@
     <ClInclude Include="Asset\SceneAsset.h">
       <Filter>Asset</Filter>
     </ClInclude>
+    <ClInclude Include="Scene\RenderPipline\ShadowMap.h">
+      <Filter>Scene\RenderPipeline</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -155,6 +158,9 @@
     </ClCompile>
     <ClCompile Include="Asset\SceneAsset.cpp">
       <Filter>Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene\RenderPipline\ShadowMap.cpp">
+      <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

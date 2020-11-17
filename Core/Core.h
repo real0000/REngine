@@ -203,6 +203,8 @@ public:
 	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture.second; }
 	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture.second; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
+	void addJob(std::function<void()> a_Job);
+	void join();
 
 private:
 	EngineCore();
@@ -218,6 +220,7 @@ private:
 	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
 	std::thread m_MainLoop;
+	ThreadPool m_ThreadPool;
 };
 
 }

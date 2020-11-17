@@ -409,15 +409,6 @@ void ProgramManager::initDefaultProgram()
 }
 #pragma endregion
 
-bool drawDataCompare(const IndirectDrawData *a_pLeft, const IndirectDrawData *a_pRight)
-{
-	if( a_pLeft->m_IndexCount < a_pRight->m_IndexCount ) return true;
-	else if( a_pLeft->m_IndexCount > a_pRight->m_IndexCount ) return false;
-	else if( a_pLeft->m_StartIndex < a_pRight->m_StartIndex ) return true;
-	else if( a_pLeft->m_StartIndex > a_pRight->m_StartIndex ) return false;
-	return a_pLeft->m_BaseVertex < a_pRight->m_BaseVertex;
-}
-
 std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc)
 {
 	char l_Buff[1024];

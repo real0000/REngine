@@ -169,6 +169,7 @@ public:
 
 	void bindTexture(GraphicCommander *a_pBinder);
 	void bindBlocks(GraphicCommander *a_pBinder);
+	void bindBlock(GraphicCommander *a_pBinder, std::string a_Name, std::shared_ptr<MaterialBlock> a_pExtBlock);
 	void bindAll(GraphicCommander *a_pBinder);
 	
 private:

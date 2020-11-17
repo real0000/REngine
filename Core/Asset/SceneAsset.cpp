@@ -34,6 +34,7 @@ void SceneAsset::loadFile(boost::property_tree::ptree &a_Src)
 	m_NodeTree = l_Root.get_child("Node");
 	m_SceneGraghSetting = l_Root.get_child("Graph");
 	m_PipelineSetting = l_Root.get_child("Pipeline");
+	m_ShadowSetting = l_Root.get_child("Shadow");
 }
 
 void SceneAsset::saveFile(boost::property_tree::ptree &a_Dst)
@@ -47,6 +48,7 @@ void SceneAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	l_Root.add_child("Node", m_NodeTree);
 	l_Root.add_child("Graph", m_SceneGraghSetting);
 	l_Root.add_child("Pipeline", m_PipelineSetting);
+	l_Root.add_child("Shadow", m_ShadowSetting);
 
 	a_Dst.add_child("root", l_Root);
 }
@@ -57,7 +59,8 @@ void SceneAsset::updateCache(std::shared_ptr<Scene> a_pScene)
 	a_pScene->getRootNode()->bakeNode(m_NodeTree);
 
 	m_PipelineSetting.clear();
-	a_pScene->saveRenderSetting(m_PipelineSetting);
+	m_ShadowSetting.clear();
+	a_pScene->saveRenderSetting(m_PipelineSetting, m_ShadowSetting);
 	
 	m_SceneGraghSetting.clear();
 	a_pScene->saveSceneGraphSetting(m_SceneGraghSetting);

@@ -50,21 +50,12 @@ private:
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
 	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
 
-	unsigned int calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light);
-	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
-
 	void drawOpaqueMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd);
 	void drawMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
 
 	GraphicCommander *m_pCmdInit;
 	std::shared_ptr<MaterialBlock> m_LightIdx;
 	unsigned int m_ExtendSize;//maybe add to engine setting?
-
-	// shadow map variable
-	RenderTextureAtlas *m_pShadowMap;
-	std::vector<GraphicCommander *> m_ShadowCommands;
-	std::shared_ptr<Asset> m_pDirShadowMat, m_pOmniShadowMat, m_pSpotShadowMat;
-	std::mutex m_ShadowMapLock;
 	
 	// gbuffer varibles
 	glm::ivec2 m_TileDim;
@@ -76,7 +67,6 @@ private:
 	std::vector<GraphicCommander *> m_DrawCommand;
 	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
 	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
-	ThreadPool m_ThreadPool;
 
 	std::vector<int> m_GBufferCache, m_FBufferCache;
 };

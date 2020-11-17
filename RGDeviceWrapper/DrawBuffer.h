@@ -63,6 +63,24 @@ private:
 	int m_ID[VTXSLOT_COUNT];
 };
 
+// for simple indirect draw only (IndirectDrawData)
+class IndirectDrawBuffer
+{
+public:
+	IndirectDrawBuffer();
+	virtual ~IndirectDrawBuffer();
+
+	void assign(IndirectDrawData &a_Data);
+	void reset();
+	unsigned int getCurrCount(){ return m_CurrOffset; }
+
+private:
+	char *m_pBuff;
+	int m_ID;
+	unsigned int m_CurrOffset;
+	unsigned int m_MaxSize;
+};
+
 }
 
 #endif

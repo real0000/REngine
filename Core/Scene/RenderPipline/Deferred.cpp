@@ -17,13 +17,13 @@
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
 #include "Scene/Graph/ScenePartition.h"
+#include "Scene/RenderPipline/ShadowMap.h"
 
 #include "Deferred.h"
 
 namespace R
 {
 
-#define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
 #define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
 #define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
 
@@ -54,8 +54,6 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pCmdInit(nullptr)
 	, m_LightIdx(nullptr)
 	, m_ExtendSize(INIT_CONTAINER_SIZE)
-	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float))
-	, m_pDirShadowMat(nullptr), m_pOmniShadowMat(nullptr), m_pSpotShadowMat(nullptr)
 	, m_TileDim(0, 0)
 	, m_pFrameBuffer(nullptr)
 	, m_pDepthMinmax(nullptr)
@@ -64,23 +62,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pDeferredLightMat(AssetManager::singleton().createAsset(LIGHTING_ASSET_NAME).second)
 	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME).second)
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
-	, m_ThreadPool(std::thread::hardware_concurrency())
 {
-	std::tuple<std::shared_ptr<Asset>, std::shared_ptr<MaterialBlock>, wxString> l_ShadowMaps[] = {
-		std::make_tuple(m_pDirShadowMat, a_pScene->getDirLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_DirMaterial),
-		std::make_tuple(m_pOmniShadowMat, a_pScene->getOmniLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_OmniMaterial),
-		std::make_tuple(m_pSpotShadowMat, a_pScene->getSpotLightContainer()->getMaterialBlock(), EngineSetting::singleton().m_SpotMaterial)};
-	const unsigned int c_NumShadowMap = sizeof(l_ShadowMaps) / sizeof(std::pair<std::shared_ptr<Asset>&, wxString>);
-	for( unsigned int i=0 ; i<c_NumShadowMap ; ++i )
-	{
-		std::get<0>(l_ShadowMaps[i]) = AssetManager::singleton().getAsset(std::get<2>(l_ShadowMaps[i])).second;
-
-		MaterialAsset *l_pMatInst = std::get<0>(l_ShadowMaps[i])->getComponent<MaterialAsset>();
-		l_pMatInst->setBlock("m_SkinTransition", a_pScene->getRenderBatcher()->getSkinMatrixBlock());
-		l_pMatInst->setBlock("m_NormalTransition", a_pScene->getRenderBatcher()->getWorldMatrixBlock());
-		l_pMatInst->setBlock("m_Lights", std::get<1>(l_ShadowMaps[i]));
-	}
-
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
 	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
 	m_pCopyMatInst = m_pCopyMat->getComponent<MaterialAsset>();
@@ -134,7 +116,6 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 
 DeferredRenderer::~DeferredRenderer()
 {
-	AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
 	AssetManager::singleton().removeData(FRAMEBUFFER_ASSET_NAME);
 	AssetManager::singleton().removeData(DEPTHMINMAX_ASSET_NAME);
 	m_pDepthMinmax = nullptr;
@@ -144,14 +125,6 @@ DeferredRenderer::~DeferredRenderer()
 		AssetManager::singleton().removeData(c_GBufferDef[i].first);
 		m_pGBuffer[i] = nullptr;
 	}
-	
-	m_pDirShadowMat = nullptr;
-	m_pOmniShadowMat = nullptr;
-	m_pSpotShadowMat = nullptr;
-	SAFE_DELETE(m_pShadowMap)
-
-	for( unsigned int i=0 ; i<m_ShadowCommands.size() ; ++i ) delete m_ShadowCommands[i];
-	m_ShadowCommands.clear();
 
 	SAFE_DELETE(m_pCmdInit);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) SAFE_DELETE(m_DrawCommand[i])
@@ -206,172 +179,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		return;
 	}
 	
-	m_pShadowMap->releaseAll();
+	EngineCore::singleton().addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights, l_Meshes);});
 
-	{// shadow step
-		unsigned int l_CurrShadowMapSize = m_pShadowMap->getArraySize();
-		m_ThreadPool.addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights, l_Meshes);});
-		
-		std::vector<std::shared_ptr<DirLight>> l_DirLights;
-		std::vector<std::shared_ptr<OmniLight>> l_OmniLights;
-		std::vector<std::shared_ptr<SpotLight>> l_SpotLights;
-		for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
-		{
-			auto l_pLight = l_Lights[i]->shared_from_base<Light>();
-			if( l_pLight->getShadowed() )
-			{
-				m_ThreadPool.addJob([=, &l_pLight]()
-				{
-					unsigned int l_Size = calculateShadowMapRegion(l_pLight->getShadowCamera(), l_pLight);
-					requestShadowMapRegion(l_Size, l_pLight);
-				});
-				switch( l_pLight->getID() )
-				{
-					case COMPONENT_DirLight:	l_DirLights.push_back(l_Lights[i]->shared_from_base<DirLight>());	break;
-					case COMPONENT_OmniLight:	l_OmniLights.push_back(l_Lights[i]->shared_from_base<OmniLight>());	break;
-					case COMPONENT_SpotLight:	l_SpotLights.push_back(l_Lights[i]->shared_from_base<SpotLight>());	break;
-					default:break;
-				}
-			}
-		}
-		
-		m_ThreadPool.join();
-
-		getScene()->getDirLightContainer()->flush();
-		getScene()->getOmniLightContainer()->flush();
-		getScene()->getSpotLightContainer()->flush();
-
-		// add required command execute thread
-		while( m_ShadowCommands.size() <= m_pShadowMap->getArraySize() ) m_ShadowCommands.push_back(GDEVICE()->commanderFactory());
-
-		m_pCmdInit->begin(false);
-
-		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize, 0.0f, 1.0f);
-		m_pCmdInit->setRenderTarget(m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID(), 0);
-		m_pCmdInit->setViewPort(1, l_Viewport);
-		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize));
-		m_pCmdInit->clearDepthTarget(m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
-
-		m_pCmdInit->end();
-
-		unsigned int l_NumCommand = std::min(l_Meshes.size(), m_DrawCommand.size());
-		for( unsigned int i=0 ; i<l_NumCommand ; ++i )
-		{
-			m_ThreadPool.addJob([=, &i, &l_NumCommand, &l_DirLights, &l_OmniLights, &l_SpotLights, &l_Meshes, &l_StaticMeshes]()
-			{
-				m_DrawCommand[i]->begin(false);
-
-				for( unsigned int j=0 ; j<l_Meshes.size() ; j+=l_NumCommand )
-				{
-					if( j+i >= l_Meshes.size() ) break;
-
-					RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[j+i].get());
-					MeshAsset *l_pMeshIst = l_pInst->getMesh()->getComponent<MeshAsset>();
-					MeshAsset::Instance *l_pSubMeshInst = l_pMeshIst->getMeshes()[l_pInst->getMeshIdx()];
-
-					std::shared_ptr<Asset> l_pTexture = l_pInst->getMaterial(0)->getComponent<MaterialAsset>()->getTexture(STANDARD_TEXTURE_BASECOLOR);
-					if( nullptr == l_pTexture ) l_pTexture = EngineCore::singleton().getWhiteTexture();
-					
-					// draw dir shadow map
-					{
-						m_DrawCommand[i]->useProgram(m_pDirShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pDirShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
-
-						std::vector<glm::ivec4> l_InstanceData(l_DirLights.size() * 4);
-						for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
-						{
-							for( unsigned int l=0 ; l<4 ; ++l )
-							{
-								l_InstanceData[k*4 + l].x = l_pInst->getWorldOffset();
-								l_InstanceData[k*4 + l].y = l_DirLights[k]->getID();
-								l_InstanceData[k*4 + l].z = l;
-							}
-						}
-						int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-						GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-
-						m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-						m_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-						m_pDirShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
-						m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-						getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
-					}
-
-					// draw omni shadow map
-					{
-						m_DrawCommand[i]->useProgram(m_pOmniShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pOmniShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
-
-						std::vector<glm::ivec4> l_InstanceData;
-						for( unsigned int k=0 ; k<l_OmniLights.size() ; ++k )
-						{
-							bool l_Temp = false;
-							if( !reinterpret_cast<OmniLight *>(l_OmniLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pInst->boundingBox(), l_Temp) ) continue;
-
-							glm::ivec4 l_NewInst;
-							l_NewInst.x = l_pInst->getWorldOffset();
-							l_NewInst.y = l_OmniLights[k]->getID();
-							l_InstanceData.push_back(l_NewInst);
-						}
-
-						if( !l_InstanceData.empty() )
-						{
-							int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-							GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-						
-							m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-							m_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-							m_pOmniShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
-
-							m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-							getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
-						}
-					}
-
-					// draw spot shadow map
-					{
-						m_DrawCommand[i]->useProgram(m_pSpotShadowMat->getComponent<MaterialAsset>()->getProgram());
-						m_pSpotShadowMat->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pTexture);
-
-						std::vector<glm::ivec4> l_InstanceData;
-						for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
-						{
-							bool l_Temp = false;
-							if( !reinterpret_cast<OmniLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pInst->boundingBox(), l_Temp) ) continue;
-
-							glm::ivec4 l_NewInst;
-							l_NewInst.x = l_pInst->getWorldOffset();
-							l_NewInst.y = l_SpotLights[k]->getID();
-							l_InstanceData.push_back(l_NewInst);
-						}
-
-						if( !l_InstanceData.empty() )
-						{
-							int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-							GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-						
-							m_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-							m_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-							m_pSpotShadowMat->getComponent<MaterialAsset>()->bindAll(m_DrawCommand[i]);
-
-							m_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-							getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
-						}
-					}
-				}
-				
-				for( unsigned int j=0 ; j<l_StaticMeshes.size() ; j+=l_NumCommand )
-				{
-					if( j+i >= l_StaticMeshes.size() ) break;
-					
-					RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(l_Meshes[j+i].get());
-				}
-
-				m_DrawCommand[i]->end();
-			});
-		}
-		m_ThreadPool.join();
-	}
+	//
+	// shadow map render
+	//
+	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
+	l_pShadowMap->bake(l_Lights, l_StaticMeshes, l_Meshes, m_pCmdInit, m_DrawCommand);
 
 	{// graphic step, divide by stage
 		//bind gbuffer
@@ -513,80 +327,6 @@ void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComp
 		l_pTarget->m_Type = l_pLight->typeID();
 	}
 	m_LightIdx->sync(true);
-}
-
-unsigned int DeferredRenderer::calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light)
-{
-	if( COMPONENT_DirLight == a_Light->typeID() ) return 1024;
-	assert(a_pCamera->getCameraType() == Camera::ORTHO || a_pCamera->getCameraType() == Camera::PERSPECTIVE);
-
-	glm::sphere l_Sphere(glm::vec3(a_Light->boundingBox().m_Center), glm::length(a_Light->boundingBox().m_Size) * 0.5);
-	if( l_Sphere.m_Range <= glm::epsilon<float>() ) return 32;
-
-	float l_SliceLength = 0.0f;
-	if( a_pCamera->getCameraType() == Camera::ORTHO ) l_SliceLength = std::min(a_pCamera->getViewParam().x, a_pCamera->getViewParam().y);
-	else
-	{
-		glm::vec3 l_Eye, l_Dir, l_Up;
-		a_pCamera->getCameraParam(l_Eye, l_Dir, l_Up);
-		l_SliceLength = glm::dot(l_Sphere.m_Center - l_Eye, l_Dir) * tan(a_pCamera->getViewParam().x * 0.5f);
-		if( a_pCamera->getViewParam().y < 1.0f ) l_SliceLength *= a_pCamera->getViewParam().y;
-		l_SliceLength *= 2.0f;
-	}
-
-	unsigned int l_Res = EngineSetting::singleton().m_ShadowMapSize;
-	while( l_Sphere.m_Range < l_SliceLength * 0.5f )
-	{
-		l_Res = l_Res << 1;
-		l_SliceLength *= 0.5f;
-		if( l_Res <= 32 )
-		{
-			l_Res = 32;
-			break;
-		}
-	}
-
-	return l_Res;
-}
-
-void DeferredRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light)
-{
-	glm::vec2 l_TexutureSize(m_pShadowMap->getMaxSize());
-	glm::vec4 l_UV[4];
-	unsigned int l_LayerID[4];
-
-	unsigned int l_Loop = COMPONENT_DirLight == a_Light->typeID() ? 4 : 1;
-	{
-		std::lock_guard<std::mutex> l_Guard(m_ShadowMapLock);
-		for( unsigned int i=0 ; i<l_Loop ; ++i )
-		{
-			unsigned int l_RegionID = m_pShadowMap->allocate(glm::ivec2(a_Size));
-			ImageAtlas::NodeInfo &l_Info = m_pShadowMap->getInfo(l_RegionID);
-			l_LayerID[i] = l_Info.m_Index;
-			l_UV[i] = glm::vec4(l_Info.m_Offset.x / l_TexutureSize.x, l_Info.m_Offset.y / l_TexutureSize.y, l_Info.m_Size.x / l_TexutureSize.x, l_Info.m_Size.y / l_TexutureSize.y);
-		}
-	}
-	
-	switch( a_Light->typeID() )
-	{
-		case COMPONENT_OmniLight:{
-			OmniLight *l_pCasted = reinterpret_cast<OmniLight *>(a_Light.get());
-			l_pCasted->setShadowMapUV(l_UV[0], l_LayerID[0]);
-			}return;
-
-		case COMPONENT_SpotLight:{
-			SpotLight *l_pCasted = reinterpret_cast<SpotLight *>(a_Light.get());
-			l_pCasted->setShadowMapUV(l_UV[0], l_LayerID[0]);
-			}return;
-
-		case COMPONENT_DirLight:{
-			DirLight *l_pCasted = reinterpret_cast<DirLight *>(a_Light.get());
-			for( unsigned int i=0 ; i<4 ; ++i ) l_pCasted->setShadowMapLayer(i, l_UV[i], l_LayerID[i]);
-			}return;
-
-		default: break;
-	}
-	assert(false && "invalid light type");
 }
 
 void DeferredRenderer::drawOpaqueMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd)

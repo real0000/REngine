@@ -19,6 +19,7 @@
 #include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
 #include "Scene/RenderPipline/Deferred.h"
+#include "Scene/RenderPipline/ShadowMap.h"
 
 namespace R
 {
@@ -534,7 +535,7 @@ unsigned int Scene::m_LightmapSerial = 0;
 std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> Scene::m_RenderPipeLineReflectors;
 std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> Scene::m_SceneGraphReflectors;
 Scene::Scene()
-	: m_pRenderer(nullptr)
+	: m_pRenderer(nullptr), m_pShadowMapBaker(nullptr)
 	, m_pRootNode(nullptr)
 	, m_pGraphs{nullptr, nullptr, nullptr, nullptr, nullptr}
 	, m_pBatcher(nullptr)
@@ -574,6 +575,7 @@ void Scene::initEmpty()
 	m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
 	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
+	m_pShadowMapBaker = ShadowMapRenderer::create(l_Empty, shared_from_this());
 
 	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
 	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName).second;
@@ -598,6 +600,16 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 		auto it = m_RenderPipeLineReflectors.find(l_Typename);
 		if( m_RenderPipeLineReflectors.end() == it ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
 		else m_pRenderer = it->second(l_PipelineSetting, shared_from_this());
+	}
+	
+	boost::property_tree::ptree &l_ShadowSetting = l_pAssetInst->getShadowSetting();
+	l_Typename = l_ShadowSetting.get("<xmlattr>.type", "");
+	if( l_Typename.empty() ) m_pShadowMapBaker = ShadowMapRenderer::create(l_ShadowSetting, shared_from_this());
+	else
+	{
+		auto it = m_RenderPipeLineReflectors.find(l_Typename);
+		if( m_RenderPipeLineReflectors.end() == it ) m_pShadowMapBaker = ShadowMapRenderer::create(l_ShadowSetting, shared_from_this());
+		else m_pShadowMapBaker = it->second(l_ShadowSetting, shared_from_this());
 	}
 
 	std::function<ScenePartition*(boost::property_tree::ptree)> l_CreateFunc = nullptr;
@@ -724,9 +736,10 @@ void Scene::saveSceneGraphSetting(boost::property_tree::ptree &a_Dst)
 	m_pGraphs[0]->saveSetting(a_Dst);
 }
 
-void Scene::saveRenderSetting(boost::property_tree::ptree &a_Dst)
+void Scene::saveRenderSetting(boost::property_tree::ptree &a_RenderDst, boost::property_tree::ptree &a_ShadowDst)
 {
-	m_pRenderer->saveSetting(a_Dst);
+	m_pRenderer->saveSetting(a_RenderDst);
+	m_pShadowMapBaker->saveSetting(a_ShadowDst);
 }
 
 std::shared_ptr<SceneNode> Scene::getRootNode()
@@ -748,6 +761,7 @@ void Scene::clear()
 		memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
 	}
 	SAFE_DELETE(m_pRenderer)
+	SAFE_DELETE(m_pShadowMapBaker)
 	SAFE_DELETE(m_pBatcher)
 	if( nullptr != m_pDirLights ) m_pDirLights->clear();
 	if( nullptr != m_pOmniLights ) m_pOmniLights->clear();

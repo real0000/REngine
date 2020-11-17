@@ -230,6 +230,8 @@ const unsigned int c_NumShaderPath = sizeof(c_ShaderPath) / sizeof(wxString);
 #define STANDARD_TEXTURE_BASECOLOR	"BaseColor"
 #define STANDARD_TEXTURE_NORMAL		"Normal"
 #define STANDARD_TEXTURE_SURFACE	"Surface"
+#define STANDARD_TRANSFORM_NORMAL	"NormalTransition"
+#define STANDARD_TRANSFORM_SKIN		"SkinTransition"
 STRING_ENUM_CLASS(DefaultPrograms,
 
 	// compute
@@ -265,7 +267,6 @@ struct IndirectDrawData
 	unsigned int m_InstanceCount;
 };
 
-bool drawDataCompare(const IndirectDrawData *a_pLeft, const IndirectDrawData *a_pRight);
 std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc);
 void parseShaderParamValue(ShaderParamType::Key a_Type, std::string a_Src, char *a_pDst);
 
