@@ -72,7 +72,9 @@ public:
 
 	void assign(IndirectDrawData &a_Data);
 	void reset();
+
 	unsigned int getCurrCount(){ return m_CurrOffset; }
+	int getID(){ return m_ID; }
 
 private:
 	char *m_pBuff;

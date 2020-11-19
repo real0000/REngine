@@ -43,6 +43,11 @@ ShadowMapRenderer::~ShadowMapRenderer()
 {
 	AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
 
+	while( !m_IndirectBufferPool.empty() )
+	{
+		delete m_IndirectBufferPool.front();
+		m_IndirectBufferPool.pop_front();
+	}
 	SAFE_DELETE(m_pShadowMap)
 
 	for( unsigned int i=0 ; i<m_ShadowCommands.size() ; ++i ) delete m_ShadowCommands[i];
@@ -94,23 +99,40 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 		}
 	}
 
-	std::vector<RenderableMesh*> l_SortedMesh[3];// dir, omni, spot
+	std::map<MaterialAsset*, std::map<SceneBatcher::MeshCache*, std::vector<int>>> l_SortedMesh[3];// dir, omni, spot
 	{
-		l_SortedMesh[0].resize(a_StaticMesh.size());
-		for( unsigned int i=0 ; i<a_StaticMesh.size() ; ++i ) l_SortedMesh[0][i] = reinterpret_cast<RenderableMesh *>(a_StaticMesh[i].get());
-		memcpy(l_SortedMesh[1].data(), l_SortedMesh[0].data(), sizeof(RenderableMesh*) * a_StaticMesh.size());
-		memcpy(l_SortedMesh[2].data(), l_SortedMesh[0].data(), sizeof(RenderableMesh*) * a_StaticMesh.size());
-		std::sort(l_SortedMesh[0].begin(), l_SortedMesh[0].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+		auto l_InsertFunc = [=, &l_SortedMesh](unsigned int a_SortedIdx, unsigned int a_MatSlot, RenderableMesh *a_pMesh, SceneBatcher::MeshCache *a_pBatchInfo) -> void
 		{
-			return a_pLeft->getMaterial(MATSLOT_DIR_SHADOWMAP) >= a_pRight->getMaterial(MATSLOT_DIR_SHADOWMAP);
-		});
-		std::sort(l_SortedMesh[1].begin(), l_SortedMesh[1].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+			std::shared_ptr<Asset> l_pMat = a_pMesh->getMaterial(a_MatSlot);
+			if( nullptr != l_pMat )
+			{
+				MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+
+				std::map<SceneBatcher::MeshCache*, std::vector<int>> *l_pTargetContainer = nullptr;
+				auto it = l_SortedMesh[0].find(l_pMatInst);
+				if( it == l_SortedMesh[0].end() ) l_pTargetContainer = &(l_SortedMesh[a_SortedIdx][l_pMatInst] = std::map<SceneBatcher::MeshCache*, std::vector<int>>());
+				else l_pTargetContainer = &(it->second);
+
+				std::vector<int> *l_pWorldOffsetContainer = nullptr;
+				auto vecIt = l_pTargetContainer->find(a_pBatchInfo);
+				if( l_pTargetContainer->end() == vecIt) l_pWorldOffsetContainer = &((*l_pTargetContainer)[a_pBatchInfo] = std::vector<int>());
+				else l_pWorldOffsetContainer = &(vecIt->second);
+				l_pWorldOffsetContainer->push_back(a_pMesh->getWorldOffset());
+			}
+		};
+
+		EngineCore::singleton().addJob([=]() -> void
 		{
-			return a_pLeft->getMaterial(MATSLOT_OMNI_SHADOWMAP) >= a_pRight->getMaterial(MATSLOT_OMNI_SHADOWMAP);
-		});
-		std::sort(l_SortedMesh[2].begin(), l_SortedMesh[2].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
-		{
-			return a_pLeft->getMaterial(MATSLOT_SPOT_SHADOWMAP) >= a_pRight->getMaterial(MATSLOT_SPOT_SHADOWMAP);
+			for( unsigned int i=0 ; i<a_StaticMesh.size() ; ++i )
+			{
+				RenderableMesh *l_pMeshInst = reinterpret_cast<RenderableMesh *>(a_StaticMesh[i].get());
+				SceneBatcher::MeshCache *l_pBatchInfo = nullptr;
+				if( !getScene()->getRenderBatcher()->getBatchParam(l_pMeshInst->getMesh(), &l_pBatchInfo) ) continue;
+
+				l_InsertFunc(0, MATSLOT_DIR_SHADOWMAP, l_pMeshInst, l_pBatchInfo);
+				l_InsertFunc(1, MATSLOT_OMNI_SHADOWMAP, l_pMeshInst, l_pBatchInfo);
+				l_InsertFunc(2, MATSLOT_SPOT_SHADOWMAP, l_pMeshInst, l_pBatchInfo);
+			}
 		});
 	}
 		
@@ -133,6 +155,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 
 	a_pMiscCmd->end();
 
+	std::deque<IndirectDrawBuffer*> l_IndirectBufferInUse;
 	unsigned int l_NumCommand = std::min(a_Mesh.size(), a_DrawCommand.size());
 	for( unsigned int i=0 ; i<l_NumCommand ; ++i )
 	{
@@ -154,9 +177,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				std::shared_ptr<Asset> l_pDirShadowMat = l_pInst->getMaterial(MATSLOT_DIR_SHADOWMAP);
 				if( nullptr != l_pDirShadowMat )
 				{
-					MaterialAsset *l_pDirShadowMatInst = l_pDirShadowMat->getComponent<MaterialAsset>();
-					a_DrawCommand[i]->useProgram(l_pDirShadowMatInst->getProgram());
-
 					std::vector<glm::ivec4> l_InstanceData(l_DirLights.size() * 4);
 					for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
 					{
@@ -167,26 +187,20 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 							l_InstanceData[k*4 + l].z = l;
 						}
 					}
-					int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-					GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-
-					a_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-					a_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-					l_pDirShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-					l_pDirShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
-					l_pDirShadowMatInst->bindBlock(a_DrawCommand[i], "m_Lights", getScene()->getDirLightContainer()->getMaterialBlock());
-					l_pDirShadowMatInst->bindAll(a_DrawCommand[i]);
-					a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-					getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
+					
+					drawLightShadow(a_DrawCommand[i]
+						, l_pDirShadowMat->getComponent<MaterialAsset>(), getScene()->getDirLightContainer()->getMaterialBlock()
+						, l_InstanceData, l_pMeshIst->getVertexBuffer().get(), l_pMeshIst->getIndexBuffer().get()
+						, [=]() -> void
+						{
+							a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
+						});
 				}
 
 				// draw omni shadow map
 				std::shared_ptr<Asset> l_pOmniShadowMat = l_pInst->getMaterial(MATSLOT_OMNI_SHADOWMAP);
 				if( nullptr != l_pOmniShadowMat )
 				{
-					MaterialAsset *l_pOmniShadowMatInst = l_pOmniShadowMat->getComponent<MaterialAsset>();
-					a_DrawCommand[i]->useProgram(l_pOmniShadowMatInst->getProgram());
-
 					std::vector<glm::ivec4> l_InstanceData;
 					for( unsigned int k=0 ; k<l_OmniLights.size() ; ++k )
 					{
@@ -201,18 +215,13 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 
 					if( !l_InstanceData.empty() )
 					{
-						int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-						GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-						
-						a_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-						a_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-						l_pOmniShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-						l_pOmniShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
-						l_pOmniShadowMatInst->bindBlock(a_DrawCommand[i], "m_Lights", getScene()->getOmniLightContainer()->getMaterialBlock());
-						l_pOmniShadowMatInst->bindAll(a_DrawCommand[i]);
-
-						a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-						getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
+						drawLightShadow(a_DrawCommand[i]
+							, l_pOmniShadowMat->getComponent<MaterialAsset>(), getScene()->getOmniLightContainer()->getMaterialBlock()
+							, l_InstanceData, l_pMeshIst->getVertexBuffer().get(), l_pMeshIst->getIndexBuffer().get()
+							, [=]() -> void
+							{
+								a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
+							});
 					}
 				}
 
@@ -220,9 +229,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				std::shared_ptr<Asset> l_pSpotShadowMat = l_pInst->getMaterial(MATSLOT_SPOT_SHADOWMAP);
 				if( nullptr != l_pSpotShadowMat )
 				{
-					MaterialAsset *l_pSpotShadowMatInst = l_pSpotShadowMat->getComponent<MaterialAsset>();
-					a_DrawCommand[i]->useProgram(l_pSpotShadowMatInst->getProgram());
-
 					std::vector<glm::ivec4> l_InstanceData;
 					for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
 					{
@@ -234,35 +240,32 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 						l_NewInst.y = l_SpotLights[k]->getID();
 						l_InstanceData.push_back(l_NewInst);
 					}
-
+					
 					if( !l_InstanceData.empty() )
 					{
-						int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
-						GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_InstanceData.data(), sizeof(glm::ivec4) * l_InstanceData.size());
-						
-						a_DrawCommand[i]->bindVertex(l_pMeshIst->getVertexBuffer().get(), l_InstanceBuffer);
-						a_DrawCommand[i]->bindIndex(l_pMeshIst->getIndexBuffer().get());
-						l_pSpotShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-						l_pSpotShadowMatInst->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
-						l_pSpotShadowMatInst->bindBlock(a_DrawCommand[i], "m_Lights", getScene()->getSpotLightContainer()->getMaterialBlock());
-						l_pSpotShadowMatInst->bindAll(a_DrawCommand[i]);
-
-						a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
-						getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
+						drawLightShadow(a_DrawCommand[i]
+							, l_pSpotShadowMat->getComponent<MaterialAsset>(), getScene()->getSpotLightContainer()->getMaterialBlock()
+							, l_InstanceData, l_pMeshIst->getVertexBuffer().get(), l_pMeshIst->getIndexBuffer().get()
+							, [=]() -> void
+							{
+								a_DrawCommand[i]->drawElement(l_pSubMeshInst->m_StartIndex, l_pSubMeshInst->m_IndexCount, 0, l_InstanceData.size(), 0);
+							});
 					}
 				}
 			}
-				
-			for( unsigned int j=0 ; j<a_StaticMesh.size() ; j+=l_NumCommand )
+			
+			for( auto it=l_SortedMesh[0].begin() ; it!=l_SortedMesh[0].end() ; ++it )
 			{
-				if( j+i >= a_StaticMesh.size() ) break;
-					
-				RenderableMesh *l_pInst = reinterpret_cast<RenderableMesh *>(a_StaticMesh[j+i].get());
-				SceneBatcher::MeshCache *l_pBatchInfo = nullptr;
-				if( getScene()->getRenderBatcher()->getBatchParam(l_pInst->getMesh(), &l_pBatchInfo) )
-				{
-					
-				}
+				std::vector<glm::ivec4> l_Instance;
+					for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
+					{
+						for( unsigned int l=0 ; l<4 ; ++l )
+						{
+							/*l_InstanceData[k*4 + l].x = l_pInst->getWorldOffset();
+							l_InstanceData[k*4 + l].y = l_DirLights[k]->getID();
+							l_InstanceData[k*4 + l].z = l;*/
+						}
+					}
 			}
 
 			a_DrawCommand[i]->end();
@@ -343,6 +346,41 @@ void ShadowMapRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_
 		default: break;
 	}
 	assert(false && "invalid light type");
+}
+
+void ShadowMapRenderer::drawLightShadow(GraphicCommander *a_pCmd
+		, MaterialAsset *a_pMat, std::shared_ptr<MaterialBlock> a_pLightBlock
+		, std::vector<glm::ivec4> &a_InstanceData, VertexBuffer *a_pVtxBuff, IndexBuffer *a_pIdxBuff
+		, std::function<void()> a_DrawFunc)
+{
+	a_pCmd->useProgram(a_pMat->getProgram());
+	int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
+	GDEVICE()->updateVertexBuffer(l_InstanceBuffer, a_InstanceData.data(), sizeof(glm::ivec4) * a_InstanceData.size());
+						
+	a_pCmd->bindVertex(a_pVtxBuff, l_InstanceBuffer);
+	a_pCmd->bindIndex(a_pIdxBuff);
+	a_pMat->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
+	a_pMat->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
+	a_pMat->bindBlock(a_pCmd, "m_Lights", a_pLightBlock);
+	a_pMat->bindAll(a_pCmd);
+	a_DrawFunc();
+	getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);
+}
+
+IndirectDrawBuffer* ShadowMapRenderer::requestIndirectBuffer()
+{
+	std::lock_guard<std::mutex> l_Guard(m_BufferLock);
+	if( m_IndirectBufferPool.empty() ) return new IndirectDrawBuffer();
+
+	IndirectDrawBuffer *l_pRes = m_IndirectBufferPool.front();
+	m_IndirectBufferPool.pop_front();
+	return l_pRes;
+}
+
+void ShadowMapRenderer::recycleIndirectBuffer(IndirectDrawBuffer *a_pBuff)
+{
+	a_pBuff->reset();
+	m_IndirectBufferPool.push_back(a_pBuff);
 }
 #pragma endregion
 

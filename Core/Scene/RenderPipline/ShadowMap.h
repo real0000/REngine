@@ -11,7 +11,10 @@
 namespace R
 {
 
+class IndirectDrawBuffer;
 class Light;
+class MaterialAsset;
+class MaterialBlock;
 class RenderTextureAtlas;
 
 class ShadowMapRenderer : public RenderPipeline
@@ -35,10 +38,18 @@ private:
 	
 	unsigned int calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
+	void drawLightShadow(GraphicCommander *a_pCmd
+		, MaterialAsset *a_pMat, std::shared_ptr<MaterialBlock> a_pLightBlock
+		, std::vector<glm::ivec4> &a_InstanceData, VertexBuffer *a_pVtxBuff, IndexBuffer *a_pIdxBuff
+		, std::function<void()> a_DrawFunc);
+	IndirectDrawBuffer* requestIndirectBuffer();
+	void recycleIndirectBuffer(IndirectDrawBuffer *a_pBuff);
 	
 	RenderTextureAtlas *m_pShadowMap;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::mutex m_ShadowMapLock;
+	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;
+	std::mutex m_BufferLock;
 };
 
 }
