@@ -1,0 +1,39 @@
+<root isCompute="false" isIndexed="true">
+  <ParamList>
+    <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
+    <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
+    <UavBuffer name="m_Lights" preDef="OmniLight" write="false"/>
+    <Srv2D name="BaseColor" desc="" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Vertex file="Shadowmap/ShadowMap.vertex">
+        g_Camera, SkinTransition, NormalTransition
+      </Vertex>
+      <!--TessCtrl file="">  
+      </TessCtrl>
+      <TessEval file="">
+      </TessEval-->
+      <Geometry file="Shadowmap/OmniShadowMap.geometry">
+        g_Camera, NormalTransition
+      </Geometry>
+      <!--Compute>
+      </Compute>-->
+      <Fragment file="Shadowmap/ShadowMap.pixel">
+        BaseColor
+      </Fragment>
+    </Model_5_1>
+  </Shaders>
+  <ShaderSetting sampleMask="ffffffff" topology="triangle_list" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
+    <BlendState/>
+    <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="true" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
+    <DepthStencil>
+      <Depth enable="true" write="true" func="less"/>
+      <Stencil enable="false" readMask="ff" writeMask="ff">
+        <Front func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+        <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+      </Stencil>
+    </DepthStencil>
+    <RenderTarget depthStencil="d32_float"/>
+  </ShaderSetting>
+</root>

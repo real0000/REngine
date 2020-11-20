@@ -181,9 +181,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	
 	EngineCore::singleton().addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights, l_Meshes);});
 
-	//
 	// shadow map render
-	//
 	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
 	l_pShadowMap->bake(l_Lights, l_StaticMeshes, l_Meshes, m_pCmdInit, m_DrawCommand);
 

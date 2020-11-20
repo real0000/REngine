@@ -1,0 +1,44 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+struct GS_Output
+{
+	float2 m_UV : TEXCOORD0;
+	float3 m_Clip : SV_ClipDistance0;
+	float4 m_Position : SV_Position;
+	uint m_Slice : SV_RenderTargetArrayIndex;
+};
+
+[maxvertexcount(3)]
+void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a_Output)
+{
+	DirLight l_TargetLight = m_Lights[a_Input[0].m_InstanceID.y];
+
+	float l_ClipDist[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	for(uint l_SideIndex=0 ; l_SideIndex<3; ++l_SideIndex )
+	{
+		const uint l_PlaneIndex = l_FaceIndex * 3 + l_SideIndex;
+		for(uint l_VtxIdx=0; l_VtxIdx<3; l_VtxIdx++)
+		{
+			float3 l_PlaneNormal = c_PlaneNormals[l_PlaneIndex];
+			l_ClipDist[l_SideIndex * 3 + l_VtxIdx] = dot(a_Input[l_VtxIdx].m_Position.xyz, l_PlaneNormal) + dot(-l_PlaneNormal, l_TargetLight.m_Position);
+			l_Inside |= (l_ClipDist[l_SideIndex * 3 + l_VtxIdx] > 0.001) ? (0x01 << l_SideIndex) : 0;
+		}
+	}
+
+		for( uint l_VtxIdx=0 ; l_VtxIdx<3 ; ++l_VtxIdx )
+		{
+			GS_Output l_NewVtx;
+			l_NewVtx.m_Position  = mul(l_Input[l_VtxIdx].m_Position, l_TargetLight.m_ViewProj[l_FaceIndex]);
+			l_NewVtx.m_UV = a_Input[l_VtxIdx].m_Texcoord01.xy;
+
+			l_NewVtx.m_Clip.x = l_ClipDist[l_VtxIdx];
+			l_NewVtx.m_Clip.y = l_ClipDist[3 + l_VtxIdx];
+			l_NewVtx.m_Clip.z = l_ClipDist[6 + l_VtxIdx];
+			l_NewVtx.m_Slice = l_TargetLight.m_Layer;
+
+			l_Output.Append(l_NewVtx);
+		}
+		l_Output.RestartStrip();
+	
+}

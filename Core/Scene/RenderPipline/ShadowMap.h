@@ -43,12 +43,13 @@ private:
 		, std::vector<glm::ivec4> &a_InstanceData, VertexBuffer *a_pVtxBuff, IndexBuffer *a_pIdxBuff
 		, std::function<void()> a_DrawFunc);
 	IndirectDrawBuffer* requestIndirectBuffer();
-	void recycleIndirectBuffer(IndirectDrawBuffer *a_pBuff);
+	void recycleAllIndirectBuffer();
 	
 	RenderTextureAtlas *m_pShadowMap;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::mutex m_ShadowMapLock;
 	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;
+	std::list<IndirectDrawBuffer*> m_IndirectBufferInUse;
 	std::mutex m_BufferLock;
 };
 

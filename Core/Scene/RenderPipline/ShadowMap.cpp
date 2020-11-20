@@ -43,6 +43,7 @@ ShadowMapRenderer::~ShadowMapRenderer()
 {
 	AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
 
+	recycleAllIndirectBuffer();
 	while( !m_IndirectBufferPool.empty() )
 	{
 		delete m_IndirectBufferPool.front();
@@ -99,7 +100,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 		}
 	}
 
-	std::map<MaterialAsset*, std::map<SceneBatcher::MeshCache*, std::vector<int>>> l_SortedMesh[3];// dir, omni, spot
+	std::map<MaterialAsset*, std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>>> l_SortedMesh[3];// dir, omni, spot
 	{
 		auto l_InsertFunc = [=, &l_SortedMesh](unsigned int a_SortedIdx, unsigned int a_MatSlot, RenderableMesh *a_pMesh, SceneBatcher::MeshCache *a_pBatchInfo) -> void
 		{
@@ -108,16 +109,17 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 			{
 				MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 
-				std::map<SceneBatcher::MeshCache*, std::vector<int>> *l_pTargetContainer = nullptr;
+				std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>> *l_pTargetContainer = nullptr;
 				auto it = l_SortedMesh[0].find(l_pMatInst);
-				if( it == l_SortedMesh[0].end() ) l_pTargetContainer = &(l_SortedMesh[a_SortedIdx][l_pMatInst] = std::map<SceneBatcher::MeshCache*, std::vector<int>>());
+				if( it == l_SortedMesh[0].end() ) l_pTargetContainer = &(l_SortedMesh[a_SortedIdx][l_pMatInst] = std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>>());
 				else l_pTargetContainer = &(it->second);
 
-				std::vector<int> *l_pWorldOffsetContainer = nullptr;
-				auto vecIt = l_pTargetContainer->find(a_pBatchInfo);
-				if( l_pTargetContainer->end() == vecIt) l_pWorldOffsetContainer = &((*l_pTargetContainer)[a_pBatchInfo] = std::vector<int>());
-				else l_pWorldOffsetContainer = &(vecIt->second);
-				l_pWorldOffsetContainer->push_back(a_pMesh->getWorldOffset());
+				SceneBatcher::MeshVtxCache &l_VtxCache = (*a_pBatchInfo)[a_pMesh->getMeshIdx()];
+				std::vector<RenderableMesh*> *l_pMeshInstContainer = nullptr;
+				auto vecIt = l_pTargetContainer->find(l_VtxCache);
+				if( l_pTargetContainer->end() == vecIt) l_pMeshInstContainer = &((*l_pTargetContainer)[l_VtxCache] = std::vector<RenderableMesh*>());
+				else l_pMeshInstContainer = &(vecIt->second);
+				l_pMeshInstContainer->push_back(a_pMesh);
 			}
 		};
 
@@ -155,7 +157,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 
 	a_pMiscCmd->end();
 
-	std::deque<IndirectDrawBuffer*> l_IndirectBufferInUse;
 	unsigned int l_NumCommand = std::min(a_Mesh.size(), a_DrawCommand.size());
 	for( unsigned int i=0 ; i<l_NumCommand ; ++i )
 	{
@@ -233,7 +234,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 					for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
 					{
 						bool l_Temp = false;
-						if( !reinterpret_cast<OmniLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pInst->boundingBox(), l_Temp) ) continue;
+						if( !reinterpret_cast<SpotLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pInst->boundingBox(), l_Temp) ) continue;
 
 						glm::ivec4 l_NewInst;
 						l_NewInst.x = l_pInst->getWorldOffset();
@@ -254,24 +255,131 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				}
 			}
 			
+			//dir
 			for( auto it=l_SortedMesh[0].begin() ; it!=l_SortedMesh[0].end() ; ++it )
 			{
 				std::vector<glm::ivec4> l_Instance;
-					for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
+				IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
+				for( auto cmdIt=it->second.begin() ; cmdIt!=it->second.end() ; ++cmdIt )
+				{
+					IndirectDrawData l_TempData;
+					l_TempData.m_BaseVertex = cmdIt->first.m_VertexStart;
+					l_TempData.m_StartIndex = cmdIt->first.m_IndexStart;
+					l_TempData.m_IndexCount = cmdIt->first.m_IndexCount;
+					l_TempData.m_StartInstance = l_Instance.size();
+					l_TempData.m_InstanceCount = 0;
+					for( unsigned int j=0 ; j<cmdIt->second.size() ; j+=l_NumCommand )
 					{
-						for( unsigned int l=0 ; l<4 ; ++l )
-						{
-							/*l_InstanceData[k*4 + l].x = l_pInst->getWorldOffset();
-							l_InstanceData[k*4 + l].y = l_DirLights[k]->getID();
-							l_InstanceData[k*4 + l].z = l;*/
+						RenderableMesh *l_pMeshInst = cmdIt->second[j];
+						for( unsigned int k=0 ; k<l_DirLights.size() ; ++k )
+						{	
+							for( unsigned int l=0 ; l<4 ; ++l )
+							{
+								glm::ivec4 l_NewInst;
+								l_NewInst.x = l_pMeshInst->getWorldOffset();
+								l_NewInst.y = l_DirLights[k]->getID();
+								l_NewInst.z = l;
+								l_Instance.push_back(l_NewInst);
+							}
+							l_TempData.m_InstanceCount += 4;
 						}
 					}
+					l_pIndirectBuffer->assign(l_TempData);
+				}
+				drawLightShadow(a_DrawCommand[i]
+					, it->first, getScene()->getDirLightContainer()->getMaterialBlock()
+					, l_Instance, getScene()->getRenderBatcher()->getVertexBuffer().get(), getScene()->getRenderBatcher()->getIndexBuffer().get()
+					, [=]() -> void
+					{
+						a_DrawCommand[i]->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+					});
+				l_Instance.clear();
+			}
+
+			//omni
+			for( auto it=l_SortedMesh[1].begin() ; it!=l_SortedMesh[1].end() ; ++it )
+			{
+				std::vector<glm::ivec4> l_Instance;
+				IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
+				for( auto cmdIt=it->second.begin() ; cmdIt!=it->second.end() ; ++cmdIt )
+				{
+					IndirectDrawData l_TempData;
+					l_TempData.m_BaseVertex = cmdIt->first.m_VertexStart;
+					l_TempData.m_StartIndex = cmdIt->first.m_IndexStart;
+					l_TempData.m_IndexCount = cmdIt->first.m_IndexCount;
+					l_TempData.m_StartInstance = l_Instance.size();
+					l_TempData.m_InstanceCount = 0;
+					for( unsigned int j=0 ; j<cmdIt->second.size() ; j+=l_NumCommand )
+					{
+						RenderableMesh *l_pMeshInst = cmdIt->second[j];
+						for( unsigned int k=0 ; k<l_OmniLights.size() ; ++k )
+						{
+							bool l_Temp = false;
+							if( !reinterpret_cast<OmniLight *>(l_OmniLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pMeshInst->boundingBox(), l_Temp) ) continue;
+
+							glm::ivec4 l_NewInst;
+							l_NewInst.x = l_pMeshInst->getWorldOffset();
+							l_NewInst.y = l_OmniLights[k]->getID();
+							l_Instance.push_back(l_NewInst);
+							++l_TempData.m_InstanceCount;
+						}
+					}
+					l_pIndirectBuffer->assign(l_TempData);
+				}
+				drawLightShadow(a_DrawCommand[i]
+					, it->first, getScene()->getOmniLightContainer()->getMaterialBlock()
+					, l_Instance, getScene()->getRenderBatcher()->getVertexBuffer().get(), getScene()->getRenderBatcher()->getIndexBuffer().get()
+					, [=]() -> void
+					{
+						a_DrawCommand[i]->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+					});
+				l_Instance.clear();
+			}
+
+			//spot
+			for( auto it=l_SortedMesh[2].begin() ; it!=l_SortedMesh[2].end() ; ++it )
+			{
+				std::vector<glm::ivec4> l_Instance;
+				IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
+				for( auto cmdIt=it->second.begin() ; cmdIt!=it->second.end() ; ++cmdIt )
+				{
+					IndirectDrawData l_TempData;
+					l_TempData.m_BaseVertex = cmdIt->first.m_VertexStart;
+					l_TempData.m_StartIndex = cmdIt->first.m_IndexStart;
+					l_TempData.m_IndexCount = cmdIt->first.m_IndexCount;
+					l_TempData.m_StartInstance = l_Instance.size();
+					l_TempData.m_InstanceCount = 0;
+					for( unsigned int j=0 ; j<cmdIt->second.size() ; j+=l_NumCommand )
+					{
+						RenderableMesh *l_pMeshInst = cmdIt->second[j];
+						for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
+						{
+							bool l_Temp = false;
+							if( !reinterpret_cast<SpotLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(l_pMeshInst->boundingBox(), l_Temp) ) continue;
+
+							glm::ivec4 l_NewInst;
+							l_NewInst.x = l_pMeshInst->getWorldOffset();
+							l_NewInst.y = l_SpotLights[k]->getID();
+							l_Instance.push_back(l_NewInst);
+						}
+					}
+					l_pIndirectBuffer->assign(l_TempData);
+				}
+				drawLightShadow(a_DrawCommand[i]
+					, it->first, getScene()->getSpotLightContainer()->getMaterialBlock()
+					, l_Instance, getScene()->getRenderBatcher()->getVertexBuffer().get(), getScene()->getRenderBatcher()->getIndexBuffer().get()
+					, [=]() -> void
+					{
+						a_DrawCommand[i]->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+					});
+				l_Instance.clear();
 			}
 
 			a_DrawCommand[i]->end();
 		});
 	}
 	EngineCore::singleton().join();
+	recycleAllIndirectBuffer();
 }
 
 unsigned int ShadowMapRenderer::calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light)
@@ -370,17 +478,25 @@ void ShadowMapRenderer::drawLightShadow(GraphicCommander *a_pCmd
 IndirectDrawBuffer* ShadowMapRenderer::requestIndirectBuffer()
 {
 	std::lock_guard<std::mutex> l_Guard(m_BufferLock);
-	if( m_IndirectBufferPool.empty() ) return new IndirectDrawBuffer();
-
-	IndirectDrawBuffer *l_pRes = m_IndirectBufferPool.front();
-	m_IndirectBufferPool.pop_front();
+	IndirectDrawBuffer *l_pRes = nullptr;
+	if( m_IndirectBufferPool.empty() ) l_pRes = new IndirectDrawBuffer();
+	else
+	{
+		l_pRes = m_IndirectBufferPool.front();
+		m_IndirectBufferPool.pop_front();
+	}
+	m_IndirectBufferInUse.push_back(l_pRes);
 	return l_pRes;
 }
 
-void ShadowMapRenderer::recycleIndirectBuffer(IndirectDrawBuffer *a_pBuff)
+void ShadowMapRenderer::recycleAllIndirectBuffer()
 {
-	a_pBuff->reset();
-	m_IndirectBufferPool.push_back(a_pBuff);
+	for( auto it=m_IndirectBufferInUse.begin() ; it!=m_IndirectBufferInUse.end() ; ++it )
+	{
+		(*it)->reset();
+		m_IndirectBufferPool.push_back(*it);
+	}
+	m_IndirectBufferInUse.clear();
 }
 #pragma endregion
 

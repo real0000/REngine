@@ -35,6 +35,16 @@ class SceneBatcher
 public:
 	struct MeshVtxCache
 	{
+		inline bool operator<(const MeshVtxCache &a_Other) const
+        {
+            if( m_VertexStart < a_Other.m_VertexStart ) return true;
+            else if( m_VertexStart == a_Other.m_VertexStart )
+			{
+                return m_IndexStart < a_Other.m_IndexStart || (m_IndexStart == a_Other.m_IndexStart && m_IndexCount < a_Other.m_IndexCount);
+			}
+            return false;
+        }
+
 		unsigned int m_VertexStart;
 		unsigned int m_IndexStart;
 		unsigned int m_IndexCount;
