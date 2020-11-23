@@ -23,6 +23,7 @@ namespace R
 {
 
 #define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
+#define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
 
 #pragma region ShadowMapRenderer
 //
@@ -35,13 +36,20 @@ ShadowMapRenderer* ShadowMapRenderer::create(boost::property_tree::ptree &a_Src,
 
 ShadowMapRenderer::ShadowMapRenderer(std::shared_ptr<Scene> a_pScene)
 	: RenderPipeline(a_pScene)
-	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::d32_float))
+	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::r32_uint))
+	, m_pClearMat(AssetManager::singleton().createAsset(CLEAR_MAT_ASSET_NAME).second)
+	, m_pClearMatInst(nullptr)
 {
+	m_pClearMatInst = m_pClearMat->getComponent<MaterialAsset>();
+	m_pClearMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::ClearShadowMap));
+	m_pClearMatInst->setTexture("ShadowMap", m_pShadowMap->getTexture());
 }
 
 ShadowMapRenderer::~ShadowMapRenderer()
 {
 	AssetManager::singleton().removeData(SHADOWMAP_ASSET_NAME);
+	m_pClearMat = nullptr;
+	m_pClearMatInst = nullptr;
 
 	recycleAllIndirectBuffer();
 	while( !m_IndirectBufferPool.empty() )
@@ -140,6 +148,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 		
 	EngineCore::singleton().join();
 
+	a_pMiscCmd->begin(true);
+	a_pMiscCmd->useProgram(m_pClearMatInst->getProgram());
+	a_pMiscCmd->compute(m_pShadowMap->getMaxSize().x / 8, m_pShadowMap->getMaxSize().y / 8, m_pShadowMap->getArraySize());
+	a_pMiscCmd->end();
+
 	getScene()->getDirLightContainer()->flush();
 	getScene()->getOmniLightContainer()->flush();
 	getScene()->getSpotLightContainer()->flush();
@@ -150,10 +163,9 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 	a_pMiscCmd->begin(false);
 
 	glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize, 0.0f, 1.0f);
-	a_pMiscCmd->setRenderTarget(m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID(), 0);
+	a_pMiscCmd->setRenderTarget(-1, 0);
 	a_pMiscCmd->setViewPort(1, l_Viewport);
 	a_pMiscCmd->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize));
-	a_pMiscCmd->clearDepthTarget(m_pShadowMap->getTexture()->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
 	a_pMiscCmd->end();
 

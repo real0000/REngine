@@ -46,6 +46,8 @@ private:
 	void recycleAllIndirectBuffer();
 	
 	RenderTextureAtlas *m_pShadowMap;
+	std::shared_ptr<Asset> m_pClearMat;
+	MaterialAsset *m_pClearMatInst;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::mutex m_ShadowMapLock;
 	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;

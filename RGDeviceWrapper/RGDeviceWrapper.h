@@ -248,6 +248,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	TiledDeferredLighting,
 
 	// shadow map
+	ClearShadowMap,
 	DirShadowMap,
 	OmniShadowMap,
 	SpotShadowMap,

@@ -1284,6 +1284,7 @@ void D3D12Device::freeTexture(int a_ID)
 {	
 	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
+	if( l_pTargetBinder->m_bWriteable ) m_pShaderResourceHeap->recycle(l_pTargetBinder->m_UavHeapID);
 	m_ManagedTexture.release(a_ID);
 }
 
@@ -1947,6 +1948,7 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 	std::shared_ptr<TextureBinder> l_pNewBinder = nullptr;
 	unsigned int l_TextureID = m_ManagedTexture.retain(&l_pNewBinder);
 
+	l_pNewBinder->m_bWriteable = false;
 	l_pNewBinder->m_Size = a_Size;
 	l_pNewBinder->m_Format = a_Format;
 	switch( a_Dim )
@@ -2092,6 +2094,45 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 			default:break;
 		}
 		l_pNewBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, &l_SrvDesc);
+
+		if( 0 != (a_Flag & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) )
+		{
+			D3D12_UNORDERED_ACCESS_VIEW_DESC l_UavDesc = {};
+			l_UavDesc.Format = l_TexResDesc.Format;
+			switch( l_pNewBinder->m_Type )
+			{
+				case TEXTYPE_SIMPLE_2D:
+				case TEXTYPE_RENDER_TARGET_VIEW:
+				case TEXTYPE_DEPTH_STENCIL_VIEW:
+					l_UavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					l_UavDesc.Texture2D.MipSlice = 0;
+					l_UavDesc.Texture2D.PlaneSlice = 0;
+					break;
+
+				case TEXTYPE_SIMPLE_2D_ARRAY:
+					l_UavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+					l_UavDesc.Texture2DArray.ArraySize = a_Size.z;
+					l_UavDesc.Texture2DArray.FirstArraySlice = 0;
+					l_UavDesc.Texture2DArray.MipSlice = 0;
+					l_UavDesc.Texture2DArray.PlaneSlice = 0;
+					break;
+
+				case TEXTYPE_SIMPLE_3D:
+					l_UavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+					l_UavDesc.Texture3D.WSize = a_Size.z;
+					l_UavDesc.Texture3D.MipSlice = 0;
+					l_UavDesc.Texture3D.FirstWSlice = 0;
+					break;
+					
+				//case TEXTYPE_SIMPLE_CUBE:
+				//case TEXTYPE_SIMPLE_CUBE_ARRAY:
+				default:
+					assert(false && "invalid uav format");
+					break;
+			}
+			l_pNewBinder->m_bWriteable = true;
+			l_pNewBinder->m_UavHeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, nullptr, &l_UavDesc);
+		}
 	}
 
 	return l_TextureID;

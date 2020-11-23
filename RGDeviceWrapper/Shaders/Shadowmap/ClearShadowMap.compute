@@ -1,0 +1,8 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+[numthreads(8, 8, 1 )]
+void main(uint3 a_ThreadID : SV_DispatchThreadID)
+{
+    ShadowMap[a_ThreadID.xyz] = 0xffffffff;
+}

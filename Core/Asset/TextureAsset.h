@@ -30,6 +30,8 @@ public:
 	void initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData = nullptr);
 	void initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);
 	void initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);
+	void updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
+	void updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
 
 	int getSamplerID();
 	int getTextureID(){ return m_TextureID; }

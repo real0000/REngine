@@ -1,0 +1,12 @@
+<root isCompute="true" isIndexed="false">
+  <ParamList>
+    <Srv2D name="ShadowMap" desc="" write="true" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Compute file="ClearShadowMap.compute">
+        ShadowMap
+      </Compute>
+    </Model_5_1>
+  </Shaders>
+</root>

@@ -116,6 +116,18 @@ void TextureAsset::initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format
 	updateSampler();
 }
 
+void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
+{
+	assert(-1 == m_TextureID);
+	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_Idx, a_pSrcData);
+}
+
+void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
+{
+	assert(-1 == m_TextureID);
+	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData);
+}
+
 void TextureAsset::importFile(wxString a_File)
 {
 	assert(-1 == m_TextureID);

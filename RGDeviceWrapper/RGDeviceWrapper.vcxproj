@@ -184,9 +184,11 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </None>
+    <None Include="Shaders\Shadowmap\DirShadowMap.geometry" />
     <None Include="Shaders\Shadowmap\OmniShadowMap.geometry" />
     <None Include="Shaders\Shadowmap\ShadowMap.pixel" />
     <None Include="Shaders\Shadowmap\ShadowMap.vertex" />
+    <None Include="Shaders\Shadowmap\SpotShadowMap.geometry" />
     <None Include="Shaders\Standard.pixel" />
     <None Include="Shaders\StdInclude.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
@@ -331,11 +333,19 @@
     <Xml Include="Shaders\Lightmap\RayScatter.xml">
       <SubType>Designer</SubType>
     </Xml>
+    <Xml Include="Shaders\Shadowmap\ClearShadowMap.xml" />
+    <Xml Include="Shaders\Shadowmap\DirShadowMap.xml" />
     <Xml Include="Shaders\Shadowmap\OmniShadowMap.xml" />
+    <Xml Include="Shaders\Shadowmap\SpotShadowMap.xml" />
     <Xml Include="Shaders\Standard.xml" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Lightmap\RayScatter.compute">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Shadowmap\ClearShadowMap.compute">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

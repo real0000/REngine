@@ -223,7 +223,7 @@ public:
 	virtual void freeSampler(int a_ID);
 	
 	// render target part
-	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);// 3d render target, use uav
+	virtual int createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format);
 	virtual int createRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize = 1, bool a_bCube = false);// texture 2d array
 	virtual int getRenderTargetTexture(int a_ID);
 	virtual void freeRenderTarget(int a_ID);
@@ -294,16 +294,20 @@ private:
 			, m_Size(8.0f, 8.0f, 1.0f)
 			, m_Format(PixelFormat::rgba8_unorm)
 			, m_HeapID(0)
+			, m_UavHeapID(0)
 			, m_Type(TEXTYPE_SIMPLE_2D)
-			, m_MipmapLevels(1){}
+			, m_MipmapLevels(1)
+			, m_bWriteable(false){}
 		~TextureBinder(){ SAFE_RELEASE(m_pTexture) }
 
 		ID3D12Resource *m_pTexture;
 		glm::ivec3 m_Size;
 		PixelFormat::Key m_Format;
 		unsigned int m_HeapID;
+		unsigned int m_UavHeapID;
 		TextureType m_Type;
 		unsigned int m_MipmapLevels;
+		bool m_bWriteable;
 	};
 	struct SamplerBinder
 	{

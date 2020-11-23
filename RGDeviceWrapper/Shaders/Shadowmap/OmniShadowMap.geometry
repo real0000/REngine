@@ -25,7 +25,6 @@ struct GS_Output
 	float2 m_UV : TEXCOORD0;
 	float3 m_Clip : SV_ClipDistance0;
 	float4 m_Position : SV_Position;
-	uint m_Slice : SV_RenderTargetArrayIndex;
 };
 
 [maxvertexcount(12)]
@@ -59,7 +58,6 @@ void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a
 				l_NewVtx.m_Clip.x = l_ClipDist[l_VtxIdx];
 				l_NewVtx.m_Clip.y = l_ClipDist[3 + l_VtxIdx];
 				l_NewVtx.m_Clip.z = l_ClipDist[6 + l_VtxIdx];
-				l_NewVtx.m_Slice = l_TargetLight.m_Layer;
 
 				l_Output.Append(l_NewVtx);
 			}
