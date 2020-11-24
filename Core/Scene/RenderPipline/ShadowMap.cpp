@@ -162,10 +162,10 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 
 	a_pMiscCmd->begin(false);
 
-	glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize, 0.0f, 1.0f);
+	glm::viewport l_Viewport(0.0f, 0.0f, m_pShadowMap->getMaxSize().y, m_pShadowMap->getMaxSize().y, 0.0f, 1.0f);
 	a_pMiscCmd->setRenderTarget(-1, 0);
 	a_pMiscCmd->setViewPort(1, l_Viewport);
-	a_pMiscCmd->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize));
+	a_pMiscCmd->setScissor(1, glm::ivec4(0, 0, l_Viewport.m_Size.x, l_Viewport.m_Size.y));
 
 	a_pMiscCmd->end();
 
@@ -477,6 +477,7 @@ void ShadowMapRenderer::drawLightShadow(GraphicCommander *a_pCmd
 	int l_InstanceBuffer = getScene()->getRenderBatcher()->requestInstanceVtxBuffer();
 	GDEVICE()->updateVertexBuffer(l_InstanceBuffer, a_InstanceData.data(), sizeof(glm::ivec4) * a_InstanceData.size());
 						
+	a_pMat->setTexture("ShadowMap", m_pShadowMap->getTexture());
 	a_pCmd->bindVertex(a_pVtxBuff, l_InstanceBuffer);
 	a_pCmd->bindIndex(a_pIdxBuff);
 	a_pMat->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());

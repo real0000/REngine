@@ -17,6 +17,13 @@ class GraphicCanvas;
 class GraphicCommander
 {
 public:
+	enum TextureBindType
+	{
+		BIND_NORMAL_TEXTURE = 0,
+		BIND_RENDER_TARGET,
+		BIND_UAV_TEXTURE
+	};
+public:
 	GraphicCommander();
 	virtual ~GraphicCommander();
 
@@ -29,7 +36,7 @@ public:
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram) = 0;
 	virtual void bindVertex(VertexBuffer *a_pBuffer, int a_InstanceBuffer = -1) = 0;
 	virtual void bindIndex(IndexBuffer *a_pBuffer) = 0;
-	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget) = 0;
+	virtual void bindTexture(int a_ID, unsigned int a_Stage, TextureBindType a_Type) = 0;
 	virtual void bindSampler(int a_ID, unsigned int a_Stage) = 0;
 	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData) = 0;
 	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt) = 0;

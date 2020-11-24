@@ -113,7 +113,7 @@ public:
 	virtual void useProgram(std::shared_ptr<ShaderProgram> a_pProgram);
 	virtual void bindVertex(VertexBuffer *a_pBuffer, int a_InstanceBuffer = -1);
 	virtual void bindIndex(IndexBuffer *a_pBuffer);
-	virtual void bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget);
+	virtual void bindTexture(int a_ID, unsigned int a_Stage, TextureBindType a_Type);
 	virtual void bindSampler(int a_ID, unsigned int a_Stage);
 	virtual void bindConstant(std::string a_Name, unsigned int a_SrcData);
 	virtual void bindConstant(std::string a_Name, void* a_pSrcData, unsigned int a_SizeInUInt);
@@ -260,7 +260,7 @@ public:
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
-	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, bool a_bRenderTarget);
+	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, GraphicCommander::TextureBindType a_Type);
 	D3D12_GPU_DESCRIPTOR_HANDLE getSamplerGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getTextureGpuAddress(int a_ID, bool a_bRenderTarget);
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID, bool a_bDepth = false);

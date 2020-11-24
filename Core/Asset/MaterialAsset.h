@@ -177,7 +177,7 @@ private:
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
 	std::set<unsigned int> m_ReservedCBV, m_ReservedSRV;
-	std::vector<std::shared_ptr<Asset>> m_Textures;
+	std::vector<std::shared_ptr<Asset>> m_Textures, m_RWTexture;
 
 	// instance part
 	std::deque<int> m_FreeInstanceSlot;

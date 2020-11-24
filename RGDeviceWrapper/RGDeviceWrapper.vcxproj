@@ -184,7 +184,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </None>
-    <None Include="Shaders\Shadowmap\DirShadowMap.geometry" />
     <None Include="Shaders\Shadowmap\OmniShadowMap.geometry" />
     <None Include="Shaders\Shadowmap\ShadowMap.pixel" />
     <None Include="Shaders\Shadowmap\ShadowMap.vertex" />

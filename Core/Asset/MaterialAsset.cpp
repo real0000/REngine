@@ -326,10 +326,12 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	}
 
 	auto &l_TextureMap = a_pRefProgram->getTextureDesc();
-	m_Textures.resize(l_TextureMap.size(), nullptr);
 	for( auto it=l_TextureMap.begin() ; it!=l_TextureMap.end() ; ++it )
 	{
-		if( !it->second->m_bReserved ) continue;
+		std::vector<std::shared_ptr<Asset>> &l_TargetVec = it->second->m_bWrite ? m_RWTexture : m_Textures;
+		while( l_TargetVec.size() <= it->second->m_pRegInfo->m_Slot ) l_TargetVec.push_back(nullptr);
+
+		if( !it->second->m_bReserved || it->second->m_bWrite ) continue;
 		m_ReservedSRV.insert(it->second->m_pRegInfo->m_Slot);
 	}
 }
@@ -339,7 +341,8 @@ void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTex
 	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
 	auto it = l_TextureSlotMap.find(a_Name);
 	if( l_TextureSlotMap.end() == it ) return;
-	m_Textures[it->second->m_pRegInfo->m_Slot] = a_pTexture;
+
+	(it->second->m_bWrite ? m_RWTexture : m_Textures)[it->second->m_pRegInfo->m_Slot] = a_pTexture;
 }
 
 std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
@@ -347,7 +350,7 @@ std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
 	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
 	auto it = l_TextureSlotMap.find(a_Name);
 	if( l_TextureSlotMap.end() == it ) return a_Name == STANDARD_TEXTURE_NORMAL ? EngineCore::singleton().getBlueTexture() : EngineCore::singleton().getWhiteTexture();
-	return m_Textures[it->second->m_pRegInfo->m_Slot];
+	return (it->second->m_bWrite ? m_RWTexture : m_Textures)[it->second->m_pRegInfo->m_Slot];
 }
 
 void MaterialAsset::setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock)
@@ -403,8 +406,20 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder)
 
 		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
 		TextureType l_Type = l_pTextureComp->getTextureType();
-		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type);
+		GraphicCommander::TextureBindType a_BindType = 
+			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?
+			GraphicCommander::BIND_RENDER_TARGET :
+			GraphicCommander::BIND_NORMAL_TEXTURE;
+		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, a_BindType);
 		a_pBinder->bindSampler(l_pTextureComp->getSamplerID(), i);
+	}
+
+	for( unsigned int i=0 ; i<m_RWTexture.size() ; ++i )
+	{
+		if( nullptr == m_RWTexture[i] ) continue;
+		
+		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
+		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, GraphicCommander::BIND_UAV_TEXTURE);
 	}
 }
 

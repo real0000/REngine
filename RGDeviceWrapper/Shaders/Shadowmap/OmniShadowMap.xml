@@ -11,17 +11,17 @@
       <Vertex file="Shadowmap/ShadowMap.vertex">
         g_Camera, SkinTransition, NormalTransition
       </Vertex>
-      <!--TessCtrl file="">  
+      <!--TessCtrl file="">
       </TessCtrl>
       <TessEval file="">
       </TessEval-->
       <Geometry file="Shadowmap/OmniShadowMap.geometry">
-        g_Camera, NormalTransition
+        g_Camera, m_Lights, NormalTransition
       </Geometry>
       <!--Compute>
       </Compute>-->
       <Fragment file="Shadowmap/ShadowMap.pixel">
-        BaseColor, ShadowMap
+        BaseColor, ShadowMap, m_Lights
       </Fragment>
     </Model_5_1>
   </Shaders>

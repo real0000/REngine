@@ -302,12 +302,12 @@ void D3D12Commander::bindIndex(IndexBuffer *a_pBuffer)
 	m_CurrThread.second->IASetIndexBuffer(&(m_pRefDevice->getIndexBufferView(a_pBuffer->getBufferID())));
 }
 
-void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, bool a_bRenderTarget)
+void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, TextureBindType a_Type)
 {
 	int l_RootSlot = m_pCurrProgram->getTextureSlot(a_Stage);
 	if( -1 == l_RootSlot ) return;
 
-	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_bRenderTarget));
+	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_Type));
 }
 
 void D3D12Commander::bindSampler(int a_ID, unsigned int a_Stage)
@@ -1462,10 +1462,23 @@ void D3D12Device::freeIndexBuffer(int a_ID)
 	m_ManagedIndexBuffer.release(a_ID);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getTextureGpuHandle(int a_ID, bool a_bRenderTarget)
+D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getTextureGpuHandle(int a_ID, GraphicCommander::TextureBindType a_Type)
 {
-	std::shared_ptr<TextureBinder> l_pTargetBinder = a_bRenderTarget ? m_ManagedRenderTarget[a_ID]->m_pRefBinder : m_ManagedTexture[a_ID];
-	return m_pShaderResourceHeap->getGpuHandle(l_pTargetBinder->m_HeapID);
+	switch( a_Type )
+	{
+		case GraphicCommander::BIND_NORMAL_TEXTURE:
+			return m_pShaderResourceHeap->getGpuHandle(m_ManagedTexture[a_ID]->m_HeapID);
+
+		case GraphicCommander::BIND_RENDER_TARGET:
+			return m_pShaderResourceHeap->getGpuHandle(m_ManagedRenderTarget[a_ID]->m_pRefBinder->m_HeapID);
+
+		case GraphicCommander::BIND_UAV_TEXTURE:
+			return m_pShaderResourceHeap->getGpuHandle(m_ManagedTexture[a_ID]->m_UavHeapID);
+
+		default:break;
+	}
+	assert(false && "invalid binding type");
+	return {};
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getSamplerGpuHandle(int a_ID)

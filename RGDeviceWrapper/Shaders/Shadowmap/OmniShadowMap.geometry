@@ -23,6 +23,8 @@ const float3 c_PlaneNormals[12] =
 struct GS_Output
 {
 	float2 m_UV : TEXCOORD0;
+	float4 m_InstanceID : TEXCOORD1;
+	float4 m_ScreenPos : TEXCOORD2;
 	float3 m_Clip : SV_ClipDistance0;
 	float4 m_Position : SV_Position;
 };
@@ -54,6 +56,8 @@ void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a
 				GS_Output l_NewVtx;
 				l_NewVtx.m_Position  = mul(l_Input[l_VtxIdx].m_Position, l_TargetLight.m_ViewProj[l_FaceIndex]);
 				l_NewVtx.m_UV = a_Input[l_VtxIdx].m_Texcoord01.xy;
+				l_NewVtx.m_InstanceID = a_Input[0].m_InstanceID;
+				l_NewVtx.m_ScreenPos = l_NewVtx.m_Position;
 
 				l_NewVtx.m_Clip.x = l_ClipDist[l_VtxIdx];
 				l_NewVtx.m_Clip.y = l_ClipDist[3 + l_VtxIdx];

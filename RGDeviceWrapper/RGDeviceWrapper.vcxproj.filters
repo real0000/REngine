@@ -133,9 +133,6 @@
     <None Include="Shaders\Lightmap\RayIntersection.compute">
       <Filter>Shaders\Lightmap</Filter>
     </None>
-    <None Include="Shaders\Shadowmap\DirShadowMap.geometry">
-      <Filter>Shaders\Shadowmap</Filter>
-    </None>
     <None Include="Shaders\Shadowmap\SpotShadowMap.geometry">
       <Filter>Shaders\Shadowmap</Filter>
     </None>

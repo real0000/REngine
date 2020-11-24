@@ -109,7 +109,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 {
 	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
 	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::UavBuffer+1][ShaderStages::NumStage];
-	std::map<RegisterInfo *, bool> l_RWSrv;
 	{
 		std::map<std::string, D3D12_SHADER_VISIBILITY> l_RegVisibleMaps;
 		for( auto it = a_ShaderDesc.begin() ; it != a_ShaderDesc.end() ; ++it )
@@ -143,7 +142,6 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			RegisterInfo *l_pNewInfo = new RegisterInfo();
 			l_pNewInfo->m_bReserved = (it->second.get("<xmlattr>.reserved", "false") == "true") || l_RegType == ShaderRegType::UavBuffer;
 			l_pNewInfo->m_Type = l_RegType;
-			if( l_RegType >= ShaderRegType::Srv2D && l_RegType <= ShaderRegType::Srv3D ) l_RWSrv[l_pNewInfo] = it->second.get("<xmlattr>.write", "false") == "true";
 			l_TargetMap.insert(std::make_pair(l_Name, l_pNewInfo));
 
 			if( ShaderRegType::Constant == l_RegType ) l_ConstTypeMap[l_Name] = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type"));
@@ -172,19 +170,19 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 				
 				for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 				{
-					bool l_bWrite = l_RWSrv[it->second];
-					unsigned int &l_TargetSlot = l_bWrite ? l_UavSlot : l_Slot;
+					ProgramTextureDesc *l_pSrcDesc = l_TextuerMap[it->first];
+					unsigned int &l_TargetSlot = l_pSrcDesc->m_bWrite ? l_UavSlot : l_Slot;
 
 					it->second->m_RootIndex = l_RegCollect.size();
 					it->second->m_Slot = l_TargetSlot;
-					l_TextuerMap[it->first]->m_pRegInfo = it->second;
+					l_pSrcDesc->m_pRegInfo = it->second;
 
 					l_RegCollect.push_back({});
 					
 					l_RegRangeCollect.push_back(new D3D12_DESCRIPTOR_RANGE());
 					*l_RegRangeCollect.back() = {};
 
-					l_RegRangeCollect.back()->RangeType = l_bWrite ? D3D12_DESCRIPTOR_RANGE_TYPE_UAV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+					l_RegRangeCollect.back()->RangeType = l_pSrcDesc->m_bWrite ? D3D12_DESCRIPTOR_RANGE_TYPE_UAV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 					l_RegRangeCollect.back()->NumDescriptors = (l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE : 1;
 					l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
 					l_RegRangeCollect.back()->RegisterSpace = 0;
@@ -195,11 +193,11 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					l_RegCollect.back().DescriptorTable.pDescriptorRanges = l_RegRangeCollect.back();
 					l_RegCollect.back().ShaderVisibility = (D3D12_SHADER_VISIBILITY)l_Visibility;
 
-					(l_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(it->second->m_RootIndex);
+					(l_pSrcDesc->m_bWrite ? m_UavStageMap : m_TextureStageMap).push_back(it->second->m_RootIndex);
 
 					++l_TargetSlot;
 
-					if( !l_bWrite )
+					if( !l_pSrcDesc->m_bWrite )
 					{
 						l_RegRangeCollect.push_back(new D3D12_DESCRIPTOR_RANGE());
 						*l_RegRangeCollect.back() = {};
