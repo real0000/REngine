@@ -122,9 +122,6 @@
     <None Include="Shaders\Shadowmap\ShadowMap.pixel">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
-    <None Include="Shaders\Shadowmap\ShadowMap.vertex">
-      <Filter>Shaders\Shadowmap</Filter>
-    </None>
     <None Include="Shaders\Lightmap\Lightmap.h" />
     <None Include="Shaders\Lightmap\RayScatter.compute" />
     <None Include="Shaders\Standard.pixel">
@@ -133,7 +130,14 @@
     <None Include="Shaders\Lightmap\RayIntersection.compute">
       <Filter>Shaders\Lightmap</Filter>
     </None>
-    <None Include="Shaders\Shadowmap\SpotShadowMap.geometry">
+    <None Include="Shaders\Shadowmap\ClearShadowMap.compute" />
+    <None Include="Shaders\Shadowmap\OmniShadowMap.vertex">
+      <Filter>Shaders\Shadowmap</Filter>
+    </None>
+    <None Include="Shaders\Shadowmap\SpotShadowMap.vertex">
+      <Filter>Shaders\Shadowmap</Filter>
+    </None>
+    <None Include="Shaders\Shadowmap\DirShadowMap.vertex">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
   </ItemGroup>
@@ -159,10 +163,5 @@
     <Xml Include="Shaders\Shadowmap\ClearShadowMap.xml">
       <Filter>Shaders\Shadowmap</Filter>
     </Xml>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Shadowmap\ClearShadowMap.compute">
-      <Filter>Shaders\Shadowmap</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>

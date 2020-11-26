@@ -2,25 +2,26 @@
   <ParamList>
     <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
     <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
-    <UavBuffer name="m_Lights" preDef="DirLight" write="false"/>
+    <UavBuffer name="Lights" preDef="DirLight" write="false"/>
+    <Constant name="ShadowMapSize" type="int2" reserved="false"/>
+    <Srv2D name="ShadowMap" write="true"/>
     <Srv2D name="BaseColor" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="Shadowmap/ShadowMap.vertex">
-        g_Camera, SkinTransition, NormalTransition
+      <Vertex file="Shadowmap/DirShadowMap.vertex">
+        SkinTransition, NormalTransition, Lights, ShadowMapSize
       </Vertex>
       <!--TessCtrl file="">  
       </TessCtrl>
       <TessEval file="">
       </TessEval-->
-      <Geometry file="Shadowmap/DirShadowMap.geometry">
-        g_Camera, NormalTransition
-      </Geometry>
+      <!--Geometry file="">
+      </Geometry-->
       <!--Compute>
       </Compute>-->
       <Fragment file="Shadowmap/ShadowMap.pixel">
-        BaseColor
+        BaseColor, ShadowMap
       </Fragment>
     </Model_5_1>
   </Shaders>

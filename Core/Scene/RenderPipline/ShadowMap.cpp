@@ -482,7 +482,7 @@ void ShadowMapRenderer::drawLightShadow(GraphicCommander *a_pCmd
 	a_pCmd->bindIndex(a_pIdxBuff);
 	a_pMat->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
 	a_pMat->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
-	a_pMat->bindBlock(a_pCmd, "m_Lights", a_pLightBlock);
+	a_pMat->bindBlock(a_pCmd, "Lights", a_pLightBlock);
 	a_pMat->bindAll(a_pCmd);
 	a_DrawFunc();
 	getScene()->getRenderBatcher()->recycleInstanceVtxBuffer(l_InstanceBuffer);

@@ -23,8 +23,7 @@ const float3 c_PlaneNormals[12] =
 struct GS_Output
 {
 	float2 m_UV : TEXCOORD0;
-	float4 m_InstanceID : TEXCOORD1;
-	float4 m_ScreenPos : TEXCOORD2;
+	float4 m_TargetData : TEXCOORD1;
 	float3 m_Clip : SV_ClipDistance0;
 	float4 m_Position : SV_Position;
 };
@@ -32,7 +31,7 @@ struct GS_Output
 [maxvertexcount(12)]
 void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a_Output)
 {
-	OmniLight l_TargetLight = m_Lights[a_Input[0].m_InstanceID.y];
+	OmniLight l_TargetLight = Lights[a_Input[0].m_InstanceID.y];
 
 	for( uint l_FaceIndex=0 ; l_FaceIndex<4 ; ++l_FaceIndex )
 	{
@@ -56,8 +55,9 @@ void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a
 				GS_Output l_NewVtx;
 				l_NewVtx.m_Position  = mul(l_Input[l_VtxIdx].m_Position, l_TargetLight.m_ViewProj[l_FaceIndex]);
 				l_NewVtx.m_UV = a_Input[l_VtxIdx].m_Texcoord01.xy;
-				l_NewVtx.m_InstanceID = a_Input[0].m_InstanceID;
-				l_NewVtx.m_ScreenPos = l_NewVtx.m_Position;
+				l_NewVtx.m_TargetData.xyw = l_NewVtx.m_Position.xyz / l_NewVtx.m_Position.w;
+				l_NewVtx.m_TargetData.xy = (l_NewVtx.m_Position.xy * l_TargetLight.m_ShadowMapUV.zw + l_TargetLight.m_ShadowMapUV.xy) * ShadowMapSize;
+				l_NewVtx.m_TargetData.z = l_TargetLight.m_Layer;
 
 				l_NewVtx.m_Clip.x = l_ClipDist[l_VtxIdx];
 				l_NewVtx.m_Clip.y = l_ClipDist[3 + l_VtxIdx];

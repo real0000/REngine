@@ -1,0 +1,44 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+struct VS_Output
+{
+	float2 m_UV: TEXCOORD0;
+	float4 m_TargetData : TEXCOORD1;
+	float4 m_Position : SV_Position;
+};
+
+VS_Output main(VS_CommonInput l_Input)
+{
+	VS_Output l_Output = (VS_CommonOutput)0;
+
+	TransformInfo l_Transform = NormalTransition[l_Input.m_InstanceID.x];
+	l_Output.m_UV = l_Input.m_Texcoord01.xy;
+	
+	float4x4 l_WorldTransform;
+	if( 0 != (l_Transform.m_VtxFlag & USE_SKIN) )
+	{
+		uint l_SkinBase = l_Transform.m_SkinMatBase;
+		l_WorldTransform = SkinTransition[l_SkinBase + l_Input.m_BoneID.x].m_Matrix * l_Input.m_Weight.x
+						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.y].m_Matrix * l_Input.m_Weight.y
+						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.z].m_Matrix * l_Input.m_Weight.z
+						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.w].m_Matrix * l_Input.m_Weight.w;
+	}
+	else l_WorldTransform = float4x4(1.0, 0.0, 0.0, 0.0
+									,0.0, 1.0, 0.0, 0.0
+									,0.0, 0.0, 1.0, 0.0
+									,0.0, 0.0, 0.0, 1.0);
+	if( 0 != (l_Transform.m_VtxFlag & USE_WORLD_MAT) )
+	{
+		l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
+	}
+	l_Output.m_Position = mul(float4(l_Input.m_Position, 1.0), l_WorldTransform);
+
+	SpotLight l_Light = Lights[l_Input.m_InstanceID.y];
+	l_Output.m_Position = mul(float4(l_Output.m_Position.xyz, 1.0), l_Light.m_ShadowMapProj);
+	l_Output.m_TargetData.xyw = l_Output.m_Position.xyz / l_Output.m_Position.w;
+	l_Output.m_TargetData.xy = (l_Output.m_Position.xy * l_Light.m_ShadowMapUV.zw + l_Light.m_ShadowMapUV.xy) * ShadowMapSize;
+	l_Output.m_TargetData.z = l_Light.m_Layer;
+	
+	return l_Output;
+}

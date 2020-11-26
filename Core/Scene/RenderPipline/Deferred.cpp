@@ -217,7 +217,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_DepthSize.x, l_DepthSize.y));
 
 			m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
-			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 0, true);
+			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 0, GraphicCommander::BIND_RENDER_TARGET);
 			m_pCmdInit->bindSampler(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getSamplerID(), 0);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
 			m_pCmdInit->drawVertex(4, 0);
