@@ -118,8 +118,8 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 
 				std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>> *l_pTargetContainer = nullptr;
-				auto it = l_SortedMesh[0].find(l_pMatInst);
-				if( it == l_SortedMesh[0].end() ) l_pTargetContainer = &(l_SortedMesh[a_SortedIdx][l_pMatInst] = std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>>());
+				auto it = l_SortedMesh[a_SortedIdx].find(l_pMatInst);
+				if( it == l_SortedMesh[a_SortedIdx].end() ) l_pTargetContainer = &(l_SortedMesh[a_SortedIdx][l_pMatInst] = std::map<SceneBatcher::MeshVtxCache, std::vector<RenderableMesh*>>());
 				else l_pTargetContainer = &(it->second);
 
 				SceneBatcher::MeshVtxCache &l_VtxCache = (*a_pBatchInfo)[a_pMesh->getMeshIdx()];

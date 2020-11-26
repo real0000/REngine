@@ -194,8 +194,7 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 // MaterialAsset
 //
 MaterialAsset::MaterialAsset()
-	: m_Stage(0)
-	, m_pRefProgram(nullptr)
+	: m_pRefProgram(nullptr)
 	, m_InstanceUavIndex(-1)
 	, m_CurrInstanceSize(0)
 {
@@ -214,7 +213,6 @@ void MaterialAsset::loadFile(boost::property_tree::ptree &a_Src)
 	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
 	
 	init(ProgramManager::singleton().getData(l_Root.get<std::string>("<xmlattr>.refProgram")).second);
-	m_Stage = l_Root.get<unsigned int>("<xmlattr>.stage");
 	
 	boost::property_tree::ptree l_ConstBlocks = l_Root.get_child("ConstBlocks");
 	for( auto it=l_ConstBlocks.begin() ; it!=l_ConstBlocks.end() ; ++it )
@@ -244,7 +242,6 @@ void MaterialAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	boost::property_tree::ptree l_Root;
 	boost::property_tree::ptree l_RootAttr;
 	l_RootAttr.add("refProgram", m_pRefProgram->getName());
-	l_RootAttr.add("stage", m_Stage);
 	l_Root.add_child("<xmlattr>", l_RootAttr);
 
 	boost::property_tree::ptree l_ConstBlocks;

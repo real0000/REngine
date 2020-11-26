@@ -265,6 +265,7 @@ public:
 	D3D12_GPU_VIRTUAL_ADDRESS getTextureGpuAddress(int a_ID, bool a_bRenderTarget);
 	D3D12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(int a_ID, bool a_bDepth = false);
 	ID3D12Resource* getRenderTargetResource(int a_ID);
+	void setTextureWriteableFlag(int a_ID, bool a_bWriteable, D3D12GpuThread a_Thread);
 	D3D12_GPU_DESCRIPTOR_HANDLE getConstBufferGpuHandle(int a_ID);
 	D3D12_GPU_DESCRIPTOR_HANDLE getUnorderAccessBufferGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getConstBufferGpuAddress(int a_ID);
@@ -297,7 +298,8 @@ private:
 			, m_UavHeapID(0)
 			, m_Type(TEXTYPE_SIMPLE_2D)
 			, m_MipmapLevels(1)
-			, m_bWriteable(false){}
+			, m_bWriteable(false)
+			, m_bWriting(false){}
 		~TextureBinder(){ SAFE_RELEASE(m_pTexture) }
 
 		ID3D12Resource *m_pTexture;
@@ -308,6 +310,7 @@ private:
 		TextureType m_Type;
 		unsigned int m_MipmapLevels;
 		bool m_bWriteable;
+		bool m_bWriting;
 	};
 	struct SamplerBinder
 	{

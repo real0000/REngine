@@ -162,8 +162,6 @@ public:
 		return l_pTargetBlock->getParam(a_Name, a_Slot);
 	}
 	
-	void setStage(unsigned int a_Stage){ m_Stage = a_Stage; }
-	unsigned int getStage(){ return m_Stage; }
 	int requestInstanceSlot();
 	void freeInstanceSlot(int a_Slot);
 
@@ -173,7 +171,6 @@ public:
 	void bindAll(GraphicCommander *a_pBinder);
 	
 private:
-	unsigned int m_Stage;
 	std::shared_ptr<ShaderProgram> m_pRefProgram;
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
 	std::set<unsigned int> m_ReservedCBV, m_ReservedSRV;

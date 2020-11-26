@@ -27,11 +27,11 @@ RenderTextureAtlas::RenderTextureAtlas(glm::ivec2 a_Size, PixelFormat::Key a_For
 	assert(!m_bCube || 0 == (a_InitArraySize % 6));
 	if( m_bCube ) m_Atlas.setExtendSize(6);
 
-	assert(a_Size.x >= 64 && a_Size.y >= 64);
+	assert(a_Size.x >= 8 && a_Size.y >= 8);
 	
 	m_AssetName = wxString::Format(wxT("RenderTextureAtlas%d.Image"), m_Serial++);
 	m_pTexture = AssetManager::singleton().createAsset(m_AssetName).second;
-	m_pTexture->getComponent<TextureAsset>()->initRenderTarget(a_Size, a_Format, a_InitArraySize, a_bCube);
+	m_pTexture->getComponent<TextureAsset>()->initTexture(a_Size, a_Format, a_InitArraySize, a_bCube);
 }
 
 RenderTextureAtlas::~RenderTextureAtlas()

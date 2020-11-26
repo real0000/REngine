@@ -42,9 +42,6 @@ public:
 	void generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
 
 private:
-	void setTextureID(int a_TexID){ m_TextureID = a_TexID; }
-	void setRenderTarget(){ m_bRenderTarget = true; }
-	void setReady(){ m_bReady = true; }
 	void importThread(wxString a_Path);
 	void loadThread(glm::ivec3 a_Dim, TextureType a_Type, PixelFormat::Key a_Fmt);
 	void updateSampler();

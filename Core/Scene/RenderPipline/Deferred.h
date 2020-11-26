@@ -25,7 +25,7 @@ private:
 	{
 		GBUFFER_NORMAL = 0,
 		GBUFFER_MATERIAL,
-		GBUFFER_DIFFUSE,
+		GBUFFER_BASECOLOR,
 		GBUFFER_MASK,
 		GBUFFER_FACTOR,
 		GBUFFER_MOTIONBLUR,
@@ -48,10 +48,7 @@ private:
 	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
 		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
-	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh);
-
-	void drawOpaqueMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int &a_OpaqueEnd);
-	void drawMesh(std::shared_ptr<Camera> a_pCamera, int a_DepthTexture, std::vector<int> &a_RenderTargets, std::vector< std::shared_ptr<RenderableComponent> > &a_Mesh, unsigned int a_Start, unsigned int a_End);
+	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light);
 
 	GraphicCommander *m_pCmdInit;
 	std::shared_ptr<MaterialBlock> m_LightIdx;

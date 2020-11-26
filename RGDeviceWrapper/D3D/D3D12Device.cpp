@@ -307,6 +307,7 @@ void D3D12Commander::bindTexture(int a_ID, unsigned int a_Stage, TextureBindType
 	int l_RootSlot = m_pCurrProgram->getTextureSlot(a_Stage);
 	if( -1 == l_RootSlot ) return;
 
+	if( a_Type != BIND_RENDER_TARGET ) m_pRefDevice->setTextureWriteableFlag(a_ID, a_Type == BIND_UAV_TEXTURE, m_CurrThread);
 	m_pComponent->setRootDescriptorTable(m_CurrThread.second, l_RootSlot, m_pRefDevice->getTextureGpuHandle(a_ID, a_Type));
 }
 
@@ -1501,6 +1502,30 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12Device::getRenderTargetCpuHandle(int a_ID, bool
 ID3D12Resource* D3D12Device::getRenderTargetResource(int a_ID)
 {
 	return m_ManagedRenderTarget[a_ID]->m_pRefBinder->m_pTexture;
+}
+
+void D3D12Device::setTextureWriteableFlag(int a_ID, bool a_bWriteable, D3D12GpuThread a_Thread)
+{
+	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
+	if( l_pTargetBinder->m_bWriting == a_bWriteable ) return;
+	
+	D3D12_RESOURCE_BARRIER l_BaseBarrier;
+	l_BaseBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	l_BaseBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	l_BaseBarrier.Transition.pResource = l_pTargetBinder->m_pTexture;
+	l_BaseBarrier.Transition.Subresource = 0;
+	if( l_pTargetBinder->m_bWriting )
+	{
+		l_BaseBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		l_BaseBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	}
+	else
+	{
+		l_BaseBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		l_BaseBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
+	l_pTargetBinder->m_bWriting = a_bWriteable;
+	a_Thread.second->ResourceBarrier(1, &l_BaseBarrier);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE D3D12Device::getConstBufferGpuHandle(int a_ID)
