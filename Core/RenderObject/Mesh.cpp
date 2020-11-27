@@ -177,8 +177,8 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	l_pMaterialInst->setParam("m_VtxFlag", m_WorldOffset, l_pMeshInst->m_VtxFlag);
 	l_pMaterialInst->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
 
-	l_pMaterialInst->setBlock("m_SkinTransition", getScene()->getRenderBatcher()->getSkinMatrixBlock());
-	l_pMaterialInst->setBlock("m_NormalTransition", getScene()->getRenderBatcher()->getWorldMatrixBlock());
+	l_pMaterialInst->setBlock(STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
+	l_pMaterialInst->setBlock(STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
 	syncKeyMap();
 }
 
