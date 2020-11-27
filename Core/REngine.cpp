@@ -218,7 +218,7 @@ EngineSetting::EngineSetting()
 	m_OmniMaterial = l_IniFile.get("Graphic.OmniShadowMap", "OmniShadowMap.Material");
 	if( !wxFileExists(m_OmniMaterial) )
 	{
-		std::shared_ptr<Asset> l_pShadowMapMat = AssetManager::singleton().createAsset(m_OmniMaterial).second;
+		std::shared_ptr<Asset> l_pShadowMapMat = AssetManager::singleton().createAsset(m_OmniMaterial);
 		MaterialAsset *l_pMaterialInst = l_pShadowMapMat->getComponent<MaterialAsset>();
 		l_pMaterialInst->init(ProgramManager::singleton().getData(DefaultPrograms::OmniShadowMap));
 		AssetManager::singleton().saveAsset(l_pShadowMapMat);
@@ -290,7 +290,7 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
-	, m_WhiteTexture(std::make_pair(-1, nullptr)), m_BlueTexture(std::make_pair(-1, nullptr))
+	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr)
 	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 	, m_ThreadPool(std::thread::hardware_concurrency())
@@ -347,8 +347,8 @@ void EngineCore::shutDown()
 	m_bValid = false;
 	
 	m_MainLoop.join();
-	m_WhiteTexture.second = nullptr;
-	m_BlueTexture.second = nullptr;
+	m_WhiteTexture = nullptr;
+	m_BlueTexture = nullptr;
 	m_pQuad = nullptr;
 
 	ImageManager::singleton().finalize();
@@ -396,13 +396,13 @@ bool EngineCore::init()
 	unsigned int l_Color[64];
 	memset(l_Color, 0xffffffff, sizeof(unsigned int) * 64);
 	m_WhiteTexture = AssetManager::singleton().createAsset(wxT("Default_White.Image"));
-	m_WhiteTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
-	m_WhiteTexture.second->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_WhiteTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
+	m_WhiteTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 	
 	memset(l_Color, 0x0000ffff, sizeof(unsigned int) * 64);
 	m_BlueTexture = AssetManager::singleton().createAsset(wxT("Default_Normal.Image"));
-	m_BlueTexture.second->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
-	m_BlueTexture.second->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_BlueTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
+	m_BlueTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 	const glm::vec3 c_QuadVtx[] = {

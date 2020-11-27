@@ -128,6 +128,7 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 	m_pMesh = a_pAsset;
 	m_MeshIdx = a_MeshIdx;
+	syncKeyMap();
 	
 	m_SkinOffset = getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 
@@ -152,7 +153,8 @@ void RenderableMesh::removeMaterial(unsigned int a_Slot)
 {
 	auto it = m_Materials.find(a_Slot);
 	if( m_Materials.end() == it ) return;
-	
+
+	m_KeyMap[a_Slot].m_Members.m_bValid = 0;
 	it->second.second->getComponent<MaterialAsset>()->freeInstanceSlot(it->second.first);
 	m_Materials.erase(it);
 }
@@ -177,12 +179,35 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 
 	l_pMaterialInst->setBlock("m_SkinTransition", getScene()->getRenderBatcher()->getSkinMatrixBlock());
 	l_pMaterialInst->setBlock("m_NormalTransition", getScene()->getRenderBatcher()->getWorldMatrixBlock());
+	syncKeyMap();
 }
 
 std::shared_ptr<Asset> RenderableMesh::getMaterial(unsigned int a_Slot)
 {
 	auto it = m_Materials.find(a_Slot);
 	return m_Materials.end() == it ? nullptr : it->second.second;
+}
+
+RenderableMesh::SortKey RenderableMesh::getSortKey(unsigned int a_Slot)
+{
+	return m_KeyMap[a_Slot];
+}
+
+void RenderableMesh::syncKeyMap()
+{
+	m_KeyMap.clear();
+	for( auto it=m_Materials.begin() ; it!=m_Materials.end() ; ++it )
+	{
+		SortKey &l_Targert = m_KeyMap[it->first];
+		l_Targert.m_Key = 0;
+		l_Targert.m_Members.m_MaterialID = it->second.second->getSerialKey();
+		if( nullptr != m_pMesh )
+		{
+			l_Targert.m_Members.m_MeshID = m_pMesh->getSerialKey();
+			l_Targert.m_Members.m_SubMeshIdx = m_MeshIdx;
+			l_Targert.m_Members.m_bValid = 1;
+		}
+	}
 }
 #pragma endregion
 

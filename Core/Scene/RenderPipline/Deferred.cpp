@@ -58,9 +58,9 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pFrameBuffer(nullptr)
 	, m_pDepthMinmax(nullptr)
 	, m_MinmaxStepCount(1)
-	, m_pLightIndexMat(AssetManager::singleton().createAsset(LIGHTINDEX_ASSET_NAME).second)
-	, m_pDeferredLightMat(AssetManager::singleton().createAsset(LIGHTING_ASSET_NAME).second)
-	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME).second)
+	, m_pLightIndexMat(AssetManager::singleton().createAsset(LIGHTINDEX_ASSET_NAME))
+	, m_pDeferredLightMat(AssetManager::singleton().createAsset(LIGHTING_ASSET_NAME))
+	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME))
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
 {
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
@@ -73,14 +73,14 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		m_pGBuffer[i] = AssetManager::singleton().createAsset(c_GBufferDef[i].first).second;
+		m_pGBuffer[i] = AssetManager::singleton().createAsset(c_GBufferDef[i].first);
 		m_pGBuffer[i]->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
 
 		char l_Buff[8];
 		snprintf(l_Buff, 8, "GBuff%d", i);
 		m_pDeferredLightMatInst->setTexture(l_Buff, m_pGBuffer[i]);
 	}
-	m_pFrameBuffer = AssetManager::singleton().createAsset(FRAMEBUFFER_ASSET_NAME).second;
+	m_pFrameBuffer = AssetManager::singleton().createAsset(FRAMEBUFFER_ASSET_NAME);
 	m_pFrameBuffer->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
 	m_LightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
@@ -90,7 +90,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_TileDim.x = std::ceil(EngineSetting::singleton().m_DefaultSize.x / EngineSetting::singleton().m_TileSize);
 	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
 	
-	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME).second;
+	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME);
 	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
@@ -180,6 +180,17 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	}
 	
 	EngineCore::singleton().addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights);});
+	
+	// sort meshes
+	{
+		EngineCore::singleton().addJob([=]() -> void
+		{
+			for( unsigned int i=0 ; i<l_StaticMeshes.size() ; ++i )
+			{
+				
+			}
+		});
+	}
 
 	// shadow map render
 	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
@@ -207,8 +218,6 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
 		m_pCmdInit->end();
-
-		// sort meshes
 
 
 		// draw gbuffer

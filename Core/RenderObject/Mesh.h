@@ -20,6 +20,18 @@ class RenderableMesh : public RenderableComponent
 	typedef std::pair<int, std::shared_ptr<Asset>> MaterialData;
 	COMPONENT_HEADER(RenderableMesh)
 public:
+	union SortKey
+	{
+		uint64 m_Key;
+		struct
+		{
+			unsigned int m_bValid : 1;
+			unsigned int m_MaterialID : 20;
+			unsigned int m_MeshID : 20;
+			unsigned int m_SubMeshIdx : 8;
+		} m_Members;
+	};
+public:
 	virtual ~RenderableMesh();
 	
 	virtual void start();
@@ -41,6 +53,7 @@ public:
 	void removeMaterial(unsigned int a_Slot);
 	void setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_pAsset);// must be material asset
 	std::shared_ptr<Asset> getMaterial(unsigned int a_Slot);
+	SortKey getSortKey(unsigned int a_Slot);
 	unsigned int getMeshIdx(){ return m_MeshIdx; }
 	int getWorldOffset(){ return m_WorldOffset; }
 
@@ -54,10 +67,12 @@ public:
 
 private:
 	RenderableMesh(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pNode);
+	void syncKeyMap();
 
 	std::shared_ptr<Asset> m_pMesh;
 	unsigned int m_MeshIdx;
 	std::map<int, MaterialData> m_Materials;
+	std::map<int, SortKey> m_KeyMap;
 
 	bool m_bStatic;
 	bool m_bShadowed;

@@ -97,7 +97,7 @@ void MeshAsset::importFile(wxString a_File)
 
 			l_pDst->m_Name = l_pSrc->m_Name;
 			l_pDst->m_StartIndex = m_Indicies.size();
-			l_pDst->m_pMaterial = AssetManager::singleton().createAsset("Default.Material").second;
+			l_pDst->m_pMaterial = AssetManager::singleton().createAsset("Default.Material");
 			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, EngineCore::singleton().getWhiteTexture());
 			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_NORMAL, EngineCore::singleton().getBlueTexture());
 
@@ -162,7 +162,7 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 		l_pDst->m_StartIndex = l_InstanceAttr.get<unsigned int>("indexStart");
 		l_pDst->m_IndexCount = l_InstanceAttr.get<unsigned int>("indexCount");
 		l_pDst->m_VtxFlag = l_InstanceAttr.get<unsigned int>("vtxFlag");
-		l_pDst->m_pMaterial = AssetManager::singleton().getAsset(l_InstanceAttr.get<std::string>("material")).second;
+		l_pDst->m_pMaterial = AssetManager::singleton().getAsset(l_InstanceAttr.get<std::string>("material"));
 		
 		boost::property_tree::ptree l_BoundingBoxes = it->second.get_child("BoundingBoxes");
 		for( auto it2=l_BoundingBoxes.begin() ; it2!=l_BoundingBoxes.end() ; ++it2 )

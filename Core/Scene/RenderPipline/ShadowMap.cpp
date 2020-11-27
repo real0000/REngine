@@ -37,7 +37,7 @@ ShadowMapRenderer* ShadowMapRenderer::create(boost::property_tree::ptree &a_Src,
 ShadowMapRenderer::ShadowMapRenderer(std::shared_ptr<Scene> a_pScene)
 	: RenderPipeline(a_pScene)
 	, m_pShadowMap(new RenderTextureAtlas(glm::ivec2(EngineSetting::singleton().m_ShadowMapSize, EngineSetting::singleton().m_ShadowMapSize), PixelFormat::r32_uint))
-	, m_pClearMat(AssetManager::singleton().createAsset(CLEAR_MAT_ASSET_NAME).second)
+	, m_pClearMat(AssetManager::singleton().createAsset(CLEAR_MAT_ASSET_NAME))
 	, m_pClearMatInst(nullptr)
 {
 	m_pClearMatInst = m_pClearMat->getComponent<MaterialAsset>();

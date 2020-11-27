@@ -27,15 +27,17 @@ class Asset
 {
 	friend class AssetManager;
 public:
-	Asset() : m_Key(wxT("")), m_pComponent(nullptr){}
+	Asset() : m_SerialKey(-1), m_Key(wxT("")), m_pComponent(nullptr){}
 	virtual ~Asset(){ SAFE_DELETE(m_pComponent) }
 
 	template<typename T>
 	inline T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }
 	wxString getAssetExt(){ return nullptr == m_pComponent ? wxT("") : m_pComponent->getAssetExt(); }
 	wxString getKey(){ return m_Key; }
+	int getSerialKey(){ return m_SerialKey; }
 
 private:
+	int m_SerialKey;
 	wxString m_Key;
 	AssetComponent *m_pComponent;
 };
@@ -46,8 +48,8 @@ public:
 	static AssetManager& singleton();
 
 	// use these method instead getData
-	std::pair<int, std::shared_ptr<Asset>> createAsset(wxString a_Path);
-	std::pair<int, std::shared_ptr<Asset>> getAsset(wxString a_Path);
+	std::shared_ptr<Asset> createAsset(wxString a_Path);
+	std::shared_ptr<Asset> getAsset(wxString a_Path);
 	std::shared_ptr<Asset> getAsset(int a_ID){ return getData(a_ID); }
 	void saveAsset(int a_ID, wxString a_Path = ""){ saveAsset(getData(a_ID), a_Path); }
 	void saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path = "");

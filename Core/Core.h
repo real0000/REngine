@@ -49,11 +49,14 @@ enum SceneGraphType
 
 enum MaterialSlot
 {
-	MATSLOT_OPAQUE = 0,
+	MATSLOT_PIPELINE_START = 0,
+	MATSLOT_OPAQUE = MATSLOT_PIPELINE_START,
 	MATSLOT_TRANSPARENT,
 	MATSLOT_OMNI_SHADOWMAP,
 	MATSLOT_SPOT_SHADOWMAP,
 	MATSLOT_DIR_SHADOWMAP,
+	MATSLOT_PIPELINE_END = MATSLOT_DIR_SHADOWMAP,
+
 	MATSLOT_LIGHTMAP,
 };
 
@@ -201,8 +204,8 @@ public:
 	void registSceneGraphReflector(){ Scene::registSceneGraphReflector<T>(); }
 	template<typename T>
 	void registRenderPipelineReflector(){ Scene::registRenderPipelineReflector<T>(); }
-	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture.second; }
-	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture.second; }
+	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture; }
+	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
 	void addJob(std::function<void()> a_Job);
 	void join();
@@ -217,7 +220,7 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 
-	std::pair<int, std::shared_ptr<Asset>> m_WhiteTexture, m_BlueTexture;
+	std::shared_ptr<Asset> m_WhiteTexture, m_BlueTexture;
 	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
 	std::thread m_MainLoop;

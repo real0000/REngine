@@ -233,7 +233,7 @@ void MaterialAsset::loadFile(boost::property_tree::ptree &a_Src)
 		unsigned int l_Slot = it->second.get<unsigned int>("<xmlattr>.slot");
 		if( m_ReservedSRV.end() != m_ReservedSRV.find(l_Slot) ) continue;// modified manual
 
-		m_Textures[l_Slot] = AssetManager::singleton().getAsset(it->second.get<std::string>("<xmlattr>.asset")).second;
+		m_Textures[l_Slot] = AssetManager::singleton().getAsset(it->second.get<std::string>("<xmlattr>.asset"));
 	}
 }
 

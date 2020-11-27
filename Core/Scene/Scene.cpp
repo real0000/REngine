@@ -349,7 +349,7 @@ std::shared_ptr<SceneNode> SceneNode::addChild(boost::property_tree::ptree &a_Tr
 
 	l_pNewNode->setName(a_TreeNode.get("<xmlattr>.name", ""));
 	wxString l_LinkedAsset(a_TreeNode.get("<xmlattr>.prefab", ""));
-	if( !l_LinkedAsset.IsEmpty() ) m_pLinkedAsset = AssetManager::singleton().getAsset(l_LinkedAsset).second;
+	if( !l_LinkedAsset.IsEmpty() ) m_pLinkedAsset = AssetManager::singleton().getAsset(l_LinkedAsset);
 
 	glm::vec3 l_Pos, l_Scale;
 	glm::quat l_Rot;
@@ -578,7 +578,7 @@ void Scene::initEmpty()
 	m_pShadowMapBaker = ShadowMapRenderer::create(l_Empty, shared_from_this());
 
 	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
-	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName).second;
+	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName);
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
@@ -627,7 +627,7 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pRootNode->addChild(l_pAssetInst->getNodeTree());
 	
-	m_pLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath()).second;
+	m_pLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath());
 }
 
 void Scene::preprocessInput()

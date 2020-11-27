@@ -65,7 +65,7 @@ bool BasicApp::OnInit()
 	//l_pNewMesh->setMesh(wxT("Cube.FBX"), nullptr);
 
 	auto l_Texture = R::AssetManager::singleton().getAsset(wxT("lion.Image"));
-	l_pNewMesh->getMaterial(0)->getComponent<R::MaterialAsset>()->setTexture("m_DiffTex", l_Texture.second);
+	l_pNewMesh->getMaterial(0)->getComponent<R::MaterialAsset>()->setTexture("m_DiffTex", l_Texture);
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	l_pCameraNode->addComponent<TempComponent>();
