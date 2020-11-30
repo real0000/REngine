@@ -45,9 +45,7 @@ public:
 private:
 	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
 
-	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera
-		, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
-		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
+	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Light, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
 	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light);
 
 	GraphicCommander *m_pCmdInit;

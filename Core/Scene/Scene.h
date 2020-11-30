@@ -16,6 +16,8 @@ class DirLight;
 class EngineComponent;
 class GraphicCommander;
 class IndexBuffer;
+class IndirectDrawBuffer;
+class MaterialAsset;
 class MaterialBlock;
 class OmniLight;
 class RenderableMesh;
@@ -33,23 +35,6 @@ class LightContainer;
 class SceneBatcher
 {
 public:
-	struct MeshVtxCache
-	{
-		inline bool operator<(const MeshVtxCache &a_Other) const
-        {
-            if( m_VertexStart < a_Other.m_VertexStart ) return true;
-            else if( m_VertexStart == a_Other.m_VertexStart )
-			{
-                return m_IndexStart < a_Other.m_IndexStart || (m_IndexStart == a_Other.m_IndexStart && m_IndexCount < a_Other.m_IndexCount);
-			}
-            return false;
-        }
-
-		unsigned int m_VertexStart;
-		unsigned int m_IndexStart;
-		unsigned int m_IndexCount;
-	};
-	typedef std::vector<MeshVtxCache> MeshCache;
 	typedef std::pair<int, unsigned int> TransitionCache;
 	struct SingletonBatchData
 	{
@@ -69,6 +54,9 @@ public:
 	// for render pipeline
 	int requestInstanceVtxBuffer();
 	void recycleInstanceVtxBuffer(int a_BufferID);
+	void drawSortedMeshes(GraphicCommander *a_pCmd
+		, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_Start, unsigned int a_End, unsigned int a_MatSlot
+		, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc);
 	void renderEnd();
 
 	// for renderable mesh
@@ -76,23 +64,20 @@ public:
 	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
 	int requestWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
 	void recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
-	void calculateStaticBatch(std::shared_ptr<Scene> &a_GraphOwner);
-	bool getBatchParam(std::shared_ptr<Asset> a_pMeshAsset, MeshCache **a_ppOutput);
-	void bindBatchDrawData(GraphicCommander *a_pCommander);
 
 	// render required member
-	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_VertexBufffer; }
-	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_IndexBuffer; }
 	std::shared_ptr<MaterialBlock> getSkinMatrixBlock(){ return m_pSingletonBatchData->m_SkinBlock; }
 	std::shared_ptr<MaterialBlock> getWorldMatrixBlock(){ return m_pSingletonBatchData->m_WorldBlock; }
 
 private:
+	IndirectDrawBuffer* requestIndirectBuffer();
+
 	std::deque<int> m_InstancVtxBuffers;
 	std::vector<int> m_UsedInstancVtxBuffers;
-
-	std::shared_ptr<VertexBuffer> m_VertexBufffer;// for static objects
-	std::shared_ptr<IndexBuffer> m_IndexBuffer;
-	std::map<std::shared_ptr<Asset>, MeshCache*> m_StaticMeshes;// origin mesh asset : cache data
+	
+	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;
+	std::list<IndirectDrawBuffer*> m_IndirectBufferInUse;
+	std::mutex m_BufferLock;
 
 	static SingletonBatchData *m_pSingletonBatchData;
 	static unsigned int m_NumSharedMember;

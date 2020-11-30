@@ -150,7 +150,7 @@ void DeferredRenderer::saveSetting(boost::property_tree::ptree &a_Dst)
 
 void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_StaticMeshes, l_Meshes;
+	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_Meshes;
 
 	std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
 	if( nullptr != l_pLightmap )
@@ -159,7 +159,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		l_pLightmapInst->stepBake(m_pCmdInit);
 	}
 
-	if( !setupVisibleList(a_pCamera, l_Lights, l_StaticMeshes, l_Meshes) )
+	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) )
 	{
 		// clear backbuffer only if mesh list is empty
 		m_pCmdInit->begin(false);
@@ -182,19 +182,32 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	EngineCore::singleton().addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights);});
 	
 	// sort meshes
+	const unsigned int l_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
+	std::vector<RenderableMesh*> l_SortedMesh[l_NumMatSlot];
 	{
-		EngineCore::singleton().addJob([=]() -> void
+		for( unsigned int i=0 ; i<l_NumMatSlot ; ++i )
 		{
-			for( unsigned int i=0 ; i<l_StaticMeshes.size() ; ++i )
+			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
-				
-			}
-		});
+				l_SortedMesh[i].reserve(l_Meshes.size());
+				for( unsigned int j=0 ; j<l_Meshes.size() ; ++j )
+				{
+					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(l_Meshes[i].get());
+					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) l_SortedMesh[i].push_back(l_pMesh);
+				}
+				std::sort(l_SortedMesh[i].begin(), l_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+				{
+					return a_pLeft->getSortKey(i).m_Key < a_pRight->getSortKey(i).m_Key;
+				});
+			});
+		}
 	}
+
+	EngineCore::singleton().join();
 
 	// shadow map render
 	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
-	l_pShadowMap->bake(l_Lights, l_StaticMeshes, l_Meshes, m_pCmdInit, m_DrawCommand);
+	l_pShadowMap->bake(l_Lights, l_SortedMesh[MATSLOT_DIR_SHADOWMAP], l_SortedMesh[MATSLOT_OMNI_SHADOWMAP], l_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
 
 	{// graphic step, divide by stage
 		//bind gbuffer
@@ -323,13 +336,10 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	}
 }
 
-bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera
-		, std::vector<std::shared_ptr<RenderableComponent>> &a_Light
-		, std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
+bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Light, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
 {
 	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
-	getScene()->getSceneGraph(GRAPH_STATIC_MESH)->getVisibleList(a_pCamera, a_StaticMesh);
-	if( a_Mesh.empty() && a_StaticMesh.empty() ) return false;
+	if( a_Mesh.empty() ) return false;
 
 	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
 

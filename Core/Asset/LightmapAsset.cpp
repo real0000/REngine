@@ -118,7 +118,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	unsigned int l_LightCount = 0;
 
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes, l_Lights;
-	a_pScene->getSceneGraph(GRAPH_STATIC_MESH)->getAllComponent(l_Meshes);
+	a_pScene->getSceneGraph(GRAPH_MESH)->getAllComponent(l_Meshes);
 	a_pScene->getSceneGraph(GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
 
 	std::vector<unsigned int> l_TempTriangleData;
@@ -131,8 +131,9 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
 		{
 			if( l_Meshes[i]->isHidden() ) continue;
-
 			RenderableMesh *l_pMeshObj = reinterpret_cast<RenderableMesh*>(l_Meshes[i].get());
+			if( !l_pMeshObj->isStatic() ) continue;
+
 			std::shared_ptr<Asset> l_pMatAsset = l_pMeshObj->getMaterial(MaterialSlot::MATSLOT_LIGHTMAP);
 			auto it = l_TempMatSet.find(l_pMatAsset);
 			unsigned int l_MatID = 0;

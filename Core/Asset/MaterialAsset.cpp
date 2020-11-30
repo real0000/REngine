@@ -420,6 +420,30 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder)
 	}
 }
 
+void MaterialAsset::bindTexture(GraphicCommander *a_pBinder, std::string a_Name, std::shared_ptr<Asset> a_pTexture)
+{
+	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
+	auto it = l_TextureSlotMap.find(a_Name);
+	if( l_TextureSlotMap.end() == it ) return;
+	
+	TextureAsset *l_pTextureComp = a_pTexture->getComponent<TextureAsset>();
+	unsigned int l_Slot = it->second->m_pRegInfo->m_Slot;
+	if( it->second->m_bWrite )
+	{
+		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), l_Slot, GraphicCommander::BIND_UAV_TEXTURE);
+	}
+	else
+	{
+		TextureType l_Type = l_pTextureComp->getTextureType();
+		GraphicCommander::TextureBindType a_BindType = 
+			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?
+			GraphicCommander::BIND_RENDER_TARGET :
+			GraphicCommander::BIND_NORMAL_TEXTURE;
+		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), l_Slot, a_BindType);
+		a_pBinder->bindSampler(l_pTextureComp->getSamplerID(), l_Slot);
+	}
+}
+
 void MaterialAsset::bindBlocks(GraphicCommander *a_pBinder)
 {
 	for( unsigned int i=0 ; i<m_ConstBlocks.size() ; ++i )

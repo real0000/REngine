@@ -26,9 +26,9 @@ public:
 		struct
 		{
 			unsigned int m_bValid : 1;
-			unsigned int m_MaterialID : 20;
-			unsigned int m_MeshID : 20;
-			unsigned int m_SubMeshIdx : 8;
+			unsigned int m_MaterialID : 27;
+			unsigned int m_MeshID : 27;
+			unsigned int m_SubMeshIdx : 9;
 		} m_Members;
 	};
 public:

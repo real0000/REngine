@@ -39,7 +39,6 @@ enum ComponentDefine
 enum SceneGraphType
 {
 	GRAPH_MESH = 0,
-	GRAPH_STATIC_MESH,
 	GRAPH_LIGHT,
 	GRAPH_STATIC_LIGHT,
 	GRAPH_CAMERA,

@@ -166,6 +166,7 @@ public:
 	void freeInstanceSlot(int a_Slot);
 
 	void bindTexture(GraphicCommander *a_pBinder);
+	void bindTexture(GraphicCommander *a_pBinder, std::string a_Name, std::shared_ptr<Asset> a_pTexture);
 	void bindBlocks(GraphicCommander *a_pBinder);
 	void bindBlock(GraphicCommander *a_pBinder, std::string a_Name, std::shared_ptr<MaterialBlock> a_pExtBlock);
 	void bindAll(GraphicCommander *a_pBinder);

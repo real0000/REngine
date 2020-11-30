@@ -41,7 +41,7 @@ RenderableMesh::~RenderableMesh()
 void RenderableMesh::start()
 {
 	addTransformListener();
-	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_MESH : GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
+	getScene()->getSceneGraph(GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
 	m_WorldOffset = getScene()->getRenderBatcher()->requestWorldSlot(shared_from_base<RenderableMesh>());
 }
 
@@ -49,7 +49,7 @@ void RenderableMesh::end()
 {
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
 	
-	if( !isHidden() ) getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_MESH : GRAPH_MESH)->remove(l_pThis);
+	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_MESH)->remove(l_pThis);
 	getScene()->getRenderBatcher()->recycleWorldSlot(l_pThis);
 	if( -1 != m_SkinOffset ) getScene()->getRenderBatcher()->recycleSkinSlot(m_pMesh);
 
@@ -64,12 +64,12 @@ void RenderableMesh::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_MESH : GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
 		removeTransformListener();
 	}
 	else
 	{
-		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_MESH : GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
+		getScene()->getSceneGraph(GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
 		addTransformListener();
 	}
 }
@@ -88,7 +88,7 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Center = l_Trans + l_Box.m_Center;
 	boundingBox().m_Size = l_Scale * l_Box.m_Size;
 
-	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_MESH : GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
+	getScene()->getSceneGraph(GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
 }
 
 void RenderableMesh::loadComponent(boost::property_tree::ptree &a_Src)
@@ -110,16 +110,6 @@ void RenderableMesh::setShadowed(bool a_bShadow)
 void RenderableMesh::setStatic(bool a_bStatic)
 {
 	if( m_bStatic == a_bStatic ) return;
-	if( m_bStatic )
-	{
-		getScene()->getSceneGraph(GRAPH_STATIC_MESH)->remove(shared_from_base<RenderableMesh>());
-		getScene()->getSceneGraph(GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
-	}
-	else
-	{
-		getScene()->getSceneGraph(GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
-		getScene()->getSceneGraph(GRAPH_STATIC_MESH)->add(shared_from_base<RenderableMesh>());
-	}
 	m_bStatic = a_bStatic;
 }
 

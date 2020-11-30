@@ -15,6 +15,7 @@ class IndirectDrawBuffer;
 class Light;
 class MaterialAsset;
 class MaterialBlock;
+class RenderableMesh;
 class RenderTextureAtlas;
 
 class ShadowMapRenderer : public RenderPipeline
@@ -27,11 +28,12 @@ public:
 	virtual void saveSetting(boost::property_tree::ptree &a_Dst);
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);
 
-	void bake(std::vector<std::shared_ptr<RenderableComponent>> &a_Lights,
-				std::vector<std::shared_ptr<RenderableComponent>> &a_StaticMesh,
-				std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh,
-				GraphicCommander *a_pMiscCmd,
-				std::vector<GraphicCommander *> &a_DrawCommand);
+	void bake(std::vector<std::shared_ptr<RenderableComponent>> &a_Lights
+			, std::vector<RenderableMesh*> &a_SortedDir
+			, std::vector<RenderableMesh*> &a_SortedOmni
+			, std::vector<RenderableMesh*> &a_SortedSpot
+			, GraphicCommander *a_pMiscCmd
+			, std::vector<GraphicCommander *> &a_DrawCommand);
 
 private:
 	ShadowMapRenderer(std::shared_ptr<Scene> a_pScene);
@@ -41,18 +43,13 @@ private:
 	void drawLightShadow(GraphicCommander *a_pCmd
 		, MaterialAsset *a_pMat, std::shared_ptr<MaterialBlock> a_pLightBlock
 		, std::vector<glm::ivec4> &a_InstanceData, VertexBuffer *a_pVtxBuff, IndexBuffer *a_pIdxBuff
-		, std::function<void()> a_DrawFunc);
-	IndirectDrawBuffer* requestIndirectBuffer();
-	void recycleAllIndirectBuffer();
+		, unsigned int a_IndirectData, int a_BuffID);
 	
 	RenderTextureAtlas *m_pShadowMap;
 	std::shared_ptr<Asset> m_pClearMat;
 	MaterialAsset *m_pClearMatInst;
 	std::vector<GraphicCommander *> m_ShadowCommands;
 	std::mutex m_ShadowMapLock;
-	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;
-	std::list<IndirectDrawBuffer*> m_IndirectBufferInUse;
-	std::mutex m_BufferLock;
 };
 
 }
