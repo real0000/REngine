@@ -3,5 +3,7 @@
 
 float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 {
+	
+
 	return GBuff2.Sample(GBuff2Sampler, a_UV.xy);
 }

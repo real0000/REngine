@@ -33,8 +33,8 @@ namespace R
 
 const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
 	{wxT("DefferredGBufferNormal.Image"), PixelFormat::rgba8_snorm},
-	{wxT("DefferredGBufferMaterial.Image"), PixelFormat::rgba8_uint},
-	{wxT("DefferredGBufferDiffuse.Image"), PixelFormat::rgba8_unorm},
+	{wxT("DefferredGBufferMaterial.Image"), PixelFormat::rgba8_unorm},
+	{wxT("DefferredGBufferBaseColor.Image"), PixelFormat::rgba8_unorm},
 	{wxT("DefferredGBufferMask.Image"), PixelFormat::rgba8_unorm},
 	{wxT("DefferredGBufferFactor.Image"), PixelFormat::rgba8_unorm},
 	{wxT("DefferredGBufferMotionBlur.Image"), PixelFormat::rg16_float},
@@ -232,25 +232,26 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 		m_pCmdInit->end();
 
-
 		// draw gbuffer
 		unsigned int l_NumCommand = m_DrawCommand.size();
 		for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i )
 		{
-			EngineCore::singleton().addJob([=]() -> void
+			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
-				m_DrawCommand[i]->begin(false);
-
-				for( unsigned int j=0 ; j<l_Meshes.size() ; j+=l_NumCommand )
-				{
-					if( j+i >= l_Meshes.size() ) break;
-
-
-				}
-
-				m_DrawCommand[i]->end();
+				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_OPAQUE]
+					, i, l_NumCommand, MATSLOT_OPAQUE
+					, [=](MaterialAsset *a_pMat) -> void
+					{
+						a_pMat->bindBlock(m_DrawCommand[i], "Camera", a_pCamera->getMaterialBlock());
+					}
+					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
+					{
+						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_OPAQUE][i]->getWorldOffset(), 0, 0, 0));
+						return 1;
+					});
 			});
 		}
+
 		EngineCore::singleton().join();
 		
 		{// copy depth data
@@ -276,7 +277,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pCmdInit->begin(true);
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
-		m_pLightIndexMatInst->setBlock("g_Camera", a_pCamera->getMaterialBlock());
+		m_pLightIndexMatInst->setBlock("Camera", a_pCamera->getMaterialBlock());
 		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
 		m_pLightIndexMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->compute(m_TileDim.x / 8, m_TileDim.y / 8);
@@ -286,15 +287,15 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		// draw frame buffer
 		m_pCmdInit->begin(false);
 		
-		m_pCmdInit->useProgram(m_pDeferredLightMat->getComponent<MaterialAsset>()->getProgram());
-		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
+		m_pCmdInit->useProgram(m_pDeferredLightMatInst->getProgram());
+		m_pCmdInit->setRenderTarget(-1, 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 		m_pCmdInit->clearRenderTarget(m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
 		glm::ivec3 l_FrameSize(m_pFrameBuffer->getComponent<TextureAsset>()->getDimension());
 		glm::viewport l_FrameView(0.0f, 0.0f, l_FrameSize.x, l_FrameSize.y, 0.0f, 1.0f);
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
-
+		m_pDeferredLightMat->bin
 		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
 		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->setTopology(Topology::triangle_strip);
@@ -302,11 +303,25 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 		m_pCmdInit->end();
 
-		// draw extra object
-		//drawOpaqueMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_FBufferCache, l_Meshes, l_CurrIdx);
-
 		// draw transparent objects
-		//if( l_CurrIdx < l_Meshes.size() ) drawMesh(a_pCamera, m_pGBuffer[GBUFFER_DEPTH]->getTextureID(), m_FBufferCache, l_Meshes, l_CurrIdx, l_Meshes.size() - 1);
+		for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i )
+		{
+			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
+			{
+				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_TRANSPARENT]
+					, i, l_NumCommand, MATSLOT_TRANSPARENT
+					, [=](MaterialAsset *a_pMat) -> void
+					{
+						a_pMat->bindBlock(m_DrawCommand[i], "Camera", a_pCamera->getMaterialBlock());
+					}
+					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
+					{
+						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_TRANSPARENT][i]->getWorldOffset(), 0, 0, 0));
+						return 1;
+					});
+			});
+		}
+		EngineCore::singleton().join();
 		
 		if( nullptr != a_pCanvas )
 		{
@@ -362,8 +377,8 @@ void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComp
 	char *l_pBuff = m_LightIdx->getBlockPtr(0);
 	for( unsigned int i=0 ; i<a_Light.size() ; ++i )
 	{
-		LightInfo *l_pTarget = reinterpret_cast<LightInfo *>(l_pBuff + sizeof(LightInfo) * i);
-		Light *l_pLight = reinterpret_cast<Light *>(a_Light[i].get());
+		LightInfo *l_pTarget = reinterpret_cast<LightInfo*>(l_pBuff + sizeof(LightInfo) * i);
+		Light *l_pLight = reinterpret_cast<Light*>(a_Light[i].get());
 		l_pTarget->m_Index = l_pLight->getID();
 		l_pTarget->m_Type = l_pLight->typeID();
 	}

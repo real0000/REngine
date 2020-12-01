@@ -31,11 +31,11 @@ SceneBatcher::SingletonBatchData::SingletonBatchData()
 	, m_SkinSlotManager(), m_WorldSlotManager()
 {
 	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly)->getBlockDesc(ShaderRegType::UavBuffer);
-	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_SkinTransition" == a_pDesc->m_Name; });
+	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return STANDARD_TRANSFORM_SKIN == a_pDesc->m_Name; });
 	m_SkinBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
 	m_SkinSlotManager.init(BATCHDRAW_UNIT);
 
-	it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return "m_NormalTransition" == a_pDesc->m_Name; });
+	it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return STANDARD_TRANSFORM_NORMAL == a_pDesc->m_Name; });
 	m_WorldBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
 	m_WorldSlotManager.init(BATCHDRAW_UNIT);
 }
@@ -102,24 +102,28 @@ void SceneBatcher::recycleInstanceVtxBuffer(int a_BufferID)
 }
 
 void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
-	, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_Start, unsigned int a_End, unsigned int a_MatSlot
+	, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_ThreadIdx, unsigned int a_NumThread, unsigned int a_MatSlot
 	, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc)
 {
+	unsigned int l_Unit = std::max<unsigned int>(a_SortedMesh.size() / a_NumThread, 1);
+	unsigned int l_Start = a_ThreadIdx*l_Unit;
+	unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedMesh.size());
+
 	IndirectDrawData l_TempData;
 	std::vector<glm::ivec4> l_Instance;
 
-	MeshAsset::Instance *l_pInst = a_SortedMesh[a_Start]->getMesh()->getComponent<MeshAsset>()->getMeshes()[a_SortedMesh[a_Start]->getMeshIdx()];
+	MeshAsset::Instance *l_pInst = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>()->getMeshes()[a_SortedMesh[l_Start]->getMeshIdx()];
 	l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
 	l_TempData.m_StartIndex = l_pInst->m_StartIndex;
 	l_TempData.m_IndexCount = l_pInst->m_IndexCount;
 	l_TempData.m_StartInstance = 0;
 	l_TempData.m_InstanceCount = 0;
 
-	MaterialAsset *l_pMatCache = a_SortedMesh[a_Start]->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
-	MeshAsset *l_pMeshCache = a_SortedMesh[a_Start]->getMesh()->getComponent<MeshAsset>();
-	unsigned int l_SubIdxCahce = a_SortedMesh[a_Start]->getMeshIdx();
+	MaterialAsset *l_pMatCache = a_SortedMesh[l_Start]->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
+	MeshAsset *l_pMeshCache = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>();
+	unsigned int l_SubIdxCahce = a_SortedMesh[l_Start]->getMeshIdx();
 	IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
-	for( unsigned int j=a_Start ; j<a_End ; ++j )
+	for( unsigned int j=l_Start ; j<l_End ; ++j )
 	{
 		MaterialAsset *l_pMat = a_SortedMesh[j]->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
 		MeshAsset *l_pMesh = a_SortedMesh[j]->getMesh()->getComponent<MeshAsset>();
@@ -135,6 +139,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	
 				a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
 				a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
+				a_pCmd->setTopology(Topology::triangle_list);
 				a_BindingFunc(l_pMatCache);
 				l_pMatCache->bindAll(a_pCmd);
 				a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
@@ -178,6 +183,9 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	
 		a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
 		a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
+		a_pCmd->setTopology(Topology::triangle_list);
+		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
+		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
 		a_BindingFunc(l_pMatCache);
 		l_pMatCache->bindAll(a_pCmd);
 		a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());

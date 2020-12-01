@@ -55,7 +55,7 @@ public:
 	int requestInstanceVtxBuffer();
 	void recycleInstanceVtxBuffer(int a_BufferID);
 	void drawSortedMeshes(GraphicCommander *a_pCmd
-		, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_Start, unsigned int a_End, unsigned int a_MatSlot
+		, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_ThreadIdx, unsigned int a_NumThread, unsigned int a_MatSlot
 		, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc);
 	void renderEnd();
 

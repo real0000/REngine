@@ -34,6 +34,7 @@ public:
 			, std::vector<RenderableMesh*> &a_SortedSpot
 			, GraphicCommander *a_pMiscCmd
 			, std::vector<GraphicCommander *> &a_DrawCommand);
+	std::shared_ptr<Asset> getShadowMap(){ return m_pShadowMap->getTexture(); }
 
 private:
 	ShadowMapRenderer(std::shared_ptr<Scene> a_pScene);

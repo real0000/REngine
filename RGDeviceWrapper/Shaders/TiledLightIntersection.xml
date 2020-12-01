@@ -4,7 +4,7 @@
     <Constant name="c_MipmapLevel" type="int1" reserved="false"/>
     <Constant name="c_TileCount" type="int2" reserved="false"/>
     <Constant name="c_NumLight" type="int1" reserved="false"/>
-    <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
+    <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <UavBuffer name="g_SrcLights" preDef="PackedInt" write="false"/>
     <UavBuffer name="g_DstLights" preDef="PackedInt" write="true"/>
     <UavBuffer name="g_OmniLights" preDef="OmniLight" write="false"/>
@@ -14,7 +14,7 @@
   <Shaders>
     <Model_5_1>
       <Compute file="TiledLightIntersection.compute">
-        c_PixelSize, c_MipmapLevel, c_TileCount, c_NumLight, g_Camera, g_SrcLights, g_DstLights, g_MinMapTexture, g_OmniLight, g_SpotLight
+        c_PixelSize, c_MipmapLevel, c_TileCount, c_NumLight, Camera, g_SrcLights, g_DstLights, g_MinMapTexture, g_OmniLight, g_SpotLight
       </Compute>
     </Model_5_1>
   </Shaders>

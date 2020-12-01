@@ -1,6 +1,6 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
-    <ConstBuffer name="g_Camera" preDef="CameraBuffer" reserved="true"/>
+    <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
     <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
     <Srv2D name="BaseColor" desc="" reserved="false"/>
@@ -9,7 +9,7 @@
   <Shaders>
     <Model_5_1>
       <Vertex file="VertexTransfer.vertex">
-        g_Camera, SkinTransition, NormalTransition
+        Camera, SkinTransition, NormalTransition
       </Vertex>
       <!--Geometry file="">
       </Geometry>

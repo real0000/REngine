@@ -134,16 +134,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 			a_DrawCommand[i]->begin(false);
 			
 			//dir
-			unsigned int l_Unit = std::max<unsigned int>(a_SortedDir.size() / l_NumCommand, 1);
-			unsigned int l_Start = i*l_Unit;
-			unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedDir.size());
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedDir, l_Start, l_End, MATSLOT_DIR_SHADOWMAP
+				, a_SortedDir, i, l_NumCommand, MATSLOT_DIR_SHADOWMAP
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
 					a_pMat->bindBlock(a_DrawCommand[i], "Lights", getScene()->getDirLightContainer()->getMaterialBlock());
 				}
 				, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
@@ -163,16 +158,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				});
 				
 			//omni
-			l_Unit = std::max<unsigned int>(a_SortedOmni.size() / l_NumCommand, 1);
-			l_Start = i*l_Unit;
-			l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedOmni.size());
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedOmni, l_Start, l_End, MATSLOT_OMNI_SHADOWMAP
+				, a_SortedOmni, i, l_NumCommand, MATSLOT_OMNI_SHADOWMAP
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
 					a_pMat->bindBlock(a_DrawCommand[i], "Lights", getScene()->getOmniLightContainer()->getMaterialBlock());
 				}
 				, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
@@ -193,16 +183,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				});
 
 			//spot
-			l_Unit = std::max<unsigned int>(a_SortedSpot.size() / l_NumCommand, 1);
-			l_Start = i*l_Unit;
-			l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedSpot.size());
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedSpot, l_Start, l_End, MATSLOT_SPOT_SHADOWMAP
+				, a_SortedSpot, i, l_NumCommand, MATSLOT_SPOT_SHADOWMAP
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
-					a_pMat->bindBlock(a_DrawCommand[i], STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
 					a_pMat->bindBlock(a_DrawCommand[i], "Lights", getScene()->getSpotLightContainer()->getMaterialBlock());
 				}
 				, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int

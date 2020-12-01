@@ -7,7 +7,11 @@
     <Srv2D name="GBuff4" desc="" reserved="true"/>
     <Srv2D name="GBuff5" desc="" reserved="true"/>
     <Srv2D name="GBuff6" desc="" reserved="true"/>
+    <Srv2DArray name="ShadowMap" desc="" reserved="true"/>
     <UavBuffer name="RootBox" preDef="LightmapBox" write="false"/>
+    <UavBuffer name="DirLights" preDef="DirLight" write="false"/>
+    <UavBuffer name="OmniLights" preDef="OmniLight" write="false"/>
+    <UavBuffer name="SpotLights" preDef="SpotLight" write="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
@@ -21,7 +25,7 @@
       <Compute>
       </Compute>-->
       <Fragment file="TiledDeferredLighting.pixel">
-        GBuff0, GBuff1, GBuff2, GBuff3, GBuff4, GBuff5, GBuff6
+        GBuff0, GBuff1, GBuff2, GBuff3, GBuff4, GBuff5, GBuff6, RootBox
       </Fragment>
     </Model_5_1>
   </Shaders>
