@@ -122,15 +122,12 @@
     <None Include="Shaders\Shadowmap\ShadowMap.pixel">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
-    <None Include="Shaders\Lightmap\Lightmap.h" />
-    <None Include="Shaders\Lightmap\RayScatter.compute" />
     <None Include="Shaders\Standard.pixel">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\Lightmap\RayIntersection.compute">
       <Filter>Shaders\Lightmap</Filter>
     </None>
-    <None Include="Shaders\Shadowmap\ClearShadowMap.compute" />
     <None Include="Shaders\Shadowmap\OmniShadowMap.vertex">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
@@ -138,6 +135,15 @@
       <Filter>Shaders\Shadowmap</Filter>
     </None>
     <None Include="Shaders\Shadowmap\DirShadowMap.vertex">
+      <Filter>Shaders\Shadowmap</Filter>
+    </None>
+    <None Include="Shaders\Lightmap\RayScatter.compute">
+      <Filter>Shaders\Lightmap</Filter>
+    </None>
+    <None Include="Shaders\Lightmap\Lightmap.h">
+      <Filter>Shaders\Lightmap</Filter>
+    </None>
+    <None Include="Shaders\Shadowmap\ClearShadowMap.compute">
       <Filter>Shaders\Shadowmap</Filter>
     </None>
   </ItemGroup>

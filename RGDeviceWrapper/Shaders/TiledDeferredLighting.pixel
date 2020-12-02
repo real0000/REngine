@@ -3,7 +3,29 @@
 
 float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 {
-	
+	float4 l_NormalHeightFlag = GBuff0.Sample(GBuff0Sampler, a_UV.xy);
+	l_NormalHeightFlag.xyz = decodeNormal(l_NormalHeightFlag.xyz);
+
+	float4 l_Surface = GBuff1.Sample(GBuff1Sampler, a_UV.xy);
+	float4 l_BaseColor = GBuff2.Sample(GBuff2Sampler, a_UV.xy);
+
+	int2 l_Tile = a_UV.xy * c_TileCount.xy;
+	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
+	int l_NumLight = TileLights[l_IdxOffset/2].x;
+	for( int i=0 ; i<l_NumLight ; ++i )
+	{
+	}
+	/*
+    <Constant name="c_BoxLevel" type="int1" reserved="false"/>
+    <Srv2DArray name="ShadowMap" desc="" reserved="true"/>
+    <UavBuffer name="Boxes" preDef="LightmapBox" write="false"/>
+    <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
+    <UavBuffer name="TileLights" preDef="PackedInt" write="false"/>
+    <UavBuffer name="DirLights" preDef="DirLight" write="false"/>
+    <UavBuffer name="OmniLights" preDef="OmniLight" write="false"/>
+    <UavBuffer name="SpotLights" preDef="SpotLight" write="false"/>
+
+	*/
 
 	return GBuff2.Sample(GBuff2Sampler, a_UV.xy);
 }
