@@ -93,16 +93,27 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME);
 	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
-	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * INIT_LIGHT_SIZE / 2); // {index, type}
+	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
 
 	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / EngineSetting::singleton().m_DefaultSize.x, 1.0f / EngineSetting::singleton().m_DefaultSize.y));
 	m_pLightIndexMatInst->setParam<int>("c_MipmapLevel", 0, (int)m_MinmaxStepCount);
 	m_pLightIndexMatInst->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
-	
 	m_pLightIndexMatInst->setBlock("g_SrcLights", m_LightIdx);
 	m_pLightIndexMatInst->setBlock("g_DstLights", m_TiledValidLightIdx);
 	m_pLightIndexMatInst->setBlock("g_OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
 	m_pLightIndexMatInst->setBlock("g_SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
+
+	m_pDeferredLightMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / EngineSetting::singleton().m_DefaultSize.x, 1.0f / EngineSetting::singleton().m_DefaultSize.y));
+	m_pDeferredLightMatInst->setParam<glm::vec2>("c_TileSize", 0, glm::vec2(EngineSetting::singleton().m_TileSize, EngineSetting::singleton().m_TileSize));
+	m_pDeferredLightMatInst->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
+	m_pDeferredLightMatInst->setParam<int>("c_BoxLevel", 0, a_pScene->getLightmap()->getComponent<LightmapAsset>()->getMaxBoxLevel());
+	m_pDeferredLightMatInst->setTexture("ShadowMap", reinterpret_cast<ShadowMapRenderer*>(a_pScene->getShadowMapBaker())->getShadowMap());
+	m_pDeferredLightMatInst->setBlock("Boxes", a_pScene->getLightmap()->getComponent<LightmapAsset>()->getBoxes());
+	m_pDeferredLightMatInst->setBlock("Harmonics", a_pScene->getLightmap()->getComponent<LightmapAsset>()->getHarmonics());
+	m_pDeferredLightMatInst->setBlock("TileLights", m_TiledValidLightIdx);
+	m_pDeferredLightMatInst->setBlock("DirLights", a_pScene->getDirLightContainer()->getMaterialBlock());
+    m_pDeferredLightMatInst->setBlock("OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
+    m_pDeferredLightMatInst->setBlock("SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
 
 	m_pCopyMatInst->setTexture("m_SrcTex", m_pFrameBuffer);
 
@@ -152,11 +163,19 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 {
 	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_Meshes;
 
-	std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
-	if( nullptr != l_pLightmap )
-	{
+	{// setup light map
+		std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
 		LightmapAsset *l_pLightmapInst = l_pLightmap->getComponent<LightmapAsset>();
-		l_pLightmapInst->stepBake(m_pCmdInit);
+		if( l_pLightmapInst->isBaking() )
+		{
+			l_pLightmapInst->stepBake(m_pCmdInit);
+			if( !l_pLightmapInst->isBaking() )
+			{
+				m_pDeferredLightMatInst->setParam<int>("c_BoxLevel", 0, getScene()->getLightmap()->getComponent<LightmapAsset>()->getMaxBoxLevel());
+				m_pDeferredLightMatInst->setBlock("Boxes", getScene()->getLightmap()->getComponent<LightmapAsset>()->getBoxes());
+				m_pDeferredLightMatInst->setBlock("Harmonics", getScene()->getLightmap()->getComponent<LightmapAsset>()->getHarmonics());
+			}
+		}
 	}
 
 	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) )
@@ -295,7 +314,6 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		glm::viewport l_FrameView(0.0f, 0.0f, l_FrameSize.x, l_FrameSize.y, 0.0f, 1.0f);
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
-		m_pDeferredLightMat->bin
 		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
 		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->setTopology(Topology::triangle_strip);
@@ -358,9 +376,14 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::
 
 	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
 
-	if( (int)a_Light.size() >= m_LightIdx->getBlockSize() / (sizeof(unsigned int) * 2) )
+	if( (int)a_Light.size() >= m_LightIdx->getNumSlot() / 2 )
 	{
-		m_LightIdx->extend(m_ExtendSize / 2);
+		int l_Unit = m_ExtendSize / 2;
+		int l_Extend = (int)a_Light.size() / 2 - m_LightIdx->getNumSlot();
+		l_Extend = (l_Extend + l_Unit - 1) / l_Unit * l_Unit;
+
+		m_LightIdx->extend(l_Extend);
+		m_TiledValidLightIdx->extend((m_LightIdx->getNumSlot() + 1) * m_TileDim.x * m_TileDim.y - m_TiledValidLightIdx->getNumSlot());
 	}
 
 	return true;

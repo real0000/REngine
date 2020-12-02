@@ -593,15 +593,16 @@ void Scene::initEmpty()
 	boost::property_tree::ptree l_Empty;
 	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = NoPartition::create(l_Empty);//OctreePartition();
 
+	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
+	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName);
+
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pDirLights = new LightContainer<DirLight>("DirLight");
 	m_pOmniLights = new LightContainer<OmniLight>("OmniLight");
 	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
-	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
 	m_pShadowMapBaker = ShadowMapRenderer::create(l_Empty, shared_from_this());
+	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
 
-	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
-	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName);
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
@@ -615,18 +616,10 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 
 	SceneAsset *l_pAssetInst = a_pSceneAsset->getComponent<SceneAsset>();
 
-	boost::property_tree::ptree &l_PipelineSetting = l_pAssetInst->getPipelineSetting();
-	std::string l_Typename(l_PipelineSetting.get("<xmlattr>.type", ""));
-	if( l_Typename.empty() ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
-	else
-	{
-		auto it = m_RenderPipeLineReflectors.find(l_Typename);
-		if( m_RenderPipeLineReflectors.end() == it ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
-		else m_pRenderer = it->second(l_PipelineSetting, shared_from_this());
-	}
-	
+	m_pLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath());
+
 	boost::property_tree::ptree &l_ShadowSetting = l_pAssetInst->getShadowSetting();
-	l_Typename = l_ShadowSetting.get("<xmlattr>.type", "");
+	std::string l_Typename(l_ShadowSetting.get("<xmlattr>.type", ""));
 	if( l_Typename.empty() ) m_pShadowMapBaker = ShadowMapRenderer::create(l_ShadowSetting, shared_from_this());
 	else
 	{
@@ -634,6 +627,16 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 		if( m_RenderPipeLineReflectors.end() == it ) m_pShadowMapBaker = ShadowMapRenderer::create(l_ShadowSetting, shared_from_this());
 		else m_pShadowMapBaker = it->second(l_ShadowSetting, shared_from_this());
 	}
+
+	boost::property_tree::ptree &l_PipelineSetting = l_pAssetInst->getPipelineSetting();
+	l_Typename = l_PipelineSetting.get("<xmlattr>.type", "");
+	if( l_Typename.empty() ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
+	else
+	{
+		auto it = m_RenderPipeLineReflectors.find(l_Typename);
+		if( m_RenderPipeLineReflectors.end() == it ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
+		else m_pRenderer = it->second(l_PipelineSetting, shared_from_this());
+	}	
 
 	std::function<ScenePartition*(boost::property_tree::ptree)> l_CreateFunc = nullptr;
 	boost::property_tree::ptree &l_SceneGraphSetting = l_pAssetInst->getSceneGraphSetting();
@@ -649,8 +652,6 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 	
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pRootNode->addChild(l_pAssetInst->getNodeTree());
-	
-	m_pLightmap = AssetManager::singleton().getAsset(l_pAssetInst->getLightmapAssetPath());
 }
 
 void Scene::preprocessInput()

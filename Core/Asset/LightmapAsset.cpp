@@ -37,6 +37,7 @@ LightmapAsset::LightmapAsset()
 	, m_pRayScatterMat(AssetManager::singleton().createAsset(LIGHTMAP_SCATTER_ASSET_NAME))
 	, m_pRayIntersectMatInst(nullptr), m_pRayScatterMatInst(nullptr)
 	, m_pIndicies(nullptr), m_pHarmonicsCache(nullptr), m_pBoxCache(nullptr), m_pVertex(nullptr), m_pResult(nullptr)
+	, m_MaxBoxLevel(1)
 	, m_pHarmonics(nullptr), m_pBoxes(nullptr)
 {
 	m_pRayIntersectMatInst = m_pRayIntersectMat->getComponent<MaterialAsset>();
@@ -44,6 +45,22 @@ LightmapAsset::LightmapAsset()
 
 	m_pRayScatterMatInst = m_pRayScatterMat->getComponent<MaterialAsset>();
 	m_pRayScatterMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayScatter));
+
+	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", 1);
+	memset(m_pHarmonics->getBlockPtr(0), -1, sizeof(glm::ivec4));
+	m_pHarmonics->sync(true);
+
+	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
+	std::vector<ProgramBlockDesc *> &l_Blocks = l_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
+ 	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "RootBox" == a_pDesc->m_Name; });
+	m_pBoxes = MaterialBlock::create(ShaderRegType::UavBuffer, *it, 1);
+	LightMapBox *l_pDst = reinterpret_cast<LightMapBox*>(m_pBoxes->getBlockPtr(0));
+	l_pDst->m_BoxCenter = glm::vec3(0.0f, 0.0f, 0.0f);
+	l_pDst->m_BoxSize = glm::vec3(0.0f, 0.0f, 0.0f);
+	memset(l_pDst->m_Children, -1, sizeof(int) * 8);
+	l_pDst->m_Level = 0;
+	memset(l_pDst->m_SHResult, -1, sizeof(int) * 64);
+	m_pBoxes->sync(true);
 }
 
 LightmapAsset::~LightmapAsset()
@@ -66,6 +83,7 @@ void LightmapAsset::loadFile(boost::property_tree::ptree &a_Src)
 	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
 
 	unsigned int l_NumBox = l_Root.get("Box.<xmlattr>.num", 0);
+	m_MaxBoxLevel = l_Root.get("Box.<xmlattr>.maxLevel", 0);
 	unsigned int l_NumHarmonic = l_Root.get("Harmonics.<xmlattr>.num", 0);
 
 	std::vector<char> l_Buffer;
@@ -79,7 +97,7 @@ void LightmapAsset::loadFile(boost::property_tree::ptree &a_Src)
 	m_pBoxes->sync(true);
 
 	base642Binary(l_Root.get_child("Harmonics").data(), l_Buffer);
-	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumBox);
+	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumHarmonic);
 	memcpy(m_pHarmonics->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
 	m_pHarmonics->sync(true);
 }
@@ -97,6 +115,7 @@ void LightmapAsset::saveFile(boost::property_tree::ptree &a_Dst)
 
 	boost::property_tree::ptree l_BoxAttr;
 	l_BoxAttr.add("num", m_pBoxes->getNumSlot());
+	l_BoxAttr.add("maxLevel", m_MaxBoxLevel);
 	l_Root.add_child("Box.<xmlattr>", l_BoxAttr);
 	
 	binary2Base64(m_pHarmonics->getBlockPtr(0), m_pHarmonics->getNumSlot() * sizeof(glm::ivec4), l_RawData);
@@ -362,8 +381,6 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 
 void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 {
-	if( !m_bBaking ) return;
-
 	m_pIndicies->sync(false, 0, sizeof(int) * 8);
 	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
 	glm::ivec4 *l_pEndInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));
@@ -409,8 +426,6 @@ void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 
 void LightmapAsset::stopBake()
 {
-	if( !m_bBaking ) return;
-	
 	m_BoxCache.clear();
 	m_LightMapMaterialCache.clear();
 	m_pIndicies = nullptr;
@@ -707,6 +722,7 @@ void LightmapAsset::moveCacheData()
 {
 	m_pHarmonics = m_pHarmonicsCache;
 	m_pHarmonics->sync(false);
+	m_MaxBoxLevel = 0;
 
 	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
 	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
@@ -722,7 +738,7 @@ void LightmapAsset::moveCacheData()
 		l_pDst->m_BoxSize = l_pDst->m_BoxSize;
 		memcpy(l_pDst->m_Children, l_pSrc->m_Children, sizeof(int) * 8);
 		l_pDst->m_Level = l_pSrc->m_Level;
-		l_pDst->m_LeafDist = std::roundf(std::log2f(l_pDst->m_BoxSize.x)) - l_pDst->m_Level;
+		m_MaxBoxLevel = std::max<unsigned int>(l_pDst->m_Level + 1, m_MaxBoxLevel);
 		memcpy(l_pDst->m_SHResult, l_pSrc->m_SHResult, sizeof(int) * 64);
 	}
 	m_pBoxes->sync(true);

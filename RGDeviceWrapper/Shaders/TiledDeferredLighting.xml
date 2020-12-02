@@ -1,5 +1,9 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
+    <Constant name="c_PixelSize" type="float2" reserved="false"/>
+    <Constant name="c_TileSize" type="float2" reserved="false"/>
+    <Constant name="c_TileCount" type="int2" reserved="false"/>
+    <Constant name="c_BoxLevel" type="int1" reserved="false"/>
     <Srv2D name="GBuff0" desc="" reserved="true"/>
     <Srv2D name="GBuff1" desc="" reserved="true"/>
     <Srv2D name="GBuff2" desc="" reserved="true"/>
@@ -8,7 +12,9 @@
     <Srv2D name="GBuff5" desc="" reserved="true"/>
     <Srv2D name="GBuff6" desc="" reserved="true"/>
     <Srv2DArray name="ShadowMap" desc="" reserved="true"/>
-    <UavBuffer name="RootBox" preDef="LightmapBox" write="false"/>
+    <UavBuffer name="Boxes" preDef="LightmapBox" write="false"/>
+    <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
+    <UavBuffer name="TileLights" preDef="PackedInt" write="false"/>
     <UavBuffer name="DirLights" preDef="DirLight" write="false"/>
     <UavBuffer name="OmniLights" preDef="OmniLight" write="false"/>
     <UavBuffer name="SpotLights" preDef="SpotLight" write="false"/>

@@ -34,14 +34,19 @@ public:
 	void stepBake(GraphicCommander *a_pCmd);
 	void stopBake();
 
+	bool isBaking(){ return m_bBaking; }
+	unsigned int getMaxBoxLevel(){ return m_MaxBoxLevel; }
+	std::shared_ptr<MaterialBlock> getHarmonics(){ return m_pHarmonics; }
+	std::shared_ptr<MaterialBlock> getBoxes(){ return m_pBoxes; }
+
 private:
 	struct LightMapBox
 	{
 		glm::vec3 m_BoxCenter;
 		int m_Level;
 		glm::vec3 m_BoxSize;
-		int m_LeafDist;
-		int m_SHResult[16];
+		int m_Padding;
+		int m_SHResult[64];
 		int m_Children[8];
 	};
 	struct LightMapBoxCache
@@ -120,6 +125,7 @@ private:
 	std::vector<LightMapTextureCache> m_LightMapMaterialCache;
 	std::mutex m_BakeLock;
 
+	unsigned int m_MaxBoxLevel;
 	std::shared_ptr<MaterialBlock> m_pHarmonics, m_pBoxes;
 };
 
