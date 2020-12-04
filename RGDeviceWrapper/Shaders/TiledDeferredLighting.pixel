@@ -1,6 +1,58 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
+#include "Lightmap.h"
+
+const float3 c_FaceVectors[4] =
+{
+	float3(0.0, -0.57735026, 0.81649661),
+	float3(0.0, -0.57735026, -0.81649661),
+	float3(-0.81649661, 0.57735026, 0.0),
+	float3(0.81649661, 0.57735026, 0.0)
+};
+
+#define NUM_SAMPLES 17
+const float2 c_PCFSample[NUM_SAMPLES] =
+{
+	float2(-0.94201624, -0.39906216),
+	float2(0.94558609, -0.76890725),
+	float2(-0.094184101, -0.92938870),
+	float2(0.34495938, 0.29387760),
+	float2(-0.91588581, 0.45771432),
+	float2(-0.81544232, -0.87912464),
+	float2(-0.38277543, 0.27676845),
+	float2(0.97484398, 0.75648379),
+	float2(0.44323325, -0.97511554),
+	float2(0.53742981, -0.47373420),
+	float2(-0.26496911, -0.41893023),
+	float2(0.79197514, 0.19090188),
+	float2(-0.24188840, 0.99706507),
+	float2(-0.81409955, 0.91437590),
+	float2(0.19984126, 0.78641367),
+	float2(0.14383161, -0.14100790),
+	float2(0.0, 0.0)
+};
+uint GetFaceIndex(vec3 l_Direction)
+{
+	mat4x3 l_FaceMatrix;
+	l_FaceMatrix[0] = c_FaceVectors[0];
+	l_FaceMatrix[1] = c_FaceVectors[1];
+	l_FaceMatrix[2] = c_FaceVectors[2];
+	l_FaceMatrix[3] = c_FaceVectors[3]; 
+	vec4 l_DotProducts = l_Direction * l_FaceMatrix;
+	float l_Max = max(max(l_DotProducts.x, l_DotProducts.y), max(l_DotProducts.z, l_DotProducts.w));
+
+	uint l_Idx = 3;
+	if(l_Max == l_DotProducts.x) l_Idx = 0;
+	else if(l_Max == l_DotProducts.y) l_Idx = 1;
+	else if(l_Max == l_DotProducts.z) l_Idx = 2;
+	return l_Idx;
+}
+float calculateShadowTerm(float a_Depth, float2 a_UV, float4 a_Range)
+{
+	
+}
+
 float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 {
 	float4 l_NormalHeightFlag = GBuff0.Sample(GBuff0Sampler, a_UV.xy);
@@ -8,24 +60,96 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 	float4 l_Surface = GBuff1.Sample(GBuff1Sampler, a_UV.xy);
 	float4 l_BaseColor = GBuff2.Sample(GBuff2Sampler, a_UV.xy);
+	float4 l_WorldPos = float4(a_UV * float2(2.0, -2.0) + float2(1.0, 1.0), GBuff6.Sample(GBuff6Sampler, a_UV.xy).x, 1.0);
+	l_WorldPos = mul(l_WorldPos, m_InvViewProjection);
+	l_WorldPos /= l_WorldPos.w;
+
+	float4 l_EyeDir = normalize(Camera.m_View._03_13_23 - l_WorldPos.xyz);
 
 	int2 l_Tile = a_UV.xy * c_TileCount.xy;
 	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
 	int l_NumLight = TileLights[l_IdxOffset/2].x;
+
+	float4 l_Res = float4(0.0, 0.0, 0.0, 0.0);
 	for( int i=0 ; i<l_NumLight ; ++i )
 	{
+		int2 l_SrcIdx = int2((l_IdxOffset + i + 1) / 2, ((l_IdxOffset + i + 1) % 2) * 2);
+		int l_LightIdx = TileLights[l_SrcIdx.x].m_Params[l_SrcIdx.y];
+		switch( TileLights[l_SrcIdx.x].m_Params[l_SrcIdx.y + 1] )
+		{
+			case LIGHT_TYPE_OMNI:{
+				/*
+				<Param name="m_Position" desc="" type="float3"/>
+				<Param name="m_Range" desc="" type="float1"/>
+				<Param name="m_Color" desc="" type="float3"/>
+				<Param name="m_Intensity" desc="" type="float1"/>
+				<Param name="m_ShadowMapUV" desc="" type="float4"/>
+				<Param name="m_Layer" desc="" type="int1"/>
+				<Param name="m_bCastShadow" desc="" type="int1"/>
+				<Param name="m_PhysicRange" desc="" type="float1"/>
+				<Param name="m_ViewProj" desc="" type="float4x4" size="4"/>
+				*/
+				OmniLight l_Light = OmniLights[l_LightIdx];
+
+
+				}break;
+
+			case LIGHT_TYPE_SPOT:{
+				/*
+				<Param name="m_Position" desc="" type="float3"/>
+				<Param name="m_Range" desc="" type="float1"/>
+				<Param name="m_Color" desc="" type="float3"/>
+				<Param name="m_Intensity" desc="" type="float1"/>
+				<Param name="m_Direction" desc="" type="float3"/>
+				<Param name="m_Angle" desc="" type="float1"/>
+				<Param name="m_ShadowMapUV" desc="" type="float4"/>
+				<Param name="m_Layer" desc="" type="int1"/>
+				<Param name="m_bCastShadow" desc="" type="int1"/>
+				<Param name="m_PhysicRange" desc="" type="float1"/>
+				<Param name="m_ShadowMapProj" desc="" type="float4x4"/>
+				*/
+				SpotLight l_Light = SpotLights[l_LightIdx];
+				
+				float l_ShadowTerm = 1.0;
+				/*float4 l_ShadowCoord = mul(l_WorldPos, l_Light.m_ShadowMapProj);
+				l_ShadowCoord /= l_ShadowCoord.w;
+				l_ShadowCoord.xy = (l_ShadowCoord.xy * float2(0.5, -0.5) + float2(0.5, 0.5)) * l_Light.m_ShadowMapUV.xy + l_Light.m_ShadowMapUV.zw;
+				float l_Depth = ShadowMap.SampleLevel(ShadowMapSampler, l_ShadowCoord.xyz, 0) / 256.0;
+				if( l_ShadowCoord.z > l_Depth ) continue;*/
+
+				float3 l_Dir = l_Light.m_Position - l_WorldPos.xyz;
+				float l_Length = max(length(l_Dir), 0.1);
+				l_Dir = l_Dir / l_Length;
+				
+				float l_Att = 1.0 - l_Length / l_Light.m_Range;
+				if( l_Att < 0.0 ) continue;
+
+				float l_NdotL = max(dot(l_Dir, l_NormalHeightFlag.xyz), 0.0);
+				l_Res.xyz += (htD)l_BaseColor.xyz * l_NdotL;
+				}break;
+
+			//case LIGHT_TYPE_DIR:
+			default:{
+				/*
+				<Param name="m_Color" desc="" type="float3"/>
+				<Param name="m_Intensity" desc="" type="float1"/>
+				<Param name="m_Direction" desc="" type="float3"/>
+				<Param name="m_bCastShadow" desc="" type="int1"/>
+				<Param name="m_Layer" desc="" type="int4"/>
+				<Param name="m_ShadowMapUV" desc="" type="float4" size="4"/>
+				<Param name="m_ShadowMapProj" desc="" type="float4x4" size="4"/>
+				*/
+				DirLight l_Light = DirLights[l_LightIdx];
+				}break;
+		}
 	}
-	/*
-    <Constant name="c_BoxLevel" type="int1" reserved="false"/>
-    <Srv2DArray name="ShadowMap" desc="" reserved="true"/>
-    <UavBuffer name="Boxes" preDef="LightmapBox" write="false"/>
+	/*<UavBuffer name="Boxes" preDef="LightmapBox" write="false"/>
     <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
-    <UavBuffer name="TileLights" preDef="PackedInt" write="false"/>
-    <UavBuffer name="DirLights" preDef="DirLight" write="false"/>
-    <UavBuffer name="OmniLights" preDef="OmniLight" write="false"/>
-    <UavBuffer name="SpotLights" preDef="SpotLight" write="false"/>
+	<Srv2DArray name="ShadowMap" desc="" reserved="true"/>*/
+	for( int i=0 ; i<c_BoxLevel ; ++i )
+	{
+		
+	}
 
-	*/
-
-	return GBuff2.Sample(GBuff2Sampler, a_UV.xy);
+	return l_Res;
 }

@@ -111,6 +111,11 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pDeferredLightMatInst->setBlock("DirLights", a_pScene->getDirLightContainer()->getMaterialBlock());
     m_pDeferredLightMatInst->setBlock("OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
     m_pDeferredLightMatInst->setBlock("SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
+	
+	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
+	glm::vec2 l_ShadowMapSize;
+	l_ShadowMapSize.x = l_ShadowMapSize.y = l_pShadowMap->getShadowMap()->getComponent<TextureAsset>()->getDimension().x;
+	m_pDeferredLightMatInst->setParam<glm::vec2>("c_ShadowMapSize", 0, l_ShadowMapSize);
 
 	m_pCopyMatInst->setTexture("m_SrcTex", m_pFrameBuffer);
 
@@ -314,6 +319,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
 		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
 		m_pDeferredLightMatInst->bindTexture(m_pCmdInit, "ShadowMap", reinterpret_cast<ShadowMapRenderer*>(getScene()->getShadowMapBaker())->getShadowMap());
+		m_pDeferredLightMatInst->bindBlock(m_pCmdInit, "Camera", a_pCamera->getMaterialBlock());
 		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->setTopology(Topology::triangle_strip);
 		m_pCmdInit->drawVertex(4, 0);

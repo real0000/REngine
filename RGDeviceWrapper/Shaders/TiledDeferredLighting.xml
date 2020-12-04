@@ -3,6 +3,8 @@
     <Constant name="c_TileCount" type="int2" reserved="false"/>
     <Constant name="c_BoxLevel" type="int1" reserved="false"/>
     <Constant name="c_NumLight" type="int1" reserved="false"/>
+    <Constant name="c_ShadowMapSize" type="float2" reserved="false"/>
+    <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <Srv2D name="GBuff0" desc="" reserved="true"/>
     <Srv2D name="GBuff1" desc="" reserved="true"/>
     <Srv2D name="GBuff2" desc="" reserved="true"/>
@@ -30,7 +32,7 @@
       <Compute>
       </Compute>-->
       <Fragment file="TiledDeferredLighting.pixel">
-        c_TileCount, c_BoxLevel, GBuff0, GBuff1, GBuff2, GBuff3, GBuff4, GBuff5, GBuff6, ShadowMap, Boxes, Harmonics, TileLights, DirLights, OmniLights, SpotLights
+        c_TileCount, c_BoxLevel, c_NumLight, c_ShadowMapSize, Camera, GBuff0, GBuff1, GBuff2, GBuff3, GBuff4, GBuff5, GBuff6, ShadowMap, Boxes, Harmonics, TileLights, DirLights, OmniLights, SpotLights
       </Fragment>
     </Model_5_1>
   </Shaders>
