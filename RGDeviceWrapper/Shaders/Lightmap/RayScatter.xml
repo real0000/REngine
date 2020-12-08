@@ -1,7 +1,7 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
     <UavBuffer name="g_Indicies" preDef="PackedInt" write="false"/>
-    <UavBuffer name="g_Harmonics" preDef="PackedInt" write="true"/>
+    <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
     <UavBuffer name="g_Vertex" preDef="LightmapVertex" write="false"/>
     <UavBuffer name="g_Result" preDef="LightmapIntersectResult" write="true"/>
     <Constant name="c_MatID" type="int1" reserved="false"/>
@@ -12,7 +12,7 @@
   <Shaders>
     <Model_5_1>
       <Compute file="Lightmap/RayScatter.compute">
-        g_Indicies, g_Harmonics, g_Vertex, g_Result, BaseColor, Normal, Surface
+        g_Indicies, Harmonics, g_Vertex, g_Result, BaseColor, Normal, Surface
       </Compute>
     </Model_5_1>
   </Shaders>

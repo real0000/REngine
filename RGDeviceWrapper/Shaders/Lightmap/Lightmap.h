@@ -18,6 +18,7 @@
 
 #define HARMONIC_SCALE 16777216.0
 
+#ifdef _ENCODE_
 float intersectRayPlane(float3 a_RayOrigin, float3 a_RayDir, float4 a_Plane)
 {
 	float l_Den = dot(a_Plane, a_RayDir);
@@ -112,7 +113,6 @@ float2 sphereRandom(float a_Seed)
 	return l_Res;
 }
 
-
 void encodeHarmonic(LightmapIntersectResult a_Res)
 {
 	float x = a_Res.m_OriginNormal.x;
@@ -146,9 +146,11 @@ void encodeHarmonic(LightmapIntersectResult a_Res)
     {
 		double3 l_Res = a_Res.m_Emissive * l_Basis[n] * factor * HARMONIC_SCALE;
 		int4 l_Add = int4(asint(l_Res.x), asint(l_Res.y), asint(l_Res.z), 0);
-		InterlockedAdd(g_Harmonics[a_Res.m_HarmonicsID + n], l_Add);
+		InterlockedAdd(Harmonics[a_Res.m_HarmonicsID + n], l_Add);
     }
 }
+
+#else
 
 float4 decodeHarmonic(float3 a_Normal, int a_HarmonicOffset)
 {
@@ -180,8 +182,10 @@ float4 decodeHarmonic(float3 a_Normal, int a_HarmonicOffset)
 	float4 l_Res = float4(0.0, 0.0, 0.0, 1.0);
     for( int i=0 ; i<16 ; ++i )
     {
-        l_Res.xyz += g_Harmonics[a_HarmonicOffset + i].xyz / HARMONIC_SCALE * l_Basis[i];
+        l_Res.xyz += Harmonics[a_HarmonicOffset + i].xyz / HARMONIC_SCALE * l_Basis[i];
     }
     
     return l_Res;
 }
+
+#endif

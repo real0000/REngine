@@ -16,7 +16,7 @@ private:
 
 IMPLEMENT_APP(BasicApp)
 
-class TempComponent : public R::EngineComponent
+/*class TempComponent : public R::EngineComponent
 {
 	friend class R::EngineComponent;
 public:
@@ -49,7 +49,7 @@ private:
 	}
 
 	float m_Angle;
-};
+};*/
 
 bool BasicApp::OnInit()
 {
@@ -62,13 +62,15 @@ bool BasicApp::OnInit()
 
 	std::shared_ptr<R::SceneNode> l_pMeshNode = l_pScene->getRootNode()->addChild();
 	std::shared_ptr<R::RenderableMesh> l_pNewMesh = l_pMeshNode->addComponent<R::RenderableMesh>();
-	//l_pNewMesh->setMesh(wxT("Cube.FBX"), nullptr);
 
-	auto l_Texture = R::AssetManager::singleton().getAsset(wxT("lion.Image"));
-	l_pNewMesh->getMaterial(0)->getComponent<R::MaterialAsset>()->setTexture("m_DiffTex", l_Texture);
+	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset(wxT("sponza/sponza.obj"));
+	l_pNewMesh->setMesh(l_pMeshAsset, 0);
+
+	std::shared_ptr<R::Asset> l_pDirShadow = R::AssetManager::singleton().createAsset(wxT("sponza_00_Dir.Material"));
+	l_pNewMesh->setMaterial(R::MATSLOT_DIR_SHADOWMAP, l_pDirShadow);
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
-	l_pCameraNode->addComponent<TempComponent>();
+	//l_pCameraNode->addComponent<TempComponent>();
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 

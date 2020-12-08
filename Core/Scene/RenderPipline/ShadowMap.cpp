@@ -213,6 +213,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 	EngineCore::singleton().join();
 }
 
+std::shared_ptr<Asset> ShadowMapRenderer::getShadowMap()
+{
+	return m_pShadowMap->getTexture();
+}
+
 unsigned int ShadowMapRenderer::calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light)
 {
 	if( COMPONENT_DirLight == a_Light->typeID() ) return 1024;

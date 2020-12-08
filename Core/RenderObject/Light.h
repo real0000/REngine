@@ -12,8 +12,11 @@ namespace R
 {
 	
 class Camera;
+class DirLight;
 class MaterialBlock;
+class OmniLight;
 class SceneNode;
+class SpotLight;
 
 class Light : public RenderableComponent
 {

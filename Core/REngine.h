@@ -21,20 +21,25 @@
 #include "Asset/LightmapAsset.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
+#include "Asset/PrefabAsset.h"
+#include "Asset/SceneAsset.h"
 #include "Asset/TextureAsset.h"
 
 #include "Input/InputMediator.h"
 #include "Input/KeyboardInput.h"
 #include "Input/MouseInput.h"
 
+#include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/RenderObject.h"
+#include "RenderObject/TextureAtlas.h"
 
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
+#include "Scene/Graph/NoPartition.h"
 #include "Scene/Graph/Octree.h"
-#include "Scene/Graph/ScenePartition.h"
 #include "Scene/RenderPipline/Deferred.h"
 #include "Scene/RenderPipline/RenderPipline.h"
+#include "Scene/RenderPipline/ShadowMap.h"
 
 #endif

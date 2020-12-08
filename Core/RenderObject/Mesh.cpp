@@ -57,6 +57,7 @@ void RenderableMesh::end()
 	{
 		it->second.second->getComponent<MaterialAsset>()->freeInstanceSlot(it->second.first);
 	}
+	m_pMesh = nullptr;
 	m_Materials.clear();
 }
 
@@ -123,8 +124,6 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	m_SkinOffset = getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 
 	MeshAsset::Instance *l_pMeshInst = a_pAsset->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
-	setMaterial(0, l_pMeshInst->m_pMaterial);
-
 	for( auto it=m_Materials.begin() ; it!=m_Materials.end() ; ++it )
 	{
 		if( 0 == it->first ) continue;

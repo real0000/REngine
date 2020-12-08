@@ -1,7 +1,7 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
     <UavBuffer name="g_Indicies" preDef="PackedInt" write="true"/>
-    <UavBuffer name="g_Harmonics" preDef="PackedInt" write="true"/>
+    <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
     <UavBuffer name="g_DirLights" preDef="DirLight" write="false"/>
     <UavBuffer name="g_OmniLights" preDef="OmniLight" write="false"/>
     <UavBuffer name="g_SpotLights" preDef="SpotLight" write="false"/>
@@ -12,7 +12,7 @@
   <Shaders>
     <Model_5_1>
       <Compute file="Lightmap/RayIntersection.compute">
-        g_Indicies, g_Harmonics, g_DirLights, g_OmniLights, g_SpotLights, g_Box, g_Vertex, g_Result
+        g_Indicies, Harmonics, g_DirLights, g_OmniLights, g_SpotLights, g_Box, g_Vertex, g_Result
       </Compute>
     </Model_5_1>
   </Shaders>

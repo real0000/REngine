@@ -53,6 +53,41 @@ float calculateShadowTerm(float a_Depth, float2 a_UV, float4 a_Range)
 	
 }
 
+float distributionGGX(float3 a_Normal, float3 a_BisVec, float a_Roughness)
+{
+    float l_A2 = pow(a_Roughness, 4.0);
+    float l_NdotH2 = pow(max(dot(a_Normal, a_BisVec), 0.0), 2.0);
+
+    float l_Denom = (l_NdotH2 * (l_A2 - 1.0) + 1.0);
+    l_Denom = MATH_PI * l_Denom * l_Denom;
+
+    return l_A2 / l_Denom;
+}
+
+float geometrySchlickGGX(float a_NdotV, float a_Roughness)
+{
+    float l_K = pow(a_Roughness + 1.0, 2.0) / 8.0;
+    float l_Nom = a_NdotV;
+    float l_Denom = a_NdotV * (1.0 - l_K) + l_K;
+
+    return l_Nom / l_Denom;
+}
+
+float geometrySmith(float3 a_Normal, float3 a_EyeDir, float3 l_LightDir, float a_Roughness)
+{
+    float l_NdotV = max(dot(a_Normal, a_EyeDir), 0.0);
+    float l_NdotL = max(dot(a_Normal, l_LightDir), 0.0);
+    float l_GGX2  = GeometrySchlickGGX(l_NdotV, a_Roughness);
+    float l_GGX1  = GeometrySchlickGGX(l_NdotL, a_Roughness);
+
+    return l_GGX1 * l_GGX2;
+}
+
+float3 fresnelSchlick(float a_CosTheta, float3 a_F0)
+{
+	return a_F0 + (1.0 - a_F0) * pow(1.0 - a_CosTheta, 5.0);
+}
+
 float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 {
 	float4 l_NormalHeightFlag = GBuff0.Sample(GBuff0Sampler, a_UV.xy);
@@ -60,95 +95,126 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 	float4 l_Surface = GBuff1.Sample(GBuff1Sampler, a_UV.xy);
 	float4 l_BaseColor = GBuff2.Sample(GBuff2Sampler, a_UV.xy);
+	float3 l_F0 = float3(0.04, 0.04, 0.04); 
+    l_F0 = lerp(l_F0, l_BaseColor.xyz, l_Surface.xxx);
+
 	float4 l_WorldPos = float4(a_UV * float2(2.0, -2.0) + float2(1.0, 1.0), GBuff6.Sample(GBuff6Sampler, a_UV.xy).x, 1.0);
 	l_WorldPos = mul(l_WorldPos, m_InvViewProjection);
 	l_WorldPos /= l_WorldPos.w;
 
-	float4 l_EyeDir = normalize(Camera.m_View._03_13_23 - l_WorldPos.xyz);
+	float3 l_EyeDir = normalize(Camera.m_View._03_13_23 - l_WorldPos.xyz);
 
 	int2 l_Tile = a_UV.xy * c_TileCount.xy;
 	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
 	int l_NumLight = TileLights[l_IdxOffset/2].x;
 
-	float4 l_Res = float4(0.0, 0.0, 0.0, 0.0);
+	float4 l_Res = float4(0.0, 0.0, 0.0, 1.0);
 	for( int i=0 ; i<l_NumLight ; ++i )
 	{
 		int2 l_SrcIdx = int2((l_IdxOffset + i + 1) / 2, ((l_IdxOffset + i + 1) % 2) * 2);
 		int l_LightIdx = TileLights[l_SrcIdx.x].m_Params[l_SrcIdx.y];
+
+		float l_ShadowTerm = 1.0;
+		float3 l_LightDir;
+		float3 l_Radiance;
 		switch( TileLights[l_SrcIdx.x].m_Params[l_SrcIdx.y + 1] )
 		{
 			case LIGHT_TYPE_OMNI:{
-				/*
-				<Param name="m_Position" desc="" type="float3"/>
-				<Param name="m_Range" desc="" type="float1"/>
-				<Param name="m_Color" desc="" type="float3"/>
-				<Param name="m_Intensity" desc="" type="float1"/>
-				<Param name="m_ShadowMapUV" desc="" type="float4"/>
-				<Param name="m_Layer" desc="" type="int1"/>
-				<Param name="m_bCastShadow" desc="" type="int1"/>
-				<Param name="m_PhysicRange" desc="" type="float1"/>
-				<Param name="m_ViewProj" desc="" type="float4x4" size="4"/>
-				*/
 				OmniLight l_Light = OmniLights[l_LightIdx];
 
+				l_LightDir = normalize(l_Light.m_Position - l_WorldPos.xyz);
+				float l_Length = distance(l_Light.m_Position, l_WorldPos.xyz);
+				float l_Att = 1.0 / (l_Length * l_Length);
 
+				l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
 				}break;
 
 			case LIGHT_TYPE_SPOT:{
-				/*
-				<Param name="m_Position" desc="" type="float3"/>
-				<Param name="m_Range" desc="" type="float1"/>
-				<Param name="m_Color" desc="" type="float3"/>
-				<Param name="m_Intensity" desc="" type="float1"/>
-				<Param name="m_Direction" desc="" type="float3"/>
-				<Param name="m_Angle" desc="" type="float1"/>
-				<Param name="m_ShadowMapUV" desc="" type="float4"/>
-				<Param name="m_Layer" desc="" type="int1"/>
-				<Param name="m_bCastShadow" desc="" type="int1"/>
-				<Param name="m_PhysicRange" desc="" type="float1"/>
-				<Param name="m_ShadowMapProj" desc="" type="float4x4"/>
-				*/
 				SpotLight l_Light = SpotLights[l_LightIdx];
+
+				l_LightDir = l_Light.m_Direction;
+
+				float l_Falloff = 0.5 * l_Light.m_Angle;
+				float l_Outer = acos(dot(l_Dir, -l_LightDir));
+				if( l_Outer > l_Falloff ) continue;
+
+				float l_Length = distance(l_Light.m_Position, l_WorldPos.xyz);
+				float l_Att = (1.0 / (l_Length * l_Length)) * ((l_Falloff - l_Outer) / l_Falloff);
+				if( l_Att <= 0.0 || l_Length > l_Light.m_Range ) continue;
+				l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
 				
-				float l_ShadowTerm = 1.0;
 				/*float4 l_ShadowCoord = mul(l_WorldPos, l_Light.m_ShadowMapProj);
 				l_ShadowCoord /= l_ShadowCoord.w;
 				l_ShadowCoord.xy = (l_ShadowCoord.xy * float2(0.5, -0.5) + float2(0.5, 0.5)) * l_Light.m_ShadowMapUV.xy + l_Light.m_ShadowMapUV.zw;
 				float l_Depth = ShadowMap.SampleLevel(ShadowMapSampler, l_ShadowCoord.xyz, 0) / 256.0;
 				if( l_ShadowCoord.z > l_Depth ) continue;*/
-
-				float3 l_Dir = l_Light.m_Position - l_WorldPos.xyz;
-				float l_Length = max(length(l_Dir), 0.1);
-				l_Dir = l_Dir / l_Length;
-				
-				float l_Att = 1.0 - l_Length / l_Light.m_Range;
-				if( l_Att < 0.0 ) continue;
-
-				float l_NdotL = max(dot(l_Dir, l_NormalHeightFlag.xyz), 0.0);
-				l_Res.xyz += (htD)l_BaseColor.xyz * l_NdotL;
 				}break;
 
 			//case LIGHT_TYPE_DIR:
 			default:{
-				/*
-				<Param name="m_Color" desc="" type="float3"/>
-				<Param name="m_Intensity" desc="" type="float1"/>
-				<Param name="m_Direction" desc="" type="float3"/>
-				<Param name="m_bCastShadow" desc="" type="int1"/>
-				<Param name="m_Layer" desc="" type="int4"/>
-				<Param name="m_ShadowMapUV" desc="" type="float4" size="4"/>
-				<Param name="m_ShadowMapProj" desc="" type="float4x4" size="4"/>
-				*/
 				DirLight l_Light = DirLights[l_LightIdx];
+				
+				l_LightDir = l_Light.m_Direction;
+				l_Radiance = l_Light.m_Color * l_Light.m_Intensity
 				}break;
 		}
+
+		float3 l_BisVec = normalize(l_EyeDir + l_LightDir);
+		float l_NDF = distributionGGX(l_NormalHeightFlag.xyz, l_BisVec, l_Surface.y);
+		float l_G = GeometrySmith(l_NormalHeightFlag.xyz, l_EyeDir, l_LightDir, l_Surface.y);
+		float3 l_Fresnel = fresnelSchlick(max(dot(l_BisVec, l_EyeDir), 0.0), l_F0);
+
+		float3 l_Specular = l_Fresnel;
+        float3 l_Diffuse = float3(1.0) - l_Specular;
+        l_Diffuse *= (1.0 - l_Surface.x);
+
+        float3 l_Nominator = l_NDF * l_G * l_Fresnel;
+        float l_Denominator = 4.0 * max(dot(l_NormalHeightFlag.xyz, l_EyeDir), 0.0) * max(dot(l_NormalHeightFlag.xyz, l_LightDir), 0.0) + 0.001; 
+        float3 l_Specular = l_Nominator / l_Denominator;
+
+		float l_NdotL = max(dot(l_LightDir, l_NormalHeightFlag.xyz), 0.0);
+		l_Res.xyz += (l_Diffuse * l_BaseColor.xyz / MATH_PI + l_Specular) * l_Radiance * l_NdotL;
 	}
-	/*<UavBuffer name="Boxes" preDef="LightmapBox" write="false"/>
-    <UavBuffer name="Harmonics" preDef="PackedInt" write="true"/>
-	<Srv2DArray name="ShadowMap" desc="" reserved="true"/>*/
+
+	int l_BoxIdx = 0;
+	const float c_Sub[4] = {-0.375, -0.125, 0.125, 0.375};
 	for( int i=0 ; i<c_BoxLevel ; ++i )
 	{
-		
+		LightmapBox l_Box = Boxes[l_BoxIdx];
+		int l_Child = 0;
+		if( l_WorldPos.z > l_Box.m_BoxCenter.z ) l_Child += 0x01;
+		if( l_WorldPos.y > l_Box.m_BoxCenter.y ) l_Child += 0x02;
+		if( l_WorldPos.x > l_Box.m_BoxCenter.x ) l_Child += 0x04;
+		if( -1 != l_Box.m_Children[l_Child / 4][l_Child % 4] )
+		{
+			l_BoxIdx = l_Child;
+			continue;
+		}
+
+		float3 l_SamplePos = (l_WorldPos.xyz - l_Box.m_BoxCenter) / l_Box.m_BoxSize;
+		int3 l_HarmonicIdx;
+		float l_MinDist;
+		for( int axis=0 ; axis<3 ; ++axis )
+		{
+			l_MinDist = 1.0;
+			for( int j=0 ; j<4 ; ++j )
+			{
+				float l_Dist = abs(l_SamplePos[axis] - c_Sub[j]);
+				if( l_Dist < l_MinDist )
+				{
+					l_MinDist = l_Dist;
+					l_HarmonicIdx[axis] = j;
+				}
+			}
+		}
+
+		int l_DecodeIdx = l_Box.m_SHResult[l_HarmonicIdx.y * 4 + l_HarmonicIdx.z * 16][l_HarmonicIdx.x];
+		if( -1 != l_DecodeIdx )
+		{
+			l_Res.xyz += decodeHarmonic(l_NormalHeightFlag.xyz, l_DecodeIdx);
+		}
+
+		break;
 	}
 
 	return l_Res;

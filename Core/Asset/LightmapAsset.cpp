@@ -46,7 +46,7 @@ LightmapAsset::LightmapAsset()
 	m_pRayScatterMatInst = m_pRayScatterMat->getComponent<MaterialAsset>();
 	m_pRayScatterMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayScatter));
 
-	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", 1);
+	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", 1);
 	memset(m_pHarmonics->getBlockPtr(0), -1, sizeof(glm::ivec4));
 	m_pHarmonics->sync(true);
 
@@ -97,7 +97,7 @@ void LightmapAsset::loadFile(boost::property_tree::ptree &a_Src)
 	m_pBoxes->sync(true);
 
 	base642Binary(l_Root.get_child("Harmonics").data(), l_Buffer);
-	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumHarmonic);
+	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", l_NumHarmonic);
 	memcpy(m_pHarmonics->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
 	m_pHarmonics->sync(true);
 }
@@ -346,7 +346,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	assignInitRaytraceInfo();
 	m_pIndicies->sync(true);
 
-	m_pHarmonicsCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Harmonics", l_NumHarmonics);
+	m_pHarmonicsCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", l_NumHarmonics);
 	memset(m_pHarmonicsCache->getBlockPtr(0), 0, sizeof(glm::vec4) * l_NumHarmonics);
 	m_pHarmonicsCache->sync(true);
 
@@ -363,7 +363,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	m_pResult->sync(true);
 	
 	m_pRayIntersectMatInst->setBlock("g_Indicies", m_pIndicies);
-	m_pRayIntersectMatInst->setBlock("g_Harmonics", m_pHarmonicsCache);
+	m_pRayIntersectMatInst->setBlock("Harmonics", m_pHarmonicsCache);
 	m_pRayIntersectMatInst->setBlock("g_DirLights", a_pScene->getDirLightContainer()->getMaterialBlock());
 	m_pRayIntersectMatInst->setBlock("g_OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
 	m_pRayIntersectMatInst->setBlock("g_SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
@@ -372,7 +372,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	m_pRayIntersectMatInst->setBlock("g_Result", m_pResult);
 
 	m_pRayScatterMatInst->setBlock("g_Indicies", m_pIndicies);
-	m_pRayScatterMatInst->setBlock("g_Harmonics", m_pHarmonicsCache);
+	m_pRayScatterMatInst->setBlock("Harmonics", m_pHarmonicsCache);
 	m_pRayScatterMatInst->setBlock("g_Vertex", m_pVertex);
 	m_pRayScatterMatInst->setBlock("g_Result", m_pResult);
 
@@ -435,7 +435,7 @@ void LightmapAsset::stopBake()
 	m_pHarmonicsCache = nullptr;
 
 	m_pRayIntersectMatInst->setBlock("g_Indicies", nullptr);
-	m_pRayIntersectMatInst->setBlock("g_Harmonics", nullptr);
+	m_pRayIntersectMatInst->setBlock("Harmonics", nullptr);
 	m_pRayIntersectMatInst->setBlock("g_DirLights", nullptr);
 	m_pRayIntersectMatInst->setBlock("g_OmniLights", nullptr);
 	m_pRayIntersectMatInst->setBlock("g_SpotLights", nullptr);
@@ -444,7 +444,7 @@ void LightmapAsset::stopBake()
 	m_pRayIntersectMatInst->setBlock("g_Result", nullptr);
 
 	m_pRayScatterMatInst->setBlock("g_Indicies", nullptr);
-	m_pRayScatterMatInst->setBlock("g_Harmonics", nullptr);
+	m_pRayScatterMatInst->setBlock("Harmonics", nullptr);
 	m_pRayScatterMatInst->setBlock("g_Vertex", nullptr);
 	m_pRayScatterMatInst->setBlock("g_Result", nullptr);
 	m_pRayScatterMatInst->setTexture("g_BaseColor", nullptr);

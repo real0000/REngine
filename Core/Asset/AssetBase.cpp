@@ -9,6 +9,8 @@
 #include "LightmapAsset.h"
 #include "MaterialAsset.h"
 #include "MeshAsset.h"
+#include "PrefabAsset.h"
+#include "SceneAsset.h"
 #include "TextureAsset.h"
 
 namespace R
@@ -30,6 +32,8 @@ AssetManager::AssetManager()
 	registAssetComponent<LightmapAsset>();
 	registAssetComponent<MaterialAsset>();
 	registAssetComponent<MeshAsset>();
+	registAssetComponent<PrefabAsset>();
+	registAssetComponent<SceneAsset>();
 	registAssetComponent<TextureAsset>();
 }
 

@@ -1,6 +1,7 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
+#define _ENCODE_
 #include "Lightmap.h"
 
 #define EDGE_THREASHOLD 0.1

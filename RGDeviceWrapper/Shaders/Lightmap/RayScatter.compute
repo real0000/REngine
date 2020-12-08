@@ -1,6 +1,7 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
+#define _ENCODE_
 #include "Lightmap.h"
 
 void calculateUVNormal(LightmapIntersectResult a_Res, out float3 a_OutputPos, out float2 a_OutputUV, out float3 a_OutputNormal, out float3 a_OutputTangent, out float3 a_OutputBinormal)
