@@ -103,6 +103,16 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData:
     }
 }
 
+static wxString getTextureName(fbxsdk::FbxSurfaceMaterial *a_pMat, const char *a_pName)
+{
+	fbxsdk::FbxProperty l_BaseColorProperty = a_pMat->FindProperty(fbxsdk::FbxSurfaceMaterial::sDiffuse);
+	if( l_BaseColorProperty.GetSrcObjectCount<fbxsdk::FbxLayeredTexture>() <= 0 ) return wxT("");
+
+	fbxsdk::FbxLayeredTexture *l_pLayeredTexture = FbxCast<fbxsdk::FbxLayeredTexture>(l_BaseColorProperty.GetSrcObject<fbxsdk::FbxLayeredTexture>(0));
+	fbxsdk::FbxTexture *l_pTexture = FbxCast<fbxsdk::FbxTexture>(l_pLayeredTexture->GetSrcObject<fbxsdk::FbxTexture>(0));
+	return wxString(l_pTexture->GetName());
+}
+
 //
 // ModelData
 //
@@ -116,6 +126,7 @@ ModelData::~ModelData()
 {
 	for( unsigned int i=0 ; i<m_Meshes.size() ; ++i ) delete m_Meshes[i];
 	m_Meshes.clear();
+	m_Materials.clear();
 	SAFE_DELETE(m_pRootNode)
 }
 
@@ -215,6 +226,7 @@ void ModelData::init(wxString a_Filepath)
 
     m_Meshes.resize(l_MeshMap.size(), nullptr);
 	std::vector<int> l_BoneRecord;
+	int l_NumMaterial = 0;
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
@@ -333,11 +345,26 @@ void ModelData::init(wxString a_Filepath)
 			if( 0 != l_pMaterialIndicies->GetCount() )
 			{
 				int l_MatIdx = l_pMaterialIndicies->GetAt(0);
-				m_Materials.insert(l_MatIdx);
 				l_pDstMesh->m_RefMaterial = l_MatIdx;
+				l_NumMaterial = std::max(l_MatIdx + 1, l_NumMaterial);
 			}
 		}
     }
+	
+	m_Materials.resize(l_NumMaterial, Material());
+	const char * c_TextureSlots[TEXUSAGE_TYPECOUNT] = {
+		fbxsdk::FbxSurfaceMaterial::sDiffuse,
+		fbxsdk::FbxSurfaceMaterial::sReflection,
+		fbxsdk::FbxSurfaceMaterial::sSpecularFactor,
+		fbxsdk::FbxSurfaceMaterial::sNormalMap,
+		fbxsdk::FbxSurfaceMaterial::sDisplacementColor};
+	for( int i=0 ; i<l_NumMaterial ; ++i )
+	{
+		fbxsdk::FbxSurfaceMaterial *l_pMat = l_pScene->GetMaterial(i);
+		
+		Material &l_Target = m_Materials[i];
+		for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j ) l_Target.insert(std::make_pair((DefaultTextureUsageType)j, getTextureName(l_pMat, c_TextureSlots[j])));
+	}
 
     l_pScene->Clear();
 	l_pScene->Destroy();

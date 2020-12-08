@@ -67,6 +67,7 @@ bool BasicApp::OnInit()
 	l_pNewMesh->setMesh(l_pMeshAsset, 0);
 
 	std::shared_ptr<R::Asset> l_pDirShadow = R::AssetManager::singleton().createAsset(wxT("sponza_00_Dir.Material"));
+	//l_pDirShadow->getComponent<R::MaterialAsset>()->setTexture();
 	l_pNewMesh->setMaterial(R::MATSLOT_DIR_SHADOWMAP, l_pDirShadow);
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));

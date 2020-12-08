@@ -15,7 +15,7 @@ enum DefaultTextureUsageType
 {
 	TEXUSAGE_BASECOLOR = 0,
 	TEXUSAGE_METAILLIC,
-	TEXUSAGE_ROUGHTNESS,
+	TEXUSAGE_ROUGHNESS,
 	TEXUSAGE_NORMAL,
 	TEXUSAGE_HEIGHT,
 
@@ -91,6 +91,8 @@ public:
 		bool m_bHasBone;
 		glm::aabb m_BoundingBox;
     };
+	typedef std::map<DefaultTextureUsageType, wxString> Material;
+
 public:
 	ModelData();
 	virtual ~ModelData();
@@ -103,8 +105,8 @@ public:
 	std::vector<glm::mat4x4>& getBones(){ return m_Bones; }
 
 private:
-	std::set<int> m_Materials;
     std::vector<Meshes *> m_Meshes;
+	std::vector<Material> m_Materials;
 	std::vector<glm::mat4x4> m_Bones;
 	ModelNode *m_pRootNode;
 };
