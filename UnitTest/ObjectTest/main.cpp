@@ -60,17 +60,9 @@ bool BasicApp::OnInit()
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
-	std::shared_ptr<R::SceneNode> l_pMeshNode = l_pScene->getRootNode()->addChild();
-	std::shared_ptr<R::RenderableMesh> l_pNewMesh = l_pMeshNode->addComponent<R::RenderableMesh>();
+	l_pScene->getRootNode()->addChild(wxT("sponza/sponza.obj"));
 
-	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset(wxT("sponza/sponza.obj"));
-	l_pNewMesh->setMesh(l_pMeshAsset, 0);
-
-	std::shared_ptr<R::Asset> l_pDirShadow = R::AssetManager::singleton().createAsset(wxT("sponza_00_Dir.Material"));
-	//l_pDirShadow->getComponent<R::MaterialAsset>()->setTexture();
-	l_pNewMesh->setMaterial(R::MATSLOT_DIR_SHADOWMAP, l_pDirShadow);
-
-	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
+	//std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	//l_pCameraNode->addComponent<TempComponent>();
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);

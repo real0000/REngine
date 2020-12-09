@@ -3,9 +3,10 @@
     <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
     <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
-    <Srv2D name="BaseColor" desc="" reserved="false"/>
-    <Srv2D name="Normal" desc="" reserved="false"/>
-    <Srv2D name="Surface" desc="" reserved="false"/>
+    <Srv2D name="BaseColor" desc="" reserved="true"/>
+    <Srv2D name="Normal" desc="" reserved="true"/>
+    <Srv2D name="Metal" desc="" reserved="true"/>
+    <Srv2D name="Roughness" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
@@ -21,7 +22,7 @@
       <Compute>
       </Compute>-->
       <Fragment file="Standard.pixel">
-        BaseColor, Normal, Surface
+        BaseColor, Normal, Metal, Roughness
       </Fragment>
     </Model_5_1>
   </Shaders>

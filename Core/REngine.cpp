@@ -185,9 +185,6 @@ EngineSetting::EngineSetting()
 	, m_LightMapSize(8192)
 	, m_TileSize(16.0f)
 	, m_NumRenderCommandList(20)
-	, m_OmniMaterial(wxT("OmniShadowMap.Material"))
-	, m_SpotMaterial(wxT("SpotShadowMap.Material"))
-	, m_DirMaterial(wxT("DirShadowMap.Material"))
 	, m_CDN(wxT(""))
 {
 	boost::property_tree::ptree l_IniFile;
@@ -214,16 +211,6 @@ EngineSetting::EngineSetting()
 	m_LightMapSize = l_IniFile.get("Graphic.LightMapSize", 8192);
 	m_TileSize = l_IniFile.get("Graphic.TileSize", 16.0f);
 	m_NumRenderCommandList = l_IniFile.get("Graphic.NumRenderCommandList", 20);
-
-	m_OmniMaterial = l_IniFile.get("Graphic.OmniShadowMap", "OmniShadowMap.Material");
-	if( !wxFileExists(m_OmniMaterial) )
-	{
-		std::shared_ptr<Asset> l_pShadowMapMat = AssetManager::singleton().createAsset(m_OmniMaterial);
-		MaterialAsset *l_pMaterialInst = l_pShadowMapMat->getComponent<MaterialAsset>();
-		l_pMaterialInst->init(ProgramManager::singleton().getData(DefaultPrograms::OmniShadowMap));
-		AssetManager::singleton().saveAsset(l_pShadowMapMat);
-		l_pShadowMapMat = nullptr;
-	}
 
 	std::vector<wxString> l_Path;
 	splitString(wxT('|'), l_IniFile.get("Asset.ImportPath", "./"), l_Path);
@@ -265,7 +252,6 @@ void EngineSetting::save()
 	l_IniFile.put("Graphic.LightMapSize", m_LightMapSize);
 	l_IniFile.put("Graphic.TileSize", m_TileSize);
 	l_IniFile.put("Graphic.NumRenderCommandList", m_NumRenderCommandList);
-	l_IniFile.put("Graphic.OmniShadowMap", m_OmniMaterial);
 
 	l_IniFile.put("Asset.CDN", m_CDN);
 
@@ -290,7 +276,7 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
-	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr)
+	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr), m_DarkgrayTexture(nullptr)
 	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
 	, m_ThreadPool(std::thread::hardware_concurrency())
@@ -360,6 +346,12 @@ void EngineCore::shutDown()
 	SDL_Quit();
 }
 
+wxString EngineCore::convertToAssetPath(wxString a_Path)
+{
+	if( !isAbsolutePath(a_Path) ) return a_Path;
+	return getRelativePath(wxGetCwd(), a_Path);
+}
+
 void EngineCore::addJob(std::function<void()> a_Job)
 {
 	m_ThreadPool.addJob(a_Job);
@@ -403,6 +395,11 @@ bool EngineCore::init()
 	m_BlueTexture = AssetManager::singleton().createAsset(wxT("Default_Normal.Image"));
 	m_BlueTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_BlueTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+
+	memset(l_Color, 0x404040ff, sizeof(unsigned int) * 64);
+	m_DarkgrayTexture = AssetManager::singleton().createAsset(wxT("Default_Refract.Image"));
+	m_DarkgrayTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
+	m_DarkgrayTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
 	const glm::vec3 c_QuadVtx[] = {

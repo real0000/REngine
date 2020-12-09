@@ -221,9 +221,11 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 		{
 			LightMapTextureCache &l_Cache = m_LightMapMaterialCache[it->second];
 			MaterialAsset *l_pMat = it->first->getComponent<MaterialAsset>();
-			l_Cache.m_BaseColor = l_pMat->getTexture(STANDARD_TEXTURE_BASECOLOR);
-			l_Cache.m_Normal = l_pMat->getTexture(STANDARD_TEXTURE_NORMAL);
-			l_Cache.m_Surface = l_pMat->getTexture(STANDARD_TEXTURE_SURFACE);
+			l_Cache.m_pBaseColor = l_pMat->getTexture(STANDARD_TEXTURE_BASECOLOR);
+			l_Cache.m_pNormal = l_pMat->getTexture(STANDARD_TEXTURE_NORMAL);
+			l_Cache.m_pMetal = l_pMat->getTexture(STANDARD_TEXTURE_METAL);
+			l_Cache.m_pRoughness = l_pMat->getTexture(STANDARD_TEXTURE_ROUGHNESS);
+			l_Cache.m_pRefract = l_pMat->getTexture(STANDARD_TEXTURE_REFRACT);
 		}
 	}
 
@@ -414,9 +416,11 @@ void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 		a_pCmd->useProgram(m_pRayScatterMatInst->getProgram());
 
 		m_pRayIntersectMatInst->setParam("c_MatID", 0, i);
-		m_pRayIntersectMatInst->setTexture("BaseColor", m_LightMapMaterialCache[i].m_BaseColor);
-		m_pRayIntersectMatInst->setTexture("Normal", m_LightMapMaterialCache[i].m_Normal);
-		m_pRayIntersectMatInst->setTexture("Surface", m_LightMapMaterialCache[i].m_Surface);
+		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, m_LightMapMaterialCache[i].m_pBaseColor);
+		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_NORMAL, m_LightMapMaterialCache[i].m_pNormal);
+		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_METAL, m_LightMapMaterialCache[i].m_pMetal);
+		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_ROUGHNESS, m_LightMapMaterialCache[i].m_pRoughness);
+		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_REFRACT, m_LightMapMaterialCache[i].m_pRefract);
 		m_pRayIntersectMatInst->bindAll(a_pCmd);
 		a_pCmd->compute(EngineSetting::singleton().m_LightMapSample / 16);
 

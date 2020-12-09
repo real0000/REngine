@@ -346,7 +346,12 @@ std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
 {
 	auto &l_TextureSlotMap = m_pRefProgram->getTextureDesc();
 	auto it = l_TextureSlotMap.find(a_Name);
-	if( l_TextureSlotMap.end() == it ) return a_Name == STANDARD_TEXTURE_NORMAL ? EngineCore::singleton().getBlueTexture() : EngineCore::singleton().getWhiteTexture();
+	if( l_TextureSlotMap.end() == it )
+	{
+		if( STANDARD_TEXTURE_NORMAL == a_Name ) return EngineCore::singleton().getBlueTexture();
+		else if( STANDARD_TEXTURE_REFRACT == a_Name ) return EngineCore::singleton().getDarkgrayTexture();
+		else return EngineCore::singleton().getWhiteTexture();
+	}
 	return (it->second->m_bWrite ? m_RWTexture : m_Textures)[it->second->m_pRegInfo->m_Slot];
 }
 

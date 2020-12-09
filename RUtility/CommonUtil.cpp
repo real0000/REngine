@@ -31,11 +31,18 @@ void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Outpu
 	if( !l_Seg.empty() ) a_Output.push_back(l_Seg);
 }
 
-wxString getFileName(wxString a_File)
+wxString getFileName(wxString a_File, bool a_bWithExt)
 {
 	std::vector<wxString> l_Tokens;
+	a_File.Replace("\\", "/");
 	splitString(wxT('/'), a_File, l_Tokens);
 	if( l_Tokens.empty() ) return wxT("");
+
+	if( !a_bWithExt )
+	{
+		splitString(wxT('.'), l_Tokens.back(), l_Tokens);
+		return l_Tokens.front();
+	}
 
 	return l_Tokens.back();
 }
@@ -72,8 +79,7 @@ wxString getFilePath(wxString a_File)
 	for( unsigned int i=0 ; i<l_Tokens.size() ; i++ )
 	{
 		l_Res += l_Tokens[i];
-		if( i+1 != l_Tokens.size() )
-			l_Res += wxT("/");
+		if( i+1 != l_Tokens.size() ) l_Res += wxT("/");
 	}
 
 	return l_Res;
@@ -140,6 +146,15 @@ wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath)
 	}
 
 	return l_Res;
+}
+
+bool isAbsolutePath(wxString a_Path)
+{
+#ifdef _WIN32
+	return wxNOT_FOUND != a_Path.Find(wxT(':'));
+#else
+	return a_Path[0] != wxT('/');
+#endif
 }
 
 void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)

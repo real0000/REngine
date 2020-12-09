@@ -229,7 +229,9 @@ const unsigned int c_NumShaderPath = sizeof(c_ShaderPath) / sizeof(wxString);
 #define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"
 #define STANDARD_TEXTURE_BASECOLOR	"BaseColor"
 #define STANDARD_TEXTURE_NORMAL		"Normal"
-#define STANDARD_TEXTURE_SURFACE	"Surface"
+#define STANDARD_TEXTURE_METAL		"Metal"
+#define STANDARD_TEXTURE_ROUGHNESS	"Roughness"
+#define STANDARD_TEXTURE_REFRACT	"Refract"
 #define STANDARD_TRANSFORM_NORMAL	"NormalTransition"
 #define STANDARD_TRANSFORM_SKIN		"SkinTransition"
 STRING_ENUM_CLASS(DefaultPrograms,
@@ -245,6 +247,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	CopyDepth,
 	CopyFrame,
 	TextureOnly,
+	Standard,
 	TiledDeferredLighting,
 
 	// shadow map

@@ -58,7 +58,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	}
 	
 	bool l_bRefraction = false;
-	float4 l_Surface = Surface.SampleLevel(SurfaceSampler, l_UV, 0);// r : metallic, g : roughness, b : refractive(/ 4.0)
+	float4 l_Surface = float4(Metal.SampleLevel(MetalSampler, l_UV, 0)
+							, Roughness.SampleLevel(RoughnessSampler, l_UV, 0)
+							, Refract.SampleLevel(RefractSampler, l_UV, 0.0));// r : metallic, g : roughness, b : refractive(/ 4.0)
 	float4 l_SurfaceNormal = Normal.SampleLevel(NormalSampler, l_UV, 0) * 2.0 - 1.0;
 	l_Normal = normalize(l_SurfaceNormal.x * l_Tangent + l_SurfaceNormal.y * l_Binormal + l_SurfaceNormal.z * l_Normal);
 

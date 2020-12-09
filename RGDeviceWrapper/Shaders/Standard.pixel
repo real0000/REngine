@@ -9,7 +9,7 @@ PS_CommonOutput main(PS_CommonInput a_Input)
 	l_SurfaceNormal = normalize(l_SurfaceNormal.x * a_Input.m_Tangent + l_SurfaceNormal.y * a_Input.m_Binormal + l_SurfaceNormal.z * a_Input.m_Normal);
 
 	l_Output.m_Target0.xyz = encodeNormal(l_SurfaceNormal.xyz);
-	l_Output.m_Target1 = Surface.Sample(SurfaceSampler, a_Input.m_Texcoord01.xy);
+	l_Output.m_Target1 = float4(Metal.Sample(MetalSampler, a_Input.m_Texcoord01.xy).x, Roughness.Sample(RoughnessSampler, a_Input.m_Texcoord01.xy).x, 0.0, 1.0);
 	l_Output.m_Target2 = BaseColor.Sample(BaseColorSampler, a_Input.m_Texcoord01.xy);
 	l_Output.m_Target3 = float4(1.0, 0.0, 0.0, 0.0);
 	l_Output.m_Target4 = float4(0.0, 0.0, 0.0, 0.0);

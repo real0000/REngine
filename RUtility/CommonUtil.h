@@ -58,12 +58,13 @@ namespace R
 {
 
 void splitString(wxChar a_Key, wxString a_String, std::vector<wxString> &a_Output);
-wxString getFileName(wxString a_File);
+wxString getFileName(wxString a_File, bool a_bWithExt = true);
 wxString getFileExt(wxString a_File);
 wxString replaceFileExt(wxString a_File, wxString a_NewExt);
 wxString getFilePath(wxString a_File);
 wxString getRelativePath(wxString a_ParentPath, wxString a_File);
 wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath);
+bool isAbsolutePath(wxString a_Path);
 void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output);
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output);
 //void showOpenGLErrorCode(wxString a_StepInfo);

@@ -10,6 +10,7 @@
 #include "Core.h"
 #include "MaterialAsset.h"
 #include "MeshAsset.h"
+#include "TextureAsset.h"
 
 namespace R
 {
@@ -51,7 +52,7 @@ MeshAsset::~MeshAsset()
 
 	for( unsigned int i=0 ; i<m_Meshes.size() ; ++i )
 	{
-		m_Meshes[i]->m_pMaterial = nullptr;
+		m_Meshes[i]->m_Materials.clear();
 		delete m_Meshes[i];
 	}
 	m_Meshes.clear();
@@ -79,6 +80,9 @@ wxString MeshAsset::validAssetKey()
 void MeshAsset::importFile(wxString a_File)
 {
 	std::shared_ptr<ModelData> l_pModel = ModelManager::singleton().getData(a_File).second;
+	std::vector<ModelData::Material> &l_SrcTextureSet = l_pModel->getMaterials();
+	wxString l_ClearFileName(getFileName(a_File, false));
+	wxString l_FilePath(getFilePath(a_File));
 	
 	std::set<ModelNode *> l_NodeSet;
 	{// setup meshes
@@ -97,9 +101,54 @@ void MeshAsset::importFile(wxString a_File)
 
 			l_pDst->m_Name = l_pSrc->m_Name;
 			l_pDst->m_StartIndex = m_Indicies.size();
-			l_pDst->m_pMaterial = AssetManager::singleton().createAsset("Default.Material");
-			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_BASECOLOR, EngineCore::singleton().getWhiteTexture());
-			l_pDst->m_pMaterial->getComponent<MaterialAsset>()->setTexture(STANDARD_TEXTURE_NORMAL, EngineCore::singleton().getBlueTexture());
+
+			std::shared_ptr<Asset> l_pBaseColor = nullptr;
+			std::shared_ptr<Asset> l_pNormal = nullptr;
+			std::shared_ptr<Asset> l_pMetal = nullptr;
+			std::shared_ptr<Asset> l_pRoughness = nullptr;
+			{
+				ModelData::Material &l_ThisMaterial = l_SrcTextureSet[l_pSrc->m_RefMaterial];
+				
+				auto it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
+				if( l_ThisMaterial.end() == it ) l_pBaseColor = EngineCore::singleton().getWhiteTexture();
+				else l_pBaseColor = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+
+				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
+				if( l_ThisMaterial.end() == it ) l_pNormal = EngineCore::singleton().getBlueTexture();
+				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+
+				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
+				if( l_ThisMaterial.end() == it ) l_pMetal = EngineCore::singleton().getWhiteTexture();
+				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+
+				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
+				if( l_ThisMaterial.end() == it ) l_pRoughness = EngineCore::singleton().getWhiteTexture();
+				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+			}
+
+			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey()));
+			std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
+			MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+			l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Standard));
+			l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_NORMAL, l_pNormal);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_METAL, l_pMetal);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_ROUGHNESS, l_pRoughness);
+			l_pDst->m_Materials.insert(std::make_pair(MATSLOT_OPAQUE, l_pMat));
+
+			const std::tuple<wxString, int, int> c_ShadowSlots[] = {
+				std::make_tuple(wxT("%s/%s_%d_DirShadow.%s"), DefaultPrograms::DirShadowMap, MATSLOT_DIR_SHADOWMAP),
+				std::make_tuple(wxT("%s/%s_%d_SpotShadow.%s"), DefaultPrograms::SpotShadowMap, MATSLOT_SPOT_SHADOWMAP),
+				std::make_tuple(wxT("%s/%s_%d_OmniShadow.%s"), DefaultPrograms::OmniShadowMap, MATSLOT_OMNI_SHADOWMAP)};
+			for( unsigned int j=0 ; j<3 ; ++j )
+			{
+				l_MatFile = wxString::Format(std::get<0>(c_ShadowSlots[j]), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey());
+				l_pMat = AssetManager::singleton().createAsset(l_MatFile);
+				l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+				l_pMatInst->init(ProgramManager::singleton().getData(std::get<1>(c_ShadowSlots[j])));
+				l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
+				l_pDst->m_Materials.insert(std::make_pair(std::get<2>(c_ShadowSlots[j]), l_pMat));
+			}
 
 			for( unsigned int j=0 ; j<l_pSrc->m_Vertex.size() ; ++j )
 			{
@@ -162,7 +211,6 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 		l_pDst->m_StartIndex = l_InstanceAttr.get<unsigned int>("indexStart");
 		l_pDst->m_IndexCount = l_InstanceAttr.get<unsigned int>("indexCount");
 		l_pDst->m_VtxFlag = l_InstanceAttr.get<unsigned int>("vtxFlag");
-		l_pDst->m_pMaterial = AssetManager::singleton().getAsset(l_InstanceAttr.get<std::string>("material"));
 		
 		boost::property_tree::ptree l_BoundingBoxes = it->second.get_child("BoundingBoxes");
 		for( auto it2=l_BoundingBoxes.begin() ; it2!=l_BoundingBoxes.end() ; ++it2 )
@@ -181,6 +229,16 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 				parseShaderParamValue(ShaderParamType::float3, it2->second.get_child("Size").data(), reinterpret_cast<char *>(&l_Box.m_Size));
 				l_pDst->m_PhysicsBoundingBox.push_back(l_Box);
 			}
+		}
+
+		boost::property_tree::ptree l_Materials = it->second.get_child("Materials");
+		for( auto it2=l_Materials.begin() ; it2!=l_Materials.end() ; ++it2 )
+		{
+			if( "<xmlattr>" == it2->first ) continue;
+			
+			unsigned int l_Slot = 0;
+			sscanf(it->first.c_str(), "Slot%d", &l_Slot);
+			l_pDst->m_Materials.insert(std::make_pair(l_Slot, AssetManager::singleton().getAsset(it2->second.data())));
 		}
 	}
 	
@@ -272,9 +330,15 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 		l_InstanceAttr.add("indexStart", m_Meshes[i]->m_StartIndex);
 		l_InstanceAttr.add("indexCount", m_Meshes[i]->m_IndexCount);
 		l_InstanceAttr.add("vtxFlag", m_Meshes[i]->m_VtxFlag);
-		l_InstanceAttr.add("material", m_Meshes[i]->m_pMaterial->getKey().c_str());
 		l_Instance.add_child("<xmlattr>", l_InstanceAttr);
-
+		
+		boost::property_tree::ptree l_Materials;
+		for( auto it=m_Meshes[i]->m_Materials.begin() ; it!=m_Meshes[i]->m_Materials.end() ; ++it )
+		{
+			char l_Buff[32];
+			snprintf(l_Buff, 32, "Slot%d", it->first);
+			l_Materials.put(l_Buff, it->second->getKey().c_str());
+		}
 		boost::property_tree::ptree l_BoundingBoxes;
 		{
 			boost::property_tree::ptree l_BoundingBox;
@@ -289,6 +353,7 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 			l_BoundingBox.put("Size", convertParamValue(ShaderParamType::float3, reinterpret_cast<char *>(&m_Meshes[i]->m_PhysicsBoundingBox[j].m_Size)));
 			l_BoundingBoxes.add_child("PhysicsBoundingBox", l_BoundingBox);
 		}
+		l_Instance.add_child("Materials", l_Materials);
 		l_Instance.add_child("BoundingBoxes", l_BoundingBoxes);
 		l_Instances.add_child("Instance", l_Instance);
 	}

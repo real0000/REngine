@@ -169,11 +169,6 @@ public:
 	float m_TileSize;
 	unsigned int m_NumRenderCommandList;
 
-	// default shadow map
-	wxString m_OmniMaterial;
-	wxString m_SpotMaterial;
-	wxString m_DirMaterial;
-
 	// Asset
 	wxString m_CDN;
 
@@ -197,6 +192,7 @@ public:
 	void shutDown();
 
 	// utility
+	wxString convertToAssetPath(wxString a_Path);
 	template<typename T>
 	void registComponentReflector(){ SceneNode::registComponentReflector<T>(); }
 	template<typename T>
@@ -205,6 +201,7 @@ public:
 	void registRenderPipelineReflector(){ Scene::registRenderPipelineReflector<T>(); }
 	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture; }
 	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture; }
+	std::shared_ptr<Asset> getDarkgrayTexture(){ return m_DarkgrayTexture; }
 	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
 	void addJob(std::function<void()> a_Job);
 	void join();
@@ -219,7 +216,7 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 
-	std::shared_ptr<Asset> m_WhiteTexture, m_BlueTexture;
+	std::shared_ptr<Asset> m_WhiteTexture, m_BlueTexture, m_DarkgrayTexture;
 	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
 	std::thread m_MainLoop;

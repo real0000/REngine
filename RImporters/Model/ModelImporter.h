@@ -100,6 +100,7 @@ public:
 	void init(wxString a_Filepath);
 
 	std::vector<Meshes *>& getMeshes(){ return m_Meshes; }
+	std::vector<Material>& getMaterials(){ return m_Materials; }
 	ModelNode* find(wxString a_Name);
 	ModelNode* getRootNode(){ return m_pRootNode; }
 	std::vector<glm::mat4x4>& getBones(){ return m_Bones; }

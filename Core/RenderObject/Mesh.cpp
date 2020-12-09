@@ -119,16 +119,13 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 	m_pMesh = a_pAsset;
 	m_MeshIdx = a_MeshIdx;
-	syncKeyMap();
 	
 	m_SkinOffset = getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
 
 	MeshAsset::Instance *l_pMeshInst = a_pAsset->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
-	for( auto it=m_Materials.begin() ; it!=m_Materials.end() ; ++it )
-	{
-		if( 0 == it->first ) continue;
-		it->second.second->getComponent<MaterialAsset>()->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
-	}
+	m_Materials.clear();
+	for( auto it=l_pMeshInst->m_Materials.begin() ; it!=l_pMeshInst->m_Materials.end() ; ++it ) setMaterial(it->first, it->second);
+	syncKeyMap();
 
 	glm::vec3 l_Trans, l_Scale;
 	glm::quat l_Rot;

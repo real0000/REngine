@@ -76,16 +76,17 @@ private:
 	};
 	struct LightMapTextureCache
 	{
-		LightMapTextureCache() :
-			m_BaseColor(nullptr), m_Normal(nullptr), m_Surface(nullptr){}
+		LightMapTextureCache() : m_pBaseColor(nullptr), m_pNormal(nullptr), m_pMetal(nullptr), m_pRoughness(nullptr), m_pRefract(nullptr){}
 		~LightMapTextureCache()
 		{
-			m_BaseColor = nullptr;
-			m_Normal = nullptr;
-			m_Surface = nullptr;
+			m_pBaseColor = nullptr;
+			m_pNormal = nullptr;
+			m_pMetal = nullptr;
+			m_pRoughness = nullptr;
+			m_pRefract = nullptr;
 		}
 
-		std::shared_ptr<Asset> m_BaseColor, m_Normal, m_Surface;
+		std::shared_ptr<Asset> m_pBaseColor, m_pNormal, m_pMetal, m_pRoughness, m_pRefract;
 	};
 	struct LightMapVtxSrc
 	{

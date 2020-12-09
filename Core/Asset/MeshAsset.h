@@ -26,7 +26,7 @@ public:
 		unsigned int m_VtxFlag;
 		glm::aabb m_VisibleBoundingBox;
 		std::vector<glm::aabb> m_PhysicsBoundingBox;
-		std::shared_ptr<Asset> m_pMaterial;
+		std::map<unsigned int, std::shared_ptr<Asset>> m_Materials;// mat slot : material asset
 	};
 	struct Relation
 	{

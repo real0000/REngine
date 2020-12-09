@@ -7,12 +7,14 @@
     <Constant name="c_MatID" type="int1" reserved="false"/>
     <Srv2D name="BaseColor" desc="" reserved="true"/>
     <Srv2D name="Normal" desc="" reserved="true"/>
-    <Srv2D name="Surface" desc="" reserved="true"/>
+    <Srv2D name="Metal" desc="" reserved="true"/>
+    <Srv2D name="Roughness" desc="" reserved="true"/>
+    <Srv2D name="Refract" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Compute file="Lightmap/RayScatter.compute">
-        g_Indicies, Harmonics, g_Vertex, g_Result, BaseColor, Normal, Surface
+        g_Indicies, Harmonics, g_Vertex, g_Result, BaseColor, Normal, Metal, Roughness, Refract
       </Compute>
     </Model_5_1>
   </Shaders>

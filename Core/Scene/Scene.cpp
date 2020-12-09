@@ -365,6 +365,30 @@ std::shared_ptr<SceneNode> SceneNode::addChild()
 	return l_pNewNode;
 }
 
+std::shared_ptr<SceneNode> SceneNode::addChild(wxString a_MeshPath)
+{
+	std::shared_ptr<SceneNode> l_pNewRootNode = SceneNode::create(m_pRefScene, shared_from_this());
+	m_Children.push_back(l_pNewRootNode);
+
+	std::shared_ptr<Asset> l_pMeshAsset = AssetManager::singleton().getAsset(a_MeshPath);
+	MeshAsset *l_pMeshAssetInst = l_pMeshAsset->getComponent<MeshAsset>();
+	const std::vector<MeshAsset::Relation*> &l_MeshList = l_pMeshAssetInst->getRelation();
+
+	for( unsigned int i=0 ; i<l_MeshList.size() ; ++i )
+	{
+		MeshAsset::Relation *l_pRelation = l_MeshList[i];
+		std::shared_ptr<SceneNode> l_pChildNode = l_pNewRootNode->addChild();
+		l_pChildNode->setName(l_pRelation->m_Nodename);
+		for( unsigned int j=0 ; j<l_pRelation->m_RefMesh.size() ; ++j )
+		{
+			std::shared_ptr<RenderableMesh> l_pNewMeshComponent = l_pChildNode->addComponent<RenderableMesh>();
+			l_pNewMeshComponent->setMesh(l_pMeshAsset, l_pRelation->m_RefMesh[j]);
+		}
+	}
+
+	return l_pNewRootNode;
+}
+
 std::shared_ptr<SceneNode> SceneNode::addChild(boost::property_tree::ptree &a_TreeNode)
 {
 	std::shared_ptr<SceneNode> l_pNewNode = SceneNode::create(m_pRefScene, shared_from_this());
