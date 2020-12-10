@@ -246,7 +246,6 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	Copy,
 	CopyDepth,
 	CopyFrame,
-	TextureOnly,
 	Standard,
 	TiledDeferredLighting,
 

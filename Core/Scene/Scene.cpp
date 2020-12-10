@@ -30,7 +30,7 @@ SceneBatcher::SingletonBatchData::SingletonBatchData()
 	: m_SkinBlock(nullptr), m_WorldBlock(nullptr)
 	, m_SkinSlotManager(), m_WorldSlotManager()
 {
-	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly)->getBlockDesc(ShaderRegType::UavBuffer);
+	auto &l_DescList = ProgramManager::singleton().getData(DefaultPrograms::Standard)->getBlockDesc(ShaderRegType::UavBuffer);
 	auto it = std::find_if(l_DescList.begin(), l_DescList.end(), [=](ProgramBlockDesc *a_pDesc) -> bool{ return STANDARD_TRANSFORM_SKIN == a_pDesc->m_Name; });
 	m_SkinBlock = MaterialBlock::create(ShaderRegType::UavBuffer, *it, BATCHDRAW_UNIT);
 	m_SkinSlotManager.init(BATCHDRAW_UNIT);

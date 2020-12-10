@@ -92,9 +92,6 @@
     <None Include="Shaders\TiledLightIntersection.xml">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Shaders\TextureOnly.xml">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\BlockDefine.xml">
       <Filter>Shaders</Filter>
     </None>
@@ -102,9 +99,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\StdInclude.h">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\TextureOnly.pixel">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\CopyDepth.pixel">

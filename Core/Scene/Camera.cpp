@@ -25,7 +25,7 @@ Camera::Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_
 	, m_ViewParam(glm::pi<float>() / 3.0f, 16.0f / 9.0f, 0.1f, 10000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
 {
-	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::TextureOnly);
+	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::Standard);
 
 	auto l_BlockDescVec = l_pProgram->getBlockDesc(ShaderRegType::ConstBuffer);
 	auto l_BlockDescIt = std::find_if(l_BlockDescVec.begin(), l_BlockDescVec.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return a_pBlock->m_StructureName == "CameraBuffer"; });

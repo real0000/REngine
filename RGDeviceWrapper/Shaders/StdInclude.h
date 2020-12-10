@@ -40,7 +40,7 @@
 		uint4 m_BoneID : BLENDINDICES0;
 		float4 m_Weight : BLENDWEIGHT0;
 		float4 m_Color : COLOR0;
-		uint4 m_InstanceID : TEXCOORD4;
+		uint4 m_InstanceID : BLENDINDICES1;
 	};
 	struct VS_CommonOutput
 	{
@@ -48,12 +48,12 @@
 		float4 m_Texcoord23 : TEXCOORD1;
 		float4 m_Texcoord45 : TEXCOORD2;
 		float4 m_Texcoord67 : TEXCOORD3;
-		float4 m_Normal : NORMAL0;
-		float4 m_Tangent : TANGENT0;
-		float4 m_Binormal : BINORMAL0;
+		float4 m_Normal : NORMAL;
+		float4 m_Tangent : TANGENT;
+		float4 m_Binormal : BINORMAL;
 		float4 m_Color : COLOR0;
+		uint4 m_InstanceID : BLENDINDICES0;
 		float4 m_Position : SV_Position;
-		uint4 m_InstanceID : TEXCOORD4;
 	};
 
 	struct HS_TriangleFactor
@@ -68,10 +68,11 @@
 		float4 m_Texcoord23 : TEXCOORD1;
 		float4 m_Texcoord45 : TEXCOORD2;
 		float4 m_Texcoord67 : TEXCOORD3;
-		float4 m_Normal : NORMAL0;
-		float4 m_Tangent : TANGENT0;
-		float4 m_Binormal : BINORMAL0;
+		float4 m_Normal : NORMAL;
+		float4 m_Tangent : TANGENT;
+		float4 m_Binormal : BINORMAL;
 		float4 m_Color : COLOR0;
+		uint4 m_InstanceID : BLENDINDICES0;
 	};
 
 	struct PS_CommonOutput

@@ -1,26 +1,26 @@
 #include "stdInclude.h"
 #include "autoBinder.h"
 
-VS_CommonOutput main(VS_CommonInput l_Input)
+VS_CommonOutput main(VS_CommonInput a_Input)
 {
 	VS_CommonOutput l_Output = (VS_CommonOutput)0;
-	l_Output.m_InstanceID = l_Input.m_InstanceID;
-	TransformInfo l_Transform = NormalTransition[l_Input.m_InstanceID.x];
+	l_Output.m_InstanceID = a_Input.m_InstanceID;
+	TransformInfo l_Transform = NormalTransition[a_Input.m_InstanceID.x];
 
-	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD01) ) l_Output.m_Texcoord01 = l_Input.m_Texcoord01;
-	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD23) ) l_Output.m_Texcoord23 = l_Input.m_Texcoord23;
-	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD45) ) l_Output.m_Texcoord45 = l_Input.m_Texcoord45;
-	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD67) ) l_Output.m_Texcoord67 = l_Input.m_Texcoord67;
-	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_COLOR) ) l_Output.m_Color = l_Input.m_Color;
+	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD01) ) l_Output.m_Texcoord01 = a_Input.m_Texcoord01;
+	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD23) ) l_Output.m_Texcoord23 = a_Input.m_Texcoord23;
+	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD45) ) l_Output.m_Texcoord45 = a_Input.m_Texcoord45;
+	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_TEXCOORD67) ) l_Output.m_Texcoord67 = a_Input.m_Texcoord67;
+	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_COLOR) ) l_Output.m_Color = a_Input.m_Color;
 	
 	float4x4 l_WorldTransform;
 	if( 0 != (l_Transform.m_VtxFlag & USE_SKIN) )
 	{
 		uint l_SkinBase = l_Transform.m_SkinMatBase;
-		l_WorldTransform = SkinTransition[l_SkinBase + l_Input.m_BoneID.x].m_Matrix * l_Input.m_Weight.x
-						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.y].m_Matrix * l_Input.m_Weight.y
-						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.z].m_Matrix * l_Input.m_Weight.z
-						 + SkinTransition[l_SkinBase + l_Input.m_BoneID.w].m_Matrix * l_Input.m_Weight.w;
+		l_WorldTransform = SkinTransition[l_SkinBase + a_Input.m_BoneID.x].m_Matrix * a_Input.m_Weight.x
+						 + SkinTransition[l_SkinBase + a_Input.m_BoneID.y].m_Matrix * a_Input.m_Weight.y
+						 + SkinTransition[l_SkinBase + a_Input.m_BoneID.z].m_Matrix * a_Input.m_Weight.z
+						 + SkinTransition[l_SkinBase + a_Input.m_BoneID.w].m_Matrix * a_Input.m_Weight.w;
 	}
 	else l_WorldTransform = float4x4(1.0, 0.0, 0.0, 0.0
 									,0.0, 1.0, 0.0, 0.0
@@ -30,15 +30,15 @@ VS_CommonOutput main(VS_CommonInput l_Input)
 	{
 		l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
 	}
-	l_Output.m_Position = mul(float4(l_Input.m_Position, 1.0), l_WorldTransform);
+	l_Output.m_Position = mul(float4(a_Input.m_Position, 1.0), l_WorldTransform);
 
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_NORMAL) )
 	{
-		l_Output.m_Normal = mul(float4(l_Input.m_Normal, 0.0), l_WorldTransform);
+		l_Output.m_Normal = mul(float4(a_Input.m_Normal, 0.0), l_WorldTransform);
 		if( 0 != (l_Transform.m_VtxFlag & USE_NORMAL_TEXTURE ) )
 		{
-			l_Output.m_Tangent = mul(float4(l_Input.m_Tangent, 0.0), l_WorldTransform);
-			l_Output.m_Binormal = mul(float4(l_Input.m_Binormal, 0.0), l_WorldTransform);
+			l_Output.m_Tangent = mul(float4(a_Input.m_Tangent, 0.0), l_WorldTransform);
+			l_Output.m_Binormal = mul(float4(a_Input.m_Binormal, 0.0), l_WorldTransform);
 		}
 	}
 
