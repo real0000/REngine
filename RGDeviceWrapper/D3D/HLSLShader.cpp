@@ -693,7 +693,7 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 					l_ConstSlot.Constant.RootParameterIndex = it->second.first->m_RootIndex;
 					l_IndirectCmdDesc.push_back(l_ConstSlot);
 
-					m_IndirectCmdSize += sizeof(unsigned int);
+					m_IndirectCmdSize += sizeof(unsigned int) * l_ConstSlot.Constant.Num32BitValuesToSet;
 					}break;
 
 				case ShaderRegType::ConstBuffer:{
@@ -841,17 +841,19 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 {
 	wxString l_ShaderName(ProgramManager::singleton().findFullPath(a_Filename));
 	assert(!l_ShaderName.IsEmpty());
+	
+	wxString l_ShaderBinaryFile(l_ShaderName);
+	l_ShaderBinaryFile.insert(l_ShaderName.find_last_of(wxT('.')), wxString::Format(wxT("_%d_%d"), a_Module.first, a_Module.second));
+	l_ShaderBinaryFile += wxT(".cso");
 
-	wxString l_ShaderBinaryFile(wxString::Format(wxT("%s_%s_%d_%d.cso"), a_pProgrom->getName().c_str(), a_Filename.c_str(), a_Module.first, a_Module.second));
-	wxString l_ShaderBinary(ProgramManager::singleton().findFullPath(l_ShaderBinaryFile));
-	bool l_bNeedRecompile = l_ShaderBinary.IsEmpty();
+	bool l_bNeedRecompile = wxFile::Exists(l_ShaderBinaryFile);
 	if( !l_bNeedRecompile )
 	{
 		wxStructStat l_TextState, l_BinaryState;
 		
 		wxStat(l_ShaderName, &l_TextState);
 		wxDateTime l_TextTime(l_TextState.st_mtime);
-		wxStat(l_ShaderBinary, &l_BinaryState);
+		wxStat(l_ShaderBinaryFile, &l_BinaryState);
 		wxDateTime l_BinaryTime(l_BinaryState.st_mtime);
 		l_bNeedRecompile = l_TextTime.GetValue() > l_BinaryTime.GetValue();
 	}
@@ -859,7 +861,7 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 	ID3DBlob *l_pShader = nullptr;
 	if( !l_bNeedRecompile )
 	{
-		FILE *fp = fopen(l_ShaderBinary.c_str(), "rb");
+		FILE *fp = fopen(l_ShaderBinaryFile.c_str(), "rb");
 		fseek(fp, 0, SEEK_END);
 		long l_Filesize = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
@@ -901,7 +903,7 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 			wxString l_Msg(static_cast<const char *>(l_pErrorMsg->GetBufferPointer()));
 			if( wxNOT_FOUND != l_Msg.Find(wxT("error")) )
 			{
-				wxMessageBox(wxString::Format(wxT("Failed to compile shader :\n%s"), l_Msg.c_str()), wxT("HLSLContainer::compile"));
+				wxMessageBox(wxString::Format(wxT("Failed to compile shader :\n%s"), l_Msg.c_str()), wxT("HLSLComponent::compile"));
 				SAFE_RELEASE(l_pErrorMsg)
 				return nullptr;
 			}
@@ -909,8 +911,7 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 		}
 		else
 		{
-			l_ShaderBinary = getFilePath(l_ShaderName) + "/" + l_ShaderBinaryFile;
-			FILE *fp = fopen(l_ShaderBinary.c_str(), "wb");
+			FILE *fp = fopen(l_ShaderBinaryFile.c_str(), "wb");
 			fwrite(l_pShader->GetBufferPointer(), 1, l_pShader->GetBufferSize(), fp);
 			fclose(fp);
 		}

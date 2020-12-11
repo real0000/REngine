@@ -8,7 +8,7 @@
 #define NEXT_HARMONIC	g_Indicies[1].z
 #define VALID_THREAD	g_Indicies[1].w
 
-#deifne LIGHTMAP_STATE_IDLE		0
+#define LIGHTMAP_STATE_IDLE		0
 #define LIGHTMAP_STATE_SCATTER	(1*0x00000100)
 #define LIGHTMAP_STATE_THROUGH	(2*0x00000100)
 #define LIGHTMAP_STATE_TOSKY	(3*0x00000100)
@@ -182,7 +182,7 @@ float4 decodeHarmonic(float3 a_Normal, int a_HarmonicOffset)
 	float4 l_Res = float4(0.0, 0.0, 0.0, 1.0);
     for( int i=0 ; i<16 ; ++i )
     {
-        l_Res.xyz += Harmonics[a_HarmonicOffset + i].xyz / HARMONIC_SCALE * l_Basis[i];
+        l_Res.xyz += Harmonics[a_HarmonicOffset + i].m_Params.xyz / HARMONIC_SCALE * l_Basis[i];
     }
     
     return l_Res;

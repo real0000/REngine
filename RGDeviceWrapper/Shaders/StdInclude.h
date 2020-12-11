@@ -48,9 +48,9 @@
 		float4 m_Texcoord23 : TEXCOORD1;
 		float4 m_Texcoord45 : TEXCOORD2;
 		float4 m_Texcoord67 : TEXCOORD3;
-		float4 m_Normal : NORMAL;
-		float4 m_Tangent : TANGENT;
-		float4 m_Binormal : BINORMAL;
+		float3 m_Normal : NORMAL0;
+		float3 m_Tangent : TANGENT0;
+		float3 m_Binormal : BINORMAL0;
 		float4 m_Color : COLOR0;
 		uint4 m_InstanceID : BLENDINDICES0;
 		float4 m_Position : SV_Position;
@@ -68,11 +68,12 @@
 		float4 m_Texcoord23 : TEXCOORD1;
 		float4 m_Texcoord45 : TEXCOORD2;
 		float4 m_Texcoord67 : TEXCOORD3;
-		float4 m_Normal : NORMAL;
-		float4 m_Tangent : TANGENT;
-		float4 m_Binormal : BINORMAL;
+		float3 m_Normal : NORMAL0;
+		float3 m_Tangent : TANGENT0;
+		float3 m_Binormal : BINORMAL0;
 		float4 m_Color : COLOR0;
 		uint4 m_InstanceID : BLENDINDICES0;
+		float4 m_Position : SV_Position;
 	};
 
 	struct PS_CommonOutput

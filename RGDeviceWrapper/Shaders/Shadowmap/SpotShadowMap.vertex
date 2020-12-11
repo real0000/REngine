@@ -10,7 +10,7 @@ struct VS_Output
 
 VS_Output main(VS_CommonInput l_Input)
 {
-	VS_Output l_Output = (VS_CommonOutput)0;
+	VS_Output l_Output = (VS_Output)0;
 
 	TransformInfo l_Transform = NormalTransition[l_Input.m_InstanceID.x];
 	l_Output.m_UV = l_Input.m_Texcoord01.xy;

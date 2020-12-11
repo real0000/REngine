@@ -3,7 +3,7 @@
 
 #include "Lightmap.h"
 
-const float3 c_FaceVectors[4] =
+static const float3 c_FaceVectors[4] =
 {
 	float3(0.0, -0.57735026, 0.81649661),
 	float3(0.0, -0.57735026, -0.81649661),
@@ -12,7 +12,7 @@ const float3 c_FaceVectors[4] =
 };
 
 #define NUM_SAMPLES 17
-const float2 c_PCFSample[NUM_SAMPLES] =
+static const float2 c_PCFSample[NUM_SAMPLES] =
 {
 	float2(-0.94201624, -0.39906216),
 	float2(0.94558609, -0.76890725),
@@ -32,14 +32,14 @@ const float2 c_PCFSample[NUM_SAMPLES] =
 	float2(0.14383161, -0.14100790),
 	float2(0.0, 0.0)
 };
-uint GetFaceIndex(vec3 l_Direction)
+/*uint GetFaceIndex(float3 l_Direction)
 {
-	mat4x3 l_FaceMatrix;
+	float4x3 l_FaceMatrix;
 	l_FaceMatrix[0] = c_FaceVectors[0];
 	l_FaceMatrix[1] = c_FaceVectors[1];
 	l_FaceMatrix[2] = c_FaceVectors[2];
 	l_FaceMatrix[3] = c_FaceVectors[3]; 
-	vec4 l_DotProducts = l_Direction * l_FaceMatrix;
+	float4 l_DotProducts = l_Direction * l_FaceMatrix;
 	float l_Max = max(max(l_DotProducts.x, l_DotProducts.y), max(l_DotProducts.z, l_DotProducts.w));
 
 	uint l_Idx = 3;
@@ -47,7 +47,7 @@ uint GetFaceIndex(vec3 l_Direction)
 	else if(l_Max == l_DotProducts.y) l_Idx = 1;
 	else if(l_Max == l_DotProducts.z) l_Idx = 2;
 	return l_Idx;
-}
+}*/
 float calculateShadowTerm(float a_Depth, float2 a_UV, float4 a_Range)
 {
 	
@@ -77,8 +77,8 @@ float geometrySmith(float3 a_Normal, float3 a_EyeDir, float3 l_LightDir, float a
 {
     float l_NdotV = max(dot(a_Normal, a_EyeDir), 0.0);
     float l_NdotL = max(dot(a_Normal, l_LightDir), 0.0);
-    float l_GGX2  = GeometrySchlickGGX(l_NdotV, a_Roughness);
-    float l_GGX1  = GeometrySchlickGGX(l_NdotL, a_Roughness);
+    float l_GGX2  = geometrySchlickGGX(l_NdotV, a_Roughness);
+    float l_GGX1  = geometrySchlickGGX(l_NdotL, a_Roughness);
 
     return l_GGX1 * l_GGX2;
 }
@@ -102,11 +102,11 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 	l_WorldPos = mul(l_WorldPos, m_InvViewProjection);
 	l_WorldPos /= l_WorldPos.w;
 
-	float3 l_EyeDir = normalize(Camera.m_View._03_13_23 - l_WorldPos.xyz);
+	float3 l_EyeDir = normalize(m_View._m03_m13_m23 - l_WorldPos.xyz);
 
 	int2 l_Tile = a_UV.xy * c_TileCount.xy;
 	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
-	int l_NumLight = TileLights[l_IdxOffset/2].x;
+	int l_NumLight = TileLights[l_IdxOffset/2].m_Params.x;
 
 	float4 l_Res = float4(0.0, 0.0, 0.0, 1.0);
 	for( int i=0 ; i<l_NumLight ; ++i )
@@ -117,6 +117,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 		float l_ShadowTerm = 1.0;
 		float3 l_LightDir;
 		float3 l_Radiance;
+		bool l_bLightValid = true;
 		switch( TileLights[l_SrcIdx.x].m_Params[l_SrcIdx.y + 1] )
 		{
 			case LIGHT_TYPE_OMNI:{
@@ -133,14 +134,23 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 				SpotLight l_Light = SpotLights[l_LightIdx];
 
 				l_LightDir = l_Light.m_Direction;
+				float3 l_Dir = normalize(l_Light.m_Position - l_WorldPos.xyz);
 
 				float l_Falloff = 0.5 * l_Light.m_Angle;
 				float l_Outer = acos(dot(l_Dir, -l_LightDir));
-				if( l_Outer > l_Falloff ) continue;
+				if( l_Outer > l_Falloff )
+				{
+					l_bLightValid = false;
+					break;
+				}
 
 				float l_Length = distance(l_Light.m_Position, l_WorldPos.xyz);
 				float l_Att = (1.0 / (l_Length * l_Length)) * ((l_Falloff - l_Outer) / l_Falloff);
-				if( l_Att <= 0.0 || l_Length > l_Light.m_Range ) continue;
+				if( l_Att <= 0.0 || l_Length > l_Light.m_Range )
+				{
+					l_bLightValid = false;
+					break;
+				}
 				l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
 				
 				/*float4 l_ShadowCoord = mul(l_WorldPos, l_Light.m_ShadowMapProj);
@@ -155,17 +165,18 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 				DirLight l_Light = DirLights[l_LightIdx];
 				
 				l_LightDir = l_Light.m_Direction;
-				l_Radiance = l_Light.m_Color * l_Light.m_Intensity
+				l_Radiance = l_Light.m_Color * l_Light.m_Intensity;
 				}break;
 		}
 
+		if( !l_bLightValid ) continue;
+
 		float3 l_BisVec = normalize(l_EyeDir + l_LightDir);
 		float l_NDF = distributionGGX(l_NormalHeightFlag.xyz, l_BisVec, l_Surface.y);
-		float l_G = GeometrySmith(l_NormalHeightFlag.xyz, l_EyeDir, l_LightDir, l_Surface.y);
+		float l_G = geometrySmith(l_NormalHeightFlag.xyz, l_EyeDir, l_LightDir, l_Surface.y);
 		float3 l_Fresnel = fresnelSchlick(max(dot(l_BisVec, l_EyeDir), 0.0), l_F0);
 
-		float3 l_Specular = l_Fresnel;
-        float3 l_Diffuse = float3(1.0) - l_Specular;
+        float3 l_Diffuse = float3(1.0, 1.0, 1.0) - l_Fresnel;
         l_Diffuse *= (1.0 - l_Surface.x);
 
         float3 l_Nominator = l_NDF * l_G * l_Fresnel;
@@ -211,7 +222,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 		int l_DecodeIdx = l_Box.m_SHResult[l_HarmonicIdx.y * 4 + l_HarmonicIdx.z * 16][l_HarmonicIdx.x];
 		if( -1 != l_DecodeIdx )
 		{
-			l_Res.xyz += decodeHarmonic(l_NormalHeightFlag.xyz, l_DecodeIdx);
+			l_Res.xyz += decodeHarmonic(l_NormalHeightFlag.xyz, l_DecodeIdx).xyz;
 		}
 
 		break;

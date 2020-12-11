@@ -1,4 +1,4 @@
-#include "stdInclude.h"
+#include "StdInclude.h"
 #include "autoBinder.h"
 
 VS_CommonOutput main(VS_CommonInput a_Input)
@@ -34,11 +34,11 @@ VS_CommonOutput main(VS_CommonInput a_Input)
 
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_NORMAL) )
 	{
-		l_Output.m_Normal = mul(float4(a_Input.m_Normal, 0.0), l_WorldTransform);
+		l_Output.m_Normal = mul(float4(a_Input.m_Normal, 0.0), l_WorldTransform).xyz;
 		if( 0 != (l_Transform.m_VtxFlag & USE_NORMAL_TEXTURE ) )
 		{
-			l_Output.m_Tangent = mul(float4(a_Input.m_Tangent, 0.0), l_WorldTransform);
-			l_Output.m_Binormal = mul(float4(a_Input.m_Binormal, 0.0), l_WorldTransform);
+			l_Output.m_Tangent = mul(float4(a_Input.m_Tangent, 0.0), l_WorldTransform).xyz;
+			l_Output.m_Binormal = mul(float4(a_Input.m_Binormal, 0.0), l_WorldTransform).xyz;
 		}
 	}
 

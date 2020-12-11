@@ -471,6 +471,7 @@ public:
 	wxString findFullPath(wxString a_Filename)
 	{
 		if( a_Filename.StartsWith("./") ) a_Filename = a_Filename.Remove(0, 2);
+		
 		for( unsigned int i=0 ; i<m_SearchPath.size() ; ++i )
 		{
 			wxString l_FilePath(m_SearchPath[i] + a_Filename);

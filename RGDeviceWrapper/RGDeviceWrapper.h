@@ -223,7 +223,7 @@ STRING_ENUM_CLASS(AddressMode,
 
 const wxString c_ShaderPath[] = {
 	wxT("Shaders/"), 
-	wxT("Shaders/Lightmap/")
+	wxT("Shaders/Lightmap/"),
 	wxT("Shaders/Shadowmap/")};
 const unsigned int c_NumShaderPath = sizeof(c_ShaderPath) / sizeof(wxString);
 #define SAHDER_BLOCK_DEFINE_FILE "BlockDefine.xml"
