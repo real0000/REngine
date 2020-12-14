@@ -1,7 +1,7 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-const float3 c_PlaneNormals[12] =
+static const float3 c_PlaneNormals[12] =
 {
 	float3(0.00000000, -0.03477280, 0.99939519),
 	float3(-0.47510946, -0.70667917, 0.52428567),
@@ -53,7 +53,7 @@ void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a
 			for( uint l_VtxIdx=0 ; l_VtxIdx<3 ; ++l_VtxIdx )
 			{
 				GS_Output l_NewVtx;
-				l_NewVtx.m_Position  = mul(l_Input[l_VtxIdx].m_Position, l_TargetLight.m_ViewProj[l_FaceIndex]);
+				l_NewVtx.m_Position  = mul(a_Input[l_VtxIdx].m_Position, l_TargetLight.m_ViewProj[l_FaceIndex]);
 				l_NewVtx.m_UV = a_Input[l_VtxIdx].m_Texcoord01.xy;
 				l_NewVtx.m_TargetData.xyw = l_NewVtx.m_Position.xyz / l_NewVtx.m_Position.w;
 				l_NewVtx.m_TargetData.xy = (l_NewVtx.m_Position.xy * l_TargetLight.m_ShadowMapUV.zw + l_TargetLight.m_ShadowMapUV.xy) * ShadowMapSize;
@@ -63,9 +63,9 @@ void main(triangle VS_CommonOutput a_Input[3], inout TriangleStream<GS_Output> a
 				l_NewVtx.m_Clip.y = l_ClipDist[3 + l_VtxIdx];
 				l_NewVtx.m_Clip.z = l_ClipDist[6 + l_VtxIdx];
 
-				l_Output.Append(l_NewVtx);
+				a_Output.Append(l_NewVtx);
 			}
-			l_Output.RestartStrip();
+			a_Output.RestartStrip();
 		}
 	}
 }

@@ -183,10 +183,10 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 					*l_RegRangeCollect.back() = {};
 
 					l_RegRangeCollect.back()->RangeType = l_pSrcDesc->m_bWrite ? D3D12_DESCRIPTOR_RANGE_TYPE_UAV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-					l_RegRangeCollect.back()->NumDescriptors = (l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE : 1;
+					l_RegRangeCollect.back()->NumDescriptors = /*(l_Type == ShaderRegType::Srv2DArray || l_Type == ShaderRegType::SrvCubeArray) ? TEXTURE_ARRAY_SIZE :*/ 1;
 					l_RegRangeCollect.back()->BaseShaderRegister = l_TargetSlot;
 					l_RegRangeCollect.back()->RegisterSpace = 0;
-					l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
+					l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 										
 					l_RegCollect.back().ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 					l_RegCollect.back().DescriptorTable.NumDescriptorRanges = 1;
@@ -206,7 +206,7 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 						l_RegRangeCollect.back()->NumDescriptors = 1;
 						l_RegRangeCollect.back()->BaseShaderRegister = l_SamplerSlot;
 						l_RegRangeCollect.back()->RegisterSpace = 0;
-						l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = 0;
+						l_RegRangeCollect.back()->OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 						l_RegCollect.push_back({});
 						
@@ -837,13 +837,17 @@ HRESULT __stdcall HLSLComponent::Close(LPCVOID a_pData)
     return S_OK;
 }
 
-void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
+void* HLSLComponent::getShader(ShaderProgram *a_pProgram, wxString a_Filename, ShaderStages::Key a_Stage, std::pair<int, int> a_Module, std::map<std::string, std::string> &a_ParamDefine)
 {
 	wxString l_ShaderName(ProgramManager::singleton().findFullPath(a_Filename));
 	assert(!l_ShaderName.IsEmpty());
 	
+	wxString l_ClearProgramName(a_pProgram->getName());
+	l_ClearProgramName = l_ClearProgramName.Remove(l_ClearProgramName.find_last_of(wxT('.')) + 1);
+
 	wxString l_ShaderBinaryFile(l_ShaderName);
-	l_ShaderBinaryFile.insert(l_ShaderName.find_last_of(wxT('.')), wxString::Format(wxT("_%d_%d"), a_Module.first, a_Module.second));
+	l_ShaderBinaryFile.insert(l_ShaderName.find_last_of(wxT('/')) + 1, l_ClearProgramName);
+	l_ShaderBinaryFile.insert(l_ShaderBinaryFile.find_last_of(wxT('.')), wxString::Format(wxT("_%d_%d"), a_Module.first, a_Module.second));
 	l_ShaderBinaryFile += wxT(".cso");
 
 	bool l_bNeedRecompile = wxFile::Exists(l_ShaderBinaryFile);
@@ -872,7 +876,7 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgrom, wxString a_Filename, S
 	}
 	else
 	{
-		setupParamDefine(a_pProgrom, a_Stage);
+		setupParamDefine(a_pProgram, a_Stage);
 
 		D3D_SHADER_MACRO *l_Macros = nullptr;
 		if( !a_ParamDefine.empty() )

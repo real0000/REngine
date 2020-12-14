@@ -1,6 +1,6 @@
 <root isCompute="true" isIndexed="false">
   <ParamList>
-    <Srv2DArray name="ShadowMap" desc="" write="true" reserved="true"/>
+    <Srv2DArray name="ShadowMap" type="int1" desc="" write="true" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>

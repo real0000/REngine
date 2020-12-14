@@ -13,5 +13,5 @@ void main(PS_Input a_Input)
 	if( l_BaseColor.w < 0.01 ) clip(-1);
 
 	int4 l_Cast = uint4(a_Input.m_TargetData.xyz, a_Input.m_TargetData.w * 256.0);
-	InterlockedMin(ShadowMap[l_Cast.xyz], l_Cast.w);
+	InterlockedMin(ShadowMap[l_Cast.xyz].x, l_Cast.w);
 }

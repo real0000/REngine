@@ -42,7 +42,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 			l_Res.m_TriangleIdx = -1;
 			l_Res.m_CurrBoxID = l_bUseNext ? NEXT_BOX : CURR_BOX;
 
-			l_Box = g_Box[l_Res.m_CurrBoxID];
+			l_Box = g_Box[l_Res.m_CurrBoxID.x];
 			l_Res.m_RayOrigin = l_Box.m_BoxCenter;
 			
 			int3 l_BoxIdx;
@@ -67,22 +67,22 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 		case LIGHTMAP_STATE_TREADEND: return;
 
 		case LIGHTMAP_STATE_CHILDBOX:{
-			l_Box = g_Box[l_Res.m_CurrBoxID];
+			l_Box = g_Box[l_Res.m_CurrBoxID.x];
 
 			float l_Min = FLT_MAX;
 			bool l_bFoundMinBox = false;
 			bool l_bLeaf = true;
 			for( int i=0 ; i<8 ; ++i )
 			{
-				if( -1 == l_Box.m_Children[i] ) continue;
+				if( -1 == l_Box.m_Children[i/4][i%4] ) continue;
 				l_bLeaf = false;
 
-				LightmapBoxCache l_ChildBox = g_Box[l_Box.m_Children[i]];
+				LightmapBoxCache l_ChildBox = g_Box[l_Box.m_Children[i/4][i%4]];
 				if( abs(l_Res.m_RayOrigin.x - l_ChildBox.m_BoxCenter.x) - 0.5 * l_ChildBox.m_BoxSize.x <= EDGE_THREASHOLD &&
 					abs(l_Res.m_RayOrigin.y - l_ChildBox.m_BoxCenter.y) - 0.5 * l_ChildBox.m_BoxSize.y <= EDGE_THREASHOLD &&
 					abs(l_Res.m_RayOrigin.z - l_ChildBox.m_BoxCenter.z) - 0.5 * l_ChildBox.m_BoxSize.z <= EDGE_THREASHOLD )
 				{
-					l_Res.m_CurrBoxID = l_Box.m_Children[i];
+					l_Res.m_CurrBoxID.x = l_Box.m_Children[i/4][i%4];
 					g_Result[a_ThreadID.x] = l_Res;
 					return;
 				}
@@ -92,7 +92,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 				{
 					l_Min = l_Dist;
 					l_bFoundMinBox = true;
-					l_Res.m_CurrBoxID = l_Box.m_Children[i];
+					l_Res.m_CurrBoxID.x = l_Box.m_Children[i/4][i%4];
 				}
 			}
 			if( l_bFoundMinBox )
@@ -111,8 +111,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 			}break;
 
 		case LIGHTMAP_STATE_NEXTBOX:{
-			l_Box = g_Box[l_Res.m_CurrBoxID];
-
+			l_Box = g_Box[l_Res.m_CurrBoxID.x];
+			
+			float l_Min = FLT_MAX;
 			float3 l_LengthSign = sign(l_Res.m_RayDir) * 0.5;
 			float3 l_LengthVec = abs((l_Box.m_BoxCenter + l_LengthSign * l_Box.m_BoxSize - l_Res.m_RayOrigin) / l_Res.m_RayDir);
 			int3 l_DirOffset = int3(ZP, ZP, ZP);
@@ -145,8 +146,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 				}
 			}
 
-			l_Res.m_CurrBoxID = l_Box.m_Neighbor[NEIGHBOR_INDEX(l_DirOffset.x, l_DirOffset.y, l_DirOffset.z)];
-			if( -1 == l_Res.m_CurrBoxID )
+			int l_NeighborIdx = NEIGHBOR_INDEX(l_DirOffset.x, l_DirOffset.y, l_DirOffset.z);
+			l_Res.m_CurrBoxID.x = l_Box.m_Neighbor[l_NeighborIdx / 4][l_NeighborIdx % 4];
+			if( -1 == l_Res.m_CurrBoxID.x )
 			{
 				l_Res.m_StateDepth = l_Res.m_StateDepth & 0x000000ff;
 				l_Res.m_StateDepth += LIGHTMAP_STATE_TOSKY;
@@ -170,9 +172,9 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	{
 		if( l_Res.m_TriangleIdx == i ) continue;
 
-		LightmapVertex l_Pos1 = g_Vertex[g_Indicies[i].x];
-		LightmapVertex l_Pos2 = g_Vertex[g_Indicies[i].y];
-		LightmapVertex l_Pos3 = g_Vertex[g_Indicies[i].z];
+		LightmapVertex l_Pos1 = g_Vertex[g_Indicies[i].m_Params.x];
+		LightmapVertex l_Pos2 = g_Vertex[g_Indicies[i].m_Params.y];
+		LightmapVertex l_Pos3 = g_Vertex[g_Indicies[i].m_Params.z];
 
 		float l_Dist = intersectRayTriangle(l_Res.m_RayOrigin, l_Res.m_RayDir, l_Pos1.m_Position, l_Pos2.m_Position, l_Pos3.m_Position);
 		if( l_Dist >= 0.0 && l_Dist < l_MinDist )
@@ -184,10 +186,10 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 
 	int l_TargetLight = -1;
 	float3 l_LightColor;
-	for( int i=l_Box.m_Light.x ; i<l_Box.m_Light.y ; ++i )
+	for( i=l_Box.m_Light.x ; i<l_Box.m_Light.y ; ++i )
 	{
 		int l_Offset = LIGHT_OFFSET + i/2;
-		int2 l_LightIdx = (0 == (i%2)) ? g_Indicies[l_Offset].xy : g_Indicies[l_Offset].zw;
+		int2 l_LightIdx = (0 == (i%2)) ? g_Indicies[l_Offset].m_Params.xy : g_Indicies[l_Offset].m_Params.zw;
 		switch( l_LightIdx.x )
 		{
 			case LIGHT_TYPE_OMNI:{

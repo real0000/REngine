@@ -1,12 +1,12 @@
-#define CURR_BOX		g_Indicies[0].x
-#define CURR_HARMONIC	g_Indicies[0].y
-#define CURR_SAMPLE		g_Indicies[0].z
-#define MAX_DEPTH		((g_Indicies[0].w & 0xff000000) >> 24)
-#define MAX_SAMPLE		(g_Indicies[0].w & 0x00ffffff)
-#define LIGHT_OFFSET	g_Indicies[1].x
-#define NEXT_BOX		g_Indicies[1].y
-#define NEXT_HARMONIC	g_Indicies[1].z
-#define VALID_THREAD	g_Indicies[1].w
+#define CURR_BOX		g_Indicies[0].m_Params.x
+#define CURR_HARMONIC	g_Indicies[0].m_Params.y
+#define CURR_SAMPLE		g_Indicies[0].m_Params.z
+#define MAX_DEPTH		((g_Indicies[0].m_Params.w & 0xff000000) >> 24)
+#define MAX_SAMPLE		(g_Indicies[0].m_Params.w & 0x00ffffff)
+#define LIGHT_OFFSET	g_Indicies[1].m_Params.x
+#define NEXT_BOX		g_Indicies[1].m_Params.y
+#define NEXT_HARMONIC	g_Indicies[1].m_Params.z
+#define VALID_THREAD	g_Indicies[1].m_Params.w
 
 #define LIGHTMAP_STATE_IDLE		0
 #define LIGHTMAP_STATE_SCATTER	(1*0x00000100)
@@ -21,11 +21,13 @@
 #ifdef _ENCODE_
 float intersectRayPlane(float3 a_RayOrigin, float3 a_RayDir, float4 a_Plane)
 {
-	float l_Den = dot(a_Plane, a_RayDir);
-	if( 0.0 == l_Den ) return -FLT_MAX;
-
-	float l_Num = -a_Plane.w - dot(a_Plane, a_RayOrigin);
-	float l_Res = l_Num / l_Den;
+	float l_Res = -FLT_MAX;
+	float l_Den = dot(a_Plane.xyz, a_RayDir);
+	if( 0.0 != l_Den )
+	{
+		float l_Num = -a_Plane.w - dot(a_Plane.xyz, a_RayOrigin);
+		l_Res = l_Num / l_Den;
+	}
 	return l_Res;
 }
 
@@ -47,7 +49,7 @@ float intersectRayAABB(float3 a_RayOrigin, float3 a_RayDir, float3 a_BoxCenter, 
 		float l_Length = intersectRayPlane(a_RayOrigin, a_RayDir, l_Plans[i]);
 		if( l_Length >= 0.0 )
 		{
-			float3 l_Pt = a_RayOrigin + l_Length * m_Direction;
+			float3 l_Pt = a_RayOrigin + l_Length * a_RayDir;
 			if( l_Pt.x >= l_Min.x && l_Pt.y >= l_Min.y && l_Pt.z >= l_Min.z &&
 				l_Pt.x <= l_Max.x && l_Pt.y <= l_Max.y && l_Pt.z <= l_Max.z )
 			{
@@ -69,11 +71,12 @@ float intersectRayTriangle(float3 a_RayOrigin, float3 a_RayDir, float3 a_Pos1, f
 	if( l_OutLength >= 0 )
 	{
 		float3 l_Pt = float3(a_RayOrigin + l_OutLength * a_RayDir);
-		if( dot(l_Pt - a_Pos1, a_Pos2 - a_Pos1) >= 0.0 
-			&& dot(l_Pt - a_Pos2, a_Pos3 - a_Pos2) >= 0.0
-			&& dot(l_Pt - a_Pos3, a_Pos1 - a_Pos3) >= 0.0 ) return l_OutLength;
+		if( dot(l_Pt - a_Pos1, a_Pos2 - a_Pos1) < 0.0 
+			|| dot(l_Pt - a_Pos2, a_Pos3 - a_Pos2) < 0.0
+			|| dot(l_Pt - a_Pos3, a_Pos1 - a_Pos3) < 0.0 ) l_OutLength = -FLT_MAX;
 	}
-	return -FLT_MAX;
+	else l_OutLength = -FLT_MAX;
+	return l_OutLength;
 }
 
 float intersectRaySphere(float3 a_RayOrigin, float3 a_RayDir, float3 a_Center, float a_Range)
@@ -145,8 +148,10 @@ void encodeHarmonic(LightmapIntersectResult a_Res)
     for(int n=0; n<16 ; ++n)
     {
 		double3 l_Res = a_Res.m_Emissive * l_Basis[n] * factor * HARMONIC_SCALE;
-		int4 l_Add = int4(asint(l_Res.x), asint(l_Res.y), asint(l_Res.z), 0);
-		InterlockedAdd(Harmonics[a_Res.m_HarmonicsID + n], l_Add);
+		int4 l_Add = int4(l_Res.x, l_Res.y, l_Res.z, 0);
+		InterlockedAdd(Harmonics[a_Res.m_HarmonicsID.x + n].m_Params.x, l_Add.x);
+		InterlockedAdd(Harmonics[a_Res.m_HarmonicsID.x + n].m_Params.y, l_Add.y);
+		InterlockedAdd(Harmonics[a_Res.m_HarmonicsID.x + n].m_Params.z, l_Add.z);
     }
 }
 
