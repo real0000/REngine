@@ -52,7 +52,7 @@ LightmapAsset::LightmapAsset()
 
 	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
 	std::vector<ProgramBlockDesc *> &l_Blocks = l_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
- 	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "RootBox" == a_pDesc->m_Name; });
+ 	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "Boxes" == a_pDesc->m_Name; });
 	m_pBoxes = MaterialBlock::create(ShaderRegType::UavBuffer, *it, 1);
 	LightMapBox *l_pDst = reinterpret_cast<LightMapBox*>(m_pBoxes->getBlockPtr(0));
 	l_pDst->m_BoxCenter = glm::vec3(0.0f, 0.0f, 0.0f);

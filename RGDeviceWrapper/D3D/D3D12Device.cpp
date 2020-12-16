@@ -1203,7 +1203,9 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
 		l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
 		l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
-		l_Thread.second->Dispatch(l_Dim.x / l_Devide.x, l_Dim.y / l_Devide.y, l_Dim.z / l_Devide.z);
+
+		glm::ivec3 l_NumThread(l_Dim / l_Devide);
+		l_Thread.second->Dispatch(std::max(l_NumThread.x, 1), std::max(l_NumThread.y, 1), std::max(l_NumThread.z, 1));
 
 		m_pShaderResourceHeap->recycle(l_TempUavID);
 		m_pShaderResourceHeap->recycle(l_TempSrvID);
@@ -2237,7 +2239,7 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 		switch( l_pTargetTexture->m_Type )
 		{
 			case TEXTYPE_SIMPLE_2D:{
-				#pragma	omp parallel for
+				//#pragma omp parallel for
 				for( int y=0 ; y<a_Size.y ; ++y )
 				{
 					unsigned char *l_pDstStart = l_pDataBegin + ((a_Offset.x + y) * l_RowPitch + a_Offset.x * l_PixelSize);
@@ -2247,7 +2249,7 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 				}break;
 
 			case TEXTYPE_SIMPLE_3D:{
-				#pragma	omp parallel for
+				//#pragma omp parallel for
 				for( int z=0 ; z<a_Size.z ; ++z )
 				{
 					unsigned int l_DstSliceOffset = (a_Offset.z + z) * l_SlicePitch;

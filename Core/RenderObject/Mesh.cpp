@@ -116,7 +116,7 @@ void RenderableMesh::setStatic(bool a_bStatic)
 
 void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_MeshIdx)
 {
-	getScene()->getRenderBatcher()->requestSkinSlot(m_pMesh);
+	getScene()->getRenderBatcher()->recycleSkinSlot(m_pMesh);
 	m_pMesh = a_pAsset;
 	m_MeshIdx = a_MeshIdx;
 	
@@ -156,7 +156,7 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	int l_InstanceSlot = l_pMaterialInst->requestInstanceSlot();
 	m_Materials.insert(std::make_pair(a_Slot, std::make_pair(l_InstanceSlot, a_pAsset)));
 	
-	MeshAsset *l_pMeshRootInst = a_pAsset->getComponent<MeshAsset>();
+	MeshAsset *l_pMeshRootInst = m_pMesh->getComponent<MeshAsset>();
 	MeshAsset::Instance *l_pMeshInst = l_pMeshRootInst->getMeshes()[m_MeshIdx];
 	
 	l_pMaterialInst->setParam("m_World", m_WorldOffset, getOwner()->getTransform());

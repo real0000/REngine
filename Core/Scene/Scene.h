@@ -110,6 +110,21 @@ public:
 	{
 		return EngineComponent::create<T>(m_pRefScene, shared_from_this());
 	}
+	template<>
+	std::shared_ptr<DirLight> addComponent()
+	{
+		return m_pRefScene->getDirLightContainer()->create(m_pRefScene, shared_from_this());
+	}
+	template<>
+	std::shared_ptr<OmniLight> addComponent()
+	{
+		return m_pRefScene->getOmniLightContainer()->create(m_pRefScene, shared_from_this());
+	}
+	template<>
+	std::shared_ptr<SpotLight> addComponent()
+	{
+		return m_pRefScene->getSpotLightContainer()->create(m_pRefScene, shared_from_this());
+	}
 	std::shared_ptr<EngineComponent> addComponent(std::string a_Name);
 	void bakeNode(boost::property_tree::ptree &a_TreeNode);
 	

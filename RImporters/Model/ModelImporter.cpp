@@ -363,7 +363,11 @@ void ModelData::init(wxString a_Filepath)
 		fbxsdk::FbxSurfaceMaterial *l_pMat = l_pScene->GetMaterial(i);
 		
 		Material &l_Target = m_Materials[i];
-		for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j ) l_Target.insert(std::make_pair((DefaultTextureUsageType)j, getTextureName(l_pMat, c_TextureSlots[j])));
+		for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
+		{
+			wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
+			if( !l_TextureName.IsEmpty() ) l_Target.insert(std::make_pair((DefaultTextureUsageType)j, l_TextureName));
+		}
 	}
 
     l_pScene->Clear();

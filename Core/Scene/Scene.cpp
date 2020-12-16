@@ -108,10 +108,11 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	unsigned int l_Unit = std::max<unsigned int>(a_SortedMesh.size() / a_NumThread, 1);
 	unsigned int l_Start = a_ThreadIdx*l_Unit;
 	unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedMesh.size());
+	if( l_Start >= a_SortedMesh.size() ) return;
 
 	IndirectDrawData l_TempData;
 	std::vector<glm::ivec4> l_Instance;
-
+	
 	MeshAsset::Instance *l_pInst = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>()->getMeshes()[a_SortedMesh[l_Start]->getMeshIdx()];
 	l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
 	l_TempData.m_StartIndex = l_pInst->m_StartIndex;
@@ -593,10 +594,12 @@ Scene::Scene()
 	, m_pLightmap(nullptr)
 	, m_bActivate(true)
 {
+	m_pBatcher = new SceneBatcher();
 }
 
 Scene::~Scene()
 {
+	SAFE_DELETE(m_pBatcher)
 	m_InputListener.clear();
 	m_ReadyInputListener.clear();
 	m_DroppedInputListener.clear();
@@ -626,7 +629,6 @@ void Scene::initEmpty()
 	m_pSpotLights = new LightContainer<SpotLight>("SpotLight");
 	m_pShadowMapBaker = ShadowMapRenderer::create(l_Empty, shared_from_this());
 	m_pRenderer = DeferredRenderer::create(l_Empty, shared_from_this());
-
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
@@ -810,7 +812,6 @@ void Scene::clear()
 	}
 	SAFE_DELETE(m_pRenderer)
 	SAFE_DELETE(m_pShadowMapBaker)
-	SAFE_DELETE(m_pBatcher)
 	if( nullptr != m_pDirLights ) m_pDirLights->clear();
 	if( nullptr != m_pOmniLights ) m_pOmniLights->clear();
 	if( nullptr != m_pSpotLights ) m_pSpotLights->clear();

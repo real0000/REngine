@@ -289,29 +289,39 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	auto &l_CbvBlock = m_pRefProgram->getBlockDesc(ShaderRegType::ConstBuffer);
 	auto &l_ConstBlock = m_pRefProgram->getBlockDesc(ShaderRegType::Constant);
 	auto &l_UavBlock = m_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
-	m_ConstBlocks.resize(l_ConstBlock.size() + l_CbvBlock.size(), nullptr);
-	for( unsigned int i=0 ; i<l_CbvBlock.size() ; ++i )
+
+	int l_NumSlot = -1;
+	for( unsigned int i=0 ; i<l_CbvBlock.size() ; ++i ) l_NumSlot = std::max(l_NumSlot, l_CbvBlock[i]->m_pRegInfo->m_Slot + 1);
+	for( unsigned int i=0 ; i<l_ConstBlock.size() ; ++i ) l_NumSlot = std::max(l_NumSlot, l_ConstBlock[i]->m_pRegInfo->m_Slot + 1);
+	if( -1 != l_NumSlot )
 	{
-		ProgramBlockDesc *l_pDesc = l_CbvBlock[i];
-		if( l_pDesc->m_bReserved )
+		m_ConstBlocks.resize(l_NumSlot, nullptr);
+		for( unsigned int i=0 ; i<l_CbvBlock.size() ; ++i )
 		{
-			m_ReservedCBV.insert((unsigned int)l_pDesc->m_pRegInfo->m_Slot);
-			continue;
+			ProgramBlockDesc *l_pDesc = l_CbvBlock[i];
+			if( l_pDesc->m_bReserved )
+			{
+				m_ReservedCBV.insert((unsigned int)l_pDesc->m_pRegInfo->m_Slot);
+				continue;
+			}
+			m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::ConstBuffer, l_pDesc);
 		}
-		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::ConstBuffer, l_pDesc);
-	}
-	for( unsigned int i=0 ; i<l_ConstBlock.size() ; ++i )
-	{
-		ProgramBlockDesc *l_pDesc = l_ConstBlock[i];
-		if( l_pDesc->m_bReserved )
+		for( unsigned int i=0 ; i<l_ConstBlock.size() ; ++i )
 		{
-			m_ReservedCBV.insert((unsigned int)l_pDesc->m_pRegInfo->m_Slot);
-			continue;
+			ProgramBlockDesc *l_pDesc = l_ConstBlock[i];
+			if( l_pDesc->m_bReserved )
+			{
+				m_ReservedCBV.insert((unsigned int)l_pDesc->m_pRegInfo->m_Slot);
+				continue;
+			}
+			m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::Constant, l_pDesc);
 		}
-		m_ConstBlocks[l_pDesc->m_pRegInfo->m_Slot] = MaterialBlock::create(ShaderRegType::Constant, l_pDesc);
 	}
 	
-	m_UavBlocks.resize(l_UavBlock.size(), nullptr);
+	l_NumSlot = -1;
+	for( unsigned int i=0 ; i<l_UavBlock.size() ; ++i ) l_NumSlot = std::max(l_NumSlot, l_UavBlock[i]->m_pRegInfo->m_Slot + 1);
+	if( -1 != l_NumSlot ) m_UavBlocks.resize(l_NumSlot, nullptr);
+
 	auto it = std::find_if(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return 0 == strcmp(a_pBlock->m_StructureName.c_str(), "InstanceInfo"); });
 	if( l_UavBlock.end() != it )
 	{

@@ -81,7 +81,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\third\SDL2\include;..\..\Core;..\..\RGDeviceWrapper;..\..\RImporters;..\..\RUtility;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -100,13 +100,13 @@
       <AdditionalIncludeDirectories>..\..\third\SDL2\include;..\..\Core;..\..\RGDeviceWrapper;..\..\RImporters;..\..\RUtility;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <OpenMPSupport>true</OpenMPSupport>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(ADSK_FBX_SDK)lib\vs2015\x64\debug;..\..\third\SDL2\lib\x64;..\..\x64\Debug;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(ADSK_FBX_SDK)lib\vs2017\x64\debug;..\..\third\SDL2\lib\x64;..\..\x64\Debug;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
-      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;SDL2.lib;libfbxsdk-md.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;SDL2.lib;libfbxsdk.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -119,7 +119,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\third\SDL2\include;..\..\Core;..\..\RGDeviceWrapper;..\..\RImporters;..\..\RUtility;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;FBXSDK_SHARED;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -140,16 +140,16 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\third\SDL2\include;..\..\Core;..\..\RGDeviceWrapper;..\..\RImporters;..\..\RUtility;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;FBXSDK_SHARED;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(BOOSTSDK)stage\lib;..\..\third\SDL2\lib\x64;..\..\x64\Release;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(BOOSTSDK)stage\lib;$(ADSK_FBX_SDK)lib\vs2017\x64\release;..\..\third\SDL2\lib\x64;..\..\x64\Release;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
-      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;SDL2.lib;libfbxsdk-md.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

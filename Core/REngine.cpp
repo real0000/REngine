@@ -149,7 +149,7 @@ void EngineComponent::removeUpdateListener()
 
 void EngineComponent::addTransformListener()
 {
-	if( 0 != m_Flags.m_bTransformListener ) return;
+	if( 0 != m_Flags.m_bTransformListener || nullptr == m_pOwner ) return;
 	m_pOwner->addTranformListener(shared_from_this());
 	transformListener(m_pOwner->getTransform());
 	m_Flags.m_bTransformListener = 1;
@@ -157,7 +157,7 @@ void EngineComponent::addTransformListener()
 
 void EngineComponent::removeTransformListener()
 {
-	if( 0 == m_Flags.m_bTransformListener ) return;
+	if( 0 == m_Flags.m_bTransformListener || nullptr == m_pOwner ) return;
 	m_pOwner->removeTranformListener(shared_from_this());
 	m_Flags.m_bTransformListener = 0;
 }

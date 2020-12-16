@@ -213,7 +213,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 				l_SortedMesh[i].reserve(l_Meshes.size());
 				for( unsigned int j=0 ; j<l_Meshes.size() ; ++j )
 				{
-					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(l_Meshes[i].get());
+					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(l_Meshes[j].get());
 					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) l_SortedMesh[i].push_back(l_pMesh);
 				}
 				std::sort(l_SortedMesh[i].begin(), l_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
@@ -259,6 +259,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		{
 			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
+				m_DrawCommand[i]->begin(false);
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_OPAQUE]
 					, i, l_NumCommand, MATSLOT_OPAQUE
 					, [=](MaterialAsset *a_pMat) -> void
@@ -270,12 +271,15 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_OPAQUE][i]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
+				m_DrawCommand[i]->end();
 			});
 		}
 
 		EngineCore::singleton().join();
 		
 		{// copy depth data
+			m_pCmdInit->begin(false);
+
 			m_pCmdInit->useProgram(DefaultPrograms::CopyDepth);
 			m_pCmdInit->setRenderTarget(-1, 1, m_pDepthMinmax->getComponent<TextureAsset>()->getTextureID());
 
@@ -331,6 +335,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		{
 			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
+				m_DrawCommand[i]->begin(false);
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_TRANSPARENT]
 					, i, l_NumCommand, MATSLOT_TRANSPARENT
 					, [=](MaterialAsset *a_pMat) -> void
@@ -342,6 +347,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_TRANSPARENT][i]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
+				m_DrawCommand[i]->end();
 			});
 		}
 		EngineCore::singleton().join();

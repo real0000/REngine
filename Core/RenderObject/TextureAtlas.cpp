@@ -31,7 +31,7 @@ RenderTextureAtlas::RenderTextureAtlas(glm::ivec2 a_Size, PixelFormat::Key a_For
 	
 	m_AssetName = wxString::Format(wxT("RenderTextureAtlas%d.Image"), m_Serial++);
 	m_pTexture = AssetManager::singleton().createAsset(m_AssetName);
-	m_pTexture->getComponent<TextureAsset>()->initTexture(a_Size, a_Format, a_InitArraySize, a_bCube);
+	m_pTexture->getComponent<TextureAsset>()->initTexture(a_Size, a_Format, a_InitArraySize, a_bCube, nullptr);
 }
 
 RenderTextureAtlas::~RenderTextureAtlas()
@@ -51,7 +51,7 @@ unsigned int RenderTextureAtlas::allocate(glm::ivec2 a_Size)
 
 		m_AssetName = wxString::Format(wxT("RenderTextureAtlas%d.Image"), m_Serial++);
 		m_pTexture = AssetManager::singleton().createAsset(m_AssetName);
-		m_pTexture->getComponent<TextureAsset>()->initRenderTarget(m_Atlas.getMaxSize(), l_Format, m_Atlas.getArraySize(), m_bCube);
+		m_pTexture->getComponent<TextureAsset>()->initTexture(m_Atlas.getMaxSize(), l_Format, m_Atlas.getArraySize(), m_bCube, nullptr);
 	}
 	return l_Res;
 }

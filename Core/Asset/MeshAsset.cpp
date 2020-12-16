@@ -116,7 +116,7 @@ void MeshAsset::importFile(wxString a_File)
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
 				if( l_ThisMaterial.end() == it ) l_pNormal = EngineCore::singleton().getBlueTexture();
 				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
-
+				
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
 				if( l_ThisMaterial.end() == it ) l_pMetal = EngineCore::singleton().getWhiteTexture();
 				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
@@ -126,7 +126,7 @@ void MeshAsset::importFile(wxString a_File)
 				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
 			}
 
-			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey()));
+			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str()));
 			std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
 			MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 			l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Standard));
@@ -142,7 +142,7 @@ void MeshAsset::importFile(wxString a_File)
 				std::make_tuple(wxT("%s/%s_%d_OmniShadow.%s"), DefaultPrograms::OmniShadowMap, MATSLOT_OMNI_SHADOWMAP)};
 			for( unsigned int j=0 ; j<3 ; ++j )
 			{
-				l_MatFile = wxString::Format(std::get<0>(c_ShadowSlots[j]), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey());
+				l_MatFile = wxString::Format(std::get<0>(c_ShadowSlots[j]), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str());
 				l_pMat = AssetManager::singleton().createAsset(l_MatFile);
 				l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 				l_pMatInst->init(ProgramManager::singleton().getData(std::get<1>(c_ShadowSlots[j])));
@@ -165,7 +165,7 @@ void MeshAsset::importFile(wxString a_File)
 			}
 
 			for( unsigned int j=0 ; j<l_pSrc->m_Indicies.size() ; ++j ) m_Indicies.push_back(l_pSrc->m_Indicies[j]);
-			for( unsigned int j=0 ; j<l_pSrc->m_RefNode.size() ; ++j ) l_NodeSet.insert(l_pSrc->m_RefNode[i]);
+			for( unsigned int j=0 ; j<l_pSrc->m_RefNode.size() ; ++j ) l_NodeSet.insert(l_pSrc->m_RefNode[j]);
 		}
 	}
 

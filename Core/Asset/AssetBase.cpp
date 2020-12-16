@@ -52,7 +52,7 @@ std::shared_ptr<Asset> AssetManager::createAsset(wxString a_Path)
 
 	l_Res = addData(a_Path);
 	l_Res.second->m_SerialKey = l_Res.first;
-	l_Res.second->m_Key = replaceFileExt(a_Path, l_Res.second->getAssetExt());
+	l_Res.second->m_Key = a_Path;//replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	l_Res.second->m_pComponent = l_LoaderIt->second();
 	return l_Res.second;
 }
@@ -61,7 +61,7 @@ std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 {
 	std::pair<int, std::shared_ptr<Asset>> l_Res = getData(a_Path);
 	assert(-1 != l_Res.first);
-	l_Res.second->m_Key = replaceFileExt(a_Path, l_Res.second->getAssetExt());
+	l_Res.second->m_Key = a_Path;//replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	l_Res.second->m_SerialKey = l_Res.first;
 	return l_Res.second;
 }
@@ -69,7 +69,7 @@ std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 void AssetManager::saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path)
 {
 	if( a_Path.IsEmpty() ) a_Path = a_pInst->m_Key;
-	else a_pInst->m_Key = replaceFileExt(a_Path, a_pInst->getAssetExt());
+	else a_pInst->m_Key = a_Path;//replaceFileExt(a_Path, a_pInst->getAssetExt());
 	
 	boost::property_tree::ptree l_XMLTree;
 	a_pInst->m_pComponent->saveFile(l_XMLTree);

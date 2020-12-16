@@ -8,7 +8,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;USE_D3D;USE_GL;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;USE_D3D;USE_GL;GLM_ENABLE_EXPERIMENTAL;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(ADSK_FBX_SDK)include;$(GLEWSDK)include;$(GLMSDK)glm;$(WXSDK)include\msvc;$(WXSDK)include;$(VLDSDK)include;$(PHYSXSDK)physx\include;$(PHYSXSDK)pxshared\include;$(BOOSTSDK);$(VULKAN_SDK)Include;$(ProjectDir);$(ProjectDir)..\third\SDL2\include;$(ProjectDir)..\third\tinyexr;$(ProjectDir)..\Rutility;$(ProjectDir)..\RImporters;$(ProjectDir)..\RGDeviceWrapper;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>CommonUtil.h</PrecompiledHeaderFile>
