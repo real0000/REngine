@@ -425,6 +425,24 @@ std::shared_ptr<SceneNode> SceneNode::addChild(boost::property_tree::ptree &a_Tr
 	return l_pNewNode;
 }
 
+template<>
+std::shared_ptr<DirLight> SceneNode::addComponent()
+{
+	return m_pRefScene->getDirLightContainer()->create(m_pRefScene, shared_from_this());
+}
+
+template<>
+std::shared_ptr<OmniLight> SceneNode::addComponent()
+{
+	return m_pRefScene->getOmniLightContainer()->create(m_pRefScene, shared_from_this());
+}
+
+template<>
+std::shared_ptr<SpotLight> SceneNode::addComponent()
+{
+	return m_pRefScene->getSpotLightContainer()->create(m_pRefScene, shared_from_this());
+}
+
 std::shared_ptr<EngineComponent> SceneNode::addComponent(std::string a_Name)
 {
 	auto l_FuncIt = SceneNode::m_ComponentReflector.find(a_Name);
@@ -917,6 +935,15 @@ void SceneManager::render()
 		auto l_CanvasIt = m_CanvasMainScene.find(it->second);
 		it->second->render(l_CanvasIt == m_CanvasMainScene.end() ? nullptr : l_CanvasIt->second);
 	}
+}
+#pragma endregion
+
+void templateInstacing()
+{
+	std::shared_ptr<SceneNode> l_Temp;
+	l_Temp->addComponent<DirLight>();
+	l_Temp->addComponent<OmniLight>();
+	l_Temp->addComponent<SpotLight>();
 }
 
 }

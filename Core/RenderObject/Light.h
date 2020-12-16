@@ -87,7 +87,7 @@ public:
 		std::shared_ptr<T> l_pTarget = nullptr;
 		unsigned int l_ID = m_Lights.retain(&l_pTarget);
 		l_pTarget->m_ID = l_ID;
-		l_pTarget->m_pRefParam = static_cast<T::Data *>(m_pLightData->getBlockPtr(l_ID));
+		l_pTarget->m_pRefParam = reinterpret_cast<T::Data *>(m_pLightData->getBlockPtr(l_ID));
 		l_pTarget->setHidden(false);
 		l_pTarget->addTransformListener();
 		return l_pTarget;
