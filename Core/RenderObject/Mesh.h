@@ -25,10 +25,10 @@ public:
 		uint64 m_Key;
 		struct
 		{
-			unsigned int m_bValid : 1;
-			unsigned int m_MaterialID : 27;
-			unsigned int m_MeshID : 27;
-			unsigned int m_SubMeshIdx : 9;
+			uint64 m_bValid : 1;
+			uint64 m_MaterialID : 27;
+			uint64 m_MeshID : 27;
+			uint64 m_SubMeshIdx : 9;
 		} m_Members;
 	};
 public:

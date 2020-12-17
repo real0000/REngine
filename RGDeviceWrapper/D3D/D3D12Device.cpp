@@ -741,6 +741,33 @@ void D3D12Device::init()
 		initDevice(it->first);
 	}
 
+#ifdef _DEBUG
+	{
+		ID3D12InfoQueue *l_pInfoQueue = nullptr;
+		if( SUCCEEDED(m_pDevice->QueryInterface(IID_PPV_ARGS(&l_pInfoQueue))) )
+		{
+			D3D12_MESSAGE_SEVERITY severities[] =
+			{
+				D3D12_MESSAGE_SEVERITY_INFO,
+			};
+
+			// Suppress individual messages by their ID.
+			D3D12_MESSAGE_ID denyIds[] =
+			{
+				D3D12_MESSAGE_ID_COMMAND_LIST_DRAW_VERTEX_BUFFER_NOT_SET,
+			};
+
+			D3D12_INFO_QUEUE_FILTER l_Filter = {};
+			l_Filter.DenyList.NumSeverities = _countof(severities);
+			l_Filter.DenyList.pSeverityList = severities;
+			l_Filter.DenyList.NumIDs = _countof(denyIds);
+			l_Filter.DenyList.pIDList = denyIds;
+
+			assert(S_OK == l_pInfoQueue->PushStorageFilter(&l_Filter));
+		}
+	}
+#endif
+
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC l_QueueDesc;
 	l_QueueDesc.NodeMask = 0;
