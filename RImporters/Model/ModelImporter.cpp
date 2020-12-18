@@ -105,12 +105,23 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData:
 
 static wxString getTextureName(fbxsdk::FbxSurfaceMaterial *a_pMat, const char *a_pName)
 {
-	fbxsdk::FbxProperty l_BaseColorProperty = a_pMat->FindProperty(fbxsdk::FbxSurfaceMaterial::sDiffuse);
-	if( l_BaseColorProperty.GetSrcObjectCount<fbxsdk::FbxLayeredTexture>() <= 0 ) return wxT("");
+	fbxsdk::FbxProperty l_TextureProperty = a_pMat->FindProperty(a_pName);
+	if( !l_TextureProperty.IsValid() ) return wxT("");
 
-	fbxsdk::FbxLayeredTexture *l_pLayeredTexture = FbxCast<fbxsdk::FbxLayeredTexture>(l_BaseColorProperty.GetSrcObject<fbxsdk::FbxLayeredTexture>(0));
-	fbxsdk::FbxTexture *l_pTexture = FbxCast<fbxsdk::FbxTexture>(l_pLayeredTexture->GetSrcObject<fbxsdk::FbxTexture>(0));
-	return wxString(l_pTexture->GetName());
+	fbxsdk::FbxLayeredTexture *l_pLayeredTexture = nullptr;
+	for( int i=0 ; i<l_TextureProperty.GetSrcObjectCount<FbxLayeredTexture>() ; ++i )
+	{
+		l_pLayeredTexture = FbxCast<fbxsdk::FbxLayeredTexture>(l_TextureProperty.GetSrcObject<fbxsdk::FbxLayeredTexture>(i));
+		if( nullptr != l_pLayeredTexture ) break;
+	}
+	if( nullptr != l_pLayeredTexture )
+	{
+		fbxsdk::FbxFileTexture *l_pTexture = FbxCast<fbxsdk::FbxFileTexture>(l_pLayeredTexture->GetSrcObject<fbxsdk::FbxFileTexture>(0));
+		return nullptr != l_pTexture ? wxString(l_pTexture->GetRelativeFileName()) : wxT("");
+	}
+
+	fbxsdk::FbxFileTexture *l_pTexture = FbxCast<fbxsdk::FbxFileTexture>(l_TextureProperty.GetSrcObject<fbxsdk::FbxFileTexture>(0));
+	return nullptr != l_pTexture ? wxString(l_pTexture->GetRelativeFileName()) : wxT("");
 }
 
 //
@@ -226,7 +237,28 @@ void ModelData::init(wxString a_Filepath)
 
     m_Meshes.resize(l_MeshMap.size(), nullptr);
 	std::vector<int> l_BoneRecord;
-	int l_NumMaterial = 0;
+	union MaterialPack
+	{
+		uint64 m_Key;
+		struct PackParam
+		{
+			uint64 m_BaseColorIdx : 16;
+			uint64 m_MetalicIdx : 12;
+			uint64 m_RoughnessIdx : 12;
+			uint64 m_NormalIdx : 12;
+			uint64 m_HeightIdx : 12;
+		} m_PackParam;
+	};
+	std::vector<wxString> l_TextureIdxMap[TEXUSAGE_TYPECOUNT];
+	const char * c_TextureSlots[TEXUSAGE_TYPECOUNT] = {
+		fbxsdk::FbxSurfaceMaterial::sDiffuse,
+		fbxsdk::FbxSurfaceMaterial::sReflection,
+		fbxsdk::FbxSurfaceMaterial::sSpecular,
+		fbxsdk::FbxSurfaceMaterial::sNormalMap,
+		fbxsdk::FbxSurfaceMaterial::sDisplacementColor};
+	std::map<uint64, unsigned int> l_MaterialMap;
+	l_MaterialMap.insert(std::make_pair(0, 0));
+	for( unsigned int i=0 ; i<TEXUSAGE_TYPECOUNT ; ++i ) l_TextureIdxMap[i].push_back(wxT(""));
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
@@ -255,7 +287,7 @@ void ModelData::init(wxString a_Filepath)
 		}
 		if( !l_pDstMesh->m_RefNode.empty() ) l_pDstMesh->m_BoundingBox.m_Center /= l_pDstMesh->m_RefNode.size();
 
-		l_pRefNode = it->first->GetNode(0);
+		l_pRefNode = it->first->GetNode();
 		if( l_pDstMesh->m_Name.empty() ) l_pDstMesh->m_Name = l_pRefNode->GetName();
 
         unsigned int l_NumVtx = l_pSrcMesh->GetControlPointsCount();
@@ -338,36 +370,61 @@ void ModelData::init(wxString a_Filepath)
                 l_pDstMesh->m_Indicies.push_back(l_PtIdx);        
             }
         }
-
+		
+		l_pDstMesh->m_RefMaterial = 0;
 		FbxLayerElementArrayTemplate<int> *l_pMaterialIndicies = nullptr;
 		if( l_pSrcMesh->GetMaterialIndices(&l_pMaterialIndicies) )
 		{
-			if( 0 != l_pMaterialIndicies->GetCount() )
+			for( int i=0 ; i<l_pMaterialIndicies->GetCount() ; ++i )
 			{
-				int l_MatIdx = l_pMaterialIndicies->GetAt(0);
-				l_pDstMesh->m_RefMaterial = l_MatIdx;
-				l_NumMaterial = std::max(l_MatIdx + 1, l_NumMaterial);
+				int l_MatIdx = l_pMaterialIndicies->GetAt(i);
+				fbxsdk::FbxSurfaceMaterial *l_pMat = l_pRefNode->GetMaterial(l_MatIdx);
+
+				MaterialPack l_Pack;
+				l_Pack.m_Key = 0;
+				for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
+				{
+					wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
+					unsigned int l_Idx = 0;
+					auto l_TexIt = std::find(l_TextureIdxMap[j].begin(), l_TextureIdxMap[j].end(), l_TextureName);
+					if( l_TextureIdxMap[j].end() == l_TexIt )
+					{
+						l_Idx = l_TextureIdxMap[j].size();
+						l_TextureIdxMap[j].push_back(l_TextureName);
+					}
+					else l_Idx = l_TexIt - l_TextureIdxMap[j].begin();
+					switch( j )
+					{
+						case TEXUSAGE_BASECOLOR:l_Pack.m_PackParam.m_BaseColorIdx = l_Idx;	break;
+						case TEXUSAGE_METAILLIC:l_Pack.m_PackParam.m_MetalicIdx = l_Idx;	break;
+						case TEXUSAGE_ROUGHNESS:l_Pack.m_PackParam.m_RoughnessIdx = l_Idx;	break;
+						case TEXUSAGE_NORMAL:	l_Pack.m_PackParam.m_NormalIdx = l_Idx;		break;
+						case TEXUSAGE_HEIGHT:	l_Pack.m_PackParam.m_HeightIdx = l_Idx;		break;
+						default:break;
+					}
+				}
+
+				if( 0 != l_Pack.m_Key )
+				{
+					l_pDstMesh->m_RefMaterial = l_MaterialMap.size();
+					l_MaterialMap.insert(std::make_pair(l_Pack.m_Key, l_pDstMesh->m_RefMaterial));
+					break;
+				}
 			}
 		}
     }
 	
-	m_Materials.resize(l_NumMaterial, Material());
-	const char * c_TextureSlots[TEXUSAGE_TYPECOUNT] = {
-		fbxsdk::FbxSurfaceMaterial::sDiffuse,
-		fbxsdk::FbxSurfaceMaterial::sReflection,
-		fbxsdk::FbxSurfaceMaterial::sSpecularFactor,
-		fbxsdk::FbxSurfaceMaterial::sNormalMap,
-		fbxsdk::FbxSurfaceMaterial::sDisplacementColor};
-	for( int i=0 ; i<l_NumMaterial ; ++i )
+	m_Materials.resize(l_MaterialMap.size(), Material());
+	for( auto it=l_MaterialMap.begin() ; it!=l_MaterialMap.end() ; ++it )
 	{
-		fbxsdk::FbxSurfaceMaterial *l_pMat = l_pScene->GetMaterial(i);
-		
-		Material &l_Target = m_Materials[i];
-		for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
-		{
-			wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
-			if( !l_TextureName.IsEmpty() ) l_Target.insert(std::make_pair((DefaultTextureUsageType)j, l_TextureName));
-		}
+		Material &l_Target = m_Materials[it->second];
+		MaterialPack l_Data;
+		l_Data.m_Key = it->first;
+		if( 0 != l_Data.m_PackParam.m_BaseColorIdx )l_Target.insert(std::make_pair(TEXUSAGE_BASECOLOR, l_TextureIdxMap[TEXUSAGE_BASECOLOR][l_Data.m_PackParam.m_BaseColorIdx]));
+		if( 0 != l_Data.m_PackParam.m_HeightIdx )	l_Target.insert(std::make_pair(TEXUSAGE_HEIGHT, l_TextureIdxMap[TEXUSAGE_HEIGHT][l_Data.m_PackParam.m_HeightIdx]));
+		if( 0 != l_Data.m_PackParam.m_MetalicIdx )	l_Target.insert(std::make_pair(TEXUSAGE_METAILLIC, l_TextureIdxMap[TEXUSAGE_METAILLIC][l_Data.m_PackParam.m_MetalicIdx]));
+		if( 0 != l_Data.m_PackParam.m_NormalIdx )	l_Target.insert(std::make_pair(TEXUSAGE_NORMAL, l_TextureIdxMap[TEXUSAGE_NORMAL][l_Data.m_PackParam.m_NormalIdx]));
+		if( 0 != l_Data.m_PackParam.m_RoughnessIdx )l_Target.insert(std::make_pair(TEXUSAGE_ROUGHNESS, l_TextureIdxMap[TEXUSAGE_ROUGHNESS][l_Data.m_PackParam.m_RoughnessIdx]));
 	}
 
     l_pScene->Clear();

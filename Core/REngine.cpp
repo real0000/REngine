@@ -335,12 +335,14 @@ void EngineCore::shutDown()
 	m_MainLoop.join();
 	m_WhiteTexture = nullptr;
 	m_BlueTexture = nullptr;
+	m_DarkgrayTexture = nullptr;
 	m_pQuad = nullptr;
 
 	ImageManager::singleton().finalize();
 	ModelManager::singleton().finalize();
 	AnimationManager::singleton().finalize();
 	AssetManager::singleton().finalize();
+	AssetManager::singleton().waitAssetClear();
 
 	GDEVICE()->shutdown();
 	SDL_Quit();

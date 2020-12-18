@@ -16,10 +16,46 @@
 namespace R
 {
 
+#pragma region AssetComponent
+//
+// AssetComponent
+//
+AssetComponent::AssetComponent()
+{
+	++AssetManager::sm_AssetCounter;
+}
+
+AssetComponent::~AssetComponent()
+{
+	--AssetManager::sm_AssetCounter;
+}
+#pragma endregion
+
+#pragma region Asset
+//
+// Asset
+//
+#ifdef _DEBUG
+static std::set<wxString> sg_LeftAsset;
+#endif
+Asset::Asset() : m_SerialKey(-1), m_Key(wxT("")), m_pComponent(nullptr)
+{
+}
+
+Asset::~Asset()
+{
+	SAFE_DELETE(m_pComponent)
+#ifdef _DEBUG
+	sg_LeftAsset.erase(m_Key);
+#endif
+}
+#pragma endregion
+
 #pragma region AssetManager
 //
 // AssetManager
 //
+unsigned int AssetManager::sm_AssetCounter = 0;
 AssetManager& AssetManager::singleton()
 {
 	static AssetManager sm_Inst;
@@ -54,6 +90,9 @@ std::shared_ptr<Asset> AssetManager::createAsset(wxString a_Path)
 	l_Res.second->m_SerialKey = l_Res.first;
 	l_Res.second->m_Key = a_Path;//replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	l_Res.second->m_pComponent = l_LoaderIt->second();
+#ifdef _DEBUG
+	sg_LeftAsset.insert(l_Res.second->m_Key);
+#endif
 	return l_Res.second;
 }
 
@@ -63,13 +102,23 @@ std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 	assert(-1 != l_Res.first);
 	l_Res.second->m_Key = a_Path;//replaceFileExt(a_Path, l_Res.second->getAssetExt());
 	l_Res.second->m_SerialKey = l_Res.first;
+#ifdef _DEBUG
+	sg_LeftAsset.insert(l_Res.second->m_Key);
+#endif
 	return l_Res.second;
 }
 
 void AssetManager::saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path)
 {
 	if( a_Path.IsEmpty() ) a_Path = a_pInst->m_Key;
-	else a_pInst->m_Key = a_Path;//replaceFileExt(a_Path, a_pInst->getAssetExt());
+	else
+	{
+#ifdef _DEBUG
+		sg_LeftAsset.erase(a_pInst->m_Key);
+		sg_LeftAsset.insert(a_Path);
+#endif
+		a_pInst->m_Key = a_Path;//replaceFileExt(a_Path, a_pInst->getAssetExt());
+	}
 	
 	boost::property_tree::ptree l_XMLTree;
 	a_pInst->m_pComponent->saveFile(l_XMLTree);
@@ -97,6 +146,11 @@ void AssetManager::loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path)
 	assert(l_ImporterIt != m_ImporterMap.end());
 	a_pInst->m_pComponent = l_ImporterIt->second();
 	a_pInst->m_pComponent->importFile(a_Path);
+}
+
+void AssetManager::waitAssetClear()
+{
+	while( 0 != sm_AssetCounter ) Sleep(100);
 }
 #pragma endregion
 

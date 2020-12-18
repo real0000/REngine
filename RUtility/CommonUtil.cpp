@@ -398,7 +398,7 @@ void VirtualMemoryPool::free(int a_Offset)
 		auto it = m_AllocateMap.find(a_Offset);
 		assert(m_AllocateMap.end() != it);
 		l_Size = it->second;
-		m_AllocateMap.erase(l_Size);
+		m_AllocateMap.erase(it);
 	}
 
 	int l_PrevOffset = a_Offset;

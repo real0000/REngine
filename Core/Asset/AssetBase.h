@@ -14,8 +14,8 @@ class AssetManager;
 class AssetComponent
 {
 public:
-	AssetComponent(){}
-	virtual ~AssetComponent(){}
+	AssetComponent();
+	virtual ~AssetComponent();
 
 	virtual wxString getAssetExt() = 0;
 	virtual void importFile(wxString a_File) = 0;
@@ -27,8 +27,8 @@ class Asset
 {
 	friend class AssetManager;
 public:
-	Asset() : m_SerialKey(-1), m_Key(wxT("")), m_pComponent(nullptr){}
-	virtual ~Asset(){ SAFE_DELETE(m_pComponent) }
+	Asset();
+	virtual ~Asset();
 
 	template<typename T>
 	inline T* getComponent(){ return reinterpret_cast<T*>(m_pComponent); }
@@ -44,6 +44,7 @@ private:
 
 class AssetManager : public SearchPathSystem<Asset>
 {
+	friend class AssetComponent;
 public:
 	static AssetManager& singleton();
 
@@ -53,6 +54,8 @@ public:
 	std::shared_ptr<Asset> getAsset(int a_ID){ return getData(a_ID); }
 	void saveAsset(int a_ID, wxString a_Path = ""){ saveAsset(getData(a_ID), a_Path); }
 	void saveAsset(std::shared_ptr<Asset> a_pInst, wxString a_Path = "");
+
+	void waitAssetClear();
 
 private:
 	AssetManager();
@@ -70,6 +73,7 @@ private:
 	void loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path);
 
 	std::map<wxString, std::function<AssetComponent *()>> m_ImporterMap, m_LoaderMap;
+	static unsigned int sm_AssetCounter;
 };
 
 }
