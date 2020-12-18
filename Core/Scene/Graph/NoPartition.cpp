@@ -64,8 +64,8 @@ void NoPartition::getVisibleList(std::shared_ptr<Camera> a_pTargetCamera, std::v
 
 void NoPartition::getAllComponent(std::vector<std::shared_ptr<RenderableComponent>> &a_Output)
 {
-	a_Output.resize(m_Container.size());
-	std::copy(m_Container.begin(), m_Container.end(), a_Output.begin());
+	a_Output.reserve(m_Container.size());
+	for( auto it=m_Container.begin() ; it!=m_Container.end() ; ++it ) a_Output.push_back(*it);
 }
 #pragma endregion
 
