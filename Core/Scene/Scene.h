@@ -142,9 +142,9 @@ public:
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector<std::shared_ptr<EngineComponent>> &a_Output);
 	template<typename T>
-	void getComponent(unsigned int a_TypeID, std::vector<std::shared_ptr<T>> &a_Output)
+	void getComponent(std::vector<std::shared_ptr<T>> &a_Output)
 	{
-		auto it = m_Components.find(a_TypeID);
+		auto it = m_Components.find(T::staticTypeID());
 		if( m_Components.end() == it || it->second.empty() ) return;
 		a_Output.resize(it->second.size());
 		std::transform(it->second.begin(), it->second.end(), a_Output.begin()

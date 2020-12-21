@@ -938,7 +938,7 @@ void SceneManager::render()
 }
 #pragma endregion
 
-void templateInstacing()
+void scene_cpp_templateInstacing()
 {
 	std::shared_ptr<SceneNode> l_Temp;
 	l_Temp->addComponent<DirLight>();

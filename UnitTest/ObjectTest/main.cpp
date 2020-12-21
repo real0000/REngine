@@ -1,4 +1,5 @@
 #include "REngine.h"
+#include "REditor.h"
 #include "vld.h"
 
 class BasicApp: public wxApp
@@ -64,6 +65,7 @@ bool BasicApp::OnInit()
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	l_pCameraNode->addComponent<R::DirLight>();
+	l_pCameraNode->addComponent<R::CameraController>();
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 

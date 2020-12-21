@@ -144,7 +144,8 @@ private:
 };
 #define COMPONENT_HEADER(className) \
 	public:\
-		virtual unsigned int typeID(){ return COMPONENT_##className; }\
+		virtual unsigned int typeID(){ return COMPONENT_##className; }	\
+		static unsigned int staticTypeID(){ return COMPONENT_##className; }\
 		static std::string typeName(){ return #className; }
 
 class EngineSetting
