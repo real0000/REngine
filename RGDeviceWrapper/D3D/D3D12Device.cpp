@@ -591,6 +591,7 @@ D3D12Device::D3D12Device()
 	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer(), m_ManagedIndirectCommandBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
+	, m_DefaultDevice(0)
 	, m_MsaaSetting({1, 0})
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
 	, m_IdleResThread(0)
@@ -665,20 +666,17 @@ void D3D12Device::initDeviceMap()
 			return;
 		}
 	}
-
-	unsigned int l_Idx = 0;
-	while( S_OK == l_Res )
+	
+	IDXGIAdapter1 *l_pAdapter = nullptr;
+	for( unsigned int i=0 ; DXGI_ERROR_NOT_FOUND != m_pGraphicInterface->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&l_pAdapter)) ; ++i )
 	{
-		IDXGIAdapter1 *l_pAdapter = nullptr;
-		l_Res = m_pGraphicInterface->EnumAdapters1(l_Idx, &l_pAdapter);
-		++l_Idx;
-		if( S_OK == l_Res )
-		{
-			DXGI_ADAPTER_DESC1 l_Desc;
-			l_pAdapter->GetDesc1(&l_Desc);
-			m_DeviceMap[l_Desc.DeviceId] = l_Desc.Description;
-			l_pAdapter->Release();
-		}
+		DXGI_ADAPTER_DESC1 l_Desc;
+		l_pAdapter->GetDesc1(&l_Desc);
+		l_pAdapter->Release();
+
+		if( 0 != (l_Desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) ) continue;
+		m_DeviceMap[l_Desc.DeviceId] = l_Desc.Description;
+		if( 0 == i ) m_DefaultDevice = l_Desc.DeviceId;
 	}
 }
 
@@ -730,16 +728,7 @@ void D3D12Device::init()
 #endif
 
 	if( m_DeviceMap.empty() ) initDeviceMap();
-	if( nullptr == m_pDevice )
-	{
-		wxArrayString l_Devices;
-		for( auto it = m_DeviceMap.begin() ; it != m_DeviceMap.end() ; ++it ) l_Devices.Add(it->second);
-		wxSingleChoiceDialog l_Dlg(nullptr, wxT("please select target device"), wxT("D3D12Device::init"), l_Devices, static_cast<void **>(nullptr), wxOK);
-		l_Dlg.ShowModal();
-		auto it = m_DeviceMap.begin();
-		for( int i=0 ; i<l_Dlg.GetSelection() ; ++i ) ++it;
-		initDevice(it->first);
-	}
+	if( nullptr == m_pDevice ) initDevice(m_DefaultDevice);
 
 #ifdef _DEBUG
 	{

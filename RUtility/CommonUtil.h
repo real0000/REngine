@@ -11,7 +11,7 @@
 	#include <gl/glew.h>
 	#include <gl/gl.h>
 	#include <d3d12.h>
-	#include <dxgi1_4.h>
+	#include <dxgi1_6.h>
 	#define int64 int64_t
 	#define uint64 uint64_t
 #else

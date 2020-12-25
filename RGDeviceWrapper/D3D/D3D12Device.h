@@ -409,8 +409,9 @@ private:
 	SerializedObjectPool<UnorderAccessBufferBinder> m_ManagedUavBuffer;
 	SerializedObjectPool<IndirectCommandBinder> m_ManagedIndirectCommandBuffer;
 
-	IDXGIFactory4 *m_pGraphicInterface;
+	IDXGIFactory6 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
+	unsigned int m_DefaultDevice;
 	DXGI_SAMPLE_DESC m_MsaaSetting;
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue;// to do : add bundle support;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];

@@ -345,7 +345,6 @@ void EngineCore::shutDown()
 	AssetManager::singleton().waitAssetClear();
 
 	GDEVICE()->shutdown();
-	SDL_Quit();
 }
 
 wxString EngineCore::convertToAssetPath(wxString a_Path)
@@ -366,7 +365,6 @@ void EngineCore::join()
 
 bool EngineCore::init()
 {
-	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 	switch( EngineSetting::singleton().m_Api )
 	{
 		case GraphicApi::d3d11:
@@ -420,6 +418,8 @@ bool EngineCore::init()
 
 void EngineCore::mainLoop()
 {
+	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+
 	auto l_Start = std::chrono::high_resolution_clock::now();
 	while( !m_bShutdown )
 	{
@@ -440,6 +440,8 @@ void EngineCore::mainLoop()
 
 		l_Start = l_Now;
 	}
+	
+	SDL_Quit();
 }
 #pragma endregion
 
