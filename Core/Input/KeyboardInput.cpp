@@ -63,12 +63,12 @@ bool KeyboardInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 		return true;
 	}
 
-	auto l_NameIt = m_NameMap.find(a_Event.key.keysym.sym);
-	if( m_NameMap.end() == l_NameIt ) return false;// or return true but don't do anything?
-	const InputDeviceInterface::DeviceKey &l_KeyData = getDeviceKey()[l_NameIt->second];
+	//auto l_NameIt = m_NameMap.find(a_Event.key.keysym.sym);
+	//if( m_NameMap.end() == l_NameIt ) return false;// or return true but don't do anything?
+	//const InputDeviceInterface::DeviceKey &l_KeyData = getDeviceKey()[l_NameIt->second];
 
 	a_Output.m_Key = a_Event.key.keysym.sym;
-	a_Output.m_Text = l_KeyData.m_KeyName;
+	a_Output.m_Text = SDL_GetKeyName(a_Event.key.keysym.sym);//l_KeyData.m_KeyName;
 	a_Output.m_Data.m_bDown = SDL_KEYDOWN == a_Event.type;
 	a_Output.m_Type = INPUTTYPE_BUTTON;
 	return true;

@@ -129,7 +129,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 	unsigned int l_NumCommand = a_DrawCommand.size();
 	for( unsigned int i=0 ; i<l_NumCommand ; ++i )
 	{
-		EngineCore::singleton().addJob([=, &l_NumCommand, &l_DirLights, &l_OmniLights, &l_SpotLights, &a_SortedDir, &a_SortedOmni, &a_SortedSpot]()
+		EngineCore::singleton().addJob([=, &l_DirLights, &l_OmniLights, &l_SpotLights, &a_SortedDir, &a_SortedOmni, &a_SortedSpot]()
 		{
 			a_DrawCommand[i]->begin(false);
 			
