@@ -31,7 +31,7 @@ bool MouseInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 	switch( a_Event.type )
 	{
 		case SDL_MOUSEMOTION:{
-			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_MOVE) ) return false;
+			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_MOVE) ) return true;
 
 			a_Output.m_Key = InputMediator::MOUSE_MOVE;
 			a_Output.m_Type = INPUTTYPE_MOTION;
@@ -43,7 +43,7 @@ bool MouseInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:{
-			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_BUTTON) ) return false;
+			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_BUTTON) ) return true;
 
 			switch( a_Event.button.button )
 			{
@@ -68,7 +68,7 @@ bool MouseInput::processEvent(SDL_Event &a_Event, InputData &a_Output)
 			}return true;
 		
 		case SDL_MOUSEWHEEL:{
-			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_WHEEL) ) return false;
+			if( 0 == (l_Flag & InputMediator::ALLOW_MOUSE_WHEEL) ) return true;
 
 			a_Output.m_Key = InputMediator::MOUSE_WHEEL;
 			a_Output.m_Data.m_Val[0] = a_Event.wheel.x;

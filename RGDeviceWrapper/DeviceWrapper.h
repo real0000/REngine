@@ -69,6 +69,13 @@ public:
 	bool isFullScreen(){ return m_bFullScreen; }
 	
 	void onSize(wxSizeEvent &a_Event);
+	void onMouseDown(wxMouseEvent &a_Event);
+	void onMouseMove(wxMouseEvent &a_Event);
+	void onMouseUp(wxMouseEvent &a_Event);
+	void onMouseWheel(wxMouseEvent &a_Event);
+	void onKeyDown(wxKeyEvent &a_Event);
+	void onKeyUp(wxKeyEvent &a_Event);
+	void onMouseEnter(wxMouseEvent &a_Event);
 
 	virtual void init(bool a_bFullScr) = 0;
 	virtual unsigned int getBackBuffer() = 0;

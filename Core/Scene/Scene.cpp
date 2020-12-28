@@ -906,12 +906,16 @@ std::shared_ptr<Scene> SceneManager::getScene(wxString a_Name)
 
 void SceneManager::processInput(std::vector<InputData *> &a_Data)
 {
+	if( a_Data.empty() ) return;
+
 	std::lock_guard<std::mutex> l_DropLock(m_CanvasDropLock);
 	for( auto it = m_CanvasMainScene.begin() ; it != m_CanvasMainScene.end() ; ++it )
 	{
-		if( !it->second->HasFocus() || !it->first->m_bActivate ) continue;
+		if( /*!it->second->HasFocus() || */!it->first->m_bActivate ) continue;
+
 		it->first->preprocessInput();
 		for( unsigned int i=0 ; i<a_Data.size() ; ++i ) it->first->processInput(*a_Data[i]);
+		break;
 	}
 }
 
