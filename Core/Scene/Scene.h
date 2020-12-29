@@ -57,6 +57,7 @@ public:
 	void drawSortedMeshes(GraphicCommander *a_pCmd
 		, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_ThreadIdx, unsigned int a_NumThread, unsigned int a_MatSlot
 		, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc);
+	void renderBegin();
 	void renderEnd();
 
 	// for renderable mesh
@@ -64,6 +65,7 @@ public:
 	void recycleSkinSlot(std::shared_ptr<Asset> a_pAsset);
 	int requestWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
 	void recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent);
+	void updateWorldSlot(int a_Slot, glm::mat4x4 a_Transform, int a_VtxFlag, int a_SkinOffset);
 
 	// render required member
 	std::shared_ptr<MaterialBlock> getSkinMatrixBlock(){ return m_pSingletonBatchData->m_SkinBlock; }
@@ -78,6 +80,9 @@ private:
 	std::deque<IndirectDrawBuffer*> m_IndirectBufferPool;
 	std::list<IndirectDrawBuffer*> m_IndirectBufferInUse;
 	std::mutex m_BufferLock;
+
+	bool m_bWorldDirty;
+	glm::ivec2 m_UpdateRange;
 
 	static SingletonBatchData *m_pSingletonBatchData;
 	static unsigned int m_NumSharedMember;

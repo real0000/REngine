@@ -88,7 +88,12 @@ void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
 	glm::aabb &l_Box = m_pMesh->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx]->m_VisibleBoundingBox;
 	boundingBox().m_Center = l_Trans + l_Box.m_Center;
 	boundingBox().m_Size = l_Scale * l_Box.m_Size;
-
+	
+	if( nullptr != m_pMesh )
+	{
+		MeshAsset::Instance *l_pMeshInst = m_pMesh->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
+		getScene()->getRenderBatcher()->updateWorldSlot(m_WorldOffset, getOwner()->getTransform(), l_pMeshInst->m_VtxFlag, m_SkinOffset);
+	}
 	getScene()->getSceneGraph(GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
 }
 
@@ -125,6 +130,7 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	MeshAsset::Instance *l_pMeshInst = a_pAsset->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
 	m_Materials.clear();
 	for( auto it=l_pMeshInst->m_Materials.begin() ; it!=l_pMeshInst->m_Materials.end() ; ++it ) setMaterial(it->first, it->second);
+	getScene()->getRenderBatcher()->updateWorldSlot(m_WorldOffset, getOwner()->getTransform(), l_pMeshInst->m_VtxFlag, m_SkinOffset);
 	syncKeyMap();
 
 	glm::vec3 l_Trans, l_Scale;
@@ -156,14 +162,6 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	int l_InstanceSlot = l_pMaterialInst->requestInstanceSlot();
 	m_Materials.insert(std::make_pair(a_Slot, std::make_pair(l_InstanceSlot, a_pAsset)));
 	
-	MeshAsset *l_pMeshRootInst = m_pMesh->getComponent<MeshAsset>();
-	MeshAsset::Instance *l_pMeshInst = l_pMeshRootInst->getMeshes()[m_MeshIdx];
-	
-	std::shared_ptr<MaterialBlock> l_WorldBlock = getScene()->getRenderBatcher()->getWorldMatrixBlock();
-	l_WorldBlock->setParam("m_World", m_WorldOffset, getOwner()->getTransform());
-	l_WorldBlock->setParam("m_VtxFlag", m_WorldOffset, l_pMeshInst->m_VtxFlag);
-	l_WorldBlock->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
-
 	syncKeyMap();
 }
 

@@ -52,6 +52,8 @@ SceneBatcher::SingletonBatchData::~SingletonBatchData()
 SceneBatcher::SingletonBatchData *SceneBatcher::m_pSingletonBatchData = nullptr;
 unsigned int SceneBatcher::m_NumSharedMember = 0;
 SceneBatcher::SceneBatcher()
+	: m_bWorldDirty(false)
+	, m_UpdateRange(0x7fffffff, -1)
 {
 	if( nullptr == m_pSingletonBatchData ) m_pSingletonBatchData = new SingletonBatchData();
 	++m_NumSharedMember;
@@ -197,6 +199,21 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	l_pIndirectBuffer = nullptr;
 }
 
+void SceneBatcher::renderBegin()
+{
+	if( m_bWorldDirty )
+	{
+		auto l_pWorldBlock = getWorldMatrixBlock();
+		int l_BlockSize = l_pWorldBlock->getBlockSize();
+		int l_SizeInByte = (m_UpdateRange.y - m_UpdateRange.x) * l_BlockSize;
+		l_pWorldBlock->sync(true, l_BlockSize * m_UpdateRange.x, l_SizeInByte);
+
+		m_UpdateRange.x = 0x7fffffff;
+		m_UpdateRange.y = -1;
+		m_bWorldDirty = false;
+	}
+}
+
 void SceneBatcher::renderEnd()
 {
 	for( auto it=m_IndirectBufferInUse.begin() ; it!=m_IndirectBufferInUse.end() ; ++it )
@@ -288,6 +305,17 @@ void SceneBatcher::recycleWorldSlot(std::shared_ptr<RenderableMesh> a_pComponent
 	
 	m_pSingletonBatchData->m_WorldSlotManager.free(it->second.first);
 	m_pSingletonBatchData->m_WorldCache.erase(it);
+}
+
+void SceneBatcher::updateWorldSlot(int a_Slot, glm::mat4x4 a_Transform, int a_VtxFlag, int a_SkinOffset)
+{
+	getWorldMatrixBlock()->setParam("m_World", a_Slot, a_Transform);
+	getWorldMatrixBlock()->setParam("m_VtxFlag", a_Slot, a_VtxFlag);
+	getWorldMatrixBlock()->setParam("m_SkinMatBase", a_Slot, a_SkinOffset);
+
+	m_bWorldDirty = true;
+	m_UpdateRange.x = std::min(a_Slot, m_UpdateRange.x);
+	m_UpdateRange.y = std::max(a_Slot + 1, m_UpdateRange.y);
 }
 
 IndirectDrawBuffer* SceneBatcher::requestIndirectBuffer()
@@ -752,6 +780,7 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	// to do : update shadow map, enviroment map ... etc
 	//
 
+	m_pBatcher->renderBegin();
 	m_pRenderer->render(m_pCurrCamera, a_pCanvas);
 	m_pBatcher->renderEnd();
 }
