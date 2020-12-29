@@ -112,11 +112,13 @@ void CameraController::mouseDown()
 
 void CameraController::mouseMove()
 {
-	std::vector<std::shared_ptr<Camera>> l_Cameras;
-	getOwner()->getComponent<Camera>(l_Cameras);
-	if( 0 == l_Cameras.size() ) return;
+	glm::vec2 l_Sub(m_PrevPt - m_MousePt);
+	m_PrevPt = m_MousePt;
 
-
+	glm::mat4x4 l_Trans(getOwner()->getTransform());
+	glm::rotate(l_Trans, l_Sub.x / 100.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::rotate(l_Trans, l_Sub.y / 100.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+	getOwner()->setTransform(l_Trans);
 }
 
 void CameraController::mouseUp()

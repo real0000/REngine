@@ -1720,7 +1720,7 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_Buff
 	syncUavBuffer(a_bToGpu, l_BuffIDListWithOffset);
 }
 
-void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList)
+void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> &a_BuffIDList)
 {
 	assert(!a_BuffIDList.empty());
 
@@ -1748,10 +1748,10 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned 
 			{
 				D3D12_RANGE l_MapRange;
 				l_MapRange.Begin = 0;
-				l_MapRange.End = std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]);
+				l_MapRange.End = std::get<2>(a_BuffIDList[i]);
 
 				std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
-				l_ResArray[i] = initSizedResource(l_MapRange.End - l_MapRange.Begin, D3D12_HEAP_TYPE_UPLOAD);
+				l_ResArray[i] = initSizedResource(l_MapRange.End, D3D12_HEAP_TYPE_UPLOAD);
 				updateResourceData(l_ResArray[i], l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]), l_MapRange.End);
 				m_TempResources[m_IdleResThread].push_back(l_ResArray[i]);
 
@@ -1766,7 +1766,7 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned 
 			{
 				std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
 				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i])
-					, l_ResArray[i], 0, std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]));
+					, l_ResArray[i], 0, std::get<2>(a_BuffIDList[i]));
 			}
 	
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), &(l_TransBackSetting[0]));
@@ -1798,14 +1798,14 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned 
 				std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
 
 				ReadBackBuffer l_ReadBackData;
-				l_ReadBackData.m_pTempResource = initSizedResource(std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]), D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
+				l_ReadBackData.m_pTempResource = initSizedResource(std::get<2>(a_BuffIDList[i]), D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
 				l_ReadBackData.m_pTargetBuffer = reinterpret_cast<unsigned char *>(l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]));
-				l_ReadBackData.m_Size = std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]);
+				l_ReadBackData.m_Size = std::get<2>(a_BuffIDList[i]);
 				m_ReadBackContainer[m_IdleResThread].push_back(l_ReadBackData);
 				m_TempResources[m_IdleResThread].push_back(l_ReadBackData.m_pTempResource);
 		
 				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_ReadBackData.m_pTempResource, 0
-					, l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i]), std::get<2>(a_BuffIDList[i]) - std::get<1>(a_BuffIDList[i]));
+					, l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i]), std::get<2>(a_BuffIDList[i]));
 			}
 
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSettings.size(), &(l_TransBackSettings[0]));

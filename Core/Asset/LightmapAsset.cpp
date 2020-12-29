@@ -189,7 +189,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 			{
 				unsigned int l_VtxIdx = j + l_pSubMeshInfo->m_BaseVertex;
 
-				glm::mat4x4 l_Matrix(l_pMeshObj->getOwnerNode()->getTransform());
+				glm::mat4x4 l_Matrix(l_pMeshObj->getOwner()->getTransform());
 				glm::vec4 l_WorldPos(glm::vec4(l_Position[l_VtxIdx], 1.0) * l_Matrix);
 				glm::vec4 l_WorldNormal(glm::vec4(l_Normal[l_VtxIdx], 0.0) * l_Matrix);
 				glm::vec4 l_WorldTangent(glm::vec4(l_Tangent[l_VtxIdx], 0.0) * l_Matrix);

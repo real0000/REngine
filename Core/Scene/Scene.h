@@ -123,6 +123,7 @@ public:
 	void setParent(std::shared_ptr<SceneNode> a_pNewParent);
 	std::shared_ptr<SceneNode> find(wxString a_Name);
 
+	void setTransform(glm::mat4x4 a_Trans);
 	void setTransform(glm::vec3 a_Pos, glm::vec3 a_Scale, glm::quat a_Rot);
 	void setPosition(glm::vec3 a_Pos);
 	void setScale(glm::vec3 a_Scale);

@@ -63,8 +63,9 @@ bool BasicApp::OnInit()
 
 	l_pScene->getRootNode()->addChild(wxT("sponza/sponza.obj"));
 
+	l_pScene->getRootNode()->addComponent<R::DirLight>();
+
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
-	l_pCameraNode->addComponent<R::DirLight>();
 	l_pCameraNode->addComponent<R::CameraController>();
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);

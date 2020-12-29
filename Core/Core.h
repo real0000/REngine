@@ -104,7 +104,7 @@ public:
 	void setName(wxString a_Name){ m_Name = a_Name; }
 	bool isHidden(){ return m_bHidden; }
 	void setHidden(bool a_bHidden);
-	std::shared_ptr<SceneNode> getOwnerNode();
+	std::shared_ptr<SceneNode> getOwner(){ return m_pOwner; }
 	void setOwner(std::shared_ptr<SceneNode> a_pOwner);
 	void remove();
 
@@ -127,7 +127,6 @@ protected:
 	
 	//
 	std::shared_ptr<Scene> getScene(){ return m_pRefScene; }
-	std::shared_ptr<SceneNode> getOwner(){ return m_pOwner; }
 
 private:
 	struct

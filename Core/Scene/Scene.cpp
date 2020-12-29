@@ -329,6 +329,12 @@ SceneNode::~SceneNode()
 {
 }
 
+void SceneNode::setTransform(glm::mat4x4 a_Trans)
+{
+	m_LocalTransformCache = a_Trans;
+	update(m_pParentNode->m_World);
+}
+
 void SceneNode::setTransform(glm::vec3 a_Pos, glm::vec3 a_Scale, glm::quat a_Rot)
 {
 	m_LocalPos = a_Pos;

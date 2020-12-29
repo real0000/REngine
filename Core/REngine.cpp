@@ -60,11 +60,6 @@ void EngineComponent::setHidden(bool a_bHidden)
 	hiddenFlagChanged();
 }
 
-std::shared_ptr<SceneNode> EngineComponent::getOwnerNode()
-{
-	return m_pOwner;
-}
-
 void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 {
 	assert(nullptr != a_pOwner);

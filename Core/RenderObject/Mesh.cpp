@@ -159,12 +159,11 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	MeshAsset *l_pMeshRootInst = m_pMesh->getComponent<MeshAsset>();
 	MeshAsset::Instance *l_pMeshInst = l_pMeshRootInst->getMeshes()[m_MeshIdx];
 	
-	l_pMaterialInst->setParam("m_World", m_WorldOffset, getOwner()->getTransform());
-	l_pMaterialInst->setParam("m_VtxFlag", m_WorldOffset, l_pMeshInst->m_VtxFlag);
-	l_pMaterialInst->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
+	std::shared_ptr<MaterialBlock> l_WorldBlock = getScene()->getRenderBatcher()->getWorldMatrixBlock();
+	l_WorldBlock->setParam("m_World", m_WorldOffset, getOwner()->getTransform());
+	l_WorldBlock->setParam("m_VtxFlag", m_WorldOffset, l_pMeshInst->m_VtxFlag);
+	l_WorldBlock->setParam("m_SkinMatBase", m_WorldOffset, m_SkinOffset);
 
-	l_pMaterialInst->setBlock(STANDARD_TRANSFORM_SKIN, getScene()->getRenderBatcher()->getSkinMatrixBlock());
-	l_pMaterialInst->setBlock(STANDARD_TRANSFORM_NORMAL, getScene()->getRenderBatcher()->getWorldMatrixBlock());
 	syncKeyMap();
 }
 
