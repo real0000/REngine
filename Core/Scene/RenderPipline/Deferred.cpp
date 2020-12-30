@@ -234,17 +234,6 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		//bind gbuffer
 		m_pCmdInit->begin(false);
 
-		glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
-		m_pCmdInit->setViewPort(1, l_Viewport);
-		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
-		m_pCmdInit->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 6,
-									m_pGBuffer[GBUFFER_NORMAL]->getComponent<TextureAsset>()->getTextureID(),
-									m_pGBuffer[GBUFFER_MATERIAL]->getComponent<TextureAsset>()->getTextureID(),
-									m_pGBuffer[GBUFFER_BASECOLOR]->getComponent<TextureAsset>()->getTextureID(),
-									m_pGBuffer[GBUFFER_MASK]->getComponent<TextureAsset>()->getTextureID(),
-									m_pGBuffer[GBUFFER_FACTOR]->getComponent<TextureAsset>()->getTextureID(),
-									m_pGBuffer[GBUFFER_MOTIONBLUR]->getComponent<TextureAsset>()->getTextureID());
-
 		for( unsigned int i=0 ; i<GBUFFER_COUNT - 1 ; ++i )
 		{
 			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
@@ -260,6 +249,18 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
 				m_DrawCommand[i]->begin(false);
+				
+				glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
+				m_DrawCommand[i]->setViewPort(1, l_Viewport);
+				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
+				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 6,
+												m_pGBuffer[GBUFFER_NORMAL]->getComponent<TextureAsset>()->getTextureID(),
+												m_pGBuffer[GBUFFER_MATERIAL]->getComponent<TextureAsset>()->getTextureID(),
+												m_pGBuffer[GBUFFER_BASECOLOR]->getComponent<TextureAsset>()->getTextureID(),
+												m_pGBuffer[GBUFFER_MASK]->getComponent<TextureAsset>()->getTextureID(),
+												m_pGBuffer[GBUFFER_FACTOR]->getComponent<TextureAsset>()->getTextureID(),
+												m_pGBuffer[GBUFFER_MOTIONBLUR]->getComponent<TextureAsset>()->getTextureID());
+
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_OPAQUE]
 					, i, l_NumCommand, MATSLOT_OPAQUE
 					, [=](MaterialAsset *a_pMat) -> void
@@ -268,7 +269,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_OPAQUE][i]->getWorldOffset(), 0, 0, 0));
+						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
 				m_DrawCommand[i]->end();
@@ -336,6 +337,9 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
 			{
 				m_DrawCommand[i]->begin(false);
+
+				m_DrawCommand[i]->setRenderTarget(-1, 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
+
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_TRANSPARENT]
 					, i, l_NumCommand, MATSLOT_TRANSPARENT
 					, [=](MaterialAsset *a_pMat) -> void
@@ -344,9 +348,10 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_TRANSPARENT][i]->getWorldOffset(), 0, 0, 0));
+						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
+
 				m_DrawCommand[i]->end();
 			});
 		}

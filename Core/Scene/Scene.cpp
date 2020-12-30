@@ -122,13 +122,13 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	l_TempData.m_StartInstance = 0;
 	l_TempData.m_InstanceCount = 0;
 
-	MaterialAsset *l_pMatCache = a_SortedMesh[l_Start]->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
+	MaterialAsset *l_pMatCache = a_SortedMesh[l_Start]->getMaterial(a_MatSlot)->getComponent<MaterialAsset>();
 	MeshAsset *l_pMeshCache = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>();
 	unsigned int l_SubIdxCahce = a_SortedMesh[l_Start]->getMeshIdx();
 	IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
 	for( unsigned int j=l_Start ; j<l_End ; ++j )
 	{
-		MaterialAsset *l_pMat = a_SortedMesh[j]->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
+		MaterialAsset *l_pMat = a_SortedMesh[j]->getMaterial(a_MatSlot)->getComponent<MaterialAsset>();
 		MeshAsset *l_pMesh = a_SortedMesh[j]->getMesh()->getComponent<MeshAsset>();
 		unsigned int l_SubIdx = a_SortedMesh[j]->getMeshIdx();
 
@@ -136,6 +136,8 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 		{
 			if( !l_Instance.empty() )
 			{
+				if( 0 != l_TempData.m_InstanceCount ) l_pIndirectBuffer->assign(l_TempData);
+
 				a_pCmd->useProgram(l_pMatCache->getProgram());
 				int l_InstanceBuffer = requestInstanceVtxBuffer();
 				GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_Instance.data(), sizeof(glm::ivec4) * l_Instance.size());
@@ -144,8 +146,15 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 				a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
 				a_pCmd->setTopology(Topology::triangle_list);
 				a_BindingFunc(l_pMatCache);
+				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
+				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
 				l_pMatCache->bindAll(a_pCmd);
-				a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+				//a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+				for( unsigned int cmd=0 ; cmd<l_pIndirectBuffer->getCurrCount() ; ++cmd )
+				{
+					IndirectDrawData *l_pDrawData = l_pIndirectBuffer->getData(cmd);
+					a_pCmd->drawElement(l_pDrawData->m_StartIndex, l_pDrawData->m_IndexCount, l_pDrawData->m_BaseVertex, l_pDrawData->m_InstanceCount, l_pDrawData->m_StartInstance);
+				}
 				recycleInstanceVtxBuffer(l_InstanceBuffer);
 
 				l_Instance.clear();
@@ -180,6 +189,8 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	}
 	if( !l_Instance.empty() )
 	{
+		if( 0 != l_TempData.m_InstanceCount ) l_pIndirectBuffer->assign(l_TempData);
+
 		a_pCmd->useProgram(l_pMatCache->getProgram());
 		int l_InstanceBuffer = requestInstanceVtxBuffer();
 		GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_Instance.data(), sizeof(glm::ivec4) * l_Instance.size());
@@ -187,11 +198,16 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 		a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
 		a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
 		a_pCmd->setTopology(Topology::triangle_list);
+		a_BindingFunc(l_pMatCache);
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
-		a_BindingFunc(l_pMatCache);
 		l_pMatCache->bindAll(a_pCmd);
-		a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+		//a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+		for( unsigned int cmd=0 ; cmd<l_pIndirectBuffer->getCurrCount() ; ++cmd )
+		{
+			IndirectDrawData *l_pDrawData = l_pIndirectBuffer->getData(cmd);
+			a_pCmd->drawElement(l_pDrawData->m_StartIndex, l_pDrawData->m_IndexCount, l_pDrawData->m_BaseVertex, l_pDrawData->m_InstanceCount, l_pDrawData->m_StartInstance);
+		}
 		recycleInstanceVtxBuffer(l_InstanceBuffer);
 
 		l_Instance.clear();

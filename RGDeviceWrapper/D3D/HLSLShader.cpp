@@ -913,12 +913,10 @@ void* HLSLComponent::getShader(ShaderProgram *a_pProgram, wxString a_Filename, S
 			}
 			SAFE_RELEASE(l_pErrorMsg)
 		}
-		else
-		{
-			FILE *fp = fopen(l_ShaderBinaryFile.c_str(), "wb");
-			fwrite(l_pShader->GetBufferPointer(), 1, l_pShader->GetBufferSize(), fp);
-			fclose(fp);
-		}
+		
+		FILE *fp = fopen(l_ShaderBinaryFile.c_str(), "wb");
+		fwrite(l_pShader->GetBufferPointer(), 1, l_pShader->GetBufferSize(), fp);
+		fclose(fp);
 	}
 	
 	return l_pShader;

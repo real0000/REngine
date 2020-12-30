@@ -75,6 +75,7 @@ public:
 
 	unsigned int getCurrCount(){ return m_CurrOffset; }
 	int getID(){ return m_ID; }
+	IndirectDrawData* getData(unsigned int a_Slot){ return reinterpret_cast<IndirectDrawData*>(m_pBuff + sizeof(IndirectDrawData) * a_Slot); }
 
 private:
 	char *m_pBuff;

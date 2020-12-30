@@ -753,6 +753,8 @@ void D3D12Device::init()
 			l_Filter.DenyList.pIDList = denyIds;
 
 			assert(S_OK == l_pInfoQueue->PushStorageFilter(&l_Filter));
+
+			l_pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_OBJECT_DELETED_WHILE_STILL_IN_USE, true);
 		}
 	}
 #endif
