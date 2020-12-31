@@ -43,53 +43,56 @@ D3D12HeapManager::D3D12HeapManager(ID3D12Device *a_pDevice, unsigned int a_Exten
 
 D3D12HeapManager::~D3D12HeapManager()
 {
+	flush();
 	SAFE_RELEASE(m_pHeap)
 	SAFE_RELEASE(m_pHeapCache)
 }
 
 unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc)
 {
-	unsigned int l_Res = newHeap();
+	bool l_bTemp = false;
+	unsigned int l_Res = newHeap(l_bTemp);
 	m_pRefDevice->CreateRenderTargetView(a_pResource, a_pDesc, getCpuHandle(l_Res));
 	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateRenderTargetView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
 }
 
-unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc)
-{
-	unsigned int l_Res = newHeap();
-	m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res));
-	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
-	return l_Res;
-}
-
 unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *a_pDesc)
 {
-	unsigned int l_Res = newHeap();
+	bool l_bTemp = false;
+	unsigned int l_Res = newHeap(l_bTemp);
 	m_pRefDevice->CreateDepthStencilView(a_pResource, a_pDesc, getCpuHandle(l_Res));
 	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateDepthStencilView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
 }
 
-unsigned int D3D12HeapManager::newHeap(D3D12_SAMPLER_DESC *a_pDesc)
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc, bool &a_bExtended)
 {
-	unsigned int l_Res = newHeap();
+	unsigned int l_Res = newHeap(a_bExtended);
+	m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res));
+	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateShaderResourceView(a_pResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
+	return l_Res;
+}
+
+unsigned int D3D12HeapManager::newHeap(D3D12_SAMPLER_DESC *a_pDesc, bool &a_bExtended)
+{
+	unsigned int l_Res = newHeap(a_bExtended);
 	m_pRefDevice->CreateSampler(a_pDesc, getCpuHandle(l_Res));
 	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateSampler(a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
 }
 
-unsigned int D3D12HeapManager::newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc)
+unsigned int D3D12HeapManager::newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc, bool &a_bExtended)
 {
-	unsigned int l_Res = newHeap();
+	unsigned int l_Res = newHeap(a_bExtended);
 	m_pRefDevice->CreateConstantBufferView(a_pDesc, getCpuHandle(l_Res));
 	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateConstantBufferView(a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
 }
 
-unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc)
+unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc, bool &a_bExtended)
 {
-	unsigned int l_Res = newHeap();
+	unsigned int l_Res = newHeap(a_bExtended);
 	m_pRefDevice->CreateUnorderedAccessView(a_pResource, a_pCounterResource, a_pDesc, getCpuHandle(l_Res));
 	if( 0 != (m_Flag & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ) m_pRefDevice->CreateUnorderedAccessView(a_pResource, a_pCounterResource, a_pDesc, getCpuHandle(l_Res, m_pHeapCache));
 	return l_Res;
@@ -115,9 +118,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE D3D12HeapManager::getGpuHandle(unsigned int a_HeapID
 	return l_Res;
 }
 
-unsigned int D3D12HeapManager::newHeap()
+void D3D12HeapManager::flush()
 {
-	if( m_FreeSlot.empty() ) extend();
+	for( unsigned int i=0 ; i<m_DroppedHeap.size() ; ++i ) m_pHeap->Release();
+	m_DroppedHeap.clear();
+}
+
+unsigned int D3D12HeapManager::newHeap(bool &a_bExtended)
+{
+	a_bExtended = m_FreeSlot.empty();
+	if( a_bExtended ) extend();
 	unsigned int l_Res = m_FreeSlot.front();
 	m_FreeSlot.pop_front();
 	return l_Res;
@@ -141,7 +151,7 @@ void D3D12HeapManager::extend()
 		if( nullptr != m_pHeap )
 		{
 			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeap->GetCPUDescriptorHandleForHeapStart(), m_pHeap->GetCPUDescriptorHandleForHeapStart(), m_Type);
-			m_pHeap->Release();
+			m_DroppedHeap.push_back(m_pHeap);
 		}
 		m_pHeap = l_pNewHeap;
 	}
@@ -156,8 +166,8 @@ void D3D12HeapManager::extend()
 		{
 			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeapCache->GetCPUDescriptorHandleForHeapStart(), m_pHeapCache->GetCPUDescriptorHandleForHeapStart(), m_Type);
 			m_pRefDevice->CopyDescriptorsSimple(m_CurrHeapSize, l_pNewHeap->GetCPUDescriptorHandleForHeapStart(), m_pHeapCache->GetCPUDescriptorHandleForHeapStart(), m_Type);
-			m_pHeap->Release();
-			m_pHeapCache->Release();
+			m_DroppedHeap.push_back(m_pHeap);
+			m_DroppedHeap.push_back(m_pHeapCache);
 		}
 		m_pHeap = l_pNewHeap;
 		m_pHeapCache = l_pNewHeapCache;
@@ -783,9 +793,9 @@ void D3D12Device::init()
 	// Create descriptor heaps.
 	{
 		m_pShaderResourceHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 16, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 8, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		m_pSamplerHeap = new D3D12HeapManager(m_pDevice, 256, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 64, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 64, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	}
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread();//D3D12_COMMAND_LIST_TYPE_COPY);
@@ -1211,11 +1221,14 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 		
 		D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc(l_UavStructFunc(i));
 		l_UAVDesc.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetBinder->m_Format);
-		int l_TempUavID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, nullptr, &l_UAVDesc);
+		bool l_bExtended = false;
+		int l_TempUavID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, nullptr, &l_UAVDesc, l_bExtended);
+		if( l_bExtended ) rebindResourceHeap();
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC l_SrcDesc(l_SrvStructFunc(i-1));
 		l_SrcDesc.Format = l_UAVDesc.Format;
-		int l_TempSrvID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, &l_SrcDesc);
+		int l_TempSrvID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, &l_SrcDesc, l_bExtended);
+		if( l_bExtended ) rebindResourceHeap();
 		
 		glm::vec3 l_PixelSize(1.0f / glm::vec3(l_Dim.x, l_Dim.y, l_Dim.z));
 		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
@@ -1329,7 +1342,9 @@ int D3D12Device::createSampler(Filter::Key a_Filter, AddressMode::Key a_UMode, A
 	l_Desc.BorderColor[2] = a_Border2;
 	l_Desc.BorderColor[3] = a_Border3;
 	
-	l_pNewBinder->m_HeapID = m_pSamplerHeap->newHeap(&l_Desc);
+	bool l_bExtended = false;
+	l_pNewBinder->m_HeapID = m_pSamplerHeap->newHeap(&l_Desc, l_bExtended);
+	if( l_bExtended ) rebindResourceHeap();
 
 	return l_SamplerID;
 }
@@ -1606,7 +1621,10 @@ int D3D12Device::requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size)
 	D3D12_CONSTANT_BUFFER_VIEW_DESC l_BuffDesc;
 	l_BuffDesc.SizeInBytes = a_Size;
 	l_BuffDesc.BufferLocation = l_pTargetBinder->m_pResource->GetGPUVirtualAddress();
-	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(&l_BuffDesc);
+	
+	bool l_bExtended = false;
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(&l_BuffDesc, l_bExtended);
+	if( l_bExtended ) rebindResourceHeap();
 
 	return l_BuffID;
 }
@@ -1660,7 +1678,9 @@ unsigned int D3D12Device::requestUavBuffer(char* &a_pOutputBuff, unsigned int a_
 	l_UAVDesc.Buffer.CounterOffsetInBytes = 0;
 	l_UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, l_pTargetBinder->m_pCounterResource, &l_UAVDesc);
+	bool l_bExtended = false;
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, l_pTargetBinder->m_pCounterResource, &l_UAVDesc, l_bExtended);
+	if( l_bExtended ) rebindResourceHeap();
 
 	return l_BuffID;
 }
@@ -1693,8 +1713,9 @@ void D3D12Device::resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a
 	l_UAVDesc.Buffer.CounterOffsetInBytes = 0;
 	l_UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 	
+	bool l_bExtended = false;
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
-	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, l_pTargetBinder->m_pCounterResource, &l_UAVDesc);
+	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, l_pTargetBinder->m_pCounterResource, &l_UAVDesc, l_bExtended);
 
 	GraphicDevice::syncUavBuffer(true, 1u, a_ID);
 }
@@ -1880,6 +1901,12 @@ void D3D12Device::addPresentCanvas(D3D12Canvas *a_pCanvas)
 	m_PresentCanvas.push_back(a_pCanvas);
 }
 
+void D3D12Device::rebindResourceHeap()
+{
+	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
+	m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(2, l_ppHeaps);
+}
+
 void D3D12Device::resourceThread()
 {
 	while( m_bLooping )
@@ -1898,12 +1925,14 @@ void D3D12Device::resourceThread()
 			m_pResCmdQueue->ExecuteCommandLists(1, l_CmdArray);
 			
 			m_IdleResThread = 1 - m_IdleResThread;
-			ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
-			m_ResThread[m_IdleResThread].second->SetDescriptorHeaps(2, l_ppHeaps);
+			rebindResourceHeap();
 		}
 		
 		m_pResFence->signal();
 		m_pResFence->wait();
+
+		m_pSamplerHeap->flush();
+		m_pShaderResourceHeap->flush();
 
 		unsigned int l_Original = 1 - m_IdleResThread;
 		m_ResThread[l_Original].first->Reset();
@@ -2151,7 +2180,9 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 
 			default:break;
 		}
-		l_pNewBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, &l_SrvDesc);
+		bool l_bExtendted = false;
+		l_pNewBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, &l_SrvDesc, l_bExtendted);
+		if( l_bExtendted ) rebindResourceHeap();
 
 		if( 0 != (a_Flag & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) )
 		{
@@ -2189,7 +2220,8 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 					break;
 			}
 			l_pNewBinder->m_bWriteable = true;
-			l_pNewBinder->m_UavHeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, nullptr, &l_UavDesc);
+			l_pNewBinder->m_UavHeapID = m_pShaderResourceHeap->newHeap(l_pNewBinder->m_pTexture, nullptr, &l_UavDesc, l_bExtendted);
+			if( l_bExtendted ) rebindResourceHeap();
 		}
 	}
 

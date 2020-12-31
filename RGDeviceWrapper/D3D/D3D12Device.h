@@ -27,18 +27,19 @@ public:
 	virtual ~D3D12HeapManager();
 
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_RENDER_TARGET_VIEW_DESC *a_pDesc);
-	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc);
 	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *a_pDesc);
-	unsigned int newHeap(D3D12_SAMPLER_DESC *a_pDesc);
-	unsigned int newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc);
-	unsigned int newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc);
+	unsigned int newHeap(ID3D12Resource *a_pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *a_pDesc, bool &a_bExtended);
+	unsigned int newHeap(D3D12_SAMPLER_DESC *a_pDesc, bool &a_bExtended);
+	unsigned int newHeap(D3D12_CONSTANT_BUFFER_VIEW_DESC *a_pDesc, bool &a_bExtended);
+	unsigned int newHeap(ID3D12Resource *a_pResource, ID3D12Resource *a_pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *a_pDesc, bool &a_bExtended);
 	void recycle(unsigned int a_HeapID);
 	D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap = nullptr);
 	D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(unsigned int a_HeapID, ID3D12DescriptorHeap *a_pTargetHeap = nullptr);
 	ID3D12DescriptorHeap* getHeapInst(){ return m_pHeap; }
+	void flush();
 
 private:
-	unsigned int newHeap();
+	unsigned int newHeap(bool &a_bExtended);
 	void extend();
 
 	unsigned int m_CurrHeapSize, m_ExtendSize;
@@ -48,6 +49,8 @@ private:
 	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
 	D3D12_DESCRIPTOR_HEAP_FLAGS m_Flag;
 	unsigned int m_HeapUnitSize;
+
+	std::vector<ID3D12DescriptorHeap*> m_DroppedHeap;
 };
 
 class D3D12Fence
@@ -283,6 +286,7 @@ public:
 	void addPresentCanvas(D3D12Canvas *a_pCanvas);
 
 private:
+	void rebindResourceHeap();
 	void resourceThread();
 	void graphicThread();
 	ID3D12Resource* initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState = D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAGS a_Flag = D3D12_RESOURCE_FLAG_NONE);
