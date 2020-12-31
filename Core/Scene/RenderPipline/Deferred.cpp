@@ -338,7 +338,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			{
 				m_DrawCommand[i]->begin(false);
 
-				m_DrawCommand[i]->setRenderTarget(-1, 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
+				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_TRANSPARENT]
 					, i, l_NumCommand, MATSLOT_TRANSPARENT

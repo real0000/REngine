@@ -120,7 +120,7 @@ void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 	a_Up  = glm::normalize(glm::vec3(l_World[1][0], l_World[1][1], l_World[1][2]));
 }
 
-void Camera::transformListener(glm::mat4x4 &a_NewTransform)
+void Camera::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	calView(a_NewTransform);
 	

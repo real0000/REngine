@@ -74,7 +74,7 @@ public:
 	std::shared_ptr<MaterialBlock> getMaterialBlock(){ return m_pCameraBlock; }
 	glm::frustumface& getFrustum(){ return m_Frustum; }
 
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 
 private:
 	Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);

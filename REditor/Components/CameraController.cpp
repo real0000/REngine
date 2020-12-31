@@ -116,8 +116,8 @@ void CameraController::mouseMove()
 	m_PrevPt = m_MousePt;
 
 	glm::mat4x4 l_Trans(getOwner()->getTransform());
-	glm::rotate(l_Trans, l_Sub.x / 100.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::rotate(l_Trans, l_Sub.y / 100.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+	l_Trans = glm::rotate(l_Trans, l_Sub.x / 100.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+	l_Trans = glm::rotate(l_Trans, l_Sub.y / 100.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 	getOwner()->setTransform(l_Trans);
 }
 
