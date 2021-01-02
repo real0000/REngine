@@ -436,7 +436,7 @@ void EngineCore::mainLoop(wxIdleEvent &a_Event)
 	
 	SceneManager::singleton().update(m_Delta);
 	m_pInput->pollEvent();
-	if( m_Delta >= 1000.0f/EngineSetting::singleton().m_FPS )
+	if( m_Delta >= 1.0f/EngineSetting::singleton().m_FPS )
 	{
 		SceneManager::singleton().render();
 		l_PrevTick = l_Now;
