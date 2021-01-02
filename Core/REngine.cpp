@@ -271,10 +271,12 @@ EngineCore& EngineCore::singleton()
 EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
+	, m_Delta(0.0)
 	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr), m_DarkgrayTexture(nullptr)
 	, m_pQuad(nullptr)
 	, m_pInput(new InputMediator())
-	, m_ThreadPool(std::thread::hardware_concurrency())
+	, m_pRefMain(nullptr)
+	, m_ThreadPool(std::max(std::thread::hardware_concurrency() - 2, 1u))// -2 -> -1 for resource loop, -1 for graphic loop
 {
 	SceneNode::registComponentReflector<Camera>();
 	SceneNode::registComponentReflector<RenderableMesh>();
@@ -317,6 +319,14 @@ GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 	return l_pCanvas;
 }
 
+void EngineCore::run(wxApp *a_pMain)
+{
+	assert(nullptr == m_pRefMain);
+
+	m_pRefMain = a_pMain;
+	m_pRefMain->Bind(wxEVT_IDLE, &EngineCore::mainLoop, this);
+}
+
 bool EngineCore::isShutdown()
 {
 	return m_bShutdown;
@@ -324,10 +334,14 @@ bool EngineCore::isShutdown()
 
 void EngineCore::shutDown()
 {
+	std::lock_guard<std::mutex> l_LoopGuard(m_LoopGuard);
+
 	m_bShutdown = true;
 	m_bValid = false;
+	m_pRefMain->Unbind(wxEVT_IDLE, &EngineCore::mainLoop, this);
 	
-	m_MainLoop.join();
+	SDL_Quit();
+
 	m_WhiteTexture = nullptr;
 	m_BlueTexture = nullptr;
 	m_DarkgrayTexture = nullptr;
@@ -406,37 +420,29 @@ bool EngineCore::init()
 	m_pQuad->setVertex(VTXSLOT_POSITION, (void *)c_QuadVtx);
 	m_pQuad->init();
 
-	if( m_bValid ) m_MainLoop = std::thread(&EngineCore::mainLoop, this);
+	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 	
 	return m_bValid;
 }
 
-void EngineCore::mainLoop()
+void EngineCore::mainLoop(wxIdleEvent &a_Event)
 {
-	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+	std::lock_guard<std::mutex> l_LoopGuard(m_LoopGuard);
+	if( m_bShutdown ) return;
 
-	auto l_Start = std::chrono::high_resolution_clock::now();
-	while( !m_bShutdown )
-	{
-		auto l_Now = std::chrono::high_resolution_clock::now();
-		auto l_Delta = std::chrono::duration<double, std::milli>(l_Now - l_Start).count();
-		SceneManager::singleton().update(l_Delta / 1000.0f);
-		if( l_Delta < 1000.0f/EngineSetting::singleton().m_FPS )
-		{
-			std::this_thread::yield();
-			continue;
-		}
-
-		l_Delta *= 0.001f;// to second
-		{
-			m_pInput->pollEvent();
-			SceneManager::singleton().render();
-		}
-
-		l_Start = l_Now;
-	}
+	static auto l_PrevTick = std::chrono::high_resolution_clock::now();
+	auto l_Now = std::chrono::high_resolution_clock::now();
+	m_Delta = std::chrono::duration<double, std::milli>(l_Now - l_PrevTick).count() / 1000.0f;
 	
-	SDL_Quit();
+	SceneManager::singleton().update(m_Delta);
+	m_pInput->pollEvent();
+	if( m_Delta >= 1000.0f/EngineSetting::singleton().m_FPS )
+	{
+		SceneManager::singleton().render();
+		l_PrevTick = l_Now;
+	}
+		
+	a_Event.RequestMore();
 }
 #pragma endregion
 

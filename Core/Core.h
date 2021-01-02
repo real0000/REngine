@@ -177,7 +177,7 @@ private:
 	virtual ~EngineSetting();
 };
 
-class EngineCore
+class EngineCore : public wxEvtHandler
 {
 	friend class EngineComponent;
 public:
@@ -188,8 +188,10 @@ public:
 	// for tool window
 	GraphicCanvas* createCanvas(wxWindow *a_pParent);
 
+	void run(wxApp *a_pMain);
 	bool isShutdown();
 	void shutDown();
+	double getDelta(){ return m_Delta; }// for input event
 
 	// utility
 	wxString convertToAssetPath(wxString a_Path);
@@ -211,15 +213,17 @@ private:
 	virtual ~EngineCore();
 
 	bool init();
-	void mainLoop();
+	void mainLoop(wxIdleEvent &a_Event);
 
 	bool m_bValid;
 	bool m_bShutdown;
+	std::mutex m_LoopGuard;
+	double m_Delta;
 
 	std::shared_ptr<Asset> m_WhiteTexture, m_BlueTexture, m_DarkgrayTexture;
 	std::shared_ptr<VertexBuffer> m_pQuad;
 	InputMediator *m_pInput;
-	std::thread m_MainLoop;
+	wxApp *m_pRefMain;
 	ThreadPool m_ThreadPool;
 };
 

@@ -69,6 +69,7 @@ bool BasicApp::OnInit()
 	l_pCameraNode->addComponent<R::CameraController>();
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
+	R::EngineCore::singleton().run(this);
 
 	return true;
 }
