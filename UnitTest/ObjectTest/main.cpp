@@ -17,41 +17,6 @@ private:
 
 IMPLEMENT_APP(BasicApp)
 
-/*class TempComponent : public R::EngineComponent
-{
-	friend class R::EngineComponent;
-public:
-	virtual void start()
-	{
-		addUpdateListener();
-	}
-
-	virtual unsigned int typeID(){ return R::CUSTOM_COMPONENT + 1; }
-
-	virtual void updateListener(float a_Delta)
-	{
-		m_Angle += glm::pi<float>() / 6.0f * a_Delta;
-		if( m_Angle > glm::pi<float>() * 2.0f ) m_Angle -= glm::pi<float>() * 2.0f;
-
-		glm::mat4x4 l_World(1.0f);
-		glm::vec3 l_CameraPos(glm::vec3(200.0f * std::sin(m_Angle), 0.0f, 200.0f * std::cos(m_Angle)));
-		l_World = glm::translate(l_World, l_CameraPos);
-		//getSharedMember()->m_pSceneNode->setTransform(l_World);
-	}
-
-	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
-	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
-
-private:
-	TempComponent(std::shared_ptr<R::Scene> a_pRefScene, std::shared_ptr<R::SceneNode> a_pOwner)
-		: R::EngineComponent(a_pRefScene, a_pOwner)
-		, m_Angle(0.0f)
-	{
-	}
-
-	float m_Angle;
-};*/
-
 bool BasicApp::OnInit()
 {
 	m_pCanvas = R::EngineCore::singleton().createCanvas();
@@ -61,7 +26,8 @@ bool BasicApp::OnInit()
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
-	l_pScene->getRootNode()->addChild(wxT("sponza/sponza.obj"));
+	auto l_pMeshNode = l_pScene->getRootNode()->addChild(wxT("sponza/sponza.obj"));
+	l_pMeshNode->setScale(glm::vec3(100.0f, 100.0f, 100.0f));
 
 	l_pScene->getRootNode()->addComponent<R::DirLight>();
 

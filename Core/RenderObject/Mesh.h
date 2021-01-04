@@ -38,7 +38,7 @@ public:
 	virtual void end();
 	virtual void hiddenFlagChanged();
 	virtual void updateListener(float a_Delta);
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform);
 
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);

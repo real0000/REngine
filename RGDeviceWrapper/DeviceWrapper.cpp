@@ -321,25 +321,24 @@ bool GraphicCanvas::getNeedResize()
 //
 unsigned int GraphicDevice::getVertexSlotStride(unsigned int a_Type)
 {
-	unsigned int l_Res = 0;
 	switch( a_Type )
 	{
-		case VTXSLOT_POSITION:	l_Res = sizeof(glm::vec3); break;
+		case VTXSLOT_POSITION:	return sizeof(glm::vec3);
 		case VTXSLOT_TEXCOORD01:
 		case VTXSLOT_TEXCOORD23:
 		case VTXSLOT_TEXCOORD45:
-		case VTXSLOT_TEXCOORD67:l_Res = sizeof(glm::vec4); break;
+		case VTXSLOT_TEXCOORD67:return sizeof(glm::vec4);
 		case VTXSLOT_NORMAL:
 		case VTXSLOT_TANGENT:
-		case VTXSLOT_BINORMAL:	l_Res = sizeof(glm::vec3); break;
-		case VTXSLOT_BONE:		l_Res = sizeof(glm::ivec4); break;
-		case VTXSLOT_WEIGHT:	l_Res = sizeof(glm::vec4); break;
-		case VTXSLOT_COLOR:
-		case VTXSLOT_INSTANCE:	l_Res = sizeof(glm::ivec4); break;
+		case VTXSLOT_BINORMAL:	return sizeof(glm::vec3);
+		case VTXSLOT_BONE:		return sizeof(glm::ivec4);
+		case VTXSLOT_WEIGHT:	return sizeof(glm::vec4);
+		case VTXSLOT_COLOR:		return sizeof(unsigned int);
+		case VTXSLOT_INSTANCE:	return sizeof(glm::ivec4);
 		default:break;
 	}
-	assert(0 != l_Res);
-	return l_Res;
+	assert(false && "invalid vertex slot");
+	return 0;
 }
 
 unsigned int GraphicDevice::getParamAlignmentSize(ShaderParamType::Key a_Key)

@@ -420,6 +420,7 @@ std::shared_ptr<SceneNode> SceneNode::addChild(wxString a_MeshPath)
 {
 	std::shared_ptr<SceneNode> l_pNewRootNode = SceneNode::create(m_pRefScene, shared_from_this());
 	m_Children.push_back(l_pNewRootNode);
+	l_pNewRootNode->setTransform(glm::identity<glm::mat4x4>());
 
 	std::shared_ptr<Asset> l_pMeshAsset = AssetManager::singleton().getAsset(a_MeshPath);
 	MeshAsset *l_pMeshAssetInst = l_pMeshAsset->getComponent<MeshAsset>();
@@ -430,6 +431,7 @@ std::shared_ptr<SceneNode> SceneNode::addChild(wxString a_MeshPath)
 		MeshAsset::Relation *l_pRelation = l_MeshList[i];
 		std::shared_ptr<SceneNode> l_pChildNode = l_pNewRootNode->addChild();
 		l_pChildNode->setName(l_pRelation->m_Nodename);
+		l_pChildNode->setTransform(l_pRelation->m_Tansform);
 		for( unsigned int j=0 ; j<l_pRelation->m_RefMesh.size() ; ++j )
 		{
 			std::shared_ptr<RenderableMesh> l_pNewMeshComponent = l_pChildNode->addComponent<RenderableMesh>();

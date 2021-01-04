@@ -79,19 +79,20 @@ void RenderableMesh::updateListener(float a_Delta)
 {
 }
 
-void RenderableMesh::transformListener(glm::mat4x4 &a_NewTransform)
+void RenderableMesh::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	glm::vec3 l_Trans, l_Scale;
 	glm::quat l_Rot;
 	decomposeTRS(a_NewTransform, l_Trans, l_Scale, l_Rot);
 
-	glm::aabb &l_Box = m_pMesh->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx]->m_VisibleBoundingBox;
-	boundingBox().m_Center = l_Trans + l_Box.m_Center;
-	boundingBox().m_Size = l_Scale * l_Box.m_Size;
-	
 	if( nullptr != m_pMesh )
 	{
 		MeshAsset::Instance *l_pMeshInst = m_pMesh->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
+
+		glm::aabb &l_Box = l_pMeshInst->m_VisibleBoundingBox;
+		boundingBox().m_Center = l_Trans + l_Box.m_Center;
+		boundingBox().m_Size = l_Scale * l_Box.m_Size;
+	
 		getScene()->getRenderBatcher()->updateWorldSlot(m_WorldOffset, getOwner()->getTransform(), l_pMeshInst->m_VtxFlag, m_SkinOffset);
 	}
 	getScene()->getSceneGraph(GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
