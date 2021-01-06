@@ -163,7 +163,8 @@ void DeferredRenderer::saveSetting(boost::property_tree::ptree &a_Dst)
 
 void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	std::vector<std::shared_ptr<RenderableComponent>> l_Lights, l_Meshes;
+	m_VisibleMeshes.clear();
+	m_VisibleLights.clear();
 
 	{// setup light map
 		std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
@@ -180,7 +181,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		}
 	}
 
-	if( !setupVisibleList(a_pCamera, l_Lights, l_Meshes) )
+	if( !setupVisibleList(a_pCamera) )
 	{
 		// clear backbuffer only if mesh list is empty
 		m_pCmdInit->begin(false);
@@ -200,23 +201,22 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		return;
 	}
 	
-	EngineCore::singleton().addJob([=, &l_Lights, &l_Meshes](){ this->setupIndexUav(l_Lights);});
+	EngineCore::singleton().addJob([=](){ this->setupIndexUav();});
 	
 	// sort meshes
-	const unsigned int l_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
-	std::vector<RenderableMesh*> l_SortedMesh[l_NumMatSlot];
 	{
-		for( unsigned int i=0 ; i<l_NumMatSlot ; ++i )
+		for( unsigned int i=0 ; i<cm_NumMatSlot ; ++i )
 		{
-			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
+			EngineCore::singleton().addJob([=]() -> void
 			{
-				l_SortedMesh[i].reserve(l_Meshes.size());
-				for( unsigned int j=0 ; j<l_Meshes.size() ; ++j )
+				m_SortedMesh[i].clear();
+				m_SortedMesh[i].reserve(m_VisibleMeshes.size());
+				for( unsigned int j=0 ; j<m_VisibleMeshes.size() ; ++j )
 				{
-					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(l_Meshes[j].get());
-					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) l_SortedMesh[i].push_back(l_pMesh);
+					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(m_VisibleMeshes[j].get());
+					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) m_SortedMesh[i].push_back(l_pMesh);
 				}
-				std::sort(l_SortedMesh[i].begin(), l_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+				std::sort(m_SortedMesh[i].begin(), m_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
 				{
 					return a_pLeft->getSortKey(i).m_Key < a_pRight->getSortKey(i).m_Key;
 				});
@@ -246,7 +246,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		unsigned int l_NumCommand = m_DrawCommand.size();
 		for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i )
 		{
-			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
+			EngineCore::singleton().addJob([=]() -> void
 			{
 				m_DrawCommand[i]->begin(false);
 				
@@ -261,7 +261,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 												m_pGBuffer[GBUFFER_FACTOR]->getComponent<TextureAsset>()->getTextureID(),
 												m_pGBuffer[GBUFFER_MOTIONBLUR]->getComponent<TextureAsset>()->getTextureID());
 
-				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_OPAQUE]
+				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_OPAQUE]
 					, i, l_NumCommand, MATSLOT_OPAQUE
 					, [=](MaterialAsset *a_pMat) -> void
 					{
@@ -269,7 +269,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
+						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
 				m_DrawCommand[i]->end();
@@ -304,7 +304,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
 		m_pLightIndexMatInst->setBlock("Camera", a_pCamera->getMaterialBlock());
-		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
+		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
 		m_pLightIndexMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->compute(m_TileDim.x / 8, m_TileDim.y / 8);
 
@@ -322,7 +322,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
 		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
-		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)l_Lights.size());
+		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
 		m_pDeferredLightMatInst->bindTexture(m_pCmdInit, "ShadowMap", reinterpret_cast<ShadowMapRenderer*>(getScene()->getShadowMapBaker())->getShadowMap());
 		m_pDeferredLightMatInst->bindBlock(m_pCmdInit, "Camera", a_pCamera->getMaterialBlock());
 		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
@@ -334,13 +334,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		// draw transparent objects
 		for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i )
 		{
-			EngineCore::singleton().addJob([=, &l_SortedMesh]() -> void
+			EngineCore::singleton().addJob([=]() -> void
 			{
 				m_DrawCommand[i]->begin(false);
 
 				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 
-				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], l_SortedMesh[MATSLOT_TRANSPARENT]
+				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_TRANSPARENT]
 					, i, l_NumCommand, MATSLOT_TRANSPARENT
 					, [=](MaterialAsset *a_pMat) -> void
 					{
@@ -348,7 +348,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(l_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getWorldOffset(), 0, 0, 0));
+						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
 
@@ -385,17 +385,17 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	}
 }
 
-bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Light, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh)
+bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)
 {
-	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, a_Mesh);
-	if( a_Mesh.empty() ) return false;
+	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, m_VisibleMeshes);
+	if( m_VisibleMeshes.empty() ) return false;
 
-	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, a_Light);
+	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, m_VisibleLights);
 
-	if( (int)a_Light.size() >= m_LightIdx->getNumSlot() / 2 )
+	if( (int)m_VisibleLights.size() >= m_LightIdx->getNumSlot() / 2 )
 	{
 		int l_Unit = m_ExtendSize / 2;
-		int l_Extend = (int)a_Light.size() / 2 - m_LightIdx->getNumSlot();
+		int l_Extend = (int)m_VisibleLights.size() / 2 - m_LightIdx->getNumSlot();
 		l_Extend = (l_Extend + l_Unit - 1) / l_Unit * l_Unit;
 
 		m_LightIdx->extend(l_Extend);
@@ -405,7 +405,7 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::
 	return true;
 }
 
-void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light)
+void DeferredRenderer::setupIndexUav()
 {
 	struct LightInfo
 	{
@@ -414,10 +414,10 @@ void DeferredRenderer::setupIndexUav(std::vector< std::shared_ptr<RenderableComp
 	};
 
 	char *l_pBuff = m_LightIdx->getBlockPtr(0);
-	for( unsigned int i=0 ; i<a_Light.size() ; ++i )
+	for( unsigned int i=0 ; i<m_VisibleLights.size() ; ++i )
 	{
 		LightInfo *l_pTarget = reinterpret_cast<LightInfo*>(l_pBuff + sizeof(LightInfo) * i);
-		Light *l_pLight = reinterpret_cast<Light*>(a_Light[i].get());
+		Light *l_pLight = reinterpret_cast<Light*>(m_VisibleLights[i].get());
 		l_pTarget->m_Index = l_pLight->getID();
 		l_pTarget->m_Type = l_pLight->typeID();
 	}

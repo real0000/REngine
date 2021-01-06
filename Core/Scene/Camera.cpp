@@ -183,7 +183,7 @@ void Camera::calViewProjection(const glm::mat4x4 &a_NewTransform)
 	{
 		case ORTHO:
 		case PERSPECTIVE:{
-			m_Matrices[VIEWPROJECTION] = m_Matrices[PROJECTION] * m_Matrices[VIEW];
+			m_Matrices[VIEWPROJECTION] = glm::transpose(m_Matrices[PROJECTION] * m_Matrices[VIEW]);
 			m_Matrices[INVERTVIEWPROJECTION] = glm::inverse(m_Matrices[VIEWPROJECTION]);
 			m_Frustum.fromViewProjection(m_Matrices[VIEWPROJECTION]);
 

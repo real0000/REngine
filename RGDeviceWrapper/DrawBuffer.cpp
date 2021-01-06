@@ -139,7 +139,7 @@ IndirectDrawBuffer::~IndirectDrawBuffer()
 
 void IndirectDrawBuffer::assign(IndirectDrawData &a_Data)
 {
-	if( m_CurrOffset <= m_MaxSize )
+	if( m_CurrOffset >= m_MaxSize )
 	{
 		char *l_pNewBuff = nullptr;
 		int l_NewID = GDEVICE()->requestIndrectCommandBuffer(l_pNewBuff, sizeof(IndirectDrawData) * (m_MaxSize + 1024));

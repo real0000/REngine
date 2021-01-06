@@ -45,8 +45,8 @@ public:
 private:
 	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
 
-	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera, std::vector<std::shared_ptr<RenderableComponent>> &a_Light, std::vector<std::shared_ptr<RenderableComponent>> &a_Mesh);
-	void setupIndexUav(std::vector< std::shared_ptr<RenderableComponent> > &a_Light);
+	bool setupVisibleList(std::shared_ptr<Camera> a_pCamera);
+	void setupIndexUav();
 
 	GraphicCommander *m_pCmdInit;
 	std::shared_ptr<MaterialBlock> m_LightIdx;
@@ -64,6 +64,11 @@ private:
 	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
 
 	std::vector<int> m_GBufferCache, m_FBufferCache;
+
+	// temp contaoners
+	const static unsigned int cm_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
+	std::vector<std::shared_ptr<RenderableComponent>> m_VisibleLights, m_VisibleMeshes;
+	std::vector<RenderableMesh*> m_SortedMesh[cm_NumMatSlot];
 };
 
 }

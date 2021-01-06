@@ -438,8 +438,10 @@ void EngineCore::mainLoop(wxIdleEvent &a_Event)
 	m_pInput->pollEvent();
 	if( m_Delta >= 1.0f/EngineSetting::singleton().m_FPS )
 	{
+		BEGIN_TIME_RECORD()
 		SceneManager::singleton().render();
 		l_PrevTick = l_Now;
+		END_TIME_RECORD("render time")
 	}
 		
 	a_Event.RequestMore();

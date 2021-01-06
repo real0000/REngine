@@ -149,7 +149,7 @@
       <AdditionalLibraryDirectories>$(BOOSTSDK)stage_x64\lib;$(BOOSTSDK)stage\lib;$(ADSK_FBX_SDK)lib\vs2017\x64\release;..\..\third\SDL2\lib\x64;..\..\x64\Release;$(VLDSDK)lib\Win64;$(WXSDK)lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <EntryPointSymbol>
       </EntryPointSymbol>
-      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;REditor.lib;SDL2.lib;libfbxsdk-md.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>REngine.lib;RGDeviceWrapper.lib;RImporters.lib;RUtility.lib;REditor.lib;SDL2.lib;libfbxsdk.lib;d3d12.lib;dxgi.lib;D3DCompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
