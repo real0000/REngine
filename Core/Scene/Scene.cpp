@@ -163,6 +163,8 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 
 			l_pMatCache = l_pMat;
 			l_pMeshCache = l_pMesh;
+			l_SubIdxCahce = l_SubIdx;
+
 			MeshAsset::Instance *l_pInst = l_pMesh->getMeshes()[l_SubIdx];
 			l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
 			l_TempData.m_StartIndex = l_pInst->m_StartIndex;
@@ -175,13 +177,15 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 			if( l_SubIdxCahce != l_SubIdx && 0 != l_TempData.m_InstanceCount )
 			{
 				l_pIndirectBuffer->assign(l_TempData);
-
+				
 				MeshAsset::Instance *l_pInst = l_pMesh->getMeshes()[l_SubIdx];
 				l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
 				l_TempData.m_StartIndex = l_pInst->m_StartIndex;
 				l_TempData.m_IndexCount = l_pInst->m_IndexCount;
 				l_TempData.m_StartInstance = l_TempData.m_InstanceCount;
 				l_TempData.m_InstanceCount = 0;
+
+				l_SubIdxCahce = l_SubIdx;
 			}
 		}
 

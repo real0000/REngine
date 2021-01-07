@@ -191,7 +191,7 @@ void ModelData::init(wxString a_Filepath)
 
                         unsigned int l_MeshIdx = 0;
                         auto l_MeshIt = l_MeshMap.find(l_pMesh);
-                        if( l_MeshMap.find(l_pMesh) == l_MeshMap.end() )
+                        if( l_MeshIt == l_MeshMap.end() )
                         {
                             l_MeshIdx = l_MeshMap.size();
                             l_MeshMap.insert(std::make_pair(l_pMesh, l_MeshIdx));

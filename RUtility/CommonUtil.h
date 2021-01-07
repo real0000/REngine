@@ -54,6 +54,7 @@
 #define SAFE_DELETE_ARRAY(p) { if( nullptr != p ) delete[] p; p = nullptr; }
 #define SAFE_RELEASE(p) { if( nullptr != p ) p->Release(); p = nullptr; }
 
+#define CONSOLE_LOG(format, ...) wxMessageOutputDebug().Printf(format, __VA_ARGS__);
 #define BEGIN_TIME_RECORD() auto l_PrevTickRecord = std::chrono::high_resolution_clock::now();
 #define END_TIME_RECORD(format, ...) auto l_NowTickRecord = std::chrono::high_resolution_clock::now();\
 	wxMessageOutputDebug().Printf(format wxT(" -> %f"), __VA_ARGS__, std::chrono::duration<double, std::milli>(l_NowTickRecord - l_PrevTickRecord).count() / 1000.0f);
@@ -428,6 +429,8 @@ public:
 
 	std::pair<int, std::shared_ptr<T> > getData(wxString a_Filename)
 	{
+		a_Filename.Replace(wxT("\\"), wxT("/"));
+
 		std::shared_ptr<T> l_pNewFile = nullptr;
 		int l_ID = -1;
 		wxString l_FilePath(wxT(""));

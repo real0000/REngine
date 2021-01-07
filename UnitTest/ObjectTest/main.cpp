@@ -26,7 +26,7 @@ bool BasicApp::OnInit()
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
-	auto l_pMeshNode = l_pScene->getRootNode()->addChild(wxT("sponza/sponza.obj"));
+	auto l_pMeshNode = l_pScene->getRootNode()->addChild(wxT("sponza/sponza.FBX"));
 	l_pMeshNode->setScale(glm::vec3(100.0f, 100.0f, 100.0f));
 
 	l_pScene->getRootNode()->addComponent<R::DirLight>();

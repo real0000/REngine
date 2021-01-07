@@ -20,7 +20,6 @@
     <Param name="m_World" desc="" type="float4x4"/>
     <Param name="m_VtxFlag" desc="" type="int1"/>
     <Param name="m_SkinMatBase" desc="" type="int1"/>
-    <Param name="Padding" desc="" type="int2"/>
   </UavBuffer>
   <UavBuffer name="DirLight">
     <Param name="m_Color" desc="" type="float3"/>

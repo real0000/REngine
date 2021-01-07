@@ -111,19 +111,19 @@ void MeshAsset::importFile(wxString a_File)
 				
 				auto it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
 				if( l_ThisMaterial.end() == it ) l_pBaseColor = EngineCore::singleton().getWhiteTexture();
-				else l_pBaseColor = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+				else l_pBaseColor = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
 				if( l_ThisMaterial.end() == it ) l_pNormal = EngineCore::singleton().getBlueTexture();
-				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 				
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
 				if( l_ThisMaterial.end() == it ) l_pMetal = EngineCore::singleton().getWhiteTexture();
-				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
 				if( l_ThisMaterial.end() == it ) l_pRoughness = EngineCore::singleton().getWhiteTexture();
-				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(it->second));
+				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 			}
 
 			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str()));
@@ -186,7 +186,7 @@ void MeshAsset::importFile(wxString a_File)
 		l_pRelNode->m_Nodename = (*it)->getName();
 		l_pRelNode->m_Tansform = (*it)->getAbsoluteTransform();
 		l_pRelNode->m_RefMesh.resize((*it)->getRefMesh().size());
-		std::copy(l_pRelNode->m_RefMesh.begin(), l_pRelNode->m_RefMesh.end(), (*it)->getRefMesh().begin());
+		std::copy((*it)->getRefMesh().begin(), (*it)->getRefMesh().end(), l_pRelNode->m_RefMesh.begin());
 	}
 
 	initBuffers();
@@ -440,6 +440,15 @@ void MeshAsset::initBuffers()
 
 	m_IndexBuffer->setIndicies(true, m_Indicies.data(), m_Indicies.size());
 	m_IndexBuffer->init();
+
+	m_Position.clear();
+    for( unsigned int i=0 ; i<4 ; ++i ) m_Texcoord[i].clear();
+    m_Normal.clear();
+    m_Tangent.clear();
+    m_Binormal.clear();
+	m_BoneId.clear();
+	m_Weight.clear();
+	m_Indicies.clear();
 }
 #pragma endregion
 

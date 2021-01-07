@@ -44,7 +44,7 @@ VS_CommonOutput main(VS_CommonInput a_Input)
 
 	if( 0 == (l_Transform.m_VtxFlag & WITHOUT_VP_MAT) || 0 != (l_Transform.m_VtxFlag & USE_TESSELLATION) )
 	{
-		l_Output.m_Position = mul(float4(l_Output.m_Position.xyz, 1.0), m_ViewProjection);
+		l_Output.m_Position = mul(m_ViewProjection, float4(l_Output.m_Position.xyz, 1.0));
 	}
 
 	return l_Output;
