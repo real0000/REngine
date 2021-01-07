@@ -51,6 +51,7 @@ private:
 	unsigned int m_HeapUnitSize;
 
 	std::vector<ID3D12DescriptorHeap*> m_DroppedHeap;
+	std::mutex m_HeapLock;
 };
 
 class D3D12Fence

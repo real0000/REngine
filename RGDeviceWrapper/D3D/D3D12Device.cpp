@@ -100,6 +100,7 @@ unsigned int D3D12HeapManager::newHeap(ID3D12Resource *a_pResource, ID3D12Resour
 
 void D3D12HeapManager::recycle(unsigned int a_HeapID)
 {
+	std::lock_guard<std::mutex> l_Guard(m_HeapLock);
 	assert(m_FreeSlot.end() == std::find(m_FreeSlot.begin(), m_FreeSlot.end(), a_HeapID));
 	m_FreeSlot.push_back(a_HeapID);
 }
@@ -126,6 +127,7 @@ void D3D12HeapManager::flush()
 
 unsigned int D3D12HeapManager::newHeap(bool &a_bExtended)
 {
+	std::lock_guard<std::mutex> l_Guard(m_HeapLock);
 	a_bExtended = m_FreeSlot.empty();
 	if( a_bExtended ) extend();
 	unsigned int l_Res = m_FreeSlot.front();
