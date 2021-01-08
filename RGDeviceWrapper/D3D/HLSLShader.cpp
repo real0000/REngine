@@ -17,13 +17,14 @@ namespace R
 HLSLProgram12::HLSLProgram12()
 	: m_pPipeline(nullptr)
 	, m_pRegisterDesc(nullptr)
-	, m_pIndirectFmt(nullptr), m_pSimpleIndirectFmt(nullptr)
+	, m_pIndirectFmt(nullptr)
 	, m_IndirectCmdSize(0)
 {
 }
 
 HLSLProgram12::~HLSLProgram12()
 {
+	SAFE_RELEASE(m_pIndirectFmt)
 	SAFE_RELEASE(m_pPipeline)
 	SAFE_RELEASE(m_pRegisterDesc)
 }
@@ -736,23 +737,6 @@ void HLSLProgram12::initDrawShader(boost::property_tree::ptree &a_ShaderSetting,
 		{
 			wxMessageBox(wxT("command signature init failed"), wxT("HLSLProgram::init"));
 			return;
-		}
-
-		{// simple indirect draw command (as d3d11 & opengl)
-			D3D12_INDIRECT_ARGUMENT_DESC l_DrawCmd = {};
-			l_DrawCmd.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-			
-			D3D12_COMMAND_SIGNATURE_DESC l_CmdSignatureDesc = {};
-			l_CmdSignatureDesc.pArgumentDescs = &l_DrawCmd;
-			l_CmdSignatureDesc.NumArgumentDescs = 1;
-			l_CmdSignatureDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
-
-			l_Res = l_pDeviceInst->CreateCommandSignature(&l_CmdSignatureDesc, nullptr, IID_PPV_ARGS(&m_pSimpleIndirectFmt));
-			if( S_OK != l_Res )
-			{
-				wxMessageBox(wxT("simple command signature init failed"), wxT("HLSLProgram::init"));
-				return;
-			}
 		}
 	}
 }

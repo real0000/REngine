@@ -394,13 +394,14 @@ void D3D12Commander::drawIndirect(unsigned int a_MaxCmd, void *a_pResPtr, void *
 {
 	ID3D12Resource *l_pArgBuffer = static_cast<ID3D12Resource *>(a_pResPtr);
 	ID3D12Resource *l_pCounterBuffer = static_cast<ID3D12Resource *>(a_pCounterPtr);
-	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(false), a_MaxCmd, l_pArgBuffer, a_BufferOffset, l_pCounterBuffer, 0);
+	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(), a_MaxCmd, l_pArgBuffer, a_BufferOffset, l_pCounterBuffer, 0);
 }
 
 void D3D12Commander::drawIndirect(unsigned int a_MaxCmd, int a_BuffID)
 {
-	ID3D12Resource *l_pArgBuffer = TYPED_GDEVICE(D3D12Device)->getIndirectCommandBuffer(a_BuffID);
-	m_CurrThread.second->ExecuteIndirect(m_pCurrProgram->getCommandSignature(true), a_MaxCmd, l_pArgBuffer, 0, nullptr, 0);
+	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
+	ID3D12Resource *l_pArgBuffer = l_pDevice->getIndirectCommandBuffer(a_BuffID);
+	m_CurrThread.second->ExecuteIndirect(l_pDevice->getSimpleIndirectFmt(), a_MaxCmd, l_pArgBuffer, 0, nullptr, 0);
 }
 
 void D3D12Commander::compute(unsigned int a_CountX, unsigned int a_CountY, unsigned int a_CountZ)
@@ -547,6 +548,7 @@ void D3D12Canvas::init(bool a_bFullScr)
 
 		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], static_cast<D3D12_RENDER_TARGET_VIEW_DESC *>(nullptr));
 	}
+
 	setInitialed();
 }
 
@@ -603,6 +605,7 @@ D3D12Device::D3D12Device()
 	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer(), m_ManagedIndirectCommandBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
+	, m_pSimpleIndirectFmt(nullptr)
 	, m_DefaultDevice(0)
 	, m_MsaaSetting({1, 0})
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
@@ -643,6 +646,7 @@ D3D12Device::~D3D12Device()
 	m_ManagedUavBuffer.clear();
 	m_ManagedIndirectCommandBuffer.clear();
 
+	SAFE_RELEASE(m_pSimpleIndirectFmt)
 	SAFE_RELEASE(m_pGraphicInterface)
 	SAFE_RELEASE(m_pResCmdQueue)
 	SAFE_RELEASE(m_pComputeQueue)
@@ -724,6 +728,22 @@ void D3D12Device::initDevice(unsigned int a_DeviceID)
 	l_pTargetAdapter->Release();
 	
 	if(S_OK != l_Res) wxMessageBox(wxT("device init failed"), wxT("D3D12Device::initDevice"));
+
+	{// simple indirect draw command (as d3d11 & opengl)
+		D3D12_INDIRECT_ARGUMENT_DESC l_DrawCmd = {};
+		l_DrawCmd.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+			
+		D3D12_COMMAND_SIGNATURE_DESC l_CmdSignatureDesc = {};
+		l_CmdSignatureDesc.pArgumentDescs = &l_DrawCmd;
+		l_CmdSignatureDesc.NumArgumentDescs = 1;
+		l_CmdSignatureDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+
+		if( S_OK != m_pDevice->CreateCommandSignature(&l_CmdSignatureDesc, nullptr, IID_PPV_ARGS(&m_pSimpleIndirectFmt)) )
+		{
+			wxMessageBox(wxT("simple command signature init failed"), wxT("D3D12Device::initDevice"));
+			return;
+		}
+	}
 }
 
 void D3D12Device::init()

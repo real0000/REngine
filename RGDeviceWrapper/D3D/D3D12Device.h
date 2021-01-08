@@ -264,6 +264,7 @@ public:
 	// 
 	IDXGIFactory4* getDeviceFactory(){ return m_pGraphicInterface; }
 	ID3D12Device* getDeviceInst(){ return m_pDevice; }
+	ID3D12CommandSignature* getSimpleIndirectFmt(){ return m_pSimpleIndirectFmt; }
 	D3D12_GPU_DESCRIPTOR_HANDLE getTextureGpuHandle(int a_ID, GraphicCommander::TextureBindType a_Type);
 	D3D12_GPU_DESCRIPTOR_HANDLE getSamplerGpuHandle(int a_ID);
 	D3D12_GPU_VIRTUAL_ADDRESS getTextureGpuAddress(int a_ID, bool a_bRenderTarget);
@@ -416,6 +417,7 @@ private:
 
 	IDXGIFactory6 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;
+	ID3D12CommandSignature *m_pSimpleIndirectFmt;
 	unsigned int m_DefaultDevice;
 	DXGI_SAMPLE_DESC m_MsaaSetting;
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue;// to do : add bundle support;
