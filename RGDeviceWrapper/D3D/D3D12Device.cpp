@@ -830,7 +830,7 @@ void D3D12Device::init()
 
 	unsigned int l_NumCore = std::thread::hardware_concurrency();
 	if( 0 == l_NumCore ) l_NumCore = DEFAULT_D3D_THREAD_COUNT;
-	l_NumCore *= 2;
+	//l_NumCore *= 2;
 	for( unsigned int i=0 ; i<l_NumCore ; ++i )
 	{
 		m_GraphicThread.push_back(newThread());

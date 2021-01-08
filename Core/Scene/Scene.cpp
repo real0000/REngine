@@ -149,12 +149,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
 				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
 				l_pMatCache->bindAll(a_pCmd);
-				//a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
-				for( unsigned int cmd=0 ; cmd<l_pIndirectBuffer->getCurrCount() ; ++cmd )
-				{
-					IndirectDrawData *l_pDrawData = l_pIndirectBuffer->getData(cmd);
-					a_pCmd->drawElement(l_pDrawData->m_StartIndex, l_pDrawData->m_IndexCount, l_pDrawData->m_BaseVertex, l_pDrawData->m_InstanceCount, l_pDrawData->m_StartInstance);
-				}
+				a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
 				recycleInstanceVtxBuffer(l_InstanceBuffer);
 
 				l_Instance.clear();
@@ -206,12 +201,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
 		l_pMatCache->bindAll(a_pCmd);
-		//a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
-		for( unsigned int cmd=0 ; cmd<l_pIndirectBuffer->getCurrCount() ; ++cmd )
-		{
-			IndirectDrawData *l_pDrawData = l_pIndirectBuffer->getData(cmd);
-			a_pCmd->drawElement(l_pDrawData->m_StartIndex, l_pDrawData->m_IndexCount, l_pDrawData->m_BaseVertex, l_pDrawData->m_InstanceCount, l_pDrawData->m_StartInstance);
-		}
+		a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
 		recycleInstanceVtxBuffer(l_InstanceBuffer);
 
 		l_Instance.clear();

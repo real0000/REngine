@@ -264,10 +264,10 @@ STRING_ENUM_CLASS(DefaultPrograms,
 struct IndirectDrawData
 {
 	unsigned int m_IndexCount;
+	unsigned int m_InstanceCount;
 	unsigned int m_StartIndex;
 	unsigned int m_BaseVertex;
 	unsigned int m_StartInstance;
-	unsigned int m_InstanceCount;
 };
 
 std::string convertParamValue(ShaderParamType::Key a_Type, char *a_pSrc);
