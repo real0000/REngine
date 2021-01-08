@@ -370,6 +370,7 @@ SceneNode::~SceneNode()
 void SceneNode::setTransform(glm::mat4x4 a_Trans)
 {
 	m_LocalTransformCache = a_Trans;
+	decomposeTRS(m_LocalTransformCache, m_LocalPos, m_LocalScale, m_LocalRot);
 	update(m_pParentNode->m_World);
 }
 
