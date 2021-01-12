@@ -417,6 +417,8 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder)
 		if( nullptr == m_Textures[i] ) continue;
 
 		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
+		if( !l_pTextureComp->isReady() ) l_pTextureComp = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>();
+
 		TextureType l_Type = l_pTextureComp->getTextureType();
 		GraphicCommander::TextureBindType a_BindType = 
 			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?
@@ -449,6 +451,8 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder, std::string a_Name,
 	}
 	else
 	{
+		if( !l_pTextureComp->isReady() ) l_pTextureComp = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>();
+
 		TextureType l_Type = l_pTextureComp->getTextureType();
 		GraphicCommander::TextureBindType a_BindType = 
 			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?

@@ -22,13 +22,13 @@ TextureAsset::TextureAsset()
 	, m_bRenderTarget(false)
 	, m_bReady(false)
 	, m_SamplerID(-1)
-	, m_Filter(Filter::comparison_min_mag_mip_linear)
+	, m_Filter(Filter::min_mag_mip_linear)
 	, m_AddressMode{AddressMode::wrap, AddressMode::wrap, AddressMode::wrap}
 	, m_MipLodBias(0)
 	, m_MaxAnisotropy(16)
 	, m_Func(CompareFunc::never)
 	, m_MinLod(0.0f)
-	, m_MaxLod(FLT_MAX)
+	, m_MaxLod(16.0f)
 	, m_Border{0.0f, 0.0f, 0.0f, 0.0f}
 	, m_bSamplerDirty(true)
 {

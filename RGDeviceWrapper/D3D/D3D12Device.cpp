@@ -1990,7 +1990,7 @@ void D3D12Device::graphicThread()
 			std::vector<ID3D12CommandList *> l_CmdArray(m_GraphicBusyThread.size());
 			#pragma	omp parallel for
 			for( int i=0 ; i<(int)l_CmdArray.size() ; ++i ) l_CmdArray[i] = m_GraphicBusyThread[i].second;
-			m_pDrawCmdQueue->ExecuteCommandLists(1, l_CmdArray.data());
+			m_pDrawCmdQueue->ExecuteCommandLists(l_CmdArray.size(), l_CmdArray.data());
 
 			for( int i=0 ; i<(int)m_PresentCanvas.size() ; ++i ) m_PresentCanvas[i]->presentImp();
 
