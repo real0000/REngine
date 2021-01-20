@@ -4,10 +4,10 @@
 [numthreads(8, 8, 1 )]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
-    float2 l_Color1 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 0.0)), 0);
-	float2 l_Color2 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(1.0, 0.0)), 0);
-	float2 l_Color3 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 1.0)), 0);
-	float2 l_Color4 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(1.0, 1.0)), 0);
+    float2 l_Color1 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 0.0)), c_Level);
+	float2 l_Color2 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(1.0, 0.0)), c_Level);
+	float2 l_Color3 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(0.0, 1.0)), c_Level);
+	float2 l_Color4 = g_SrcTexture.SampleLevel(g_SrcTextureSampler, c_PixelSize * (a_ThreadID.xy + float2(1.0, 1.0)), c_Level);
     g_DstTexture[a_ThreadID.xy] = float2(
 		min(min(min(l_Color1.x, l_Color2.x), l_Color3.x), l_Color4.x),
 		max(max(max(l_Color1.y, l_Color2.y), l_Color3.y), l_Color4.y));

@@ -14,7 +14,7 @@ namespace R
 // ModelNode
 //
 ModelNode::ModelNode()
-	: m_pParent(nullptr), m_NodeName(""), m_Transform(1.0f)
+	: m_pParent(nullptr), m_NodeName(""), m_Transform(glm::identity<glm::mat4x4>())
 {
 }
 
@@ -172,7 +172,12 @@ void ModelData::init(wxString a_Filepath)
             FbxNode *l_pCurrNode = l_pScene->GetNode(i);
             l_NodeMap[l_pCurrNode] = l_NodeVec[i];
 
-            FbxAMatrix l_FbxMat = l_pCurrNode->EvaluateLocalTransform(FbxTime(0));
+            //FbxAMatrix &l_FbxMat = l_pCurrNode->EvaluateLocalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot, false, true);
+			FbxVector4 l_Trans = l_pCurrNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+			FbxVector4 l_Scale = l_pCurrNode->GetGeometricScaling(FbxNode::eSourcePivot);
+			FbxVector4 l_Rot = l_pCurrNode->GetGeometricRotation(FbxNode::eSourcePivot);
+			FbxAMatrix l_FbxMat;
+			l_FbxMat.SetTRS(l_Trans, l_Rot, l_Scale);
 
             l_NodeVec[i]->m_NodeName = l_pCurrNode->GetName();
             for( unsigned int j=0 ; j<4 ; ++j )
@@ -295,23 +300,11 @@ void ModelData::init(wxString a_Filepath)
 		l_BoneRecord.resize(l_NumVtx);
 		memset(l_BoneRecord.data(), 0, sizeof(int) * l_NumVtx);
 
-        FbxVector4 l_Trans = l_pRefNode->GetGeometricTranslation(FbxNode::eSourcePivot);
-        FbxVector4 l_Scale = l_pRefNode->GetGeometricScaling(FbxNode::eSourcePivot);
-        FbxVector4 l_Rot = l_pRefNode->GetGeometricRotation(FbxNode::eSourcePivot);
-        FbxAMatrix l_VtxTrans;
-        l_VtxTrans.SetTRS(l_Trans, l_Rot, l_Scale);
-        glm::mat4x4 l_MultiMat;
-        for( unsigned int i=0 ; i<4 ; ++i )
-        {
-            FbxVector4 l_SrcVec = l_VtxTrans.GetColumn(i);
-            l_MultiMat[i] = glm::vec4(l_SrcVec[0], l_SrcVec[1], l_SrcVec[2], l_SrcVec[3]);
-        }
         for( unsigned int i=0 ; i<l_NumVtx ; ++i )
         {
             FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[i];
-            glm::vec4 l_Temp = glm::vec4(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2], 1.0f) * l_MultiMat;
             Vertex &l_TargetVtx = l_pDstMesh->m_Vertex[i];
-            l_TargetVtx.m_Position = glm::vec3(l_Temp[0], l_Temp[1], l_Temp[2]);
+            l_TargetVtx.m_Position = glm::vec3(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
         }
         
         std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
@@ -332,6 +325,7 @@ void ModelData::init(wxString a_Filepath)
 			setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_pDstMesh, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
         }
 			
+        FbxAMatrix l_VtxTrans;
 		for( int i=0 ; i<l_pSrcMesh->GetDeformerCount() ; ++i )
 		{
 			FbxDeformer *l_pDefornmer = l_pSrcMesh->GetDeformer(i);

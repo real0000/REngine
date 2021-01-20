@@ -28,7 +28,7 @@ TextureAsset::TextureAsset()
 	, m_MaxAnisotropy(16)
 	, m_Func(CompareFunc::never)
 	, m_MinLod(0.0f)
-	, m_MaxLod(16.0f)
+	, m_MaxLod(FLT_MAX)
 	, m_Border{0.0f, 0.0f, 0.0f, 0.0f}
 	, m_bSamplerDirty(true)
 {
@@ -70,7 +70,6 @@ void TextureAsset::initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, uns
 	assert(-1 == m_TextureID);
 
 	m_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format, a_ArraySize, a_bCube);
-	m_bReady = true;
 	
 	va_list l_Arglist;
 	va_start(l_Arglist, a_bCube);
@@ -83,6 +82,7 @@ void TextureAsset::initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, uns
 	}
 	va_end(l_Arglist);
 	updateSampler();
+	m_bReady = true;
 }
 
 void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData)
@@ -90,10 +90,10 @@ void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, voi
 	assert(-1 == m_TextureID);
 
 	m_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format);
-	m_bReady = true;
 
 	if( nullptr != a_pInitData ) GDEVICE()->updateTexture(m_TextureID, 0, a_Size, glm::zero<glm::ivec3>(), a_pInitData);
 	updateSampler();
+	m_bReady = true;
 }
 
 void TextureAsset::initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)

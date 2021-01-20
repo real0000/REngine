@@ -213,11 +213,12 @@ void ImageData::loadGeneral(wxString a_Filepath)
 	{
 		for( int x=0 ; x<m_Dim.x ; ++x )
 		{
-			unsigned int l_Offset = m_Dim.x * y + x;
-			m_pImageData[l_Offset * 4] = l_pRGBBuff[l_Offset * 3];
-			m_pImageData[l_Offset * 4 + 1] = l_pRGBBuff[l_Offset * 3 + 1];
-			m_pImageData[l_Offset * 4 + 2] = l_pRGBBuff[l_Offset * 3 + 2];
-			m_pImageData[l_Offset * 4 + 3] = l_GetAlphaFunc(l_pAlphaBuff, l_Offset);
+			unsigned int l_DstOffset = m_Dim.x * y + x;
+			unsigned int l_SrcOffset = m_Dim.x * (m_Dim.y - y - 1) + x;
+			m_pImageData[l_DstOffset * 4] = l_pRGBBuff[l_SrcOffset * 3];
+			m_pImageData[l_DstOffset * 4 + 1] = l_pRGBBuff[l_SrcOffset * 3 + 1];
+			m_pImageData[l_DstOffset * 4 + 2] = l_pRGBBuff[l_SrcOffset * 3 + 2];
+			m_pImageData[l_DstOffset * 4 + 3] = l_GetAlphaFunc(l_pAlphaBuff, l_SrcOffset);
 		}
 	}
 	m_RefSurfacePtr.push_back(m_pImageData);

@@ -67,6 +67,7 @@ ProgramBlockDesc::ProgramBlockDesc()
 	: m_bReserved(false)
 	, m_bWrite(false)
 	, m_StructureName("")
+	, m_Name("")
 	, m_BlockSize(0)
 	, m_pRegInfo(nullptr)
 {
