@@ -336,8 +336,8 @@ void TextureAsset::importThread(wxString a_Path)
 
 		default:break;
 	}
-	m_TextureID = l_TextureID;
 	GDEVICE()->generateMipmap(l_TextureID, 0, l_pProgram);
+	m_TextureID = l_TextureID;
 	m_bReady = true;
 }
 

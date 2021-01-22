@@ -18,7 +18,7 @@ class TextureAsset;
 
 struct MaterialParam
 {
-	std::vector<char *> m_pRefVal;
+	char *m_pRefValBase;
 	unsigned int m_Byte;
 	ShaderParamType::Key m_Type;
 	ProgramParamDesc *m_pRefDesc;
@@ -47,19 +47,19 @@ public:
 		auto it = m_Params.find(a_Name);
 		if( m_Params.end() == it ) return;
 		assert(it->second->m_Byte == sizeof(T));
-		memcpy(it->second->m_pRefVal[a_Slot], &a_Param, it->second->m_Byte);
+		memcpy(it->second->m_pRefValBase + m_BlockSize * a_Slot, &a_Param, it->second->m_Byte);
 	}
 	template<typename T>
-	T getParam(std::string a_Name, unsigned int a_Slot)
+	T getParam(std::string a_Name, unsigned int a_Slot, T a_Defalt)
 	{
 		assert(a_Slot < m_NumSlot);
 
 		T l_Res;
 
 		auto it = m_Params.find(a_Name);
-		if( m_Params.end() == it ) return l_Res;
+		if( m_Params.end() == it ) return a_Defalt;
 		assert(it->second->m_Byte == sizeof(T));
-		memcpy(&l_Res, it->second->m_pRefVal[a_Slot], it->second->m_Byte);
+		memcpy(&l_Res, it->second->m_pRefValBase + m_BlockSize * a_Slot, it->second->m_Byte);
 		return l_Res;
 	}
 	char* getBlockPtr(unsigned int a_Slot);

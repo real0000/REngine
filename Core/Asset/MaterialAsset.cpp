@@ -63,10 +63,10 @@ MaterialBlock::MaterialBlock(ShaderRegType::Key a_Type, ProgramBlockDesc *a_pDes
 		l_pNewParam->m_Type = it->second->m_Type;
 		l_pNewParam->m_Byte = GDEVICE()->getParamAlignmentSize(l_pNewParam->m_Type);
 		l_pNewParam->m_pRefDesc = it->second;
+		l_pNewParam->m_pRefValBase = m_pBuffer + it->second->m_Offset;
 		for( unsigned int i=0 ; i<m_NumSlot ; ++i )
 		{
 			char *l_pTarget = m_pBuffer + it->second->m_Offset + i * m_BlockSize;
-			l_pNewParam->m_pRefVal.push_back(l_pTarget);
 			memcpy(l_pTarget, it->second->m_pDefault, l_pNewParam->m_Byte);
 		}
 	}
@@ -108,7 +108,7 @@ void MaterialBlock::loadFile(boost::property_tree::ptree &a_Parent)
 		for( auto it2=it->second.begin() ; it2!=it->second.end() ; ++it2 )
 		{
 			if( "<xmlattr>" == it2->first ) continue;
-			parseShaderParamValue(l_pTarget->m_Type, it2->second.data(), l_pTarget->m_pRefVal[atoi(it->first.c_str())]);
+			parseShaderParamValue(l_pTarget->m_Type, it2->second.data(), l_pTarget->m_pRefValBase + atoi(it->first.c_str()) * m_BlockSize);
 		}
 	}
 }
@@ -127,7 +127,7 @@ void MaterialBlock::saveFile(boost::property_tree::ptree &a_Parent)
 		{
 			char l_Buff[16];
 			snprintf(l_Buff, 16, "%d", i);
-			l_Param.put(l_Buff, convertParamValue(it->second->m_Type, it->second->m_pRefVal[i]));
+			l_Param.put(l_Buff, convertParamValue(it->second->m_Type, it->second->m_pRefValBase + i * m_BlockSize));
 		}
 		boost::property_tree::ptree l_Layer;
 		a_Parent.add_child("Param", l_Param);
@@ -139,14 +139,6 @@ void MaterialBlock::extend(unsigned int a_Size)
 	assert(ShaderRegType::UavBuffer == m_Type);
 	m_NumSlot += a_Size;
 	GDEVICE()->resizeUavBuffer(m_ID, m_pBuffer, m_NumSlot);
-	for( auto it = m_Params.begin() ; it != m_Params.end() ; ++it )
-	{
-		it->second->m_pRefVal.resize(m_NumSlot);
-		for( unsigned int i=0 ; i<m_NumSlot ; ++i )
-		{
-			it->second->m_pRefVal[i] = m_pBuffer + it->second->m_pRefDesc->m_Offset + i * m_BlockSize;
-		}
-	}
 }
 
 void MaterialBlock::sync(bool a_bToGpu)
@@ -417,8 +409,6 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder)
 		if( nullptr == m_Textures[i] ) continue;
 
 		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
-		if( !l_pTextureComp->isReady() ) l_pTextureComp = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>();
-
 		TextureType l_Type = l_pTextureComp->getTextureType();
 		GraphicCommander::TextureBindType a_BindType = 
 			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?
@@ -451,8 +441,6 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder, std::string a_Name,
 	}
 	else
 	{
-		if( !l_pTextureComp->isReady() ) l_pTextureComp = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>();
-
 		TextureType l_Type = l_pTextureComp->getTextureType();
 		GraphicCommander::TextureBindType a_BindType = 
 			TextureType::TEXTYPE_RENDER_TARGET_VIEW == l_Type || TextureType::TEXTYPE_DEPTH_STENCIL_VIEW == l_Type ?

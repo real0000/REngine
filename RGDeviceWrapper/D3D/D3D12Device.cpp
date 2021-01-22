@@ -611,6 +611,7 @@ D3D12Device::D3D12Device()
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
 	, m_IdleResThread(0)
 	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
+	, m_NumCommand{0, 0}
 	, m_bLooping(true)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
@@ -756,7 +757,7 @@ void D3D12Device::init()
 		if( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&l_pDebugController))))
 		{
 			l_pDebugController->EnableDebugLayer();
-			l_pDebugController->Release();
+			//l_pDebugController->Release();
 		}
 	}
 #endif
@@ -1174,7 +1175,8 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 {
 	std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
 
-	D3D12GpuThread l_Thread = m_ResThread[m_IdleResThread];/*requestThread();
+	D3D12GpuThread l_Thread = m_ResThread[m_IdleResThread];
+	++m_NumCommand[m_IdleResThread];/*requestThread();
 	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
 	l_Thread.second->SetDescriptorHeaps(2, l_ppHeaps);*/
 
@@ -1326,6 +1328,7 @@ void D3D12Device::copyTexture(int a_Dst, int a_Src)
 	l_TransSetting[1].Transition.StateAfter = l_SrcState;
 
 	m_ResThread[m_IdleResThread].second->ResourceBarrier(2, l_TransSetting);
+	++m_NumCommand[m_IdleResThread];
 }
 
 PixelFormat::Key D3D12Device::getTextureFormat(int a_ID)
@@ -1802,20 +1805,16 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 		
 			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
 			{
-				D3D12_RANGE l_MapRange;
-				l_MapRange.Begin = 0;
-				l_MapRange.End = std::get<2>(a_BuffIDList[i]);
-
 				std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
-				l_ResArray[i] = initSizedResource(l_MapRange.End, D3D12_HEAP_TYPE_UPLOAD);
-				updateResourceData(l_ResArray[i], l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]), l_MapRange.End);
+				l_ResArray[i] = initSizedResource(std::get<2>(a_BuffIDList[i]), D3D12_HEAP_TYPE_UPLOAD);
+				updateResourceData(l_ResArray[i], l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]), std::get<2>(a_BuffIDList[i]));
 				m_TempResources[m_IdleResThread].push_back(l_ResArray[i]);
 
 				l_TransToSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
 				l_TransBackSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
 			}
 
-			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSetting.size(), &(l_TransToSetting[0]));
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSetting.size(), l_TransToSetting.data());
 		
 			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
 			{
@@ -1824,7 +1823,8 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 					, l_ResArray[i], 0, std::get<2>(a_BuffIDList[i]));
 			}
 	
-			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), &(l_TransBackSetting[0]));
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), l_TransBackSetting.data());
+			++m_NumCommand[m_IdleResThread];
 		}
 	}
 	else
@@ -1863,6 +1863,7 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 			}
 
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSettings.size(), &(l_TransBackSettings[0]));
+			++m_NumCommand[m_IdleResThread];
 		}
 	}
 }
@@ -1942,7 +1943,7 @@ void D3D12Device::resourceThread()
 {
 	while( m_bLooping )
 	{
-		while( m_TempResources[m_IdleResThread].empty() )
+		while( 0 == m_NumCommand[m_IdleResThread] )
 		{
 			std::this_thread::yield();
 			if( !m_bLooping ) return;
@@ -1968,6 +1969,7 @@ void D3D12Device::resourceThread()
 		unsigned int l_Original = 1 - m_IdleResThread;
 		m_ResThread[l_Original].first->Reset();
 		m_ResThread[l_Original].second->Reset(m_ResThread[l_Original].first, nullptr);
+		m_NumCommand[l_Original] = 0;
 		
 		for( int i=0 ; i<(int)m_ReadBackContainer[l_Original].size() ; ++i ) m_ReadBackContainer[l_Original][i].readback();
 		m_ReadBackContainer[l_Original].clear();
@@ -1992,7 +1994,7 @@ void D3D12Device::graphicThread()
 			m_GraphicBusyThread.resize(m_GraphicReadyThread.size());
 			std::copy(m_GraphicReadyThread.begin(), m_GraphicReadyThread.end(), m_GraphicBusyThread.begin());
 			m_GraphicReadyThread.clear();
-
+			
 			std::vector<ID3D12CommandList *> l_CmdArray(m_GraphicBusyThread.size());
 			for( int i=0 ; i<(int)l_CmdArray.size() ; ++i ) l_CmdArray[i] = m_GraphicBusyThread[i].second;
 			m_pDrawCmdQueue->ExecuteCommandLists(l_CmdArray.size(), l_CmdArray.data());

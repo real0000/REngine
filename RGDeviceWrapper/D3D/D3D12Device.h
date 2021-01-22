@@ -425,6 +425,7 @@ private:
 	unsigned int m_IdleResThread;
 	D3D12Fence *m_pResFence, *m_pComputeFence, *m_pGraphicFence;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
+	unsigned int m_NumCommand[D3D12_NUM_COPY_THREAD];
 	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
 	std::thread m_ResourceLoop, m_GraphicLoop;
 	bool m_bLooping;
