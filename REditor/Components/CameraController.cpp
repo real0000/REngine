@@ -86,7 +86,7 @@ bool CameraController::inputListener(InputData &a_Input)
 void CameraController::updateListener(float a_Delta)
 {
 	if( m_MovingFlag == glm::zero<glm::ivec3>() ) return;
-
+	
 	std::vector<std::shared_ptr<Camera>> l_Cameras;
 	getOwner()->getComponent<Camera>(l_Cameras);
 	if( 0 == l_Cameras.size() ) return;

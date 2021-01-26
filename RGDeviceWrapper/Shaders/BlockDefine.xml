@@ -20,6 +20,7 @@
     <Param name="m_World" desc="" type="float4x4"/>
     <Param name="m_VtxFlag" desc="" type="int1"/>
     <Param name="m_SkinMatBase" desc="" type="int1"/>
+    <Param name="Padding" desc="" type="int2"/>
   </UavBuffer>
   <UavBuffer name="DirLight">
     <Param name="m_Color" desc="" type="float3"/>
@@ -39,6 +40,7 @@
     <Param name="m_Layer" desc="" type="int1"/>
     <Param name="m_bCastShadow" desc="" type="int1"/>
     <Param name="m_PhysicRange" desc="" type="float1"/>
+    <Param name="Padding" desc="" type="int1"/>
     <Param name="m_ViewProj" desc="" type="float4x4" size="4"/>
   </UavBuffer>
   <UavBuffer name="SpotLight">
@@ -52,6 +54,7 @@
     <Param name="m_Layer" desc="" type="int1"/>
     <Param name="m_bCastShadow" desc="" type="int1"/>
     <Param name="m_PhysicRange" desc="" type="float1"/>
+    <Param name="Padding" desc="" type="int1"/>
     <Param name="m_ShadowMapProj" desc="" type="float4x4"/>
   </UavBuffer>
   <UavBuffer name="LightmapBox">
@@ -79,7 +82,9 @@
     <Param name="m_Normal" desc="" type="float3"/>
     <Param name="m_V" desc="" type="float1"/>
     <Param name="m_Tangent" desc="" type="float3"/>
+    <Param name="Padding1" desc="" type="int1"/>
     <Param name="m_Binormal" desc="" type="float3"/>
+    <Param name="Padding2" desc="" type="int1"/>
   </UavBuffer>
   <UavBuffer name="LightmapIntersectResult">
     <Param name="m_RayOrigin" desc="" type="float3"/>

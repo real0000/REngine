@@ -24,7 +24,7 @@ TextureAsset::TextureAsset()
 	, m_SamplerID(-1)
 	, m_Filter(Filter::min_mag_mip_linear)
 	, m_AddressMode{AddressMode::wrap, AddressMode::wrap, AddressMode::wrap}
-	, m_MipLodBias(0)
+	, m_MipLodBias(0.0f)
 	, m_MaxAnisotropy(16)
 	, m_Func(CompareFunc::never)
 	, m_MinLod(0.0f)

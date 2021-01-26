@@ -608,6 +608,7 @@ D3D12Device::D3D12Device()
 	, m_pSimpleIndirectFmt(nullptr)
 	, m_DefaultDevice(0)
 	, m_MsaaSetting({1, 0})
+	, m_MipmapSampler(-1)
 	, m_pResCmdQueue(nullptr), m_pComputeQueue(nullptr), m_pDrawCmdQueue(nullptr)
 	, m_IdleResThread(0)
 	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
@@ -629,6 +630,8 @@ D3D12Device::D3D12Device()
 D3D12Device::~D3D12Device()
 {
 	wait();
+
+	if( -1 != m_MipmapSampler ) freeSampler(m_MipmapSampler);
 
 	SAFE_DELETE(m_pResFence)
 	SAFE_DELETE(m_pComputeFence)
@@ -825,6 +828,8 @@ void D3D12Device::init()
 		m_pRenderTargetHeap = new D3D12HeapManager(m_pDevice, 64, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_pDepthHeap = new D3D12HeapManager(m_pDevice, 64, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	}
+
+	m_MipmapSampler = createSampler(Filter::min_mag_linear_mip_point, AddressMode::clamp, AddressMode::clamp, AddressMode::clamp, 0.0f, 0, CompareFunc::never);
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = newThread();//D3D12_COMMAND_LIST_TYPE_COPY);
 	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
@@ -1239,12 +1244,11 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 	l_Thread.second->SetPipelineState(l_pProgram->getPipeline());
 	l_Thread.second->SetComputeRootSignature(l_pProgram->getRegDesc());
 	glm::ivec3 l_Dim(l_pTargetBinder->m_Size);
-	auto l_B0 = l_pProgram->getConstantSlot("c_PixelSize");
-	auto l_B1 = l_pProgram->getConstantSlot("c_Level");
+	unsigned int l_B0 = (unsigned int)l_pProgram->getConstantSlot("c_PixelSize").first;
 	unsigned int l_T0 = l_pProgram->getTextureSlot(0);
+	unsigned int l_S0 = l_T0 + 1;
 	unsigned int l_U0 = l_pProgram->getUavSlot(0);
-	char l_Buff[16];
-
+	
 	int l_NumStep = 0 == a_Level ? l_pTargetBinder->m_MipmapLevels : a_Level;
 	D3D12_RESOURCE_STATES l_OriginState = TEXTYPE_RENDER_TARGET_VIEW == l_pTargetBinder->m_Type ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	for( int i=1 ; i<(int)l_NumStep ; ++i )
@@ -1264,11 +1268,9 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 		if( l_bExtended ) rebindResourceHeap();
 		
 		glm::vec3 l_PixelSize(1.0f / glm::vec3(l_Dim.x, l_Dim.y, l_Dim.z));
-		int l_Level = i-1;
-		memcpy(l_Buff + l_B0.second, &l_PixelSize, sizeof(float) * l_NumConst);
-		memcpy(l_Buff + l_B1.second, &l_Level, sizeof(int));
-		l_Thread.second->SetComputeRoot32BitConstants(l_B0.first, l_NumConst + 1, l_Buff, 0);
+		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
 		l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
+		l_Thread.second->SetComputeRootDescriptorTable(l_S0, m_pSamplerHeap->getGpuHandle(m_MipmapSampler));
 		l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
 		
 		glm::ivec3 l_NumThread(l_Dim / l_Devide);
@@ -2150,7 +2152,7 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 			default:							l_SrvDesc.Format = l_TexResDesc.Format;												break;
 		}
 
-		bool l_bUseMsaa = 1 == m_MsaaSetting.Count && 0 == m_MsaaSetting.Quality;
+		bool l_bUseMsaa = 0 != m_MsaaSetting.Quality;
 		switch( l_pNewBinder->m_Type )
 		{
 			case TEXTYPE_SIMPLE_2D:

@@ -420,6 +420,7 @@ private:
 	ID3D12CommandSignature *m_pSimpleIndirectFmt;
 	unsigned int m_DefaultDevice;
 	DXGI_SAMPLE_DESC m_MsaaSetting;
+	int m_MipmapSampler;
 	ID3D12CommandQueue *m_pResCmdQueue, *m_pComputeQueue, *m_pDrawCmdQueue;// to do : add bundle support;
 	D3D12GpuThread m_ResThread[D3D12_NUM_COPY_THREAD];
 	unsigned int m_IdleResThread;
