@@ -37,6 +37,7 @@
 #include "vld.h"
 #include "glm.hpp"
 #include "gtc/constants.hpp"
+#include "gtx/euler_angles.hpp"
 #include "gtx/quaternion.hpp"
 #include "gtc/matrix_transform.hpp"
 

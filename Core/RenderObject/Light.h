@@ -142,7 +142,6 @@ private:
 
 class DirLight : public Light
 {
-	friend class EngineComponent;
 	friend class LightContainer<DirLight>;// for id set
 	COMPONENT_HEADER(DirLight)
 public:
@@ -188,7 +187,6 @@ private:
 
 class OmniLight : public Light
 {
-	friend class EngineComponent;
 	friend class LightContainer<OmniLight>;// for id set
 	COMPONENT_HEADER(OmniLight)
 public:
@@ -240,7 +238,6 @@ private:
 
 class SpotLight : public Light
 {
-	friend class EngineComponent;
 	friend class LightContainer<SpotLight>;// for id set
 	COMPONENT_HEADER(SpotLight)
 public:

@@ -62,6 +62,7 @@ public:
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_IndexBuffer; }
 
 private:
+	void clearVertexData();
 	void initBuffers();
 
     std::vector<glm::vec3> m_Position;
@@ -71,6 +72,7 @@ private:
     std::vector<glm::vec3> m_Binormal;
 	std::vector<glm::ivec4> m_BoneId;
 	std::vector<glm::vec4> m_Weight;
+	std::vector<unsigned int> m_Colors;
 	std::vector<unsigned int> m_Indicies;
 	
 	std::shared_ptr<VertexBuffer> m_VertexBuffer;

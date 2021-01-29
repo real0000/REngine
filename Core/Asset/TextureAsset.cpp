@@ -133,8 +133,7 @@ void TextureAsset::importFile(wxString a_File)
 	assert(-1 == m_TextureID);
 
 	m_TextureID = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>()->getTextureID();
-	std::thread l_AsyncLoader(&TextureAsset::importThread, this, a_File);
-	l_AsyncLoader.detach();
+	EngineCore::singleton().addJob([=]() -> void{ importThread(a_File);});
 	updateSampler();
 }
 
@@ -196,8 +195,7 @@ void TextureAsset::loadFile(boost::property_tree::ptree &a_Src)
 			m_RawFile.push_back(it->second.get_child("RawData").data());
 		}
 
-		std::thread l_AsyncLoader(&TextureAsset::loadThread, this, l_Dim, l_Type, l_Fmt);
-		l_AsyncLoader.detach();
+		EngineCore::singleton().addJob([=]() -> void{ loadThread(l_Dim, l_Type, l_Fmt); });
 	}
 	
 	updateSampler();

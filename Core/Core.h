@@ -142,6 +142,7 @@ private:
 	std::shared_ptr<SceneNode> m_pOwner;
 };
 #define COMPONENT_HEADER(className) \
+	friend class EngineComponent; \
 	public:\
 		virtual unsigned int typeID(){ return COMPONENT_##className; }	\
 		static unsigned int staticTypeID(){ return COMPONENT_##className; }\

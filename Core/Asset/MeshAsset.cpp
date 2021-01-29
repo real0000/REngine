@@ -420,6 +420,19 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	a_Dst.add_child("root", l_Root);
 }
 
+void MeshAsset::clearVertexData()
+{
+	m_Position.clear();
+    for( unsigned int i=0 ; i<4 ; ++i ) m_Texcoord[i].clear();
+    m_Normal.clear();
+    m_Tangent.clear();
+    m_Binormal.clear();
+	m_BoneId.clear();
+	m_Weight.clear();
+	m_Colors.clear();
+	m_Indicies.clear();
+}
+
 void MeshAsset::initBuffers()
 {
 	m_VertexBuffer = std::shared_ptr<VertexBuffer>(new VertexBuffer());
@@ -440,15 +453,6 @@ void MeshAsset::initBuffers()
 
 	m_IndexBuffer->setIndicies(true, m_Indicies.data(), m_Indicies.size());
 	m_IndexBuffer->init();
-
-	m_Position.clear();
-    for( unsigned int i=0 ; i<4 ; ++i ) m_Texcoord[i].clear();
-    m_Normal.clear();
-    m_Tangent.clear();
-    m_Binormal.clear();
-	m_BoneId.clear();
-	m_Weight.clear();
-	m_Indicies.clear();
 }
 #pragma endregion
 

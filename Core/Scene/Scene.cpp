@@ -697,8 +697,9 @@ void Scene::initEmpty()
 
 	std::shared_ptr<SceneNode> l_pCameraNode = m_pRootNode->addChild();
 	l_pCameraNode->setName(wxT("Default Camera"));
+	l_pCameraNode->setRotate(glm::eulerAngleXY(0.0f, 0.25f * glm::pi<float>()));
 	m_pCurrCamera = l_pCameraNode->addComponent<Camera>();
-	m_pCurrCamera->setName(wxT("DefaultCamera"));
+	m_pCurrCamera->setName(wxT("Default Camera"));
 }
 
 void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)

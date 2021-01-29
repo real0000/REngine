@@ -2156,6 +2156,13 @@ int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D
 		switch( l_pNewBinder->m_Type )
 		{
 			case TEXTYPE_SIMPLE_2D:
+				l_SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				l_SrvDesc.Texture2D.MipLevels = a_MipmapLevel;
+				l_SrvDesc.Texture2D.MostDetailedMip = 0;
+				l_SrvDesc.Texture2D.PlaneSlice = 0;
+				l_SrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+				break;
+
 			case TEXTYPE_RENDER_TARGET_VIEW:
 			case TEXTYPE_DEPTH_STENCIL_VIEW:
 				if( !l_bUseMsaa )

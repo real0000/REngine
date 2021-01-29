@@ -10,11 +10,17 @@
       <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="REditor.cpp" />
+    <ClCompile Include="Components\GridLine.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\CameraController.h">
       <Filter>Components</Filter>
     </ClInclude>
     <ClInclude Include="REditor.h" />
+    <ClInclude Include="Components\GridLine.h">
+      <Filter>Components</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

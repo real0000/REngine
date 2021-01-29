@@ -13,7 +13,6 @@ namespace R
 
 class CameraController : public EngineComponent
 {
-	friend class EngineComponent;
 	COMPONENT_HEADER(CameraController)
 public:
 	virtual ~CameraController();

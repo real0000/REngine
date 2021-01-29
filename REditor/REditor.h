@@ -14,6 +14,7 @@ namespace R
 enum EditorComponent
 {
 	COMPONENT_CameraController = CUSTOM_COMPONENT,
+	COMPONENT_GridLine,
 
 	COMPONENT_EDITOR_END,
 };

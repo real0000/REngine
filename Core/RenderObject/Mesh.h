@@ -15,7 +15,6 @@ class Asset;
 
 class RenderableMesh : public RenderableComponent
 {
-	friend class EngineComponent;
 	friend class MeshBatcher;
 	typedef std::pair<int, std::shared_ptr<Asset>> MaterialData;
 	COMPONENT_HEADER(RenderableMesh)

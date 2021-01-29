@@ -16,7 +16,6 @@ class TextureAsset;
 
 class Camera : public RenderableComponent
 {
-	friend class EngineComponent;
 	COMPONENT_HEADER(Camera)
 public:
 	enum
