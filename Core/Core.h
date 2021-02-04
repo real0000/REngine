@@ -94,6 +94,7 @@ public:
 	virtual void hiddenFlagChanged(){}
 
 	virtual unsigned int typeID() = 0;
+	virtual bool runtimeOnly(){ return false; }// true if save/load component not required
 	virtual void loadComponent(boost::property_tree::ptree &a_Src){}
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst){}
 	virtual bool inputListener(InputData &a_Input){ return false; }
@@ -202,10 +203,6 @@ public:
 	void registSceneGraphReflector(){ Scene::registSceneGraphReflector<T>(); }
 	template<typename T>
 	void registRenderPipelineReflector(){ Scene::registRenderPipelineReflector<T>(); }
-	std::shared_ptr<Asset> getWhiteTexture(){ return m_WhiteTexture; }
-	std::shared_ptr<Asset> getBlueTexture(){ return m_BlueTexture; }
-	std::shared_ptr<Asset> getDarkgrayTexture(){ return m_DarkgrayTexture; }
-	std::shared_ptr<VertexBuffer> getQuadBuffer(){ return m_pQuad; }
 	void addJob(std::function<void()> a_Job);
 	void join();
 
@@ -221,8 +218,10 @@ private:
 	std::mutex m_LoopGuard;
 	double m_Delta;
 
+	// prevent asset gc
 	std::shared_ptr<Asset> m_WhiteTexture, m_BlueTexture, m_DarkgrayTexture;
-	std::shared_ptr<VertexBuffer> m_pQuad;
+	std::shared_ptr<Asset> m_pQuadMesh;
+
 	InputMediator *m_pInput;
 	wxApp *m_pRefMain;
 	ThreadPool m_ThreadPool;

@@ -154,11 +154,11 @@ public:
 
 	// vertex, index buffer
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT("")) = 0;//a_Slot < VTXSLOT_COUNT
-	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset = 0) = 0;
 	virtual void* getVertexResource(int a_ID) = 0;
 	virtual void freeVertexBuffer(int a_ID) = 0;
 	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, wxString a_Name = wxT("")) = 0;
-	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte) = 0;
+	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset = 0) = 0;
 	virtual void* getIndexResource(int a_ID) = 0;
 	virtual void freeIndexBuffer(int a_ID) = 0;
 

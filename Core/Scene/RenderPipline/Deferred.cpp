@@ -24,13 +24,6 @@
 namespace R
 {
 
-#define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
-#define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
-
-#define LIGHTINDEX_ASSET_NAME wxT("DefferredLightIndex.Material")
-#define LIGHTING_ASSET_NAME wxT("TiledDefferredLighting.Material")
-#define COPY_ASSET_NAME wxT("Copy.Material")
-
 const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
 	{wxT("DefferredGBufferNormal.Image"), PixelFormat::rgba8_snorm},
 	{wxT("DefferredGBufferMaterial.Image"), PixelFormat::rgba8_unorm},
@@ -55,6 +48,8 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_LightIdx(nullptr)
 	, m_ExtendSize(INIT_CONTAINER_SIZE)
 	, m_TileDim(0, 0)
+	, m_pQuadMesh(AssetManager::singleton().getAsset(QUAD_MESH_ASSET_NAME))
+	, m_pQuadMeshInst(nullptr)
 	, m_pFrameBuffer(nullptr)
 	, m_pDepthMinmax(nullptr)
 	, m_MinmaxStepCount(1)
@@ -63,6 +58,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME))
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
 {
+	m_pQuadMeshInst = m_pQuadMesh->getComponent<MeshAsset>();
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
 	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
 	m_pCopyMatInst = m_pCopyMat->getComponent<MaterialAsset>();
@@ -131,6 +127,9 @@ DeferredRenderer::~DeferredRenderer()
 {
 	AssetManager::singleton().removeData(FRAMEBUFFER_ASSET_NAME);
 	AssetManager::singleton().removeData(DEPTHMINMAX_ASSET_NAME);
+
+	m_pQuadMeshInst = nullptr;
+	m_pQuadMesh = nullptr;
 	m_pDepthMinmax = nullptr;
 	m_pFrameBuffer = nullptr;
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
@@ -289,7 +288,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->setViewPort(1, l_DepthView);
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_DepthSize.x, l_DepthSize.y));
 
-			m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
+			m_pCmdInit->bindVertex(m_pQuadMeshInst->getVertexBuffer().get());
 			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 0, GraphicCommander::BIND_RENDER_TARGET);
 			m_pCmdInit->bindSampler(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getSamplerID(), 0);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
@@ -321,7 +320,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		glm::viewport l_FrameView(0.0f, 0.0f, l_FrameSize.x, l_FrameSize.y, 0.0f, 1.0f);
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
-		m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
+		m_pCmdInit->bindVertex(m_pQuadMeshInst->getVertexBuffer().get());
 		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
 		m_pDeferredLightMatInst->bindTexture(m_pCmdInit, "ShadowMap", reinterpret_cast<ShadowMapRenderer*>(getScene()->getShadowMapBaker())->getShadowMap());
 		m_pDeferredLightMatInst->bindBlock(m_pCmdInit, "Camera", a_pCamera->getMaterialBlock());
@@ -373,7 +372,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->setViewPort(1, l_CanvasView);
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_CanvasSize.x, l_CanvasSize.y));
 
-			m_pCmdInit->bindVertex(EngineCore::singleton().getQuadBuffer().get());
+			m_pCmdInit->bindVertex(m_pQuadMeshInst->getVertexBuffer().get());
 			m_pCopyMatInst->bindAll(m_pCmdInit);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
 			m_pCmdInit->drawVertex(4, 0);

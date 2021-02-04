@@ -11,12 +11,32 @@ namespace R
 
 class AssetManager;
 
+// default assets
+#define LIGHTMAP_INTERSECT_ASSET_NAME wxT("LightmapIntersection.Material")
+#define LIGHTMAP_SCATTER_ASSET_NAME wxT("LightmapScatter.Material")
+
+#define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
+#define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
+
+#define LIGHTINDEX_ASSET_NAME wxT("DefferredLightIndex.Material")
+#define LIGHTING_ASSET_NAME wxT("TiledDefferredLighting.Material")
+#define COPY_ASSET_NAME wxT("Copy.Material")
+
+#define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
+#define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
+
+#define WHITE_TEXTURE_ASSET_NAME wxT("White.Image")
+#define BLUE_TEXTURE_ASSET_NAME wxT("Blue.Image")
+#define DARK_GRAY_TEXTURE_ASSET_NAME wxT("Darkgray.Image")
+#define QUAD_MESH_ASSET_NAME wxT("Quad.Mesh")
+
 class AssetComponent
 {
 public:
 	AssetComponent();
 	virtual ~AssetComponent();
 
+	virtual bool canSave(){ return true; }
 	virtual wxString getAssetExt() = 0;
 	virtual void importFile(wxString a_File) = 0;
 	virtual void loadFile(boost::property_tree::ptree &a_Src) = 0;

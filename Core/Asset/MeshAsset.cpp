@@ -20,7 +20,8 @@ namespace R
 // MeshAsset
 // 
 MeshAsset::MeshAsset()
-	: m_Position(0)
+	: m_VtxSlots(0)
+	, m_Position(0)
 	, m_Texcoord{std::vector<glm::vec4>(0), std::vector<glm::vec4>(0), std::vector<glm::vec4>(0), std::vector<glm::vec4>(0)}
     , m_Normal(0)
     , m_Tangent(0)
@@ -41,14 +42,7 @@ MeshAsset::~MeshAsset()
 	m_VertexBuffer = nullptr;
 	m_IndexBuffer = nullptr;
 
-	m_Position.clear();
-    for( unsigned int i=0 ; i<4 ; ++i ) m_Texcoord[i].clear();
-    m_Normal.clear();
-    m_Tangent.clear();
-    m_Binormal.clear();
-	m_BoneId.clear();
-	m_Weight.clear();
-	m_Indicies.clear();
+	clearVertexData();
 
 	for( unsigned int i=0 ; i<m_Meshes.size() ; ++i )
 	{
@@ -85,6 +79,7 @@ void MeshAsset::importFile(wxString a_File)
 	wxString l_FilePath(getFilePath(a_File));
 	
 	std::set<ModelNode *> l_NodeSet;
+	m_VtxSlots = FULL_VTX_SLOT & (~VTXFLAG_COLOR);
 	{// setup meshes
 		auto &l_Src = l_pModel->getMeshes();
 		for( unsigned int i=0 ; i<l_Src.size() ; ++i )
@@ -110,19 +105,19 @@ void MeshAsset::importFile(wxString a_File)
 				ModelData::Material &l_ThisMaterial = l_SrcTextureSet[l_pSrc->m_RefMaterial];
 				
 				auto it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
-				if( l_ThisMaterial.end() == it ) l_pBaseColor = EngineCore::singleton().getWhiteTexture();
+				if( l_ThisMaterial.end() == it ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
 				else l_pBaseColor = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
-				if( l_ThisMaterial.end() == it ) l_pNormal = EngineCore::singleton().getBlueTexture();
+				if( l_ThisMaterial.end() == it ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
 				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 				
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
-				if( l_ThisMaterial.end() == it ) l_pMetal = EngineCore::singleton().getWhiteTexture();
+				if( l_ThisMaterial.end() == it ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
 				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
-				if( l_ThisMaterial.end() == it ) l_pRoughness = EngineCore::singleton().getWhiteTexture();
+				if( l_ThisMaterial.end() == it ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
 				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
 			}
 
@@ -420,6 +415,193 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	a_Dst.add_child("root", l_Root);
 }
 
+void MeshAsset::init(unsigned int a_SlotFlag)
+{
+	assert(0 == m_VtxSlots && 0 != (a_SlotFlag & VTXFLAG_POSITION));
+	m_VtxSlots = a_SlotFlag;
+}
+
+MeshAsset::Instance* MeshAsset::addSubMesh(unsigned int a_ReserveVtxCount, unsigned int a_ReserveIdxCount
+	, unsigned int **a_ppDstIndicies
+	, glm::vec3 **a_ppDstPos
+	, glm::vec4 **a_ppDstTexcoord01
+	, glm::vec3 **a_ppDstNormal
+	, glm::vec3 **a_ppDstBinormal
+	, glm::vec3 **a_ppDstTangent
+	, glm::ivec4 ** a_ppDstBoneId
+	, glm::vec4 **a_ppDstWeight
+	, glm::vec4 **a_ppDstTexcoord23
+	, glm::vec4 **a_ppDstTexcoord45
+	, glm::vec4 **a_ppDstTexcoord67
+	, unsigned int **a_ppDstColor)
+{
+	assert(0 != m_VtxSlots);
+
+	Instance *l_pRes = new Instance();
+	l_pRes->m_BaseVertex = m_Position.size();
+	l_pRes->m_StartIndex = m_Indicies.size();
+	l_pRes->m_VtxFlag = m_VtxSlots;
+	m_Meshes.push_back(l_pRes);
+	
+	unsigned int l_NewVtxSize = l_pRes->m_BaseVertex + a_ReserveVtxCount;
+	unsigned int l_NewIdxSize = l_pRes->m_StartIndex + a_ReserveIdxCount;
+	for( unsigned int i=VTXFLAG_POSITION ; i<=VTXFLAG_COLOR ; ++i )
+	{
+		if( 0 == (m_VtxSlots & (0x000000001 << i)) ) continue;
+		switch(i)
+		{
+			case VTXSLOT_POSITION:
+				m_Position.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Position.push_back(glm::vec3());
+				assert(nullptr != a_ppDstPos);
+				*a_ppDstPos = &(m_Position[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_TEXCOORD01:
+				m_Texcoord[0].reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Texcoord[0].push_back(glm::vec4());
+				assert(nullptr != a_ppDstTexcoord01);
+				*a_ppDstTexcoord01 = &(m_Texcoord[0][l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_TEXCOORD23:
+				m_Texcoord[1].reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Texcoord[1].push_back(glm::vec4());
+				assert(nullptr != a_ppDstTexcoord23);
+				*a_ppDstTexcoord23 = &(m_Texcoord[1][l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_TEXCOORD45:
+				m_Texcoord[2].reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Texcoord[2].push_back(glm::vec4());
+				assert(nullptr != a_ppDstTexcoord45);
+				*a_ppDstTexcoord45 = &(m_Texcoord[2][l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_TEXCOORD67:
+				m_Texcoord[3].reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Texcoord[3].push_back(glm::vec4());
+				assert(nullptr != a_ppDstTexcoord67);
+				*a_ppDstTexcoord67 = &(m_Texcoord[3][l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_NORMAL:
+				m_Normal.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Normal.push_back(glm::vec3());
+				assert(nullptr != a_ppDstNormal);
+				*a_ppDstNormal = &(m_Normal[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_TANGENT:
+				m_Tangent.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Tangent.push_back(glm::vec3());
+				assert(nullptr != a_ppDstTangent);
+				*a_ppDstTangent = &(m_Tangent[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_BINORMAL:
+				m_Binormal.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Binormal.push_back(glm::vec3());
+				assert(nullptr != a_ppDstBinormal);
+				*a_ppDstBinormal = &(m_Binormal[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_BONE:
+				m_BoneId.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_BoneId.push_back(glm::ivec4());
+				assert(nullptr != a_ppDstBoneId);
+				*a_ppDstBoneId = &(m_BoneId[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_WEIGHT:
+				m_Weight.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Weight.push_back(glm::vec4());
+				assert(nullptr != a_ppDstWeight);
+				*a_ppDstWeight = &(m_Weight[l_pRes->m_BaseVertex]);
+				break;
+
+			case VTXSLOT_COLOR:
+				m_Color.reserve(l_NewVtxSize);
+				for( unsigned int j=l_pRes->m_BaseVertex ; j<l_NewVtxSize ; ++j ) m_Color.push_back(0u);
+				assert(nullptr != a_ppDstColor);
+				*a_ppDstColor = &(m_Color[l_pRes->m_BaseVertex]);
+				break;
+
+			default:break;
+		}
+	}
+
+	m_Indicies.reserve(l_NewIdxSize);
+	for( unsigned int j=l_pRes->m_StartIndex ; j<l_NewIdxSize ; ++j ) m_Indicies.push_back(0u);
+	assert(nullptr != a_ppDstIndicies);
+	*a_ppDstIndicies = &(m_Indicies[l_pRes->m_StartIndex]);
+
+	initBuffers();
+
+	return l_pRes;
+}
+
+void MeshAsset::updateMeshData(glm::ivec2 a_VertexRange, glm::ivec2 a_IdxRange)
+{
+	for( unsigned int i=VTXFLAG_POSITION ; i<=VTXFLAG_COLOR ; ++i )
+	{
+		if( 0 == (m_VtxSlots & (0x000000001 << i)) ) continue;
+
+		void *l_pSrcData = nullptr;
+		switch(i)
+		{
+			case VTXSLOT_POSITION:
+				l_pSrcData = &(m_Position[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_TEXCOORD01:
+				l_pSrcData = &(m_Texcoord[0][a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_TEXCOORD23:
+				l_pSrcData = &(m_Texcoord[1][a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_TEXCOORD45:
+				l_pSrcData = &(m_Texcoord[2][a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_TEXCOORD67:
+				l_pSrcData = &(m_Texcoord[3][a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_NORMAL:
+				l_pSrcData = &(m_Normal[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_TANGENT:
+				l_pSrcData = &(m_Tangent[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_BINORMAL:
+				l_pSrcData = &(m_Binormal[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_BONE:
+				l_pSrcData = &(m_BoneId[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_WEIGHT:
+				l_pSrcData = &(m_Weight[a_VertexRange.x]);
+				break;
+
+			case VTXSLOT_COLOR:
+				l_pSrcData = &(m_Color[a_VertexRange.x]);
+				break;
+
+			default:break;
+		}
+		m_VertexBuffer->updateVertexData(i, l_pSrcData, a_VertexRange.y, a_VertexRange.x);
+	}
+	
+	m_IndexBuffer->updateIndexData(&(m_Indicies[a_IdxRange.x]), a_IdxRange.y, a_IdxRange.x);
+}
+
 void MeshAsset::clearVertexData()
 {
 	m_Position.clear();
@@ -429,7 +611,7 @@ void MeshAsset::clearVertexData()
     m_Binormal.clear();
 	m_BoneId.clear();
 	m_Weight.clear();
-	m_Colors.clear();
+	m_Color.clear();
 	m_Indicies.clear();
 }
 
@@ -440,15 +622,16 @@ void MeshAsset::initBuffers()
 
 	m_VertexBuffer->setNumVertex(m_Position.size());
 	m_VertexBuffer->setVertex(VTXSLOT_POSITION, m_Position.data());
-	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD01, m_Texcoord[0].data());
-	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD23, m_Texcoord[1].data());
-	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD45, m_Texcoord[2].data());
-	m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD67, m_Texcoord[3].data());
-	m_VertexBuffer->setVertex(VTXSLOT_NORMAL, m_Normal.data());
-	m_VertexBuffer->setVertex(VTXSLOT_TANGENT, m_Tangent.data());
-	m_VertexBuffer->setVertex(VTXSLOT_BINORMAL, m_Binormal.data());
-	m_VertexBuffer->setVertex(VTXSLOT_BONE, m_BoneId.data());
-	m_VertexBuffer->setVertex(VTXSLOT_WEIGHT, m_Weight.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD01) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD01, m_Texcoord[0].data());
+	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD23) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD23, m_Texcoord[1].data());
+	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD45) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD45, m_Texcoord[2].data());
+	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD67) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD67, m_Texcoord[3].data());
+	if( 0 != (m_VtxSlots & VTXFLAG_NORMAL) ) m_VertexBuffer->setVertex(VTXSLOT_NORMAL, m_Normal.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_TANGENT) ) m_VertexBuffer->setVertex(VTXSLOT_TANGENT, m_Tangent.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_BINORMAL) ) m_VertexBuffer->setVertex(VTXSLOT_BINORMAL, m_Binormal.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_BONE) ) m_VertexBuffer->setVertex(VTXSLOT_BONE, m_BoneId.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_WEIGHT) ) m_VertexBuffer->setVertex(VTXSLOT_WEIGHT, m_Weight.data());
+	if( 0 != (m_VtxSlots & VTXFLAG_COLOR) ) m_VertexBuffer->setVertex(VTXSLOT_COLOR, m_Color.data());
 	m_VertexBuffer->init();
 
 	m_IndexBuffer->setIndicies(true, m_Indicies.data(), m_Indicies.size());

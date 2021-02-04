@@ -20,6 +20,7 @@
 
 #include "Asset/AssetBase.h"
 #include "Asset/MaterialAsset.h"
+#include "Asset/MeshAsset.h"
 #include "Asset/SceneAsset.h"
 #include "Asset/TextureAsset.h"
 
@@ -273,7 +274,7 @@ EngineCore::EngineCore()
 	, m_bShutdown(false)
 	, m_Delta(0.0)
 	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr), m_DarkgrayTexture(nullptr)
-	, m_pQuad(nullptr)
+	, m_pQuadMesh(nullptr)
 	, m_pInput(new InputMediator())
 	, m_pRefMain(nullptr)
 	, m_ThreadPool(std::max(std::thread::hardware_concurrency() - 2, 1u))// -2 -> -1 for resource loop, -1 for graphic loop
@@ -345,7 +346,7 @@ void EngineCore::shutDown()
 	m_WhiteTexture = nullptr;
 	m_BlueTexture = nullptr;
 	m_DarkgrayTexture = nullptr;
-	m_pQuad = nullptr;
+	m_pQuadMesh = nullptr;
 
 	ImageManager::singleton().finalize();
 	ModelManager::singleton().finalize();
@@ -396,29 +397,38 @@ bool EngineCore::init()
 
 	unsigned int l_Color[64];
 	memset(l_Color, 0xffffffff, sizeof(unsigned int) * 64);
-	m_WhiteTexture = AssetManager::singleton().createAsset(wxT("Default_White.Image"));
+	m_WhiteTexture = AssetManager::singleton().createAsset(WHITE_TEXTURE_ASSET_NAME);
 	m_WhiteTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_WhiteTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 	
 	memset(l_Color, 0x0000ffff, sizeof(unsigned int) * 64);
-	m_BlueTexture = AssetManager::singleton().createAsset(wxT("Default_Normal.Image"));
+	m_BlueTexture = AssetManager::singleton().createAsset(BLUE_TEXTURE_ASSET_NAME);
 	m_BlueTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_BlueTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
 	memset(l_Color, 0x404040ff, sizeof(unsigned int) * 64);
-	m_DarkgrayTexture = AssetManager::singleton().createAsset(wxT("Default_Refract.Image"));
+	m_DarkgrayTexture = AssetManager::singleton().createAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
 	m_DarkgrayTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_DarkgrayTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
 
-	m_pQuad = std::shared_ptr<VertexBuffer>(new VertexBuffer());
+	m_pQuadMesh = AssetManager::singleton().createAsset(QUAD_MESH_ASSET_NAME);
 	const glm::vec3 c_QuadVtx[] = {
 		glm::vec3(-1.0f, 1.0f, 0.0f),
 		glm::vec3(-1.0f, -1.0f, 0.0f),
 		glm::vec3(1.0f, 1.0f, 0.0f),
 		glm::vec3(1.0f, -1.0f, 0.0f)};
-	m_pQuad->setNumVertex(4);
-	m_pQuad->setVertex(VTXSLOT_POSITION, (void *)c_QuadVtx);
-	m_pQuad->init();
+	const unsigned int c_QuadIdx[] = {0, 1, 2, 2, 1, 3};
+	glm::vec3 *l_pQuadVtxBuff = nullptr;
+	unsigned int *l_pQuadIdxDstBuff = nullptr;
+	m_pQuadMesh->getComponent<MeshAsset>()->init(VTXFLAG_POSITION);
+	MeshAsset::Instance *l_pInstanceData = m_pQuadMesh->getComponent<MeshAsset>()->addSubMesh(4, 6, &l_pQuadIdxDstBuff, &l_pQuadVtxBuff);
+	l_pInstanceData->m_IndexCount = 6;
+	l_pInstanceData->m_Name = QUAD_MESH_ASSET_NAME;
+	l_pInstanceData->m_VtxFlag = VTXFLAG_POSITION | VTXFLAG_WITHOUT_VP_MAT;
+	l_pInstanceData->m_VisibleBoundingBox = glm::aabb(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(FLT_MAX, FLT_MAX, FLT_MAX));
+	memcpy(l_pQuadVtxBuff, c_QuadVtx, sizeof(c_QuadVtx));
+	memcpy(l_pQuadIdxDstBuff, c_QuadIdx, sizeof(c_QuadIdx));
+	m_pQuadMesh->getComponent<MeshAsset>()->updateMeshData(glm::ivec2(0, 4), glm::ivec2(0, 6));
 
 	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 	

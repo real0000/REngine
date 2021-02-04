@@ -18,7 +18,8 @@ public:
 	void setIndicies(bool a_b32Bit, void *a_pSrc, unsigned int a_NumIndicies);
 	void setName(wxString a_Name);
 	void init();
-
+	
+	void updateIndexData(void *a_pData, unsigned int a_Count, unsigned int a_Offset = 0);
 	bool valid(){ return nullptr == m_pInitVal; }
 
 	int getBufferID(){ return m_ID; }
@@ -47,7 +48,7 @@ public:
 	void setName(wxString a_Name);
 	void init();
 	
-	void updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count);
+	void updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count, unsigned int a_Offset = 0);
 	bool valid(){ return nullptr == m_pInitVal; }
 
 	int getBufferID(unsigned int a_Slot){ return m_ID[a_Slot]; }

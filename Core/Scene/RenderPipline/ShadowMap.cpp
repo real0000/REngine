@@ -22,9 +22,6 @@
 namespace R
 {
 
-#define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
-#define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
-
 #pragma region ShadowMapRenderer
 //
 // ShadowMapRenderer

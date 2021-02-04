@@ -234,11 +234,11 @@ public:
 
 	// vertex, index buffer part
 	virtual int requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, unsigned int a_Count, wxString a_Name = wxT(""));
-	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte);
+	virtual void updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset = 0);
 	virtual void* getVertexResource(int a_ID);
 	virtual void freeVertexBuffer(int a_ID);
 	virtual int requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, unsigned int a_Count, wxString a_Name = wxT(""));
-	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte);
+	virtual void updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset = 0);
 	virtual void* getIndexResource(int a_ID);
 	virtual void freeIndexBuffer(int a_ID);
 
@@ -292,7 +292,7 @@ private:
 	void resourceThread();
 	void graphicThread();
 	ID3D12Resource* initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState = D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAGS a_Flag = D3D12_RESOURCE_FLAG_NONE);
-	void updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte);
+	void updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte, unsigned int a_Offset = 0);
 
 	struct TextureBinder
 	{

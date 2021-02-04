@@ -132,7 +132,7 @@ void TextureAsset::importFile(wxString a_File)
 {
 	assert(-1 == m_TextureID);
 
-	m_TextureID = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>()->getTextureID();
+	m_TextureID = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME)->getComponent<TextureAsset>()->getTextureID();
 	EngineCore::singleton().addJob([=]() -> void{ importThread(a_File);});
 	updateSampler();
 }
@@ -141,7 +141,7 @@ void TextureAsset::loadFile(boost::property_tree::ptree &a_Src)
 {
 	assert(-1 == m_TextureID);
 	
-	m_TextureID = EngineCore::singleton().getWhiteTexture()->getComponent<TextureAsset>()->getTextureID();
+	m_TextureID = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME)->getComponent<TextureAsset>()->getTextureID();
 
 	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
 	boost::property_tree::ptree &l_RootAttr = l_Root.get_child("<xmlattr>");

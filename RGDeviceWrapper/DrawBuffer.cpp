@@ -48,6 +48,13 @@ void IndexBuffer::init()
 
 	SAFE_DELETE(m_pInitVal);
 }
+
+void IndexBuffer::updateIndexData(void *a_pData, unsigned int a_Count, unsigned int a_Offset)
+{
+	assert(nullptr == m_pInitVal);
+	unsigned int l_Stride = m_b32Bit ? sizeof(unsigned int) : sizeof(unsigned short);
+	GDEVICE()->updateIndexBuffer(m_ID, a_pData, a_Count * l_Stride, a_Offset * l_Stride);
+}
 #pragma endregion
 
 #pragma region VertexBuffer
@@ -112,10 +119,11 @@ void VertexBuffer::init()
 	SAFE_DELETE(m_pInitVal);
 }
 
-void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count)
+void VertexBuffer::updateVertexData(unsigned int a_Slot, void *a_pData, unsigned int a_Count, unsigned int a_Offset)
 {
 	assert(nullptr == m_pInitVal);
-	if( -1 != m_ID[a_Slot] ) GDEVICE()->updateVertexBuffer(m_ID[a_Slot], a_pData, a_Count * GDEVICE()->getVertexSlotStride(a_Slot));
+	unsigned int l_Stride = GDEVICE()->getVertexSlotStride(a_Slot);
+	if( -1 != m_ID[a_Slot] ) GDEVICE()->updateVertexBuffer(m_ID[a_Slot], a_pData, a_Count * l_Stride, a_Offset * l_Stride);
 }
 #pragma endregion
 

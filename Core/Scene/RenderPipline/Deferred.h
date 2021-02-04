@@ -13,6 +13,7 @@ namespace R
 
 class Asset;
 class MaterialAsset;
+class MeshAsset;
 class RenderTextureAtlas;
 class TextureAsset;
 class Light;
@@ -54,6 +55,8 @@ private:
 	
 	// gbuffer varibles
 	glm::ivec2 m_TileDim;
+	std::shared_ptr<Asset> m_pQuadMesh;
+	MeshAsset *m_pQuadMeshInst;
 	std::shared_ptr<Asset> m_pGBuffer[GBUFFER_COUNT];
 	std::shared_ptr<Asset> m_pFrameBuffer;
 	std::shared_ptr<Asset> m_pDepthMinmax;

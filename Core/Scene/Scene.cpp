@@ -144,7 +144,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	
 				a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
 				a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
-				a_pCmd->setTopology(Topology::triangle_list);
+				a_pCmd->setTopology(l_pMatCache->getTopology());
 				a_BindingFunc(l_pMatCache);
 				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
 				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
@@ -196,7 +196,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	
 		a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
 		a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
-		a_pCmd->setTopology(Topology::triangle_list);
+		a_pCmd->setTopology(l_pMatCache->getTopology());
 		a_BindingFunc(l_pMatCache);
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
 		l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
@@ -513,6 +513,7 @@ void SceneNode::bakeNode(boost::property_tree::ptree &a_TreeNode)
 	{
 		for( auto it2=it->second.begin() ; it2!=it->second.end() ; ++it2 )
 		{
+			if( (*it2)->runtimeOnly() ) continue;
 			(*it2)->saveComponent(l_Components);
 		}
 	}

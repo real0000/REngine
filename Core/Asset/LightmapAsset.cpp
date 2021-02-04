@@ -20,8 +20,6 @@
 namespace R
 {
 
-#define LIGHTMAP_INTERSECT_ASSET_NAME wxT("LightmapIntersection.Material")
-#define LIGHTMAP_SCATTER_ASSET_NAME wxT("LightmapScatter.Material")
 #define NEIGHBOR_INDEX(x, y, z) (9*z+3*y+x)
 #define NP 0
 #define ZP 1

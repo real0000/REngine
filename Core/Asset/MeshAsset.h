@@ -54,6 +54,7 @@ public:
     const std::vector<glm::vec3>& getBinormal(){ return m_Binormal; }
 	const std::vector<glm::ivec4>& getBoneId(){ return m_BoneId; }
 	const std::vector<glm::vec4>& getWeight(){ return m_Weight; }
+	const std::vector<unsigned int>& getColor(){ return m_Color; }
 	const std::vector<unsigned int>& getIndicies(){ return m_Indicies; }
 	std::vector<Instance*>& getMeshes(){ return m_Meshes; }// remove const for bounding box and material edit
 	const std::vector<Relation*>& getRelation(){ return m_Relation; }
@@ -61,10 +62,28 @@ public:
 	std::shared_ptr<VertexBuffer> getVertexBuffer(){ return m_VertexBuffer; }
 	std::shared_ptr<IndexBuffer> getIndexBuffer(){ return m_IndexBuffer; }
 
-private:
+	// editable part
+	void init(unsigned int a_SlotFlag);
+	Instance* addSubMesh(unsigned int a_ReserveVtxCount, unsigned int a_ReserveIdxCount
+		, unsigned int **a_ppDstIndicies
+		, glm::vec3 **a_ppDstPos
+		, glm::vec4 **a_ppDstTexcoord01 = nullptr
+		, glm::vec3 **a_ppDstNormal = nullptr
+		, glm::vec3 **a_ppDstBinormal = nullptr
+		, glm::vec3 **a_ppDstTangent = nullptr
+		, glm::ivec4 ** a_ppDstBoneId = nullptr
+		, glm::vec4 **a_ppDstWeight = nullptr
+		, glm::vec4 **a_ppDstTexcoord23 = nullptr
+		, glm::vec4 **a_ppDstTexcoord45 = nullptr
+		, glm::vec4 **a_ppDstTexcoord67 = nullptr
+		, unsigned int **a_ppDstColor = nullptr);
+	void updateMeshData(glm::ivec2 a_VertexRange, glm::ivec2 a_IdxRange);
 	void clearVertexData();
+
+private:
 	void initBuffers();
 
+	unsigned int m_VtxSlots;
     std::vector<glm::vec3> m_Position;
     std::vector<glm::vec4> m_Texcoord[4];
     std::vector<glm::vec3> m_Normal;
@@ -72,7 +91,7 @@ private:
     std::vector<glm::vec3> m_Binormal;
 	std::vector<glm::ivec4> m_BoneId;
 	std::vector<glm::vec4> m_Weight;
-	std::vector<unsigned int> m_Colors;
+	std::vector<unsigned int> m_Color;
 	std::vector<unsigned int> m_Indicies;
 	
 	std::shared_ptr<VertexBuffer> m_VertexBuffer;

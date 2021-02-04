@@ -115,6 +115,7 @@ void MaterialBlock::loadFile(boost::property_tree::ptree &a_Parent)
 
 void MaterialBlock::saveFile(boost::property_tree::ptree &a_Parent)
 {
+	boost::property_tree::ptree l_RootAttr;
 	for( auto it=m_Params.begin() ; it!=m_Params.end() ; ++it )
 	{
 		boost::property_tree::ptree l_Param;
@@ -187,6 +188,7 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 //
 MaterialAsset::MaterialAsset()
 	: m_pRefProgram(nullptr)
+	, m_Topology(Topology::triangle_list)
 	, m_InstanceUavIndex(-1)
 	, m_CurrInstanceSize(0)
 {
@@ -205,6 +207,7 @@ void MaterialAsset::loadFile(boost::property_tree::ptree &a_Src)
 	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
 	
 	init(ProgramManager::singleton().getData(l_Root.get<std::string>("<xmlattr>.refProgram")).second);
+	m_Topology = Topology::fromString(l_Root.get("<xmlattr>.topology", "triangle_list"));
 	
 	boost::property_tree::ptree l_ConstBlocks = l_Root.get_child("ConstBlocks");
 	for( auto it=l_ConstBlocks.begin() ; it!=l_ConstBlocks.end() ; ++it )
@@ -234,6 +237,7 @@ void MaterialAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	boost::property_tree::ptree l_Root;
 	boost::property_tree::ptree l_RootAttr;
 	l_RootAttr.add("refProgram", m_pRefProgram->getName());
+	l_RootAttr.add("topology", Topology::toString(m_Topology).ToStdString());
 	l_Root.add_child("<xmlattr>", l_RootAttr);
 
 	boost::property_tree::ptree l_ConstBlocks;
@@ -350,9 +354,9 @@ std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
 	auto it = l_TextureSlotMap.find(a_Name);
 	if( l_TextureSlotMap.end() == it )
 	{
-		if( STANDARD_TEXTURE_NORMAL == a_Name ) return EngineCore::singleton().getBlueTexture();
-		else if( STANDARD_TEXTURE_REFRACT == a_Name ) return EngineCore::singleton().getDarkgrayTexture();
-		else return EngineCore::singleton().getWhiteTexture();
+		if( STANDARD_TEXTURE_NORMAL == a_Name ) return AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
+		else if( STANDARD_TEXTURE_REFRACT == a_Name ) return AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
+		else return AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
 	}
 	return (it->second->m_bWrite ? m_RWTexture : m_Textures)[it->second->m_pRegInfo->m_Slot];
 }

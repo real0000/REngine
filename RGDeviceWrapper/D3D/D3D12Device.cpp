@@ -1484,11 +1484,11 @@ int D3D12Device::requestVertexBuffer(void *a_pInitData, unsigned int a_Slot, uns
 	return l_VtxID;
 }
 
-void D3D12Device::updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte)
+void D3D12Device::updateVertexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset)
 {
 	assert(nullptr != a_pData);
 	std::shared_ptr<VertexBinder> l_pVtxBuffer = m_ManagedVertexBuffer[a_ID];
-	updateResourceData(l_pVtxBuffer->m_pVtxRes, a_pData, a_SizeInByte);
+	updateResourceData(l_pVtxBuffer->m_pVtxRes, a_pData, a_SizeInByte, a_Offset);
 }
 
 void* D3D12Device::getVertexResource(int a_ID)
@@ -1520,11 +1520,11 @@ int D3D12Device::requestIndexBuffer(void *a_pInitData, PixelFormat::Key a_Fmt, u
 	return l_ID;
 }
 
-void D3D12Device::updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte)
+void D3D12Device::updateIndexBuffer(int a_ID, void *a_pData, unsigned int a_SizeInByte, unsigned int a_Offset)
 {
 	assert(nullptr != a_pData);
 	std::shared_ptr<IndexBinder> l_pIndexBuffer = m_ManagedIndexBuffer[a_ID];
-	updateResourceData(l_pIndexBuffer->m_pIndexRes, a_pData, a_SizeInByte);
+	updateResourceData(l_pIndexBuffer->m_pIndexRes, a_pData, a_SizeInByte, a_Offset);
 }
 
 void* D3D12Device::getIndexResource(int a_ID)
@@ -2055,10 +2055,14 @@ ID3D12Resource* D3D12Device::initSizedResource(unsigned int a_Size, D3D12_HEAP_T
 	return l_pNewResource;
 }
 
-void D3D12Device::updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte)
+void D3D12Device::updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte, unsigned int a_Offset)
 {
+	D3D12_RANGE l_Range;
+	l_Range.Begin = a_Offset;
+	l_Range.End = a_Offset + a_SizeInByte;
+
 	unsigned char* l_pDataBegin = nullptr;
-	a_pRes->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
+	a_pRes->Map(0, &l_Range, reinterpret_cast<void**>(&l_pDataBegin));
 	memcpy(l_pDataBegin, a_pSrcData, a_SizeInByte);
 	a_pRes->Unmap(0, nullptr);
 }

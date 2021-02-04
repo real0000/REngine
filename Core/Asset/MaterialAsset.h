@@ -111,6 +111,8 @@ public:
 	void setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture);
 	std::shared_ptr<Asset> getTexture(std::string a_Name);
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
+	void setTopology(Topology::Key a_Topology){ m_Topology = a_Topology; }
+	Topology::Key getTopology(){ return m_Topology; }
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
@@ -176,6 +178,7 @@ private:
 	std::vector< std::shared_ptr<MaterialBlock> > m_ConstBlocks, m_UavBlocks;
 	std::set<unsigned int> m_ReservedCBV, m_ReservedSRV;
 	std::vector<std::shared_ptr<Asset>> m_Textures, m_RWTexture;
+	Topology::Key m_Topology;
 
 	// instance part
 	std::deque<int> m_FreeInstanceSlot;
