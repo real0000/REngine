@@ -177,6 +177,7 @@
     <ClInclude Include="DrawBuffer.h" />
     <ClInclude Include="RGDeviceWrapper.h" />
     <ClInclude Include="ShaderBase.h" />
+    <None Include="Shaders\Grid.pixel" />
     <None Include="Shaders\Lightmap\Lightmap.h" />
     <None Include="Shaders\CopyDepth.pixel">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
@@ -321,6 +322,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <Xml Include="Shaders\Grid.xml" />
     <Xml Include="Shaders\Lightmap\RayIntersection.xml" />
     <Xml Include="Shaders\Lightmap\RayScatter.xml">
       <SubType>Designer</SubType>

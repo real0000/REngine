@@ -1,0 +1,13 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+struct GridOutput
+{
+	float m_Depth : SV_DepthLessEqual;
+	float4 m_Color : SV_Target0;
+};
+
+GridOutput main(float2 a_UV : TEXCOORD0)
+{
+	return m_SrcTex.Sample(m_SrcTexSampler, a_UV.xy);
+}
