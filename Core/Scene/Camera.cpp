@@ -116,7 +116,7 @@ void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 
 	glm::mat4x4 l_World(getOwner()->getTransform());
 	a_Eye = glm::vec3(l_World[3][0], l_World[3][1], l_World[3][2]);
-	a_Dir = glm::normalize(glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
+	a_Dir = glm::normalize(glm::vec3(l_World[0][0], l_World[0][1], l_World[0][2]));
 	a_Up  = glm::normalize(glm::vec3(l_World[1][0], l_World[1][1], l_World[1][2]));
 }
 

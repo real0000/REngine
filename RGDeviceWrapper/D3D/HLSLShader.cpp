@@ -1038,10 +1038,8 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 			{
 				auto it = l_SortedItem->second;
 
-				std::string l_RowMajor("");
-				if( ShaderParamType::float3x3 == it->second->m_Type || ShaderParamType::float4x4 == it->second->m_Type ) l_RowMajor = "column_major ";
-				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s%s %s[%d];\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
-				else snprintf(l_Buff, 256, "\t%s%s %s;\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s %s[%d];\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
+				else snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
 				m_ParamDefine += l_Buff;
 			}
 
@@ -1071,10 +1069,8 @@ void HLSLComponent::setupParamDefine(ShaderProgram *a_pProgrom, ShaderStages::Ke
 			{
 				auto it = l_SortedItem->second;
 				
-				std::string l_RowMajor("");
-				if( ShaderParamType::float3x3 == it->second->m_Type || ShaderParamType::float4x4 == it->second->m_Type ) l_RowMajor = "column_major ";
-				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s%s %s[%d];\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
-				else snprintf(l_Buff, 256, "\t%s%s %s;\n", l_RowMajor.c_str(), ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
+				if( it->second->m_ArraySize > 1 ) snprintf(l_Buff, 256, "\t%s %s[%d];\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str(), it->second->m_ArraySize);
+				else snprintf(l_Buff, 256, "\t%s %s;\n", ShaderParamType::toString(it->second->m_Type).ToStdString().c_str(), it->first.c_str());
 				m_ParamDefine += l_Buff;
 			}
 			m_ParamDefine += "};\n";

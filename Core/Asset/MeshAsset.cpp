@@ -445,7 +445,7 @@ MeshAsset::Instance* MeshAsset::addSubMesh(unsigned int a_ReserveVtxCount, unsig
 	
 	unsigned int l_NewVtxSize = l_pRes->m_BaseVertex + a_ReserveVtxCount;
 	unsigned int l_NewIdxSize = l_pRes->m_StartIndex + a_ReserveIdxCount;
-	for( unsigned int i=VTXFLAG_POSITION ; i<=VTXFLAG_COLOR ; ++i )
+	for( unsigned int i=VTXSLOT_POSITION ; i<=VTXSLOT_COLOR ; ++i )
 	{
 		if( 0 == (m_VtxSlots & (0x000000001 << i)) ) continue;
 		switch(i)
@@ -543,7 +543,7 @@ MeshAsset::Instance* MeshAsset::addSubMesh(unsigned int a_ReserveVtxCount, unsig
 
 void MeshAsset::updateMeshData(glm::ivec2 a_VertexRange, glm::ivec2 a_IdxRange)
 {
-	for( unsigned int i=VTXFLAG_POSITION ; i<=VTXFLAG_COLOR ; ++i )
+	for( unsigned int i=VTXSLOT_POSITION ; i<=VTXSLOT_COLOR ; ++i )
 	{
 		if( 0 == (m_VtxSlots & (0x000000001 << i)) ) continue;
 

@@ -23,6 +23,7 @@ public:
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	virtual bool inputListener(InputData &a_Input);
 	virtual void updateListener(float a_Delta);
+	virtual bool runtimeOnly(){ return true; }
 
 	void setMaxSpeed(float a_MaxSpeed){ m_MaxSpeed = a_MaxSpeed; }
 

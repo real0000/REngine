@@ -228,5 +228,6 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 		break;
 	}
 
+	l_Res.xyz = l_BaseColor.xyz;
 	return l_Res;
 }

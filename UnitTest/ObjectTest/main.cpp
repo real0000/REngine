@@ -31,20 +31,7 @@ bool BasicApp::OnInit()
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();
-	l_pCameraCtrl->setMaxSpeed(0.01f);
-
-	std::shared_ptr<R::RenderableMesh> l_pGridMesh = l_pScene->getRootNode()->addComponent<R::RenderableMesh>();
-	l_pGridMesh->setMesh(R::AssetManager::singleton().getAsset(QUAD_MESH_ASSET_NAME), 0);
-
-	std::shared_ptr<R::Asset> l_pGridMat = R::AssetManager::singleton().createAsset(wxT("Grid.Material"));
-	R::MaterialAsset *l_pGridMatInst = l_pGridMat->getComponent<R::MaterialAsset>();
-	l_pGridMatInst->setParam("m_XColor", 0, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-    l_pGridMatInst->setParam("m_YColor", 0, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-    l_pGridMatInst->setParam("m_ZColor", 0, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
-    l_pGridMatInst->setParam("m_LineColor", 0, glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    l_pGridMatInst->setParam("m_PlaneType", 0, 0);
-    l_pGridMatInst->setParam("m_MinUnit", 0, 10.0f);
-	l_pGridMesh->setMaterial(R::MATSLOT_TRANSPARENT, l_pGridMat);
+	l_pCameraCtrl->setMaxSpeed(0.005f);
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 	R::EngineCore::singleton().run(this);

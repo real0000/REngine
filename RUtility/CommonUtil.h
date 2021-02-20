@@ -34,6 +34,7 @@
 #include <stdarg.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_LEFT_HANDED
 #include "vld.h"
 #include "glm.hpp"
 #include "gtc/constants.hpp"

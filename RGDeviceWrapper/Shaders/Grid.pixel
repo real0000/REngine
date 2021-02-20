@@ -9,5 +9,9 @@ struct GridOutput
 
 GridOutput main(float2 a_UV : TEXCOORD0)
 {
-	return m_SrcTex.Sample(m_SrcTexSampler, a_UV.xy);
+	GridOutput l_Res = (GridOutput)0;
+
+	float3 l_Eye = m_View._m03_m13_m23;
+
+	return l_Res;
 }

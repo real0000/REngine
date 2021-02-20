@@ -24,5 +24,6 @@ void registEditorComponents();
 }
 
 #include "Components/CameraController.h"
+#include "Components/GridLine.h"
 
 #endif

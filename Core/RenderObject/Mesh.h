@@ -64,8 +64,10 @@ public:
 		it->second.second->getComponent<MaterialAsset>()->setParam(a_Name, it->second.first, a_Param);
 	}
 
-private:
+protected:
 	RenderableMesh(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pNode);
+
+private:
 	void syncKeyMap();
 
 	std::shared_ptr<Asset> m_pMesh;

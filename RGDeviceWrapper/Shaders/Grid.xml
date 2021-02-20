@@ -2,19 +2,19 @@
   <ParamList>
     <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <ConstBuffer name="GridSetting" reserved="false">
-      <Param name="m_XColor" desc="" type="float4"/>
-      <Param name="m_YColor" desc="" type="float4"/>
-      <Param name="m_ZColor" desc="" type="float4"/>
-      <Param name="m_LineColor" desc="" type="float4"/>
-      <Param name="m_PlaneType" desc="" type="int1"/>
       <Param name="m_MinUnit" desc="" type="float1"/>
+      <Param name="m_Stroke" desc="" type="int1"/>
     </ConstBuffer>
+    <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
+    <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="Quad.vertex"/>
+      <Vertex file="VertexTransfer.vertex">
+        Camera, SkinTransition, NormalTransition
+      </Vertex>
       <Fragment file="Grid.pixel">
-        Camera, GridSetting
+        NormalTransition, GridSetting
       </Fragment>
     </Model_5_1>
   </Shaders>

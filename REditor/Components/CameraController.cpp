@@ -4,9 +4,7 @@
 //
 
 #include "REngine.h"
-
 #include "REditor.h"
-#include "CameraController.h"
 
 namespace R
 {
@@ -51,8 +49,8 @@ bool CameraController::inputListener(InputData &a_Input)
 
 		switch( a_Input.m_Key )
 		{
-			case SDLK_w: m_MovingFlag.z = a_Input.m_Data.m_bDown ? 1 : 0; break;
-			case SDLK_s: m_MovingFlag.z = a_Input.m_Data.m_bDown ? -1 : 0;break;
+			case SDLK_w: m_MovingFlag.z = a_Input.m_Data.m_bDown ? -1 : 0; break;
+			case SDLK_s: m_MovingFlag.z = a_Input.m_Data.m_bDown ? 1 : 0;break;
 			case SDLK_a: m_MovingFlag.x = a_Input.m_Data.m_bDown ? -1 : 0;break;
 			case SDLK_d: m_MovingFlag.x = a_Input.m_Data.m_bDown ? 1 : 0; break;
 			case SDLK_q: m_MovingFlag.y = a_Input.m_Data.m_bDown ? 1 : 0; break;
@@ -101,6 +99,11 @@ void CameraController::updateListener(float a_Delta)
 	l_Eye += float(m_MovingFlag.x) * l_Left * m_MovingSpeed;
 	l_Eye += float(m_MovingFlag.y) * l_Up * m_MovingSpeed;
 	l_Eye += float(m_MovingFlag.z) * l_Dir * m_MovingSpeed;
+
+	glm::vec4 l_LocalCast(l_Eye.x, l_Eye.y, l_Eye.z, 1.0f);
+	l_LocalCast = glm::inverse(getOwner()->getParent()->getTransform()) * l_LocalCast;
+	l_Eye = glm::vec3(l_LocalCast.x, l_LocalCast.y, l_LocalCast.z);
+	
 	getOwner()->setPosition(l_Eye);
 }
 
@@ -119,27 +122,25 @@ void CameraController::mouseMove()
 	glm::vec2 l_Sub(m_PrevPt - m_MousePt);
 	m_PrevPt = m_MousePt;
 	
-	/*glm::vec3 l_Eye, l_Dir, l_Up;
+	glm::vec3 l_Eye, l_Dir, l_Up;
 	l_Cameras[0]->getCameraParam(l_Eye, l_Dir, l_Up);
 
+	l_Dir = -l_Dir;
 	float l_PI = glm::pi<float>();
-	float l_Alpha = std::atan2(l_Dir.z, l_Dir.x) + l_Sub.x / 100.0f;
-	l_Alpha = glm::fract(l_Alpha / l_PI) * l_PI;
+	float l_Alpha = std::atan2(l_Dir.z, l_Dir.x) + l_PI + l_Sub.x / 100.0f;
+	l_Alpha = glm::fract(l_Alpha / (2.0f * l_PI)) * l_PI * 2.0f;
 	float l_Beta = std::asin(l_Dir.y) + l_Sub.y / 100.0f;
 	l_Beta = glm::clamp(l_Beta, -l_PI * 0.5f + 0.01f, l_PI * 0.5f - 0.01f);
 
-	glm::mat4x4 l_Rotate(glm::eulerAngleXYZ(l_Alpha, l_Beta, 0.5f * l_PI));
-	getOwner()->setRotate(l_Rotate);*/
-
-	glm::mat4x4 l_Trans(getOwner()->getTransform());
-	l_Trans = glm::rotate(l_Trans, l_Sub.x / 100.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-	l_Trans = glm::rotate(l_Trans, l_Sub.y / 100.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-	getOwner()->setTransform(l_Trans);
+	glm::mat4x4 l_Rotate(glm::eulerAngleYZ(-l_Alpha, -l_Beta));
+	l_Rotate = glm::inverse(getOwner()->getParent()->getTransform()) * l_Rotate;
+	getOwner()->setRotate(l_Rotate);
 }
 
 void CameraController::mouseUp()
 {
 	m_bValid = false;
+	m_MovingFlag = glm::ivec3(0, 0, 0);
 }
 #pragma endregion	
 

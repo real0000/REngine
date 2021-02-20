@@ -20,10 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\CameraController.cpp" />
+    <ClCompile Include="Components\GridLine.cpp" />
     <ClCompile Include="REditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\CameraController.h" />
+    <ClInclude Include="Components\GridLine.h" />
     <ClInclude Include="REditor.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

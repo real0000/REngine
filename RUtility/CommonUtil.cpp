@@ -200,13 +200,13 @@ void base642Binary(std::string &a_Src, std::vector<char> &a_Output)
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut)
 {
-	a_TransOut.x = a_Mat[0][3];
-    a_TransOut.y = a_Mat[1][3];
-    a_TransOut.z = a_Mat[2][3];
+	a_TransOut.x = a_Mat[3][0];
+    a_TransOut.y = a_Mat[3][1];
+    a_TransOut.z = a_Mat[3][2];
 
-    glm::vec3 l_Col1(a_Mat[0][0], a_Mat[0][1], a_Mat[0][2]);
-    glm::vec3 l_Col2(a_Mat[1][0], a_Mat[1][1], a_Mat[1][2]);
-    glm::vec3 l_Col3(a_Mat[2][0], a_Mat[2][1], a_Mat[2][2]);
+    glm::vec3 l_Col1(a_Mat[0][0], a_Mat[1][0], a_Mat[2][0]);
+    glm::vec3 l_Col2(a_Mat[0][1], a_Mat[1][1], a_Mat[2][1]);
+    glm::vec3 l_Col3(a_Mat[0][2], a_Mat[1][2], a_Mat[2][2]);
 
     a_ScaleOut.x = glm::length(l_Col1);
     a_ScaleOut.y = glm::length(l_Col2);
@@ -223,7 +223,9 @@ void composeTRS(const glm::vec3 &a_Trans, const glm::vec3 &a_Scale, const glm::q
 {
 	a_MatOut = glm::scale(glm::identity<glm::mat4x4>(), a_Scale);
 	a_MatOut = glm::mat4_cast(a_Rot) * a_MatOut;
-	a_MatOut = glm::translate(a_MatOut, a_Trans);
+	a_MatOut[3][0] = a_Trans.x;
+	a_MatOut[3][1] = a_Trans.y;
+	a_MatOut[3][2] = a_Trans.z;
 }
 
 unsigned int getPixelSize(PixelFormat::Key a_Key)
