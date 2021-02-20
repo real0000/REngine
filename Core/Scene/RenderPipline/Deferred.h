@@ -42,6 +42,7 @@ public:
 	static std::string typeName(){ return "DeferredRenderer"; }
 	virtual void saveSetting(boost::property_tree::ptree &a_Dst);
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);
+	virtual void canvasResize(glm::ivec2 a_Size);
 
 private:
 	DeferredRenderer(std::shared_ptr<Scene> a_pScene);

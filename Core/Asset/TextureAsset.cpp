@@ -116,6 +116,13 @@ void TextureAsset::initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format
 	updateSampler();
 }
 
+void TextureAsset::resizeRenderTarget(glm::ivec2 a_Size)
+{
+	assert(-1 == m_TextureID);
+
+	GDEVICE()->getTextureType(m_TextureID)
+}
+
 void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
 {
 	assert(-1 == m_TextureID);

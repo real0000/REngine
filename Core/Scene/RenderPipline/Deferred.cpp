@@ -384,6 +384,11 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	}
 }
 
+void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
+{
+	
+}
+
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)
 {
 	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, m_VisibleMeshes);

@@ -576,13 +576,14 @@ void D3D12Canvas::presentImp()
 void D3D12Canvas::resizeBackBuffer()
 {
 	if( !getNeedResize() ) return;
+	glm::ivec2 l_ClientSize(GetClientSize().x, GetClientSize().y);
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
 		m_pBackbufferRes[i]->Release();
 		m_pBackbufferRes[i] = nullptr;
 		m_pRefHeapOwner->recycle(m_BackBuffer[i]);
 	}
-	m_pSwapChain->ResizeBuffers(NUM_BACKBUFFER, GetClientSize().x, GetClientSize().y, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+	m_pSwapChain->ResizeBuffers(NUM_BACKBUFFER, l_ClientSize.x, l_ClientSize.y, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 	for( unsigned int i=0 ; i<NUM_BACKBUFFER ; ++i )
 	{
 		if( S_OK != m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pBackbufferRes[i])) )
@@ -593,6 +594,7 @@ void D3D12Canvas::resizeBackBuffer()
 
 		m_BackBuffer[i] = m_pRefHeapOwner->newHeap(m_pBackbufferRes[i], static_cast<D3D12_RENDER_TARGET_VIEW_DESC *>(nullptr));
 	}
+	resizeCallback(l_ClientSize);
 }
 #pragma endregion
 

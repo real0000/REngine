@@ -917,6 +917,16 @@ SceneManager::~SceneManager()
 	m_SceneMap.clear();
 }
 
+void SceneManager::canvasResized(GraphicCanvas *a_pCanvas, glm::ivec2 a_Size)
+{
+	for( auto it = m_CanvasMainScene.begin() ; it != m_CanvasMainScene.end() ; ++it )
+	{
+		if( it->second != a_pCanvas ) continue;
+		it->first->getRenderPipeline()->canvasResize(a_Size);
+		break;
+	}
+}
+
 void SceneManager::setMainScene(GraphicCanvas *a_pCanvas, std::shared_ptr<Scene> a_pScene)
 {
 	assert(nullptr != a_pScene);

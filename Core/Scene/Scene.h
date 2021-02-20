@@ -213,6 +213,7 @@ public:
 	// misc
 	void saveSceneGraphSetting(boost::property_tree::ptree &a_Dst);
 	void saveRenderSetting(boost::property_tree::ptree &a_Dst, boost::property_tree::ptree &a_ShadowDst);
+	RenderPipeline* getRenderPipeline(){ return m_pRenderer; }
 	RenderPipeline* getShadowMapBaker(){ return m_pShadowMapBaker; }
 	std::shared_ptr<Asset> getLightmap(){ return m_pLightmap; }
 	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
@@ -278,7 +279,8 @@ class SceneManager
 public:
 	static SceneManager& singleton();
 	std::shared_ptr<Scene> create(wxString a_Name);
-
+	
+	void canvasResized(GraphicCanvas *a_pCanvas, glm::ivec2 a_Size);
 	void setMainScene(GraphicCanvas *a_pCanvas, std::shared_ptr<Scene> a_pScene);
 	void dropScene(wxString a_Name);
 	void dropCanvas(GraphicCanvas *a_pWeak);

@@ -163,6 +163,7 @@ GraphicCanvas::GraphicCanvas(wxWindow *a_pParent, wxWindowID a_ID)
 	, m_bFullScreen(false)
 	, m_bInitialed(false)
 	, m_bNeedResize(false)
+	, m_pResizeCallback(nullptr)
 {
 	if( 0 != SDL_WasInit(SDL_INIT_EVENTS) )
 	{
@@ -312,6 +313,12 @@ bool GraphicCanvas::getNeedResize()
 	bool l_Res = m_bNeedResize;
 	m_bNeedResize = false;
 	return l_Res;
+}
+
+void GraphicCanvas::resizeCallback(glm::ivec2 a_ClientSize)
+{
+	if( nullptr == m_pResizeCallback ) return;
+	m_pResizeCallback(this, a_ClientSize);
 }
 #pragma endregion
 

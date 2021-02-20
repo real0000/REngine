@@ -24,6 +24,7 @@ public:
 
 	virtual void saveSetting(boost::property_tree::ptree &a_Dst) = 0;
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas) = 0;
+	virtual void canvasResize(glm::ivec2 a_Size) = 0;
 
 protected:
 	 std::shared_ptr<Scene> getScene(){ return m_pRefScene; }

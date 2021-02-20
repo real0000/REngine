@@ -67,6 +67,7 @@ public:
 
 	void setFullScreen(bool a_bFullScreen);
 	bool isFullScreen(){ return m_bFullScreen; }
+	void setResizeCallback(std::function<void(GraphicCanvas *a_pOwner, glm::ivec2)> a_pFunc){ m_pResizeCallback = a_pFunc; }
 	
 	void onSize(wxSizeEvent &a_Event);
 	void onMouseDown(wxMouseEvent &a_Event);
@@ -87,11 +88,13 @@ public:
 protected:
 	void setInitialed();
 	bool getNeedResize();
+	void resizeCallback(glm::ivec2 a_ClientSize);
 	
 private:
 	bool m_bFullScreen;
 	bool m_bInitialed;
 	bool m_bNeedResize;
+	std::function<void(GraphicCanvas*, glm::ivec2)> m_pResizeCallback;
 
 	DECLARE_EVENT_TABLE()
 };

@@ -308,6 +308,7 @@ GraphicCanvas* EngineCore::createCanvas()
 	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(l_pNewWindow, wxID_ANY);
 	l_pCanvas->SetClientSize(EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
+	l_pCanvas->setResizeCallback(std::bind(&SceneManager::canvasResized, &SceneManager::singleton(), std::placeholders::_1, std::placeholders::_2));
 	return l_pCanvas;
 }
 
@@ -317,6 +318,7 @@ GraphicCanvas* EngineCore::createCanvas(wxWindow *a_pParent)
 
 	GraphicCanvas *l_pCanvas = GDEVICE()->canvasFactory(a_pParent, wxID_ANY);
 	l_pCanvas->init(EngineSetting::singleton().m_bFullScreen);
+	l_pCanvas->setResizeCallback(std::bind(&SceneManager::canvasResized, &SceneManager::singleton(), std::placeholders::_1, std::placeholders::_2));
 	return l_pCanvas;
 }
 
