@@ -116,22 +116,35 @@ void TextureAsset::initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format
 	updateSampler();
 }
 
-void TextureAsset::resizeRenderTarget(glm::ivec2 a_Size)
+void TextureAsset::resizeRenderTarget(glm::ivec2 a_Size, unsigned int a_ArraySize, bool a_bCube)
 {
-	assert(-1 == m_TextureID);
+	assert(m_bRenderTarget);
+	
+	int l_ID = GDEVICE()->getRenderTargetTexture(m_TextureID);
+	PixelFormat::Key l_Fmt = GDEVICE()->getTextureFormat(l_ID);
+	GDEVICE()->freeRenderTarget(m_TextureID);
+	m_TextureID = GDEVICE()->createRenderTarget(a_Size, l_Fmt, a_ArraySize, a_bCube);
+}
 
-	GDEVICE()->getTextureType(m_TextureID)
+void TextureAsset::resizeRenderTarget(glm::ivec3 a_Size)
+{
+	assert(m_bRenderTarget);
+	
+	int l_ID = GDEVICE()->getRenderTargetTexture(m_TextureID);
+	PixelFormat::Key l_Fmt = GDEVICE()->getTextureFormat(l_ID);
+	GDEVICE()->freeRenderTarget(m_TextureID);
+	m_TextureID = GDEVICE()->createRenderTarget(a_Size, l_Fmt);
 }
 
 void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData)
 {
-	assert(-1 == m_TextureID);
+	assert(-1 != m_TextureID);
 	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_Idx, a_pSrcData);
 }
 
 void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
 {
-	assert(-1 == m_TextureID);
+	assert(-1 != m_TextureID);
 	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData);
 }
 

@@ -223,12 +223,29 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		}
 	}
 
+	// flush view port param
+	glm::vec2 l_ViewPortSize(m_pGBuffer[0]->getComponent<TextureAsset>()->getDimension().x, m_pGBuffer[0]->getComponent<TextureAsset>()->getDimension().y);
+	{
+		glm::vec4 l_CameraParam(a_pCamera->getViewParam());
+		glm::mat4x4 l_Dummy;
+		switch( a_pCamera->getCameraType() )
+		{
+			case Camera::ORTHO:
+				a_pCamera->setOrthoView(l_ViewPortSize.x, l_ViewPortSize.y, l_CameraParam.z, l_CameraParam.w, l_Dummy);
+				break;
+
+			case Camera::PERSPECTIVE:
+				a_pCamera->setPerspectiveView(l_CameraParam.x, l_ViewPortSize.x / l_ViewPortSize.y, l_CameraParam.z, l_Dummy);
+				break;
+		}
+	}
+
 	EngineCore::singleton().join();
 
 	// shadow map render
 	//ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
 	//l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
-
+	
 	{// graphic step, divide by stage
 		//bind gbuffer
 		m_pCmdInit->begin(false);
@@ -249,9 +266,9 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			{
 				m_DrawCommand[i]->begin(false);
 				
-				glm::viewport l_Viewport(0.0f, 0.0f, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y, 0.0f, 1.0f);
+				glm::viewport l_Viewport(0.0f, 0.0f, l_ViewPortSize.x, l_ViewPortSize.y, 0.0f, 1.0f);
 				m_DrawCommand[i]->setViewPort(1, l_Viewport);
-				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, EngineSetting::singleton().m_DefaultSize.x, EngineSetting::singleton().m_DefaultSize.y));
+				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, l_ViewPortSize.x, l_ViewPortSize.y));
 				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 6,
 												m_pGBuffer[GBUFFER_NORMAL]->getComponent<TextureAsset>()->getTextureID(),
 												m_pGBuffer[GBUFFER_MATERIAL]->getComponent<TextureAsset>()->getTextureID(),
@@ -386,7 +403,20 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
 {
+	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
+	{
+		m_pGBuffer[i]->getComponent<TextureAsset>()->resizeRenderTarget(a_Size);
+	}
 	
+	m_pFrameBuffer->getComponent<TextureAsset>()->resizeRenderTarget(a_Size);
+
+	m_TileDim.x = std::ceil(a_Size.x / EngineSetting::singleton().m_TileSize);
+	m_TileDim.y = std::ceil(a_Size.y / EngineSetting::singleton().m_TileSize);
+
+	m_pDepthMinmax->getComponent<TextureAsset>()->resizeRenderTarget(a_Size);
+	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
+	
+	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / a_Size.x, 1.0f / a_Size.y));
 }
 
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)
