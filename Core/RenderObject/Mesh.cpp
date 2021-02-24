@@ -49,9 +49,13 @@ void RenderableMesh::end()
 {
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
 	
-	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_MESH)->remove(l_pThis);
-	getScene()->getRenderBatcher()->recycleWorldSlot(l_pThis);
-	if( -1 != m_SkinOffset ) getScene()->getRenderBatcher()->recycleSkinSlot(m_pMesh);
+	std::shared_ptr<Scene> l_pScene = getScene();
+	if( nullptr != l_pScene )
+	{
+		if( !isHidden() ) l_pScene->getSceneGraph(GRAPH_MESH)->remove(l_pThis);
+		l_pScene->getRenderBatcher()->recycleWorldSlot(l_pThis);
+		if( -1 != m_SkinOffset ) l_pScene->getRenderBatcher()->recycleSkinSlot(m_pMesh);
+	}
 
 	for( auto it=m_Materials.begin() ; it!=m_Materials.end() ; ++it )
 	{

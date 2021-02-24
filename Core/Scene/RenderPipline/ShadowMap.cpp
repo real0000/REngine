@@ -66,6 +66,11 @@ void ShadowMapRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas 
 {
 }
 
+void ShadowMapRenderer::drawFlagChanged(unsigned int a_Flag)
+{
+	
+}
+
 void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &a_Lights
 							, std::vector<RenderableMesh*> &a_SortedDir
 							, std::vector<RenderableMesh*> &a_SortedOmni

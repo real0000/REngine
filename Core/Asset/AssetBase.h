@@ -15,13 +15,29 @@ class AssetManager;
 #define LIGHTMAP_INTERSECT_ASSET_NAME wxT("LightmapIntersection.Material")
 #define LIGHTMAP_SCATTER_ASSET_NAME wxT("LightmapScatter.Material")
 
-#define FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame.Image")
-#define DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax.Image")
+#define DEFFERRED_GBUFFER_NORMAL_ASSET_NAME wxT("DefferredGBufferNormal_%d.Image")
+#define DEFFERRED_GBUFFER_MATERIAL_ASSET_NAME wxT("DefferredGBufferMaterial_%d.Image")
+#define DEFFERRED_GBUFFER_BASE_COLOR_ASSET_NAME wxT("DefferredGBufferBaseColor_%d.Image")
+#define DEFFERRED_GBUFFER_MASK_ASSET_NAME wxT("DefferredGBufferMask_%d.Image")
+#define DEFFERRED_GBUFFER_FACTOR_ASSET_NAME wxT("DefferredGBufferFactor_%d.Image")
+#define DEFFERRED_GBUFFER_MOTION_BLUR_ASSET_NAME wxT("DefferredGBufferMotionBlur_%d.Image")
+#define DEFFERRED_GBUFFER_DEPTH_ASSET_NAME wxT("DefferredGBufferDepth_%d.Image")
 
-#define LIGHTINDEX_ASSET_NAME wxT("DefferredLightIndex.Material")
-#define LIGHTING_ASSET_NAME wxT("TiledDefferredLighting.Material")
+#define DEFFERRED_GBUFFER_DEBUG_NORMAL_ASSET_NAME wxT("DefferredGBufferNormal_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_MATERIAL_ASSET_NAME wxT("DefferredGBufferMaterial_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_BASE_COLOR_ASSET_NAME wxT("DefferredGBufferBaseColor_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_MASK_ASSET_NAME wxT("DefferredGBufferMask_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_FACTOR_ASSET_NAME wxT("DefferredGBufferFactor_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_MOTION_BLUR_ASSET_NAME wxT("DefferredGBufferMotionBlur_%d.Material")
+#define DEFFERRED_GBUFFER_DEBUG_DEPTH_ASSET_NAME wxT("DefferredGBufferDepth_%d.Material")
+
+#define DEFFERRED_FRAMEBUFFER_ASSET_NAME wxT("DefferredFrame_%d.Image")
+#define DEFFERRED_DEPTHMINMAX_ASSET_NAME wxT("DefferredDepthMinmax_%d.Image")
+
+#define DEFFERRED_LIGHTINDEX_ASSET_NAME wxT("DefferredLightIndex_%d.Material")
+#define DEFFERRED_LIGHTING_ASSET_NAME wxT("TiledDefferredLighting_%d.Material")
+
 #define COPY_ASSET_NAME wxT("Copy.Material")
-
 #define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
 #define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
 

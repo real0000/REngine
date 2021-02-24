@@ -1,5 +1,6 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
+    <Constant name="c_DockParam" type="float4" reserved="false" init="(1.0,1.0,0.0,0.0)"/>
     <Constant name="c_TileCount" type="int2" reserved="false"/>
     <Constant name="c_BoxLevel" type="int1" reserved="false"/>
     <Constant name="c_NumLight" type="int1" reserved="false"/>
@@ -22,7 +23,9 @@
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="Quad.vertex"/>
+      <Vertex file="Quad.vertex">
+        c_DockParam
+      </Vertex>
       <!--Geometry file="">
       </Geometry>
       <TessCtrl file="">  

@@ -56,6 +56,9 @@
 #define SAFE_DELETE_ARRAY(p) { if( nullptr != p ) delete[] p; p = nullptr; }
 #define SAFE_RELEASE(p) { if( nullptr != p ) p->Release(); p = nullptr; }
 
+#define IS_FLAG_OPENED(oldf, newf, flag) ((0 != ((oldf ^ newf) & flag)) && 0 == (oldf & flag))
+#define IS_FLAG_CLOSED(oldf, newf, flag) ((0 != ((oldf ^ newf) & flag)) && 0 != (oldf & flag))
+
 #define CONSOLE_LOG(format, ...) wxMessageOutputDebug().Printf(format, __VA_ARGS__);
 #define BEGIN_TIME_RECORD() auto l_PrevTickRecord = std::chrono::high_resolution_clock::now();
 #define END_TIME_RECORD(format, ...) auto l_NowTickRecord = std::chrono::high_resolution_clock::now();\

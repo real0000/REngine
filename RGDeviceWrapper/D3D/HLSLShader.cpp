@@ -108,7 +108,7 @@ void HLSLProgram12::assignIndirectDrawCommand(unsigned int &a_Offset, char *a_pO
 
 void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boost::property_tree::ptree &a_ParamDesc, std::map<std::string, std::string> &a_ParamOutput)
 {
-	std::map<std::string, ShaderParamType::Key> l_ConstTypeMap;
+	std::map<std::string, std::pair<ShaderParamType::Key, std::string>> l_ConstTypeMap;
 	std::map<std::string, RegisterInfo *> l_ParamMap[ShaderRegType::UavBuffer+1][ShaderStages::NumStage];
 	{
 		std::map<std::string, D3D12_SHADER_VISIBILITY> l_RegVisibleMaps;
@@ -145,7 +145,11 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 			l_pNewInfo->m_Type = l_RegType;
 			l_TargetMap.insert(std::make_pair(l_Name, l_pNewInfo));
 
-			if( ShaderRegType::Constant == l_RegType ) l_ConstTypeMap[l_Name] = ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type"));
+			if( ShaderRegType::Constant == l_RegType )
+			{
+				std::string l_InitVal(it->second.get("<xmlattr>.init", ""));
+				l_ConstTypeMap[l_Name] = std::make_pair(ShaderParamType::fromString(it->second.get<std::string>("<xmlattr>.type")), l_InitVal);
+			}
 		}
 	}
 
@@ -315,12 +319,15 @@ void HLSLProgram12::initRegister(boost::property_tree::ptree &a_ShaderDesc, boos
 
 		for( auto it=l_ParamList.begin() ; it!=l_ParamList.end() ; ++it )
 		{
+			auto &l_TypeDefaultValPair = l_ConstTypeMap[it->first];
+
 			ProgramParamDesc *l_pNewParam = new ProgramParamDesc();
-			l_pNewParam->m_Type = l_ConstTypeMap[it->first];
+			l_pNewParam->m_Type = l_TypeDefaultValPair.first;
 			l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_pNewConstBlock->m_BlockSize, l_pNewParam->m_Type);
 			unsigned int l_ParamSize = l_pNewConstBlock->m_BlockSize - l_pNewParam->m_Offset;
 			l_pNewParam->m_pDefault = new char[l_ParamSize];
-			memset(l_pNewParam->m_pDefault, 0, l_ParamSize);
+			if( l_TypeDefaultValPair.second.empty() ) memset(l_pNewParam->m_pDefault, 0, l_ParamSize);
+			else parseShaderParamValue(l_TypeDefaultValPair.first, l_TypeDefaultValPair.second, l_pNewParam->m_pDefault);
 			l_pNewParam->m_pRegInfo = it->second;
 			l_pNewConstBlock->m_ParamDesc.insert(std::make_pair(it->first, l_pNewParam));
 

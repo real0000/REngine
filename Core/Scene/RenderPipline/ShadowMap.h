@@ -28,6 +28,7 @@ public:
 	virtual void saveSetting(boost::property_tree::ptree &a_Dst);
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);
 	virtual void canvasResize(glm::ivec2 a_Size){}
+	virtual void drawFlagChanged(unsigned int a_Flag);
 
 	void bake(std::vector<std::shared_ptr<RenderableComponent>> &a_Lights
 			, std::vector<RenderableMesh*> &a_SortedDir

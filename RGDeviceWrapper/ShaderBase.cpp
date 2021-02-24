@@ -356,11 +356,12 @@ ProgramBlockDesc* ProgramManager::createBlockFromDesc(boost::property_tree::ptre
 		l_pNewParam->m_Type = l_ParamType;
 		l_pNewParam->m_pDefault = new char[l_ParamSize];
 		
-		if( 0 == l_ParamAttr.count("init") ) 
+		std::string l_InitVal(l_ParamAttr.get("init", ""));
+		if( l_InitVal.empty() ) 
 		{
 			memset(l_pNewParam->m_pDefault, 0, GDEVICE()->getParamAlignmentSize(l_ParamType));
 		}
-		else parseShaderParamValue(l_ParamType, l_ParamAttr.get<std::string>("init"), l_pNewParam->m_pDefault);
+		else parseShaderParamValue(l_ParamType, l_InitVal, l_pNewParam->m_pDefault);
 
 		l_pNewParam->m_Offset = ProgramManager::singleton().calculateParamOffset(l_ParamOffset, l_ParamType, l_pNewParam->m_ArraySize);
 	}

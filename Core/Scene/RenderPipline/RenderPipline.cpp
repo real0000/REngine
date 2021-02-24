@@ -18,12 +18,19 @@ namespace R
 //
 RenderPipeline::RenderPipeline(std::shared_ptr<Scene> a_pScene)
 	: m_pRefScene(a_pScene)
+	, m_DrawFlag(0)
 {
 }
 
 RenderPipeline::~RenderPipeline()
 {
 	m_pRefScene = nullptr;
+}
+
+void RenderPipeline::setDrawFlag(unsigned int a_Flag)
+{
+	drawFlagChanged(a_Flag);
+	m_DrawFlag = a_Flag;
 }
 #pragma endregion
 

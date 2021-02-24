@@ -23,6 +23,7 @@ bool BasicApp::OnInit()
 	
 	std::shared_ptr<R::Scene> l_pScene = R::SceneManager::singleton().create(wxT("Test"));
 	l_pScene->initEmpty();
+	l_pScene->getRenderPipeline()->setDrawFlag(DRAW_DEBUG_TEXTURE);
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 

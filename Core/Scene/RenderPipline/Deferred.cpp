@@ -25,15 +25,56 @@ namespace R
 {
 
 const std::pair<wxString, PixelFormat::Key> c_GBufferDef[] = {
-	{wxT("DefferredGBufferNormal.Image"), PixelFormat::rgba8_snorm},
-	{wxT("DefferredGBufferMaterial.Image"), PixelFormat::rgba8_unorm},
-	{wxT("DefferredGBufferBaseColor.Image"), PixelFormat::rgba8_unorm},
-	{wxT("DefferredGBufferMask.Image"), PixelFormat::rgba8_unorm},
-	{wxT("DefferredGBufferFactor.Image"), PixelFormat::rgba8_unorm},
-	{wxT("DefferredGBufferMotionBlur.Image"), PixelFormat::rg16_float},
-	{wxT("DefferredGBufferDepth.Image"), PixelFormat::d24_unorm_s8_uint}};
+	{DEFFERRED_GBUFFER_NORMAL_ASSET_NAME, PixelFormat::rgba8_snorm},
+	{DEFFERRED_GBUFFER_MATERIAL_ASSET_NAME, PixelFormat::rgba8_unorm},
+	{DEFFERRED_GBUFFER_BASE_COLOR_ASSET_NAME, PixelFormat::rgba8_unorm},
+	{DEFFERRED_GBUFFER_MASK_ASSET_NAME, PixelFormat::rgba8_unorm},
+	{DEFFERRED_GBUFFER_FACTOR_ASSET_NAME, PixelFormat::rgba8_unorm},
+	{DEFFERRED_GBUFFER_MOTION_BLUR_ASSET_NAME, PixelFormat::rg16_float},
+	{DEFFERRED_GBUFFER_DEPTH_ASSET_NAME, PixelFormat::d24_unorm_s8_uint}};
 
 #pragma region DeferredRenderer
+#pragma region DebugTexture
+//
+// DebugTexture
+//
+DeferredRenderer::DebugTexture::DebugTexture()
+	: m_pComponent(nullptr)
+	, m_pMat(nullptr)
+	, m_MaterialName(wxT(""))
+{
+}
+
+DeferredRenderer::DebugTexture::~DebugTexture()
+{
+	AssetManager::singleton().removeData(m_MaterialName);
+	m_pMat = nullptr;
+}
+
+void DeferredRenderer::DebugTexture::init(std::shared_ptr<SceneNode> a_pNode, wxString a_MaterialName, std::shared_ptr<Asset> a_pTexture, glm::vec4 a_DockParam)
+{
+	assert(nullptr == m_pComponent);
+
+	m_pComponent = a_pNode->addComponent<RenderableMesh>();
+	m_pComponent->setMesh(AssetManager::singleton().getAsset(QUAD_MESH_ASSET_NAME), 0);
+
+	m_MaterialName = a_MaterialName;
+	m_pMat = AssetManager::singleton().createAsset(a_MaterialName);
+	MaterialAsset *l_pMatInst = m_pMat->getComponent<MaterialAsset>();
+	l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::CopyFrame));
+	l_pMatInst->setTexture("m_SrcTex", a_pTexture);
+	l_pMatInst->setParam("c_DockParam", 0, a_DockParam);
+
+	m_pComponent->setMaterial(MATSLOT_TRANSPARENT, m_pMat);
+
+}
+
+void DeferredRenderer::DebugTexture::uninit()
+{
+	assert(nullptr != m_pComponent);
+	m_pComponent->remove();
+}
+#pragma endregion
 //
 // DeferredRenderer
 //
@@ -42,6 +83,7 @@ DeferredRenderer* DeferredRenderer::create(boost::property_tree::ptree &a_Src, s
 	return new DeferredRenderer(a_pScene);
 }
 
+unsigned int DeferredRenderer::sm_Seiral = 0;
 DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	: RenderPipeline(a_pScene)
 	, m_pCmdInit(nullptr)
@@ -53,11 +95,15 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pFrameBuffer(nullptr)
 	, m_pDepthMinmax(nullptr)
 	, m_MinmaxStepCount(1)
-	, m_pLightIndexMat(AssetManager::singleton().createAsset(LIGHTINDEX_ASSET_NAME))
-	, m_pDeferredLightMat(AssetManager::singleton().createAsset(LIGHTING_ASSET_NAME))
+	, m_pLightIndexMat(nullptr)
+	, m_pDeferredLightMat(nullptr)
 	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME))
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
+	, m_Serial(sm_Seiral++)
 {
+	m_pLightIndexMat = AssetManager::singleton().createAsset(wxString::Format(DEFFERRED_LIGHTINDEX_ASSET_NAME, m_Serial));
+	m_pDeferredLightMat = AssetManager::singleton().createAsset(wxString::Format(DEFFERRED_LIGHTING_ASSET_NAME, m_Serial));
+
 	m_pQuadMeshInst = m_pQuadMesh->getComponent<MeshAsset>();
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
 	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
@@ -69,14 +115,14 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		m_pGBuffer[i] = AssetManager::singleton().createAsset(c_GBufferDef[i].first);
+		m_pGBuffer[i] = AssetManager::singleton().createAsset(wxString::Format(c_GBufferDef[i].first, m_Serial));
 		m_pGBuffer[i]->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, c_GBufferDef[i].second);
 
 		char l_Buff[8];
 		snprintf(l_Buff, 8, "GBuff%d", i);
 		m_pDeferredLightMatInst->setTexture(l_Buff, m_pGBuffer[i]);
 	}
-	m_pFrameBuffer = AssetManager::singleton().createAsset(FRAMEBUFFER_ASSET_NAME);
+	m_pFrameBuffer = AssetManager::singleton().createAsset(wxString::Format(DEFFERRED_FRAMEBUFFER_ASSET_NAME, m_Serial));
 	m_pFrameBuffer->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rgba16_float);
 
 	m_LightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_SrcLights", m_ExtendSize / 2); // {index, type}
@@ -86,7 +132,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_TileDim.x = std::ceil(EngineSetting::singleton().m_DefaultSize.x / EngineSetting::singleton().m_TileSize);
 	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
 	
-	m_pDepthMinmax = AssetManager::singleton().createAsset(DEPTHMINMAX_ASSET_NAME);
+	m_pDepthMinmax = AssetManager::singleton().createAsset(wxString::Format(DEFFERRED_DEPTHMINMAX_ASSET_NAME, m_Serial));
 	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
@@ -117,16 +163,12 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 
 	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
-
-	m_GBufferCache.resize(GBUFFER_COUNT - 1);
-	for( unsigned int i=GBUFFER_NORMAL ; i<=GBUFFER_MOTIONBLUR ; ++i ) m_GBufferCache[i] = m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID();
-	m_FBufferCache.resize(1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 }
 
 DeferredRenderer::~DeferredRenderer()
 {
-	AssetManager::singleton().removeData(FRAMEBUFFER_ASSET_NAME);
-	AssetManager::singleton().removeData(DEPTHMINMAX_ASSET_NAME);
+	AssetManager::singleton().removeData(wxString::Format(DEFFERRED_FRAMEBUFFER_ASSET_NAME, m_Serial));
+	AssetManager::singleton().removeData(wxString::Format(DEFFERRED_DEPTHMINMAX_ASSET_NAME, m_Serial));
 
 	m_pQuadMeshInst = nullptr;
 	m_pQuadMesh = nullptr;
@@ -134,7 +176,7 @@ DeferredRenderer::~DeferredRenderer()
 	m_pFrameBuffer = nullptr;
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
-		AssetManager::singleton().removeData(c_GBufferDef[i].first);
+		AssetManager::singleton().removeData(wxString::Format(c_GBufferDef[i].first, m_Serial));
 		m_pGBuffer[i] = nullptr;
 	}
 
@@ -243,8 +285,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	EngineCore::singleton().join();
 
 	// shadow map render
-	//ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
-	//l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
+	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
+	l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
 	
 	{// graphic step, divide by stage
 		//bind gbuffer
@@ -417,6 +459,32 @@ void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
 	
 	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / a_Size.x, 1.0f / a_Size.y));
+}
+
+void DeferredRenderer::drawFlagChanged(unsigned int a_Flag)
+{
+	unsigned int l_OldFlag = getDrawFlag();
+	if( IS_FLAG_OPENED(l_OldFlag, a_Flag, DRAW_DEBUG_TEXTURE) )
+	{
+		const std::pair<wxString, glm::vec4> c_DebugMaterials[] = {
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_NORMAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.4f, 0.4f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MATERIAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.3f, 0.4f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_BASE_COLOR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.2f, 0.4f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MASK_ASSET_NAME,			glm::vec4(0.1f, 0.1f, 0.4f, 0.3f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_FACTOR_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.3f, 0.3f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MOTION_BLUR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.2f, 0.3f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_DEPTH_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.4f, 0.2f))};
+
+		auto l_pRootNode = getScene()->getRootNode();
+		for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
+		{
+			m_DebugTextures[i].init(l_pRootNode, wxString::Format(c_DebugMaterials[i].first, m_Serial), m_pGBuffer[i], c_DebugMaterials[i].second);
+		}
+	}
+	else if( IS_FLAG_CLOSED(l_OldFlag, a_Flag, DRAW_DEBUG_TEXTURE) )
+	{
+		for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i ) m_DebugTextures[i].uninit();
+	}
 }
 
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)

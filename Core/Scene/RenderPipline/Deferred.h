@@ -43,6 +43,7 @@ public:
 	virtual void saveSetting(boost::property_tree::ptree &a_Dst);
 	virtual void render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas);
 	virtual void canvasResize(glm::ivec2 a_Size);
+	virtual void drawFlagChanged(unsigned int a_Flag);
 
 private:
 	DeferredRenderer(std::shared_ptr<Scene> a_pScene);
@@ -67,12 +68,29 @@ private:
 	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
 	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
 
-	std::vector<int> m_GBufferCache, m_FBufferCache;
+	// debug texture
+	struct DebugTexture
+	{
+		DebugTexture();
+		~DebugTexture();
 
-	// temp contaoners
+		void init(std::shared_ptr<SceneNode> a_pNode, wxString a_MaterialName, std::shared_ptr<Asset> a_pTexture, glm::vec4 a_DockParam);
+		void uninit();
+
+		std::shared_ptr<RenderableMesh> m_pComponent;
+		std::shared_ptr<Asset> m_pMat;
+		wxString m_MaterialName;
+	};
+	DebugTexture m_DebugTextures[GBUFFER_COUNT];
+
+	// temp containers
 	const static unsigned int cm_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
 	std::vector<std::shared_ptr<RenderableComponent>> m_VisibleLights, m_VisibleMeshes;
 	std::vector<RenderableMesh*> m_SortedMesh[cm_NumMatSlot];
+
+	// for runtime asset
+	unsigned int m_Serial;
+	static unsigned int sm_Seiral;
 };
 
 }

@@ -1,10 +1,12 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
+    <Constant name="c_DockParam" type="float4" reserved="false" init="(1.0,1.0,0.0,0.0)"/>
     <Srv2D name="m_SrcTex" desc="" reserved="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
       <Vertex file="Quad.vertex">
+        c_DockParam
       </Vertex>
       <Fragment file="Copy.pixel">
         m_SrcTex
