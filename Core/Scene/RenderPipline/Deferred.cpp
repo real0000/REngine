@@ -66,13 +66,15 @@ void DeferredRenderer::DebugTexture::init(std::shared_ptr<SceneNode> a_pNode, wx
 	l_pMatInst->setParam("c_DockParam", 0, a_DockParam);
 
 	m_pComponent->setMaterial(MATSLOT_TRANSPARENT, m_pMat);
-
 }
 
 void DeferredRenderer::DebugTexture::uninit()
 {
 	assert(nullptr != m_pComponent);
+
 	m_pComponent->remove();
+	AssetManager::singleton().removeData(m_MaterialName);
+	m_pMat = nullptr;
 }
 #pragma endregion
 //
@@ -335,7 +337,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		}
 
 		EngineCore::singleton().join();
-		
+
 		{// copy depth data
 			m_pCmdInit->begin(false);
 
@@ -364,7 +366,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pLightIndexMatInst->setBlock("Camera", a_pCamera->getMaterialBlock());
 		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
 		m_pLightIndexMatInst->bindAll(m_pCmdInit);
-		m_pCmdInit->compute(m_TileDim.x / 8, m_TileDim.y / 8);
+		m_pCmdInit->compute(std::max(m_TileDim.x / 8, 1), std::max(m_TileDim.y / 8, 1));
 
 		m_pCmdInit->end();
 
@@ -389,13 +391,16 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 		m_pCmdInit->end();
 
-		// draw transparent objects
+		// draw transparent/post objects
 		for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i )
 		{
 			EngineCore::singleton().addJob([=]() -> void
 			{
 				m_DrawCommand[i]->begin(false);
-
+				
+				glm::viewport l_Viewport(0.0f, 0.0f, l_ViewPortSize.x, l_ViewPortSize.y, 0.0f, 1.0f);
+				m_DrawCommand[i]->setViewPort(1, l_Viewport);
+				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, l_ViewPortSize.x, l_ViewPortSize.y));
 				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
 
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_TRANSPARENT]
@@ -467,13 +472,13 @@ void DeferredRenderer::drawFlagChanged(unsigned int a_Flag)
 	if( IS_FLAG_OPENED(l_OldFlag, a_Flag, DRAW_DEBUG_TEXTURE) )
 	{
 		const std::pair<wxString, glm::vec4> c_DebugMaterials[] = {
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_NORMAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.4f, 0.4f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MATERIAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.3f, 0.4f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_BASE_COLOR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.2f, 0.4f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MASK_ASSET_NAME,			glm::vec4(0.1f, 0.1f, 0.4f, 0.3f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_FACTOR_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.3f, 0.3f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MOTION_BLUR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.2f, 0.3f)),
-			std::make_pair(DEFFERRED_GBUFFER_DEBUG_DEPTH_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.4f, 0.2f))};
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_NORMAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.9f, -0.9f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MATERIAL_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.7f, -0.9f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_BASE_COLOR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.5f, -0.9f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MASK_ASSET_NAME,			glm::vec4(0.1f, 0.1f, 0.9f, -0.7f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_FACTOR_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.7f, -0.7f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_MOTION_BLUR_ASSET_NAME,	glm::vec4(0.1f, 0.1f, 0.5f, -0.7f)),
+			std::make_pair(DEFFERRED_GBUFFER_DEBUG_DEPTH_ASSET_NAME,		glm::vec4(0.1f, 0.1f, 0.9f, -0.5f))};
 
 		auto l_pRootNode = getScene()->getRootNode();
 		for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )

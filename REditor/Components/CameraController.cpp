@@ -127,7 +127,7 @@ void CameraController::mouseMove()
 
 	l_Dir = -l_Dir;
 	float l_PI = glm::pi<float>();
-	float l_Alpha = std::atan2(l_Dir.z, l_Dir.x) + l_PI + l_Sub.x / 100.0f;
+	float l_Alpha = std::atan2(l_Dir.z, l_Dir.x) + l_PI - l_Sub.x / 100.0f;
 	l_Alpha = glm::fract(l_Alpha / (2.0f * l_PI)) * l_PI * 2.0f;
 	float l_Beta = std::asin(l_Dir.y) + l_Sub.y / 100.0f;
 	l_Beta = glm::clamp(l_Beta, -l_PI * 0.5f + 0.01f, l_PI * 0.5f - 0.01f);
