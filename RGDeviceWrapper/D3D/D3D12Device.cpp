@@ -1405,8 +1405,9 @@ int D3D12Device::createRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format
 {
 	std::shared_ptr<RenderTargetBinder> l_pNewBinder = nullptr;
 	int l_Res = m_ManagedRenderTarget.retain(&l_pNewBinder);
-
-	l_pNewBinder->m_TextureID = allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	
+	unsigned int l_MipmapLevel = std::ceill(log2f(std::max(std::max(a_Size.x, a_Size.y), a_Size.z)));
+	l_pNewBinder->m_TextureID = allocateTexture(a_Size, a_Format, D3D12_RESOURCE_DIMENSION_TEXTURE3D, l_MipmapLevel, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	l_pNewBinder->m_pRefBinder = m_ManagedTexture[l_pNewBinder->m_TextureID];
 	l_pNewBinder->m_pRefBinder->m_Type = TEXTYPE_RENDER_TARGET_VIEW;
 
@@ -2301,6 +2302,21 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 	}
 	
 	unsigned int l_SubResIdx = a_MipmapLevel;
+	switch( l_pTargetTexture->m_Type )
+	{
+		case TEXTYPE_SIMPLE_2D_ARRAY:
+		case TEXTYPE_SIMPLE_CUBE:
+		case TEXTYPE_SIMPLE_CUBE_ARRAY:{
+			l_SubResIdx = l_pTargetTexture->m_MipmapLevels * a_Offset.z + a_MipmapLevel;
+			}break;
+
+		//case TEXTYPE_SIMPLE_3D:
+		//case TEXTYPE_SIMPLE_2D:
+		//case TEXTYPE_DEPTH_STENCIL_VIEW:
+		//case TEXTYPE_RENDER_TARGET_VIEW:
+		default:break;
+	}
+
 	if( l_pTargetTexture->m_Type == TEXTYPE_SIMPLE_2D ) l_SubResIdx += (a_Offset.z * l_pTargetTexture->m_MipmapLevels);
 
 	unsigned int l_RowPitch = 0;
