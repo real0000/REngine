@@ -27,7 +27,10 @@ bool BasicApp::OnInit()
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
-	auto l_pMeshNode = l_pScene->getRootNode()->addChild(wxT("sponza/sponza.FBX"));
+	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset("sponza/sponza.FBX");
+	R::AssetManager::singleton().saveAsset(l_pMeshAsset);
+	/*auto l_pMeshNode = l_pScene->getRootNode()->addChild(wxT("sponza/sponza.FBX"));
+	
 	l_pScene->getRootNode()->addComponent<R::DirLight>();
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
@@ -35,7 +38,7 @@ bool BasicApp::OnInit()
 	l_pCameraCtrl->setMaxSpeed(0.005f);
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
-	R::EngineCore::singleton().run(this);
+	R::EngineCore::singleton().run(this);*/
 
 	return true;
 }

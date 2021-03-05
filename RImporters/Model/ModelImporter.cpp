@@ -377,6 +377,7 @@ void ModelData::init(wxString a_Filepath)
 			for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
 			{
 				wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
+				l_TextureName.Replace("\\", "/");
 				unsigned int l_Idx = 0;
 				auto l_TexIt = std::find(l_TextureIdxMap[j].begin(), l_TextureIdxMap[j].end(), l_TextureName);
 				if( l_TextureIdxMap[j].end() == l_TexIt )

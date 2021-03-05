@@ -1178,14 +1178,12 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 	updateTexture(a_ID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData, 0xff);
 }
 
-void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram)
+void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync)
 {
 	std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
 
 	D3D12GpuThread l_Thread = m_ResThread[m_IdleResThread];
-	++m_NumCommand[m_IdleResThread];/*requestThread();
-	ID3D12DescriptorHeap *l_ppHeaps[] = { m_pShaderResourceHeap->getHeapInst(), m_pSamplerHeap->getHeapInst() };
-	l_Thread.second->SetDescriptorHeaps(2, l_ppHeaps);*/
+	++m_NumCommand[m_IdleResThread];
 
 	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
 	assert(nullptr != l_pTargetBinder);
@@ -1198,6 +1196,7 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 	switch( l_pTargetBinder->m_Type )
 	{
 		case TEXTYPE_SIMPLE_2D:
+		case TEXTYPE_DEPTH_STENCIL_VIEW:
 		case TEXTYPE_RENDER_TARGET_VIEW:
 			l_NumConst = 2;
 			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
@@ -1284,8 +1283,7 @@ void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr
 		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, l_OriginState, i);
 	}
 
-	/*l_Thread.second->Close();
-	recycleThread(l_Thread);*/
+	if( !a_bAsync ) waitResourceSync();
 }
 
 void D3D12Device::copyTexture(int a_Dst, int a_Src)
@@ -1333,6 +1331,11 @@ void D3D12Device::copyTexture(int a_Dst, int a_Src)
 
 	m_ResThread[m_IdleResThread].second->ResourceBarrier(2, l_TransSetting);
 	++m_NumCommand[m_IdleResThread];
+}
+
+void D3D12Device::getTexturePixel(int a_ID, unsigned int a_MipmapLevel, std::vector<char> &a_Output)
+{	
+
 }
 
 PixelFormat::Key D3D12Device::getTextureFormat(int a_ID)
@@ -1978,6 +1981,9 @@ void D3D12Device::resourceThread()
 		for( int i=0 ; i<(int)m_ReadBackContainer[l_Original].size() ; ++i ) m_ReadBackContainer[l_Original][i].readback();
 		m_ReadBackContainer[l_Original].clear();
 
+		for( int i=0 ; i<(int)m_ResSyncSignal[l_Original].size() ; ++i ) m_ResSyncSignal[l_Original][i].notify_one();
+		m_ResSyncSignal[l_Original].clear();
+
 		for( unsigned int i=0 ; i<m_TempResources[l_Original].size() ; ++i ) m_TempResources[l_Original][i]->Release();
 		m_TempResources[l_Original].clear();
 	}
@@ -2067,6 +2073,14 @@ void D3D12Device::updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, u
 	a_pRes->Map(0, &l_Range, reinterpret_cast<void**>(&l_pDataBegin));
 	memcpy(l_pDataBegin, a_pSrcData, a_SizeInByte);
 	a_pRes->Unmap(0, nullptr);
+}
+
+void D3D12Device::waitResourceSync()
+{
+	std::condition_variable l_SignalLock;
+	std::unique_lock<std::mutex> l_Guard(m_SyncMutex);
+	m_ResSyncSignal[m_IdleResThread].emplace_back(l_SignalLock);
+	l_SignalLock.wait(l_Guard);
 }
 
 int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag, bool a_bCube)

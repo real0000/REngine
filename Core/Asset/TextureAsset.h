@@ -41,7 +41,7 @@ public:
 	glm::ivec3 getDimension();
 	TextureType getTextureType();
 	bool isReady(){ return m_bReady; }
-	void generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
+	void generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync = true);
 
 private:
 	void importThread(wxString a_Path);
@@ -52,7 +52,7 @@ private:
 	int m_TextureID;
 	bool m_bRenderTarget;
 	bool m_bReady;
-	std::vector<std::string> m_RawFile;
+	std::vector<std::string> m_RawFile;// for import
 
 	// sampler part
 	int m_SamplerID;

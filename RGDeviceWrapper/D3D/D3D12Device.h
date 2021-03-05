@@ -216,8 +216,9 @@ public:
 	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format);
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
-	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram);
+	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync = true);
 	virtual void copyTexture(int a_Dst, int a_Src);
+	virtual void getTexturePixel(int a_ID, unsigned int a_MipmapLevel, std::vector<char> &a_Output);
 	virtual PixelFormat::Key getTextureFormat(int a_ID);
 	virtual glm::ivec3 getTextureSize(int a_ID);
 	virtual TextureType getTextureType(int a_ID);
@@ -293,6 +294,7 @@ private:
 	void graphicThread();
 	ID3D12Resource* initSizedResource(unsigned int a_Size, D3D12_HEAP_TYPE a_HeapType, D3D12_RESOURCE_STATES a_InitState = D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAGS a_Flag = D3D12_RESOURCE_FLAG_NONE);
 	void updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, unsigned int a_SizeInByte, unsigned int a_Offset = 0);
+	void waitResourceSync();
 
 	struct TextureBinder
 	{
@@ -427,6 +429,7 @@ private:
 	D3D12Fence *m_pResFence, *m_pComputeFence, *m_pGraphicFence;
 	std::vector<ID3D12Resource *> m_TempResources[D3D12_NUM_COPY_THREAD];
 	unsigned int m_NumCommand[D3D12_NUM_COPY_THREAD];
+	std::vector<std::condition_variable> m_ResSyncSignal[D3D12_NUM_COPY_THREAD];
 	std::vector<ReadBackBuffer> m_ReadBackContainer[D3D12_NUM_COPY_THREAD];
 	std::thread m_ResourceLoop, m_GraphicLoop;
 	bool m_bLooping;
@@ -434,7 +437,7 @@ private:
 	std::vector<D3D12GpuThread> m_GraphicReadyThread, m_GraphicBusyThread;
 	std::deque<D3D12GpuThread> m_GraphicThread;// idle thread
 	std::vector<D3D12Canvas*> m_PresentCanvas;
-	std::mutex m_ThreadMutex, m_ResourceMutex;
+	std::mutex m_ThreadMutex, m_ResourceMutex, m_SyncMutex;
 };
 
 }

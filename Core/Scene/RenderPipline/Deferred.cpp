@@ -146,6 +146,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pLightIndexMatInst->setBlock("g_DstLights", m_TiledValidLightIdx);
 	m_pLightIndexMatInst->setBlock("g_OmniLights", a_pScene->getOmniLightContainer()->getMaterialBlock());
 	m_pLightIndexMatInst->setBlock("g_SpotLights", a_pScene->getSpotLightContainer()->getMaterialBlock());
+	m_pLightIndexMatInst->setTexture("g_MinMapTexture", m_pDepthMinmax);
 
 	m_pDeferredLightMatInst->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
 	m_pDeferredLightMatInst->setParam<int>("c_BoxLevel", 0, a_pScene->getLightmap()->getComponent<LightmapAsset>()->getMaxBoxLevel());
@@ -357,8 +358,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 			m_pCmdInit->end();
 		}
-		// do fence ?
-		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth));
+
+		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), true);
 
 		m_pCmdInit->begin(true);
 		

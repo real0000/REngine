@@ -139,8 +139,9 @@ public:
 	virtual int allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData) = 0;
 	virtual void updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData) = 0;
-	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram) = 0;
+	virtual void generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync = true) = 0;
 	virtual void copyTexture(int a_Dst, int a_Src) = 0;
+	virtual void getTexturePixel(int a_ID, unsigned int a_MipmapLevel, std::vector<char> &a_Output) = 0;
 	virtual PixelFormat::Key getTextureFormat(int a_ID) = 0;
 	virtual glm::ivec3 getTextureSize(int a_ID) = 0;
 	virtual TextureType getTextureType(int a_ID) = 0;

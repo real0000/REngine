@@ -83,6 +83,7 @@ void TextureAsset::initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, uns
 	va_end(l_Arglist);
 	updateSampler();
 	m_bReady = true;
+	setDirty();
 }
 
 void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData)
@@ -94,6 +95,7 @@ void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, voi
 	if( nullptr != a_pInitData ) GDEVICE()->updateTexture(m_TextureID, 0, a_Size, glm::zero<glm::ivec3>(), a_pInitData);
 	updateSampler();
 	m_bReady = true;
+	setDirty();
 }
 
 void TextureAsset::initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
@@ -140,12 +142,14 @@ void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, 
 {
 	assert(-1 != m_TextureID);
 	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_Idx, a_pSrcData);
+	setDirty();
 }
 
 void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData)
 {
 	assert(-1 != m_TextureID);
 	GDEVICE()->updateTexture(m_TextureID, a_MipmapLevel, a_Size, a_Offset, a_pSrcData);
+	setDirty();
 }
 
 void TextureAsset::importFile(wxString a_File)
@@ -155,6 +159,7 @@ void TextureAsset::importFile(wxString a_File)
 	m_TextureID = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME)->getComponent<TextureAsset>()->getTextureID();
 	EngineCore::singleton().addJob([=]() -> void{ importThread(a_File);});
 	updateSampler();
+	setDirty();
 }
 
 void TextureAsset::loadFile(boost::property_tree::ptree &a_Src)
@@ -226,6 +231,7 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	while( !m_bReady ) std::this_thread::yield();
 
 	glm::ivec3 l_Dim(getDimension());
+	TextureType l_Type = getTextureType();
 
 	boost::property_tree::ptree l_Root;
 
@@ -233,7 +239,7 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	l_RootAttr.add("x", l_Dim.x);
 	l_RootAttr.add("y", l_Dim.y);
 	l_RootAttr.add("z", l_Dim.z);
-	l_RootAttr.add("type", getTextureType());
+	l_RootAttr.add("type", l_Type);
 	l_RootAttr.add("format", PixelFormat::toString(getTextureFormat()));
 	l_RootAttr.add("isRenderTarget", m_bRenderTarget);
 	l_Root.add_child("<xmlattr>", l_RootAttr);
@@ -241,10 +247,42 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	if( !m_bRenderTarget )
 	{
 		boost::property_tree::ptree l_Layers;
-		for( unsigned int i=0 ; i<m_RawFile.size() ; ++i )
+		std::vector<std::string> l_Base64Data;
+		switch( l_Type )
+		{
+			case TEXTYPE_SIMPLE_2D:{
+				boost::property_tree::ptree l_Layer;
+
+				std::vector<char> l_RawData;
+				GDEVICE()->getTexturePixel(m_TextureID, 0, l_RawData);
+
+				std::string l_Base64("");
+				binary2Base64(l_RawData.data(), l_RawData.size(), l_Base64);
+				l_Base64Data.push_back(l_Base64);
+				}break;
+
+			/*
+			case TEXTYPE_SIMPLE_2D_ARRAY:
+				break;
+
+			case TEXTYPE_SIMPLE_CUBE:
+				break;
+
+			case TEXTYPE_SIMPLE_CUBE_ARRAY:
+				break;
+
+			case TEXTYPE_SIMPLE_3D:
+				break;
+			*/
+
+			//case TEXTYPE_DEPTH_STENCIL_VIEW:
+			//case TEXTYPE_RENDER_TARGET_VIEW:
+			default:break;
+		}
+		for( unsigned int i=0 ; i<l_Base64Data.size() ; ++i )
 		{
 			boost::property_tree::ptree l_Layer;
-			l_Layer.put("RawData", m_RawFile[i]);
+			l_Layer.put("RawData", l_Base64Data[i]);
 		
 			char l_Buff[64];	
 			snprintf(l_Buff, 64, "Layer%d", i);
@@ -301,11 +339,11 @@ TextureType TextureAsset::getTextureType()
 	return GDEVICE()->getTextureType(l_ID);
 }
 
-void TextureAsset::generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram)
+void TextureAsset::generateMipmap(unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync)
 {
 	int l_ID = m_TextureID;
 	if( m_bRenderTarget ) l_ID = GDEVICE()->getRenderTargetTexture(l_ID);
-	GDEVICE()->generateMipmap(l_ID, a_Level, a_pProgram);
+	GDEVICE()->generateMipmap(l_ID, a_Level, a_pProgram, a_bAsync);
 }
 
 void TextureAsset::importThread(wxString a_Path)
@@ -321,10 +359,6 @@ void TextureAsset::importThread(wxString a_Path)
 			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D);
 			l_TextureID = GDEVICE()->allocateTexture(glm::ivec2(l_Dim.x, l_Dim.y), l_pImageData->getFormat());
 			GDEVICE()->updateTexture(l_TextureID, 0, glm::ivec2(l_Dim.x, l_Dim.y), glm::zero<glm::ivec2>(), 0, l_pImageData->getPixels(0));
-
-			std::string l_RawData;
-			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * getPixelSize(l_pImageData->getFormat()) / 8, l_RawData);
-			m_RawFile.push_back(l_RawData);
 			}break;
 
 		case TEXTYPE_SIMPLE_2D_ARRAY:
@@ -334,11 +368,6 @@ void TextureAsset::importThread(wxString a_Path)
 			for( int i=0 ; i<l_Dim.z ; ++i )
 			{
 				GDEVICE()->updateTexture(l_TextureID, 0, glm::ivec2(l_Dim.x, l_Dim.y), glm::zero<glm::ivec2>(), i, l_pImageData->getPixels(i));
-
-				std::string l_RawData;
-				l_RawData.clear();
-				binary2Base64(l_pImageData->getPixels(i), l_Dim.x * l_Dim.y * getPixelSize(l_pImageData->getFormat()) / 8, l_RawData);
-				m_RawFile.push_back(l_RawData);
 			}
 			}break;
 
@@ -346,14 +375,11 @@ void TextureAsset::importThread(wxString a_Path)
 			l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap3D);
 			l_TextureID = GDEVICE()->allocateTexture(l_pImageData->getSize(), l_pImageData->getFormat());
 			GDEVICE()->updateTexture(l_TextureID, 0, l_Dim, glm::zero<glm::ivec3>(), 0, l_pImageData->getPixels(0));
-			
-			std::string l_RawData;
-			binary2Base64(l_pImageData->getPixels(0), l_Dim.x * l_Dim.y * l_Dim.z * getPixelSize(l_pImageData->getFormat()) / 8, l_RawData);
-			m_RawFile.push_back(l_RawData);
 			}break;
 
 		default:break;
 	}
+
 	GDEVICE()->generateMipmap(l_TextureID, 0, l_pProgram);
 	m_TextureID = l_TextureID;
 	m_bReady = true;
@@ -400,6 +426,7 @@ void TextureAsset::loadThread(glm::ivec3 a_Dim, TextureType a_Type, PixelFormat:
 
 	m_TextureID = l_TextureID;
 	GDEVICE()->generateMipmap(l_TextureID, 0, l_pProgram);
+	m_RawFile.clear();
 	m_bReady = true;
 }
 

@@ -432,7 +432,7 @@ public:
 		m_ManagedObject.clear();
 	}
 
-	std::pair<int, std::shared_ptr<T> > getData(wxString a_Filename)
+	std::pair<int, std::shared_ptr<T>> getData(wxString a_Filename)
 	{
 		a_Filename.Replace(wxT("\\"), wxT("/"));
 

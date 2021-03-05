@@ -48,15 +48,23 @@ class AssetManager;
 
 class AssetComponent
 {
+	friend class AssetManager;
 public:
 	AssetComponent();
 	virtual ~AssetComponent();
 
+	bool dirty(){ return m_bDirty; }
 	virtual bool canSave(){ return true; }
 	virtual wxString getAssetExt() = 0;
 	virtual void importFile(wxString a_File) = 0;
 	virtual void loadFile(boost::property_tree::ptree &a_Src) = 0;
 	virtual void saveFile(boost::property_tree::ptree &a_Dst) = 0;
+
+protected:
+	void setDirty(){ m_bDirty = true; }
+
+private:
+	bool m_bDirty;
 };
 
 class Asset
@@ -103,12 +111,18 @@ private:
 		std::vector<wxString> l_List;
 		T::validImportExt(l_List);
 		std::function<AssetComponent*()> l_pFunc = []() -> AssetComponent*{ return new T(); };
-		for( unsigned int i=0 ; i<l_List.size() ; ++i ) m_ImporterMap.insert(std::make_pair(l_List[i].MakeLower(), l_pFunc));
+		for( unsigned int i=0 ; i<l_List.size() ; ++i )
+		{
+			wxString l_LowerExt(l_List[i].MakeLower());
+			m_ImporterMap.insert(std::make_pair(l_LowerExt, l_pFunc));
+			m_ImportExtMap.insert(std::make_pair(l_LowerExt, T::validAssetKey()));
+		}
 		m_LoaderMap.insert(std::make_pair(T::validAssetKey().MakeLower(), l_pFunc));
 	}
 	void loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path);
 
 	std::map<wxString, std::function<AssetComponent *()>> m_ImporterMap, m_LoaderMap;
+	std::map<wxString, wxString> m_ImportExtMap;
 	static unsigned int sm_AssetCounter;
 };
 

@@ -165,9 +165,11 @@ void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)
 	l_Compress.push(boost::iostreams::back_inserter(l_Buff));
 	l_Compress.write(reinterpret_cast<const char *>(a_pSrc), a_Size);
 	boost::iostreams::close(l_Compress);
+	l_Buff.push_back(0);
 
-	a_Output.resize(boost::beast::detail::base64::encoded_size(a_Size));
-    a_Output.resize(boost::beast::detail::base64::encode((void *)(a_Output.data()), l_Buff.data(), l_Buff.size()));
+	//a_Output.resize(boost::beast::detail::base64::encoded_size(a_Size));
+    //a_Output.resize(boost::beast::detail::base64::encode((void *)(a_Output.data()), l_Buff.data(), l_Buff.size()));
+	a_Output = l_Buff.data();
 }
 
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output)

@@ -148,13 +148,19 @@ public:
 	std::shared_ptr<EngineComponent> getComponent(wxString a_Name);
 	void getComponent(wxString a_Name, std::vector<std::shared_ptr<EngineComponent>> &a_Output);
 	template<typename T>
-	void getComponent(std::vector<std::shared_ptr<T>> &a_Output)
+	std::shared_ptr<T> getComponent()
+	{
+		auto it = m_Components.find(T::staticTypeID());
+		if( m_Components.end() == it || it->second.empty() ) return nullptr;
+		return (*it->second.begin())->shared_from_base<T>();
+	}
+	template<typename T>
+	void getComponents(std::vector<std::shared_ptr<T>> &a_Output)
 	{
 		auto it = m_Components.find(T::staticTypeID());
 		if( m_Components.end() == it || it->second.empty() ) return;
-		a_Output.resize(it->second.size());
-		std::transform(it->second.begin(), it->second.end(), a_Output.begin()
-			, [=](std::shared_ptr<EngineComponent> a_pComponent){ return reinterpret_cast<std::shared_ptr<T>&>(a_pComponent); });
+		a_Output.reserve(it->second.size());
+		for( auto it2=it->second.begin() ; it2!=it->second.end() ; ++it2 ) a_Output.push_back((*it2)->shared_from_base<T>());
 	}
 	const std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>>& getComponents(){ return m_Components; }
 	

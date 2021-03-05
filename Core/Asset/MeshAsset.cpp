@@ -140,6 +140,7 @@ void MeshAsset::importFile(wxString a_File)
 				l_MatFile = wxString::Format(std::get<0>(c_ShadowSlots[j]), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str());
 				l_pMat = AssetManager::singleton().createAsset(l_MatFile);
 				l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+				l_pMatInst->setRuntimeOnly(true);
 				l_pMatInst->init(ProgramManager::singleton().getData(std::get<1>(c_ShadowSlots[j])));
 				l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
 				l_pDst->m_Materials.insert(std::make_pair(std::get<2>(c_ShadowSlots[j]), l_pMat));
@@ -185,6 +186,7 @@ void MeshAsset::importFile(wxString a_File)
 	}
 
 	initBuffers();
+	setDirty();
 }
 
 void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
@@ -333,6 +335,8 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 			char l_Buff[32];
 			snprintf(l_Buff, 32, "Slot%d", it->first);
 			l_Materials.put(l_Buff, it->second->getKey().c_str());
+
+			AssetManager::singleton().saveAsset(it->second);
 		}
 		boost::property_tree::ptree l_BoundingBoxes;
 		{
@@ -419,6 +423,7 @@ void MeshAsset::init(unsigned int a_SlotFlag)
 {
 	assert(0 == m_VtxSlots && 0 != (a_SlotFlag & VTXFLAG_POSITION));
 	m_VtxSlots = a_SlotFlag;
+	setDirty();
 }
 
 MeshAsset::Instance* MeshAsset::addSubMesh(unsigned int a_ReserveVtxCount, unsigned int a_ReserveIdxCount
@@ -537,6 +542,7 @@ MeshAsset::Instance* MeshAsset::addSubMesh(unsigned int a_ReserveVtxCount, unsig
 	*a_ppDstIndicies = &(m_Indicies[l_pRes->m_StartIndex]);
 
 	initBuffers();
+	setDirty();
 
 	return l_pRes;
 }
@@ -600,6 +606,7 @@ void MeshAsset::updateMeshData(glm::ivec2 a_VertexRange, glm::ivec2 a_IdxRange)
 	}
 	
 	m_IndexBuffer->updateIndexData(&(m_Indicies[a_IdxRange.x]), a_IdxRange.y, a_IdxRange.x);
+	setDirty();
 }
 
 void MeshAsset::clearVertexData()

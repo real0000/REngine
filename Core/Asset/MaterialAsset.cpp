@@ -189,6 +189,7 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 MaterialAsset::MaterialAsset()
 	: m_pRefProgram(nullptr)
 	, m_Topology(Topology::triangle_list)
+	, m_bRuntimeOnly(false)
 	, m_InstanceUavIndex(-1)
 	, m_CurrInstanceSize(0)
 {
@@ -257,12 +258,14 @@ void MaterialAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	boost::property_tree::ptree l_Textures;
 	for( unsigned int i=0 ; i<m_Textures.size() ; ++i )
 	{
-		if( m_ReservedSRV.end() != m_ReservedSRV.find(i) ) continue;
+		if( m_ReservedSRV.end() == m_ReservedSRV.find(i) ) continue;
 
 		boost::property_tree::ptree l_Texture;
 		l_Texture.add("<xmlattr>.asset", m_Textures[i]->getKey().c_str());
 		l_Texture.add("<xmlattr>.slot", i);
 		l_Textures.add_child("Texture", l_Texture);
+
+		AssetManager::singleton().saveAsset(m_Textures[i]);
 	}
 	l_Root.add_child("Textures", l_Textures);
 
@@ -337,6 +340,7 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 		if( !it->second->m_bReserved || it->second->m_bWrite ) continue;
 		m_ReservedSRV.insert(it->second->m_pRegInfo->m_Slot);
 	}
+	setDirty();
 }
 
 void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture)
@@ -346,6 +350,7 @@ void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTex
 	if( l_TextureSlotMap.end() == it ) return;
 
 	(it->second->m_bWrite ? m_RWTexture : m_Textures)[it->second->m_pRegInfo->m_Slot] = a_pTexture;
+	setDirty();
 }
 
 std::shared_ptr<Asset> MaterialAsset::getTexture(std::string a_Name)
@@ -378,6 +383,8 @@ void MaterialAsset::setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> 
 
 		default:return;
 	}
+	
+	setDirty();
 }
 
 int MaterialAsset::requestInstanceSlot()

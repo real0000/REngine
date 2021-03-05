@@ -98,7 +98,8 @@ public:
 	// for asset factory
 	static void validImportExt(std::vector<wxString> &a_Output){}
 	static wxString validAssetKey(){ return wxT("Material"); }
-
+	
+	virtual bool canSave(){ return !m_bRuntimeOnly; }
 	virtual wxString getAssetExt(){ return MaterialAsset::validAssetKey(); }
 	virtual void importFile(wxString a_File){}
 	virtual void loadFile(boost::property_tree::ptree &a_Src);
@@ -113,6 +114,7 @@ public:
 	void setBlock(std::string a_Name, std::shared_ptr<MaterialBlock> a_pBlock);
 	void setTopology(Topology::Key a_Topology){ m_Topology = a_Topology; }
 	Topology::Key getTopology(){ return m_Topology; }
+	void setRuntimeOnly(bool a_bRuntimeOnly){ m_bRuntimeOnly = a_bRuntimeOnly; }
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
@@ -179,6 +181,7 @@ private:
 	std::set<unsigned int> m_ReservedCBV, m_ReservedSRV;
 	std::vector<std::shared_ptr<Asset>> m_Textures, m_RWTexture;
 	Topology::Key m_Topology;
+	bool m_bRuntimeOnly;
 
 	// instance part
 	std::deque<int> m_FreeInstanceSlot;

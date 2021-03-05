@@ -86,8 +86,8 @@ void CameraController::updateListener(float a_Delta)
 	if( m_MovingFlag == glm::zero<glm::ivec3>() ) return;
 	
 	std::vector<std::shared_ptr<Camera>> l_Cameras;
-	getOwner()->getComponent<Camera>(l_Cameras);
-	if( 0 == l_Cameras.size() ) return;
+	getOwner()->getComponents<Camera>(l_Cameras);
+	if( l_Cameras.empty() ) return;
 
 	glm::vec3 l_Eye, l_Dir, l_Up;
 	l_Cameras[0]->getCameraParam(l_Eye, l_Dir, l_Up);
@@ -116,8 +116,8 @@ void CameraController::mouseDown()
 void CameraController::mouseMove()
 {
 	std::vector<std::shared_ptr<Camera>> l_Cameras;
-	getOwner()->getComponent<Camera>(l_Cameras);
-	if( 0 == l_Cameras.size() ) return;
+	getOwner()->getComponents<Camera>(l_Cameras);
+	if( l_Cameras.empty() ) return;
 
 	glm::vec2 l_Sub(m_PrevPt - m_MousePt);
 	m_PrevPt = m_MousePt;
