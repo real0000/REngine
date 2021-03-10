@@ -54,17 +54,21 @@ public:
 	virtual ~AssetComponent();
 
 	bool dirty(){ return m_bDirty; }
-	virtual bool canSave(){ return true; }
+	virtual bool canSave(){ return !m_bRuntimeOnly; }
 	virtual wxString getAssetExt() = 0;
 	virtual void importFile(wxString a_File) = 0;
 	virtual void loadFile(boost::property_tree::ptree &a_Src) = 0;
 	virtual void saveFile(boost::property_tree::ptree &a_Dst) = 0;
+
+	bool getRuntimeOnly(){ return m_bRuntimeOnly; }
+	void setRuntimeOnly(bool a_bRuntimeOnly){ m_bRuntimeOnly = a_bRuntimeOnly; }
 
 protected:
 	void setDirty(){ m_bDirty = true; }
 
 private:
 	bool m_bDirty;
+	bool m_bRuntimeOnly;
 };
 
 class Asset
@@ -79,6 +83,9 @@ public:
 	wxString getAssetExt(){ return nullptr == m_pComponent ? wxT("") : m_pComponent->getAssetExt(); }
 	wxString getKey(){ return m_Key; }
 	int getSerialKey(){ return m_SerialKey; }
+	
+	bool getRuntimeOnly(){ return m_pComponent->getRuntimeOnly(); }
+	void setRuntimeOnly(bool a_bRuntimeOnly){ m_pComponent->setRuntimeOnly(a_bRuntimeOnly); }
 
 private:
 	int m_SerialKey;

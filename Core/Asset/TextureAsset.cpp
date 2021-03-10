@@ -67,7 +67,8 @@ wxString TextureAsset::validAssetKey()
 
 void TextureAsset::initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube, ...)
 {
-	assert(-1 == m_TextureID);
+	// file loaded or initialed
+	if(-1 != m_TextureID) return;
 
 	m_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format, a_ArraySize, a_bCube);
 	
@@ -88,7 +89,8 @@ void TextureAsset::initTexture(glm::ivec2 a_Size, PixelFormat::Key a_Format, uns
 
 void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, void *a_pInitData)
 {
-	assert(-1 == m_TextureID);
+	// file loaded or initialed
+	if(-1 != m_TextureID) return;
 
 	m_TextureID = GDEVICE()->allocateTexture(a_Size, a_Format);
 
@@ -100,7 +102,8 @@ void TextureAsset::initTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, voi
 
 void TextureAsset::initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format, unsigned int a_ArraySize, bool a_bCube)
 {
-	assert(-1 == m_TextureID);
+	// file loaded or initialed
+	if(-1 != m_TextureID) return;
 
 	m_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format, a_ArraySize, a_bCube);
 	m_bRenderTarget = true;
@@ -110,7 +113,8 @@ void TextureAsset::initRenderTarget(glm::ivec2 a_Size, PixelFormat::Key a_Format
 
 void TextureAsset::initRenderTarget(glm::ivec3 a_Size, PixelFormat::Key a_Format)
 {
-	assert(-1 == m_TextureID);
+	// file loaded or initialed
+	if(-1 != m_TextureID) return;
 
 	m_TextureID = GDEVICE()->createRenderTarget(a_Size, a_Format);
 	m_bRenderTarget = true;
@@ -240,49 +244,23 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	l_RootAttr.add("y", l_Dim.y);
 	l_RootAttr.add("z", l_Dim.z);
 	l_RootAttr.add("type", l_Type);
-	l_RootAttr.add("format", PixelFormat::toString(getTextureFormat()));
+	l_RootAttr.add("format", PixelFormat::toString(getTextureFormat()).c_str().AsChar());
 	l_RootAttr.add("isRenderTarget", m_bRenderTarget);
 	l_Root.add_child("<xmlattr>", l_RootAttr);
 
 	if( !m_bRenderTarget )
 	{
 		boost::property_tree::ptree l_Layers;
-		std::vector<std::string> l_Base64Data;
-		switch( l_Type )
+		
+		std::vector<std::vector<char>> l_RawData;
+		GDEVICE()->getTexturePixel(m_TextureID, l_RawData);
+		for( unsigned int i=0 ; i<l_RawData.size() ; ++i )
 		{
-			case TEXTYPE_SIMPLE_2D:{
-				boost::property_tree::ptree l_Layer;
+			std::string l_Base64("");
+			binary2Base64(l_RawData[i].data(), l_RawData[i].size(), l_Base64);
 
-				std::vector<char> l_RawData;
-				GDEVICE()->getTexturePixel(m_TextureID, 0, l_RawData);
-
-				std::string l_Base64("");
-				binary2Base64(l_RawData.data(), l_RawData.size(), l_Base64);
-				l_Base64Data.push_back(l_Base64);
-				}break;
-
-			/*
-			case TEXTYPE_SIMPLE_2D_ARRAY:
-				break;
-
-			case TEXTYPE_SIMPLE_CUBE:
-				break;
-
-			case TEXTYPE_SIMPLE_CUBE_ARRAY:
-				break;
-
-			case TEXTYPE_SIMPLE_3D:
-				break;
-			*/
-
-			//case TEXTYPE_DEPTH_STENCIL_VIEW:
-			//case TEXTYPE_RENDER_TARGET_VIEW:
-			default:break;
-		}
-		for( unsigned int i=0 ; i<l_Base64Data.size() ; ++i )
-		{
 			boost::property_tree::ptree l_Layer;
-			l_Layer.put("RawData", l_Base64Data[i]);
+			l_Layer.put("RawData", l_Base64);
 		
 			char l_Buff[64];	
 			snprintf(l_Buff, 64, "Layer%d", i);
@@ -293,13 +271,13 @@ void TextureAsset::saveFile(boost::property_tree::ptree &a_Dst)
 	
 	boost::property_tree::ptree l_Sampler;
 	boost::property_tree::ptree l_SamplerAttr;
-	l_SamplerAttr.add("filter", Filter::toString(m_Filter).c_str());
-	l_SamplerAttr.add("u", AddressMode::toString(m_AddressMode[0]).c_str());
-	l_SamplerAttr.add("v", AddressMode::toString(m_AddressMode[1]).c_str());
-	l_SamplerAttr.add("w", AddressMode::toString(m_AddressMode[2]).c_str());
+	l_SamplerAttr.add("filter", Filter::toString(m_Filter).c_str().AsChar());
+	l_SamplerAttr.add("u", AddressMode::toString(m_AddressMode[0]).c_str().AsChar());
+	l_SamplerAttr.add("v", AddressMode::toString(m_AddressMode[1]).c_str().AsChar());
+	l_SamplerAttr.add("w", AddressMode::toString(m_AddressMode[2]).c_str().AsChar());
 	l_SamplerAttr.add("lodbias", m_MipLodBias);
 	l_SamplerAttr.add("anisotropy", m_MaxAnisotropy);
-	l_SamplerAttr.add("func", CompareFunc::toString(m_Func));
+	l_SamplerAttr.add("func", CompareFunc::toString(m_Func).c_str());
 	l_SamplerAttr.add("minlod", m_MinLod);
 	l_SamplerAttr.add("maxlod", m_MaxLod);
 	l_SamplerAttr.add("r", m_Border[0]);

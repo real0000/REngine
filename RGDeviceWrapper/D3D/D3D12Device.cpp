@@ -616,6 +616,7 @@ D3D12Device::D3D12Device()
 	, m_pResFence(nullptr), m_pComputeFence(nullptr), m_pGraphicFence(nullptr)
 	, m_NumCommand{0, 0}
 	, m_bLooping(true)
+	, m_ResCpuFence(D3D12_NUM_COPY_THREAD)
 {
 	BIND_DEFAULT_ALLOCATOR(TextureBinder, m_ManagedTexture);
 	BIND_DEFAULT_ALLOCATOR(SamplerBinder, m_ManagedSampler);
@@ -1180,110 +1181,119 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 
 void D3D12Device::generateMipmap(int a_ID, unsigned int a_Level, std::shared_ptr<ShaderProgram> a_pProgram, bool a_bAsync)
 {
-	std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
+	unsigned int l_Worker = 0;
+	uint64 l_CPUSignal = 0;
+	{// mutex lock part
+		std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
 
-	D3D12GpuThread l_Thread = m_ResThread[m_IdleResThread];
-	++m_NumCommand[m_IdleResThread];
+		D3D12GpuThread l_Thread = m_ResThread[m_IdleResThread];
+		++m_NumCommand[m_IdleResThread];
+		if( !a_bAsync )
+		{
+			l_Worker = m_IdleResThread;
+			l_CPUSignal = m_ResCpuFence.signal(l_Worker);
+		}
 
-	std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
-	assert(nullptr != l_pTargetBinder);
+		std::shared_ptr<TextureBinder> l_pTargetBinder = m_ManagedTexture[a_ID];
+		assert(nullptr != l_pTargetBinder);
 	
-	HLSLProgram12 *l_pProgram = static_cast<HLSLProgram12 *>(a_pProgram.get());
-	unsigned int l_NumConst = 0;
-	std::function<D3D12_UNORDERED_ACCESS_VIEW_DESC(unsigned int)> l_UavStructFunc = nullptr;
-	std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
-	glm::ivec3 l_Devide(8, 8, 1);
-	switch( l_pTargetBinder->m_Type )
-	{
-		case TEXTYPE_SIMPLE_2D:
-		case TEXTYPE_DEPTH_STENCIL_VIEW:
-		case TEXTYPE_RENDER_TARGET_VIEW:
-			l_NumConst = 2;
-			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
-			{
-				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
-				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-				l_Desc.Texture2D.MipSlice = a_MipLevel;
-				return l_Desc;
-			};
-			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
-			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
-				l_Desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-				l_Desc.Texture2D.MipLevels = 1;
-				l_Desc.Texture2D.MostDetailedMip = a_MipLevel;
-				return l_Desc;
-			};
-			break;
+		HLSLProgram12 *l_pProgram = static_cast<HLSLProgram12 *>(a_pProgram.get());
+		unsigned int l_NumConst = 0;
+		std::function<D3D12_UNORDERED_ACCESS_VIEW_DESC(unsigned int)> l_UavStructFunc = nullptr;
+		std::function<D3D12_SHADER_RESOURCE_VIEW_DESC(unsigned int)> l_SrvStructFunc = nullptr;
+		glm::ivec3 l_Devide(8, 8, 1);
+		switch( l_pTargetBinder->m_Type )
+		{
+			case TEXTYPE_SIMPLE_2D:
+			case TEXTYPE_DEPTH_STENCIL_VIEW:
+			case TEXTYPE_RENDER_TARGET_VIEW:
+				l_NumConst = 2;
+				l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
+				{
+					D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
+					l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+					l_Desc.Texture2D.MipSlice = a_MipLevel;
+					return l_Desc;
+				};
+				l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
+					l_Desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					l_Desc.Texture2D.MipLevels = 1;
+					l_Desc.Texture2D.MostDetailedMip = a_MipLevel;
+					return l_Desc;
+				};
+				break;
 
-		case TEXTYPE_SIMPLE_3D:
-			l_NumConst = 3;
-			l_Devide.x = l_Devide.y = l_Devide.z = 4;
-			l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
-			{
-				D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
-				l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-				l_Desc.Texture3D.MipSlice = a_MipLevel;
-				return l_Desc;
-			};
-			l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
-			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
-				l_Desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-				l_Desc.Texture3D.MipLevels = 1;
-				l_Desc.Texture3D.MostDetailedMip = a_MipLevel;
-				return l_Desc;
-			};
-			break;
+			case TEXTYPE_SIMPLE_3D:
+				l_NumConst = 3;
+				l_Devide.x = l_Devide.y = l_Devide.z = 4;
+				l_UavStructFunc = [](unsigned int a_MipLevel)->D3D12_UNORDERED_ACCESS_VIEW_DESC
+				{
+					D3D12_UNORDERED_ACCESS_VIEW_DESC l_Desc = {};
+					l_Desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+					l_Desc.Texture3D.MipSlice = a_MipLevel;
+					return l_Desc;
+				};
+				l_SrvStructFunc = [](unsigned int a_MipLevel)->D3D12_SHADER_RESOURCE_VIEW_DESC
+				{
+					D3D12_SHADER_RESOURCE_VIEW_DESC l_Desc = {};
+					l_Desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					l_Desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+					l_Desc.Texture3D.MipLevels = 1;
+					l_Desc.Texture3D.MostDetailedMip = a_MipLevel;
+					return l_Desc;
+				};
+				break;
 
-		default:break;
-	}
-	assert(nullptr != l_pProgram);
+			default:break;
+		}
+		assert(nullptr != l_pProgram);
 
-	l_Thread.second->SetPipelineState(l_pProgram->getPipeline());
-	l_Thread.second->SetComputeRootSignature(l_pProgram->getRegDesc());
-	glm::ivec3 l_Dim(l_pTargetBinder->m_Size);
-	unsigned int l_B0 = (unsigned int)l_pProgram->getConstantSlot("c_PixelSize").first;
-	unsigned int l_T0 = l_pProgram->getTextureSlot(0);
-	unsigned int l_S0 = l_T0 + 1;
-	unsigned int l_U0 = l_pProgram->getUavSlot(0);
+		l_Thread.second->SetPipelineState(l_pProgram->getPipeline());
+		l_Thread.second->SetComputeRootSignature(l_pProgram->getRegDesc());
+		glm::ivec3 l_Dim(l_pTargetBinder->m_Size);
+		unsigned int l_B0 = (unsigned int)l_pProgram->getConstantSlot("c_PixelSize").first;
+		unsigned int l_T0 = l_pProgram->getTextureSlot(0);
+		unsigned int l_S0 = l_T0 + 1;
+		unsigned int l_U0 = l_pProgram->getUavSlot(0);
 	
-	int l_NumStep = 0 == a_Level ? l_pTargetBinder->m_MipmapLevels : a_Level;
-	D3D12_RESOURCE_STATES l_OriginState = TEXTYPE_RENDER_TARGET_VIEW == l_pTargetBinder->m_Type ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	for( int i=1 ; i<(int)l_NumStep ; ++i )
-	{
-		l_Dim = glm::max(l_Dim / 2, glm::ivec3(1, 1, 1));
-		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, l_OriginState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, i);
+		int l_NumStep = 0 == a_Level ? l_pTargetBinder->m_MipmapLevels : a_Level;
+		D3D12_RESOURCE_STATES l_OriginState = TEXTYPE_RENDER_TARGET_VIEW == l_pTargetBinder->m_Type ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		for( int i=1 ; i<(int)l_NumStep ; ++i )
+		{
+			l_Dim = glm::max(l_Dim / 2, glm::ivec3(1, 1, 1));
+			resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, l_OriginState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, i);
 		
-		D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc(l_UavStructFunc(i));
-		l_UAVDesc.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetBinder->m_Format);
-		bool l_bExtended = false;
-		int l_TempUavID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, nullptr, &l_UAVDesc, l_bExtended);
-		if( l_bExtended ) rebindResourceHeap();
+			D3D12_UNORDERED_ACCESS_VIEW_DESC l_UAVDesc(l_UavStructFunc(i));
+			l_UAVDesc.Format = (DXGI_FORMAT)getPixelFormat(l_pTargetBinder->m_Format);
+			bool l_bExtended = false;
+			int l_TempUavID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, nullptr, &l_UAVDesc, l_bExtended);
+			if( l_bExtended ) rebindResourceHeap();
 		
-		D3D12_SHADER_RESOURCE_VIEW_DESC l_SrcDesc(l_SrvStructFunc(i-1));
-		l_SrcDesc.Format = l_UAVDesc.Format;
-		int l_TempSrvID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, &l_SrcDesc, l_bExtended);
-		if( l_bExtended ) rebindResourceHeap();
+			D3D12_SHADER_RESOURCE_VIEW_DESC l_SrcDesc(l_SrvStructFunc(i-1));
+			l_SrcDesc.Format = l_UAVDesc.Format;
+			int l_TempSrvID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pTexture, &l_SrcDesc, l_bExtended);
+			if( l_bExtended ) rebindResourceHeap();
 		
-		glm::vec3 l_PixelSize(1.0f / glm::vec3(l_Dim.x, l_Dim.y, l_Dim.z));
-		l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
-		l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
-		l_Thread.second->SetComputeRootDescriptorTable(l_S0, m_pSamplerHeap->getGpuHandle(m_MipmapSampler));
-		l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
+			glm::vec3 l_PixelSize(1.0f / glm::vec3(l_Dim.x, l_Dim.y, l_Dim.z));
+			l_Thread.second->SetComputeRoot32BitConstants(l_B0, l_NumConst, &l_PixelSize, 0);
+			l_Thread.second->SetComputeRootDescriptorTable(l_T0, m_pShaderResourceHeap->getGpuHandle(l_TempSrvID));
+			l_Thread.second->SetComputeRootDescriptorTable(l_S0, m_pSamplerHeap->getGpuHandle(m_MipmapSampler));
+			l_Thread.second->SetComputeRootDescriptorTable(l_U0, m_pShaderResourceHeap->getGpuHandle(l_TempUavID));
 		
-		glm::ivec3 l_NumThread(l_Dim / l_Devide);
-		l_Thread.second->Dispatch(std::max(l_NumThread.x, 1), std::max(l_NumThread.y, 1), std::max(l_NumThread.z, 1));
+			glm::ivec3 l_NumThread(l_Dim / l_Devide);
+			l_Thread.second->Dispatch(std::max(l_NumThread.x, 1), std::max(l_NumThread.y, 1), std::max(l_NumThread.z, 1));
 
-		m_pShaderResourceHeap->recycle(l_TempUavID);
-		m_pShaderResourceHeap->recycle(l_TempSrvID);
+			m_pShaderResourceHeap->recycle(l_TempUavID);
+			m_pShaderResourceHeap->recycle(l_TempSrvID);
 
-		resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, l_OriginState, i);
+			resourceTransition(l_Thread.second, l_pTargetBinder->m_pTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, l_OriginState, i);
+		}
 	}
 
-	if( !a_bAsync ) waitResourceSync();
+	if( !a_bAsync ) m_ResCpuFence.wait(l_Worker, l_CPUSignal);
 }
 
 void D3D12Device::copyTexture(int a_Dst, int a_Src)
@@ -1333,9 +1343,177 @@ void D3D12Device::copyTexture(int a_Dst, int a_Src)
 	++m_NumCommand[m_IdleResThread];
 }
 
-void D3D12Device::getTexturePixel(int a_ID, unsigned int a_MipmapLevel, std::vector<char> &a_Output)
+void D3D12Device::getTexturePixel(int a_ID, std::vector<std::vector<char>> &a_Output)
 {	
+	std::shared_ptr<TextureBinder> l_pSrcTexture = m_ManagedTexture[a_ID];
+	unsigned int l_PixelSize = std::max(getPixelSize(l_pSrcTexture->m_Format) / 8, 1u);
+	unsigned int l_RowPitch = 0;
+	unsigned int l_SlicePitch = 0;
+	HRESULT l_Res = S_OK;
+	{
+		uint64 l_RequiredSize = 0;
+		m_pDevice->GetCopyableFootprints(&l_pSrcTexture->m_pTexture->GetDesc(), 0, 1, 0, nullptr, nullptr, nullptr, &l_RequiredSize);
+		l_RowPitch = l_RequiredSize / (l_pSrcTexture->m_Size.z * l_pSrcTexture->m_Size.y);
+		l_RowPitch = (l_RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+		l_SlicePitch = l_RowPitch * l_pSrcTexture->m_Size.y;
+	}
 
+	ID3D12Resource *l_pReader = nullptr;
+	{
+		D3D12_HEAP_PROPERTIES l_HeapProp;
+		l_HeapProp.Type = D3D12_HEAP_TYPE_READBACK;
+		l_HeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		l_HeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		l_HeapProp.CreationNodeMask = 0;
+		l_HeapProp.VisibleNodeMask = 0;
+
+		D3D12_RESOURCE_DESC l_TexResDesc;
+		l_TexResDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		l_TexResDesc.Alignment = 0;
+		l_TexResDesc.Width = l_pSrcTexture->m_Type == TEXTYPE_SIMPLE_3D ? l_SlicePitch * l_pSrcTexture->m_Size.z : l_RowPitch * l_pSrcTexture->m_Size.y;
+		l_TexResDesc.Height = 1;
+		l_TexResDesc.DepthOrArraySize = 1;
+		l_TexResDesc.MipLevels = 1;
+		l_TexResDesc.Format = DXGI_FORMAT_UNKNOWN;
+		l_TexResDesc.SampleDesc = m_MsaaSetting;
+		l_TexResDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		l_TexResDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		l_Res = m_pDevice->CreateCommittedResource(&l_HeapProp, D3D12_HEAP_FLAG_NONE, &l_TexResDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&l_pReader));
+		if( S_OK != l_Res )
+		{
+			wxMessageBox(wxT("CreateCommittedResource failed"), wxT("D3D12Device::getTexturePixel"));
+			return;
+		}
+	}
+
+	D3D12_RESOURCE_STATES l_OriginState;
+	switch( l_pSrcTexture->m_Type )
+	{
+		case TEXTYPE_DEPTH_STENCIL_VIEW: l_OriginState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		case TEXTYPE_RENDER_TARGET_VIEW:; l_OriginState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		default: l_OriginState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	}
+
+	unsigned int l_Worker = 0;
+	uint64 l_CPUSignal = 0;
+	{
+		std::lock_guard<std::mutex> l_ResGuard(m_ResourceMutex);
+		
+		D3D12_RESOURCE_BARRIER l_TransSetting = {};
+		l_TransSetting.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		l_TransSetting.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		l_TransSetting.Transition.pResource = l_pSrcTexture->m_pTexture;
+		l_TransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		l_TransSetting.Transition.StateBefore = l_OriginState;
+		l_TransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		
+		m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+
+		switch( l_pSrcTexture->m_Type )
+		{
+			case TEXTYPE_SIMPLE_2D:
+			case TEXTYPE_DEPTH_STENCIL_VIEW:
+			case TEXTYPE_RENDER_TARGET_VIEW:{
+				D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
+				l_Src.pResource = l_pSrcTexture->m_pTexture;
+				l_Src.SubresourceIndex = 0;
+				l_Src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+				l_Dst.PlacedFootprint.Offset = 0;
+				l_Dst.PlacedFootprint.Footprint.Width = l_pSrcTexture->m_Size.x;
+				l_Dst.PlacedFootprint.Footprint.Height = l_pSrcTexture->m_Size.y;
+				l_Dst.PlacedFootprint.Footprint.Depth = 1;
+				l_Dst.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
+				l_Dst.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pSrcTexture->m_Format);
+				l_Dst.pResource = l_pReader;
+				l_Dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	
+				m_ResThread[m_IdleResThread].second->CopyTextureRegion(&l_Dst, 0, 0, 0, &l_Src, nullptr);
+				}break;
+
+			case TEXTYPE_SIMPLE_2D_ARRAY:
+			case TEXTYPE_SIMPLE_CUBE:
+			case TEXTYPE_SIMPLE_CUBE_ARRAY:{
+				}break;
+
+			case TEXTYPE_SIMPLE_3D:{
+				}break;
+
+			default:break;
+		}
+
+		l_TransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		l_TransSetting.Transition.StateAfter = l_OriginState;
+		
+		m_ResThread[m_IdleResThread].second->ResourceBarrier(1, &l_TransSetting);
+		++m_NumCommand[m_IdleResThread];
+		
+		l_Worker = m_IdleResThread;
+		l_CPUSignal = m_ResCpuFence.signal(m_IdleResThread);
+	}
+
+	m_ResCpuFence.wait(l_Worker, l_CPUSignal);
+	
+	unsigned char *l_pDataBegin = nullptr;
+	l_Res = l_pReader->Map(0, nullptr, reinterpret_cast<void**>(&l_pDataBegin));
+	if( S_OK != l_Res )
+	{
+		wxMessageBox(wxT("Map Resource failed"), wxT("D3D12Device::getTexturePixel"));
+		return;
+	}
+
+	switch( l_pSrcTexture->m_Type )
+	{
+		case TEXTYPE_SIMPLE_2D:
+		case TEXTYPE_DEPTH_STENCIL_VIEW:
+		case TEXTYPE_RENDER_TARGET_VIEW:{
+			std::vector<char> l_Layer(l_PixelSize * l_pSrcTexture->m_Size.x * l_pSrcTexture->m_Size.y, 0);
+			for( int y=0 ; y<l_pSrcTexture->m_Size.y ; ++y )
+			{
+				unsigned char *l_pSrcStart = l_pDataBegin + y * l_RowPitch;
+				unsigned char *l_pDstStart = reinterpret_cast<unsigned char *>(l_Layer.data()) + (y * l_pSrcTexture->m_Size.x * l_PixelSize);
+				memcpy(l_pDstStart, l_pSrcStart, l_pSrcTexture->m_Size.x * l_PixelSize);
+			}
+			a_Output.push_back(l_Layer);
+			}break;
+
+		case TEXTYPE_SIMPLE_2D_ARRAY:
+		case TEXTYPE_SIMPLE_CUBE:
+		case TEXTYPE_SIMPLE_CUBE_ARRAY:{
+			for( int i=0 ; i<l_pSrcTexture->m_Size.z ; ++i )
+			{
+				std::vector<char> l_Layer(l_PixelSize * l_pSrcTexture->m_Size.x * l_pSrcTexture->m_Size.y);
+				for( int y=0 ; y<l_pSrcTexture->m_Size.y ; ++y )
+				{
+					unsigned char *l_pSrcStart = l_pDataBegin + y * l_RowPitch;
+					unsigned char *l_pDstStart = reinterpret_cast<unsigned char *>(l_Layer.data()) + (y * l_pSrcTexture->m_Size.x * l_PixelSize);
+					memcpy(l_pDstStart, l_pSrcStart, l_pSrcTexture->m_Size.x * l_PixelSize);
+				}
+				a_Output.push_back(l_Layer);
+			}
+			}break;
+
+		case TEXTYPE_SIMPLE_3D:{
+			std::vector<char> l_Layer(l_PixelSize * l_pSrcTexture->m_Size.x * l_pSrcTexture->m_Size.y * l_pSrcTexture->m_Size.z, 0);
+			for( int z=0 ; z<l_pSrcTexture->m_Size.z ; ++z )
+			{
+				unsigned int l_SrcSliceOffset = z * l_SlicePitch;
+				unsigned int l_DstSliceOffset = z * l_pSrcTexture->m_Size.x * l_pSrcTexture->m_Size.y * l_PixelSize;
+				for( int y=0 ; y<l_pSrcTexture->m_Size.y ; ++y )
+				{
+					unsigned char *l_pSrcStart = l_pDataBegin + l_SrcSliceOffset + y * l_RowPitch;
+					unsigned char *l_pDstStart = reinterpret_cast<unsigned char *>(l_Layer.data()) + l_DstSliceOffset + (y * l_pSrcTexture->m_Size.x * l_PixelSize);
+					memcpy(l_pDstStart, l_pSrcStart, l_pSrcTexture->m_Size.x * l_PixelSize);
+				}
+			}
+			a_Output.push_back(l_Layer);
+			}break;
+
+		default:break;
+	}
+	
+	l_pReader->Unmap(0, nullptr);
+	l_pReader->Release();
 }
 
 PixelFormat::Key D3D12Device::getTextureFormat(int a_ID)
@@ -1982,8 +2160,7 @@ void D3D12Device::resourceThread()
 		for( int i=0 ; i<(int)m_ReadBackContainer[l_Original].size() ; ++i ) m_ReadBackContainer[l_Original][i].readback();
 		m_ReadBackContainer[l_Original].clear();
 
-		for( int i=0 ; i<(int)m_ResSyncSignal[l_Original].size() ; ++i ) m_ResSyncSignal[l_Original][i].notify_one();
-		m_ResSyncSignal[l_Original].clear();
+		m_ResCpuFence.complete(l_Original);
 
 		for( unsigned int i=0 ; i<m_TempResources[l_Original].size() ; ++i ) m_TempResources[l_Original][i]->Release();
 		m_TempResources[l_Original].clear();
@@ -2074,14 +2251,6 @@ void D3D12Device::updateResourceData(ID3D12Resource *a_pRes, void *a_pSrcData, u
 	a_pRes->Map(0, &l_Range, reinterpret_cast<void**>(&l_pDataBegin));
 	memcpy(l_pDataBegin, a_pSrcData, a_SizeInByte);
 	a_pRes->Unmap(0, nullptr);
-}
-
-void D3D12Device::waitResourceSync()
-{
-	std::condition_variable l_SignalLock;
-	std::unique_lock<std::mutex> l_Guard(m_SyncMutex);
-	m_ResSyncSignal[m_IdleResThread].emplace_back(l_SignalLock);
-	l_SignalLock.wait(l_Guard);
 }
 
 int D3D12Device::allocateTexture(glm::ivec3 a_Size, PixelFormat::Key a_Format, D3D12_RESOURCE_DIMENSION a_Dim, unsigned int a_MipmapLevel, unsigned int a_Flag, bool a_bCube)
@@ -2316,8 +2485,6 @@ void D3D12Device::updateTexture(int a_ID, unsigned int a_MipmapLevel, glm::ivec3
 		//case TEXTYPE_RENDER_TARGET_VIEW:
 		default:break;
 	}
-
-	if( l_pTargetTexture->m_Type == TEXTYPE_SIMPLE_2D ) l_SubResIdx += (a_Offset.z * l_pTargetTexture->m_MipmapLevels);
 
 	unsigned int l_RowPitch = 0;
 	unsigned int l_SlicePitch = 0;

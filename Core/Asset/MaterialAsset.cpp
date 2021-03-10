@@ -189,7 +189,6 @@ void MaterialBlock::bindUavBuffer(GraphicCommander *a_pBinder, int a_Stage)
 MaterialAsset::MaterialAsset()
 	: m_pRefProgram(nullptr)
 	, m_Topology(Topology::triangle_list)
-	, m_bRuntimeOnly(false)
 	, m_InstanceUavIndex(-1)
 	, m_CurrInstanceSize(0)
 {
@@ -207,7 +206,8 @@ void MaterialAsset::loadFile(boost::property_tree::ptree &a_Src)
 {
 	boost::property_tree::ptree &l_Root = a_Src.get_child("root");
 	
-	init(ProgramManager::singleton().getData(l_Root.get<std::string>("<xmlattr>.refProgram")).second);
+	wxString l_Path(l_Root.get<std::string>("<xmlattr>.refProgram"));
+	init(ProgramManager::singleton().getData(l_Path).second);
 	m_Topology = Topology::fromString(l_Root.get("<xmlattr>.topology", "triangle_list"));
 	
 	boost::property_tree::ptree l_ConstBlocks = l_Root.get_child("ConstBlocks");
@@ -282,7 +282,9 @@ std::shared_ptr<MaterialBlock> MaterialAsset::createExternalBlock(ShaderRegType:
 
 void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 {
-	assert(nullptr == m_pRefProgram);
+	// file loaded or initialed
+	if(nullptr != m_pRefProgram) return ;
+
 	m_pRefProgram = a_pRefProgram;
 
 	auto &l_CbvBlock = m_pRefProgram->getBlockDesc(ShaderRegType::ConstBuffer);

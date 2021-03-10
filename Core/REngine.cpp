@@ -359,12 +359,6 @@ void EngineCore::shutDown()
 	GDEVICE()->shutdown();
 }
 
-wxString EngineCore::convertToAssetPath(wxString a_Path)
-{
-	if( !isAbsolutePath(a_Path) ) return a_Path;
-	return getRelativePath(wxGetCwd(), a_Path);
-}
-
 void EngineCore::addJob(std::function<void()> a_Job)
 {
 	m_ThreadPool.addJob(a_Job);
@@ -402,18 +396,22 @@ bool EngineCore::init()
 	m_WhiteTexture = AssetManager::singleton().createAsset(WHITE_TEXTURE_ASSET_NAME);
 	m_WhiteTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_WhiteTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_WhiteTexture->setRuntimeOnly(true);
 	
 	memset(l_Color, 0x0000ffff, sizeof(unsigned int) * 64);
 	m_BlueTexture = AssetManager::singleton().createAsset(BLUE_TEXTURE_ASSET_NAME);
 	m_BlueTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_BlueTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_BlueTexture->setRuntimeOnly(true);
 
 	memset(l_Color, 0x404040ff, sizeof(unsigned int) * 64);
 	m_DarkgrayTexture = AssetManager::singleton().createAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
 	m_DarkgrayTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
 	m_DarkgrayTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+	m_DarkgrayTexture->setRuntimeOnly(true);
 
 	m_pQuadMesh = AssetManager::singleton().createAsset(QUAD_MESH_ASSET_NAME);
+	m_pQuadMesh->setRuntimeOnly(true);
 	const glm::vec3 c_QuadVtx[] = {
 		glm::vec3(-1.0f, 1.0f, 0.0f),
 		glm::vec3(-1.0f, -1.0f, 0.0f),

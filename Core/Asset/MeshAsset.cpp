@@ -106,19 +106,19 @@ void MeshAsset::importFile(wxString a_File)
 				
 				auto it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
 				if( l_ThisMaterial.end() == it ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-				else l_pBaseColor = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
+				else l_pBaseColor = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
 				if( l_ThisMaterial.end() == it ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
-				else l_pNormal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
+				else l_pNormal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
 				
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
 				if( l_ThisMaterial.end() == it ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-				else l_pMetal = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
+				else l_pMetal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
 
 				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
 				if( l_ThisMaterial.end() == it ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
-				else l_pRoughness = AssetManager::singleton().getAsset(EngineCore::singleton().convertToAssetPath(l_FilePath + "/" + it->second));
+				else l_pRoughness = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
 			}
 
 			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str()));
@@ -250,10 +250,9 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 		l_pNewRelation->m_Nodename = it->second.get<std::string>("<xmlattr>.name");
 		parseShaderParamValue(ShaderParamType::float4x4, it->second.get_child("Transform").data(), reinterpret_cast<char *>(&l_pNewRelation->m_Tansform));
 
-		std::vector<char> l_Buff;
-		base642Binary(it->second.get_child("RefMeshIdx").data(), l_Buff);
-		l_pNewRelation->m_RefMesh.resize(l_Buff.size() / sizeof(unsigned int));
-		memcpy(l_pNewRelation->m_RefMesh.data(), l_Buff.data(), l_Buff.size());
+		std::vector<wxString> l_IndiciesStr;
+		splitString(wxT(','), it->second.get_child("RefMeshIdx").data(), l_IndiciesStr);
+		for( unsigned int i=0 ; i<l_IndiciesStr.size() ; ++i ) l_pNewRelation->m_RefMesh.push_back(atoi(l_IndiciesStr[i].c_str()));
 	}
 
 	boost::optional<boost::property_tree::ptree&> l_BoneSrc = l_Root.get_child_optional("Bones");
@@ -365,9 +364,15 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 		l_Relation.add("<xmlattr>.name", m_Relation[i]->m_Nodename.c_str());
 		l_Relation.put("Transform", convertParamValue(ShaderParamType::float4x4, reinterpret_cast<char *>(&m_Relation[i]->m_Tansform)));
 
-		std::string l_Base64("");
-		binary2Base64(m_Relation[i]->m_RefMesh.data(), m_Relation[i]->m_RefMesh.size() * sizeof(unsigned int), l_Base64);
-		l_Relation.put("RefMeshIdx", l_Base64);
+		std::string l_Serial("");
+		for( unsigned int j=0 ; j<m_Relation[i]->m_RefMesh.size() ; ++j )
+		{
+			char l_Buff[32];
+			snprintf(l_Buff, 32, "%d,", m_Relation[i]->m_RefMesh[j]);
+			l_Serial += l_Buff;
+		}
+		if( !l_Serial.empty() ) l_Serial.pop_back();
+		l_Relation.put("RefMeshIdx", l_Serial);
 
 		l_Relations.add_child("Relation", l_Relation);
 	}

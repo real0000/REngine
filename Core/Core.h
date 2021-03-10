@@ -196,7 +196,6 @@ public:
 	double getDelta(){ return m_Delta; }// for input event
 
 	// utility
-	wxString convertToAssetPath(wxString a_Path);
 	template<typename T>
 	void registComponentReflector(){ SceneNode::registComponentReflector<T>(); }
 	template<typename T>

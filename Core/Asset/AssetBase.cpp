@@ -22,6 +22,7 @@ namespace R
 //
 AssetComponent::AssetComponent()
 	: m_bDirty(false)
+	, m_bRuntimeOnly(false)
 {
 	++AssetManager::sm_AssetCounter;
 }
@@ -109,6 +110,7 @@ std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 		l_Res = getData(l_ActurePath);
 		if( -1 != l_Res.first ) return l_Res.second;
 	}
+	else regularFilePath(l_ActurePath);
 
 	l_Res = getData(a_Path);
 	assert(-1 != l_Res.first);

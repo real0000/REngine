@@ -148,13 +148,25 @@ wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath)
 	return l_Res;
 }
 
-bool isAbsolutePath(wxString a_Path)
+void regularFilePath(wxString &a_Path)
 {
-#ifdef _WIN32
-	return wxNOT_FOUND != a_Path.Find(wxT(':'));
+	if( a_Path.IsEmpty() ) return;
+	a_Path.Replace(wxT("\\"), wxT("/"));
+#ifdef WIN32
+	if( wxT('/') != a_Path[0] && wxIsAbsolutePath(a_Path) ) return;
 #else
-	return a_Path[0] != wxT('/');
+	if( wxIsAbsolutePath(a_Path) ) return;
 #endif
+	a_Path = wxT("./") + a_Path;
+	a_Path.Replace(wxT("//"), wxT("/"));
+	a_Path.Replace(wxT("././"), wxT("./"));
+}
+
+wxString concatFilePath(wxString a_Left, wxString a_Right)
+{
+	a_Right.Replace(wxT("./"), wxT(""));
+	if( !a_Left.EndsWith(wxT("/")) ) a_Left += wxT("/");
+	return a_Left + a_Right;
 }
 
 void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)
@@ -165,11 +177,9 @@ void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output)
 	l_Compress.push(boost::iostreams::back_inserter(l_Buff));
 	l_Compress.write(reinterpret_cast<const char *>(a_pSrc), a_Size);
 	boost::iostreams::close(l_Compress);
-	l_Buff.push_back(0);
 
-	//a_Output.resize(boost::beast::detail::base64::encoded_size(a_Size));
-    //a_Output.resize(boost::beast::detail::base64::encode((void *)(a_Output.data()), l_Buff.data(), l_Buff.size()));
-	a_Output = l_Buff.data();
+	a_Output.resize(boost::beast::detail::base64::encoded_size(a_Size));
+    a_Output.resize(boost::beast::detail::base64::encode((void *)(a_Output.data()), l_Buff.data(), l_Buff.size()));
 }
 
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output)
@@ -727,6 +737,39 @@ void ThreadPool::loop()
 		l_Job();
 		--m_WorkingCount;
 	}
+}
+#pragma endregion
+
+#pragma region ThreadFence
+//
+// ThreadFence
+//
+ThreadFence::ThreadFence(unsigned int a_NumWorker)
+	: m_Serial(1)
+	, m_Complete(0)
+{
+	while( m_Complete.size() < a_NumWorker ) m_Complete.push_back(std::make_pair(0, 0));
+}
+
+ThreadFence::~ThreadFence()
+{
+}
+
+uint64 ThreadFence::signal(unsigned int a_WorkerID)
+{
+	assert(a_WorkerID < m_Complete.size());
+	m_Complete[a_WorkerID].second = m_Serial++;
+	return m_Complete[a_WorkerID].second;
+}
+
+void ThreadFence::wait(unsigned int a_WorkerID, uint64 a_SignalVal)
+{
+	while( m_Complete[a_WorkerID].first < a_SignalVal ) std::this_thread::yield();
+}
+
+void ThreadFence::complete(unsigned int a_WorkerID)
+{
+	m_Complete[a_WorkerID].first = m_Complete[a_WorkerID].second;
 }
 #pragma endregion
 /*#pragma region ThreadEventCallback

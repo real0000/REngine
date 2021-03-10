@@ -74,7 +74,8 @@ wxString replaceFileExt(wxString a_File, wxString a_NewExt);
 wxString getFilePath(wxString a_File);
 wxString getRelativePath(wxString a_ParentPath, wxString a_File);
 wxString getAbsolutePath(wxString a_ParentPath, wxString a_RelativePath);
-bool isAbsolutePath(wxString a_Path);
+void regularFilePath(wxString &a_Path);
+wxString concatFilePath(wxString a_Left, wxString a_Right);
 void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output);
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output);
 //void showOpenGLErrorCode(wxString a_StepInfo);
@@ -432,9 +433,9 @@ public:
 		m_ManagedObject.clear();
 	}
 
-	std::pair<int, std::shared_ptr<T>> getData(wxString a_Filename)
+	std::pair<int, std::shared_ptr<T>> getData(wxString &a_Filename)
 	{
-		a_Filename.Replace(wxT("\\"), wxT("/"));
+		regularFilePath(a_Filename);
 
 		std::shared_ptr<T> l_pNewFile = nullptr;
 		int l_ID = -1;
@@ -494,7 +495,7 @@ public:
 		
 	void addSearchPath(wxString a_Path)
 	{
-		a_Path.Replace(wxT("\\"), wxT("/"));
+		regularFilePath(a_Path);
 		if( !a_Path.EndsWith("/") ) a_Path += wxT("/");
 		assert(std::find(m_SearchPath.begin(), m_SearchPath.end(), a_Path) == m_SearchPath.end());
 		m_SearchPath.push_back(a_Path);
@@ -604,6 +605,21 @@ private:
 	std::condition_variable m_Signal;
 	std::mutex m_SignalLock, m_QueueLock;
 	unsigned int m_WorkingCount;
+};
+
+class ThreadFence
+{
+public:
+	ThreadFence(unsigned int a_NumWorker);
+	virtual ~ThreadFence();
+
+	uint64 signal(unsigned int a_WorkerID);
+	void wait(unsigned int a_WorkerID, uint64 a_SignalVal);
+	void complete(unsigned int a_WorkerID);
+
+private:
+	uint64 m_Serial;
+	std::vector<std::pair<uint64, uint64>> m_Complete;// (complete, working)
 };
 /*class ThreadEventCallback
 {
