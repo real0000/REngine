@@ -26,6 +26,9 @@ namespace R
 
 #pragma region SceneBatcher
 #pragma region SceneBatcher::SingletonBatchData
+//
+// SceneBatcher::SingletonBatchData
+//
 SceneBatcher::SingletonBatchData::SingletonBatchData()
 	: m_SkinBlock(nullptr), m_WorldBlock(nullptr)
 	, m_SkinSlotManager(), m_WorldSlotManager()
@@ -413,12 +416,19 @@ std::shared_ptr<SceneNode> SceneNode::addChild()
 
 std::shared_ptr<SceneNode> SceneNode::addChild(wxString a_MeshPath)
 {
+	std::shared_ptr<Asset> l_pMeshAsset = AssetManager::singleton().getAsset(a_MeshPath);
+	return addChild(l_pMeshAsset);
+}
+
+std::shared_ptr<SceneNode> SceneNode::addChild(std::shared_ptr<Asset> a_pMeshAsset)
+{
+	assert(a_pMeshAsset->getAssetExt().MakeLower() == wxT("mesh"));
+
 	std::shared_ptr<SceneNode> l_pNewRootNode = SceneNode::create(m_pRefScene, shared_from_this());
 	m_Children.push_back(l_pNewRootNode);
 	l_pNewRootNode->setTransform(glm::identity<glm::mat4x4>());
-
-	std::shared_ptr<Asset> l_pMeshAsset = AssetManager::singleton().getAsset(a_MeshPath);
-	MeshAsset *l_pMeshAssetInst = l_pMeshAsset->getComponent<MeshAsset>();
+	
+	MeshAsset *l_pMeshAssetInst = a_pMeshAsset->getComponent<MeshAsset>();
 	const std::vector<MeshAsset::Relation*> &l_MeshList = l_pMeshAssetInst->getRelation();
 
 	for( unsigned int i=0 ; i<l_MeshList.size() ; ++i )
@@ -430,11 +440,10 @@ std::shared_ptr<SceneNode> SceneNode::addChild(wxString a_MeshPath)
 		for( unsigned int j=0 ; j<l_pRelation->m_RefMesh.size() ; ++j )
 		{
 			std::shared_ptr<RenderableMesh> l_pNewMeshComponent = l_pChildNode->addComponent<RenderableMesh>();
-			l_pNewMeshComponent->setMesh(l_pMeshAsset, l_pRelation->m_RefMesh[j]);
+			l_pNewMeshComponent->setMesh(a_pMeshAsset, l_pRelation->m_RefMesh[j]);
 		}
 	}
-
-	return l_pNewRootNode;
+	return l_pNewRootNode; 
 }
 
 std::shared_ptr<SceneNode> SceneNode::addChild(boost::property_tree::ptree &a_TreeNode)

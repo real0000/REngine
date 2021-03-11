@@ -19,6 +19,7 @@ namespace R
 //
 // MeshAsset
 // 
+unsigned int MeshAsset::sm_RuntimeShadowMapSerial = 0;
 MeshAsset::MeshAsset()
 	: m_VtxSlots(0)
 	, m_Position(0)
@@ -131,20 +132,7 @@ void MeshAsset::importFile(wxString a_File)
 			l_pMatInst->setTexture(STANDARD_TEXTURE_ROUGHNESS, l_pRoughness);
 			l_pDst->m_Materials.insert(std::make_pair(MATSLOT_OPAQUE, l_pMat));
 
-			const std::tuple<wxString, int, int> c_ShadowSlots[] = {
-				std::make_tuple(wxT("%s/%s_%d_DirShadow.%s"), DefaultPrograms::DirShadowMap, MATSLOT_DIR_SHADOWMAP),
-				std::make_tuple(wxT("%s/%s_%d_SpotShadow.%s"), DefaultPrograms::SpotShadowMap, MATSLOT_SPOT_SHADOWMAP),
-				std::make_tuple(wxT("%s/%s_%d_OmniShadow.%s"), DefaultPrograms::OmniShadowMap, MATSLOT_OMNI_SHADOWMAP)};
-			for( unsigned int j=0 ; j<3 ; ++j )
-			{
-				l_MatFile = wxString::Format(std::get<0>(c_ShadowSlots[j]), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str());
-				l_pMat = AssetManager::singleton().createAsset(l_MatFile);
-				l_pMatInst = l_pMat->getComponent<MaterialAsset>();
-				l_pMatInst->setRuntimeOnly(true);
-				l_pMatInst->init(ProgramManager::singleton().getData(std::get<1>(c_ShadowSlots[j])));
-				l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
-				l_pDst->m_Materials.insert(std::make_pair(std::get<2>(c_ShadowSlots[j]), l_pMat));
-			}
+			assignDefaultShadowMapMaterial(l_pDst);
 
 			for( unsigned int j=0 ; j<l_pSrc->m_Vertex.size() ; ++j )
 			{
@@ -237,6 +225,8 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 			sscanf(it->first.c_str(), "Slot%d", &l_Slot);
 			l_pDst->m_Materials.insert(std::make_pair(l_Slot, AssetManager::singleton().getAsset(it2->second.data())));
 		}
+
+		assignDefaultShadowMapMaterial(l_pDst);
 	}
 	
 	boost::property_tree::ptree l_Relations = l_Root.get_child("Relations");
@@ -331,6 +321,8 @@ void MeshAsset::saveFile(boost::property_tree::ptree &a_Dst)
 		boost::property_tree::ptree l_Materials;
 		for( auto it=m_Meshes[i]->m_Materials.begin() ; it!=m_Meshes[i]->m_Materials.end() ; ++it )
 		{
+			if( it->second->getRuntimeOnly() ) continue;
+
 			char l_Buff[32];
 			snprintf(l_Buff, 32, "Slot%d", it->first);
 			l_Materials.put(l_Buff, it->second->getKey().c_str());
@@ -634,20 +626,54 @@ void MeshAsset::initBuffers()
 
 	m_VertexBuffer->setNumVertex(m_Position.size());
 	m_VertexBuffer->setVertex(VTXSLOT_POSITION, m_Position.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD01) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD01, m_Texcoord[0].data());
-	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD23) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD23, m_Texcoord[1].data());
-	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD45) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD45, m_Texcoord[2].data());
-	if( 0 != (m_VtxSlots & VTXFLAG_TEXCOORD67) ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD67, m_Texcoord[3].data());
-	if( 0 != (m_VtxSlots & VTXFLAG_NORMAL) ) m_VertexBuffer->setVertex(VTXSLOT_NORMAL, m_Normal.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_TANGENT) ) m_VertexBuffer->setVertex(VTXSLOT_TANGENT, m_Tangent.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_BINORMAL) ) m_VertexBuffer->setVertex(VTXSLOT_BINORMAL, m_Binormal.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_BONE) ) m_VertexBuffer->setVertex(VTXSLOT_BONE, m_BoneId.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_WEIGHT) ) m_VertexBuffer->setVertex(VTXSLOT_WEIGHT, m_Weight.data());
-	if( 0 != (m_VtxSlots & VTXFLAG_COLOR) ) m_VertexBuffer->setVertex(VTXSLOT_COLOR, m_Color.data());
+	if( !m_Texcoord[0].empty() ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD01, m_Texcoord[0].data());
+	if( !m_Texcoord[1].empty() ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD23, m_Texcoord[1].data());
+	if( !m_Texcoord[2].empty() ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD45, m_Texcoord[2].data());
+	if( !m_Texcoord[3].empty() ) m_VertexBuffer->setVertex(VTXSLOT_TEXCOORD67, m_Texcoord[3].data());
+	if( !m_Normal.empty() ) m_VertexBuffer->setVertex(VTXSLOT_NORMAL, m_Normal.data());
+	if( !m_Tangent.empty() ) m_VertexBuffer->setVertex(VTXSLOT_TANGENT, m_Tangent.data());
+	if( !m_Binormal.empty() ) m_VertexBuffer->setVertex(VTXSLOT_BINORMAL, m_Binormal.data());
+	if( !m_BoneId.empty() ) m_VertexBuffer->setVertex(VTXSLOT_BONE, m_BoneId.data());
+	if( !m_Weight.empty() ) m_VertexBuffer->setVertex(VTXSLOT_WEIGHT, m_Weight.data());
+	if( !m_Color.empty() ) m_VertexBuffer->setVertex(VTXSLOT_COLOR, m_Color.data());
 	m_VertexBuffer->init();
 
 	m_IndexBuffer->setIndicies(true, m_Indicies.data(), m_Indicies.size());
 	m_IndexBuffer->init();
+}
+
+void MeshAsset::assignDefaultShadowMapMaterial(Instance *a_pInst)
+{
+	std::shared_ptr<Asset> l_pBaseColor = nullptr;
+	{
+		auto it = a_pInst->m_Materials.find(MATSLOT_OPAQUE);
+		if( a_pInst->m_Materials.end() != it ) l_pBaseColor = it->second->getComponent<MaterialAsset>()->getTexture(STANDARD_TEXTURE_BASECOLOR);
+		else
+		{
+			it = a_pInst->m_Materials.find(MATSLOT_TRANSPARENT);
+			if( a_pInst->m_Materials.end() != it ) l_pBaseColor = it->second->getComponent<MaterialAsset>()->getTexture(STANDARD_TEXTURE_BASECOLOR);
+		}
+
+		if( nullptr == l_pBaseColor ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
+	}
+
+	const std::pair<int, int> c_ShadowSlots[] = {
+		std::make_pair(DefaultPrograms::DirShadowMap, MATSLOT_DIR_SHADOWMAP),
+		std::make_pair(DefaultPrograms::SpotShadowMap, MATSLOT_SPOT_SHADOWMAP),
+		std::make_pair(DefaultPrograms::OmniShadowMap, MATSLOT_OMNI_SHADOWMAP)};
+	for( unsigned int j=0 ; j<3 ; ++j )
+	{
+		unsigned int l_MatSlot = c_ShadowSlots[j].second;
+		if( a_pInst->m_Materials.end() != a_pInst->m_Materials.find(l_MatSlot) ) continue;
+
+		wxString l_MatFile(wxString::Format(DEFAULT_SHADOWMAP_MAT_ASSET_NAME, sm_RuntimeShadowMapSerial++));
+		std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
+		MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+		l_pMatInst->setRuntimeOnly(true);
+		l_pMatInst->init(ProgramManager::singleton().getData(c_ShadowSlots[j].first));
+		l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
+		a_pInst->m_Materials.insert(std::make_pair(l_MatSlot, l_pMat));
+	}
 }
 #pragma endregion
 

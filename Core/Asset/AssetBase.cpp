@@ -100,7 +100,7 @@ std::shared_ptr<Asset> AssetManager::createAsset(wxString a_Path)
 
 std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 {
-	auto it = m_ImportExtMap.find(getFileExt(a_Path));
+	auto it = m_ImportExtMap.find(getFileExt(a_Path).MakeLower());
 	std::pair<int, std::shared_ptr<Asset>> l_Res = {-1, nullptr};
 	wxString l_ActurePath(a_Path);
 	// check asset exist or not before import

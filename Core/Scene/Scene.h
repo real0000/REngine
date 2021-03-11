@@ -98,6 +98,7 @@ public:
 
 	std::shared_ptr<SceneNode> addChild();
 	std::shared_ptr<SceneNode> addChild(wxString a_MeshPath);
+	std::shared_ptr<SceneNode> addChild(std::shared_ptr<Asset> a_pMeshAsset);
 	std::shared_ptr<SceneNode> addChild(boost::property_tree::ptree &a_TreeNode);
 	
 	template<typename T>

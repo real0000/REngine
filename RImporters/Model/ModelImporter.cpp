@@ -263,6 +263,9 @@ void ModelData::init(wxString a_Filepath)
 		fbxsdk::FbxSurfaceMaterial::sDisplacementColor};
 	std::map<uint64, unsigned int> l_MaterialMap;
 	l_MaterialMap.insert(std::make_pair(0, 0));
+	std::function<glm::vec3(float, float, float)> l_PosAssignFunc = ModelManager::singleton().getFlipYZ() ?
+		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Z, a_Y); } :
+		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Y, a_Z); };
 	for( unsigned int i=0 ; i<TEXUSAGE_TYPECOUNT ; ++i ) l_TextureIdxMap[i].push_back(wxT(""));
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
@@ -304,7 +307,7 @@ void ModelData::init(wxString a_Filepath)
         {
             FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[i];
             Vertex &l_TargetVtx = l_pDstMesh->m_Vertex[i];
-            l_TargetVtx.m_Position = glm::vec3(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
+            l_TargetVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
         }
         
         std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };

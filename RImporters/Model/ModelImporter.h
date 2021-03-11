@@ -117,11 +117,17 @@ class ModelManager : public SearchPathSystem<ModelData>
 public:
 	static ModelManager& singleton();
 
+	void setFlipYZ(bool a_bFlip){ m_bFlipYZ = a_bFlip; }
+	bool getFlipYZ(){ return m_bFlipYZ; }
+
 private:
 	ModelManager();
 	virtual ~ModelManager();
 
 	void loadFile(std::shared_ptr<ModelData> a_pInst, wxString a_Path);
+
+private:
+	bool m_bFlipYZ;
 };
 
 }
