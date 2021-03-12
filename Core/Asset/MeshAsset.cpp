@@ -75,10 +75,50 @@ wxString MeshAsset::validAssetKey()
 void MeshAsset::importFile(wxString a_File)
 {
 	std::shared_ptr<ModelData> l_pModel = ModelManager::singleton().getData(a_File).second;
-	std::vector<ModelData::Material> &l_SrcTextureSet = l_pModel->getMaterials();
 	wxString l_ClearFileName(getFileName(a_File, false));
 	wxString l_FilePath(getFilePath(a_File));
 	
+	// setup material
+	std::map<wxString, std::shared_ptr<Asset>> l_MaterialMap;
+	{
+		std::map<wxString, ModelData::Material> &l_SrcTextureSet = l_pModel->getMaterials();
+		for( auto it=l_SrcTextureSet.begin() ; it!=l_SrcTextureSet.end() ; ++it )
+		{
+			std::shared_ptr<Asset> l_pBaseColor = nullptr;
+			std::shared_ptr<Asset> l_pNormal = nullptr;
+			std::shared_ptr<Asset> l_pMetal = nullptr;
+			std::shared_ptr<Asset> l_pRoughness = nullptr;
+
+			ModelData::Material &l_ThisMaterial = it->second;
+				
+			auto it2 = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
+			if( l_ThisMaterial.end() == it2 ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
+			else l_pBaseColor = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it2->second));
+
+			it2 = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
+			if( l_ThisMaterial.end() == it2 ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
+			else l_pNormal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it2->second));
+				
+			it2 = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METALLIC);
+			if( l_ThisMaterial.end() == it2 ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
+			else l_pMetal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it2->second));
+
+			it2 = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
+			if( l_ThisMaterial.end() == it2 ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
+			else l_pRoughness = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it2->second));
+
+			wxString l_MatFile(wxString::Format(wxT("%s/%s_%s_Opaque.%s"), l_FilePath, l_ClearFileName, it->first, MaterialAsset::validAssetKey().mbc_str()));
+			std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
+			MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
+			l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Standard));
+			l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_NORMAL, l_pNormal);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_METAL, l_pMetal);
+			l_pMatInst->setTexture(STANDARD_TEXTURE_ROUGHNESS, l_pRoughness);
+			l_MaterialMap.insert(std::make_pair(it->first, l_pMat));
+		}
+	}
+
 	std::set<ModelNode *> l_NodeSet;
 	m_VtxSlots = FULL_VTX_SLOT & (~VTXFLAG_COLOR);
 	{// setup meshes
@@ -97,40 +137,7 @@ void MeshAsset::importFile(wxString a_File)
 
 			l_pDst->m_Name = l_pSrc->m_Name;
 			l_pDst->m_StartIndex = m_Indicies.size();
-
-			std::shared_ptr<Asset> l_pBaseColor = nullptr;
-			std::shared_ptr<Asset> l_pNormal = nullptr;
-			std::shared_ptr<Asset> l_pMetal = nullptr;
-			std::shared_ptr<Asset> l_pRoughness = nullptr;
-			{
-				ModelData::Material &l_ThisMaterial = l_SrcTextureSet[l_pSrc->m_RefMaterial];
-				
-				auto it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
-				if( l_ThisMaterial.end() == it ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-				else l_pBaseColor = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
-
-				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_NORMAL);
-				if( l_ThisMaterial.end() == it ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
-				else l_pNormal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
-				
-				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_METAILLIC);
-				if( l_ThisMaterial.end() == it ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-				else l_pMetal = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
-
-				it = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_ROUGHNESS);
-				if( l_ThisMaterial.end() == it ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
-				else l_pRoughness = AssetManager::singleton().getAsset(concatFilePath(l_FilePath, it->second));
-			}
-
-			wxString l_MatFile(wxString::Format(wxT("%s/%s_%d_Opaque.%s"), l_FilePath, l_ClearFileName, i, MaterialAsset::validAssetKey().mbc_str()));
-			std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
-			MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
-			l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Standard));
-			l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
-			l_pMatInst->setTexture(STANDARD_TEXTURE_NORMAL, l_pNormal);
-			l_pMatInst->setTexture(STANDARD_TEXTURE_METAL, l_pMetal);
-			l_pMatInst->setTexture(STANDARD_TEXTURE_ROUGHNESS, l_pRoughness);
-			l_pDst->m_Materials.insert(std::make_pair(MATSLOT_OPAQUE, l_pMat));
+			l_pDst->m_Materials.insert(std::make_pair(MATSLOT_OPAQUE, l_MaterialMap[l_pSrc->m_RefMaterial]));
 
 			assignDefaultShadowMapMaterial(l_pDst);
 

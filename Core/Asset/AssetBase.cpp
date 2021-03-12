@@ -108,7 +108,12 @@ std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)
 	{
 		l_ActurePath = replaceFileExt(a_Path, it->second);
 		l_Res = getData(l_ActurePath);
-		if( -1 != l_Res.first ) return l_Res.second;
+		if( -1 != l_Res.first )
+		{
+			l_Res.second->m_Key = l_ActurePath;
+			l_Res.second->m_SerialKey = l_Res.first;
+			return l_Res.second;
+		}
 	}
 	else regularFilePath(l_ActurePath);
 

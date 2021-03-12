@@ -28,7 +28,7 @@ bool BasicApp::OnInit()
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
 	R::ModelManager::singleton().setFlipYZ(true);
-	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset("sponza/sponza.FBX");
+	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset("sponza/sponza.Mesh");
 	auto l_pMeshNode = l_pScene->getRootNode()->addChild(l_pMeshAsset);
 	
 	l_pScene->getRootNode()->addComponent<R::DirLight>();

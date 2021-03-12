@@ -14,13 +14,14 @@ class ModelData;
 enum DefaultTextureUsageType
 {
 	TEXUSAGE_BASECOLOR = 0,
-	TEXUSAGE_METAILLIC,
+	TEXUSAGE_METALLIC,
 	TEXUSAGE_ROUGHNESS,
 	TEXUSAGE_NORMAL,
 	TEXUSAGE_HEIGHT,
 
 	TEXUSAGE_TYPECOUNT
 };
+#define DEFAULT_EMPTY_MAT_NAME wxT("EmptyMaterial")
 
 class ModelNode
 {
@@ -74,7 +75,7 @@ public:
         Meshes()
 			: m_Name(wxT(""))
 			, m_Index(0)
-			, m_RefMaterial(-1)
+			, m_RefMaterial(DEFAULT_EMPTY_MAT_NAME)
 			, m_bHasBone(false)
 			, m_BoundingBox()
 		{
@@ -86,7 +87,7 @@ public:
         std::vector<Vertex> m_Vertex;
         std::vector<unsigned int> m_Indicies;
 
-		int m_RefMaterial;
+		wxString m_RefMaterial;
         std::vector<ModelNode *> m_RefNode;
 		bool m_bHasBone;
 		glm::aabb m_BoundingBox;
@@ -100,14 +101,14 @@ public:
 	void init(wxString a_Filepath);
 
 	std::vector<Meshes *>& getMeshes(){ return m_Meshes; }
-	std::vector<Material>& getMaterials(){ return m_Materials; }
+	std::map<wxString, Material>& getMaterials(){ return m_Materials; }
 	ModelNode* find(wxString a_Name);
 	ModelNode* getRootNode(){ return m_pRootNode; }
 	std::vector<glm::mat4x4>& getBones(){ return m_Bones; }
 
 private:
     std::vector<Meshes *> m_Meshes;
-	std::vector<Material> m_Materials;
+	std::map<wxString, Material> m_Materials;
 	std::vector<glm::mat4x4> m_Bones;
 	ModelNode *m_pRootNode;
 };
