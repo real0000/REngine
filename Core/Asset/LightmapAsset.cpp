@@ -46,7 +46,7 @@ LightmapAsset::LightmapAsset()
 
 	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", 1);
 	memset(m_pHarmonics->getBlockPtr(0), -1, sizeof(glm::ivec4));
-	m_pHarmonics->sync(true);
+	m_pHarmonics->sync(true, false);
 
 	std::shared_ptr<ShaderProgram> l_pRefProgram = ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting);
 	std::vector<ProgramBlockDesc *> &l_Blocks = l_pRefProgram->getBlockDesc(ShaderRegType::UavBuffer);
@@ -58,7 +58,7 @@ LightmapAsset::LightmapAsset()
 	memset(l_pDst->m_Children, -1, sizeof(int) * 8);
 	l_pDst->m_Level = 0;
 	memset(l_pDst->m_SHResult, -1, sizeof(int) * 64);
-	m_pBoxes->sync(true);
+	m_pBoxes->sync(true, false);
 }
 
 LightmapAsset::~LightmapAsset()
@@ -92,12 +92,12 @@ void LightmapAsset::loadFile(boost::property_tree::ptree &a_Src)
  	auto it = std::find_if(l_Blocks.begin(), l_Blocks.end(), [=](ProgramBlockDesc *a_pDesc) -> bool { return "RootBox" == a_pDesc->m_Name; });
 	m_pBoxes = MaterialBlock::create(ShaderRegType::UavBuffer, *it, l_NumBox);
 	memcpy(m_pBoxes->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
-	m_pBoxes->sync(true);
+	m_pBoxes->sync(true, false);
 
 	base642Binary(l_Root.get_child("Harmonics").data(), l_Buffer);
 	m_pHarmonics = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", l_NumHarmonic);
 	memcpy(m_pHarmonics->getBlockPtr(0), l_Buffer.data(), l_Buffer.size());
-	m_pHarmonics->sync(true);
+	m_pHarmonics->sync(true, false);
 }
 
 void LightmapAsset::saveFile(boost::property_tree::ptree &a_Dst)
@@ -344,23 +344,23 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	m_pIndicies = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Indicies", l_UavTriangleData.size());
 	memcpy(m_pIndicies->getBlockPtr(0), l_UavTriangleData.data(), sizeof(glm::ivec4) * l_UavTriangleData.size());
 	assignInitRaytraceInfo();
-	m_pIndicies->sync(true);
+	m_pIndicies->sync(true, false);
 
 	m_pHarmonicsCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "Harmonics", l_NumHarmonics);
 	memset(m_pHarmonicsCache->getBlockPtr(0), 0, sizeof(glm::vec4) * l_NumHarmonics);
-	m_pHarmonicsCache->sync(true);
+	m_pHarmonicsCache->sync(true, false);
 
 	m_pBoxCache = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Box", m_BoxCache.size());
 	memcpy(m_pBoxes->getBlockPtr(0), m_BoxCache.data(), sizeof(LightMapBoxCache) * m_BoxCache.size());
-	m_pBoxCache->sync(true);
+	m_pBoxCache->sync(true, false);
 
 	m_pVertex = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Vertex", l_TempVertexData.size());
 	memcpy(m_pVertex->getBlockPtr(0), l_TempVertexData.data(), sizeof(LightMapVtxSrc) * l_TempVertexData.size());
-	m_pVertex->sync(true);
+	m_pVertex->sync(true, false);
 	
 	m_pResult = m_pRayIntersectMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_Result", EngineSetting::singleton().m_LightMapSample);
 	memset(m_pResult->getBlockPtr(0), 0, sizeof(LightIntersectResult) * EngineSetting::singleton().m_LightMapSample);
-	m_pResult->sync(true);
+	m_pResult->sync(true, false);
 	
 	m_pRayIntersectMatInst->setBlock("g_Indicies", m_pIndicies);
 	m_pRayIntersectMatInst->setBlock("Harmonics", m_pHarmonicsCache);
@@ -381,7 +381,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 
 void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 {
-	m_pIndicies->sync(false, 0, sizeof(int) * 8);
+	m_pIndicies->sync(false, 0, sizeof(int) * 8, false);
 	glm::ivec4 *l_pRefInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(0));
 	glm::ivec4 *l_pEndInfo = reinterpret_cast<glm::ivec4 *>(m_pIndicies->getBlockPtr(1));
 	if( 0 >= l_pEndInfo->z )
@@ -396,7 +396,7 @@ void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 	{
 		l_pRefInfo->z -= EngineSetting::singleton().m_LightMapSample;
 		assignRaytraceInfo();
-		m_pIndicies->sync(true, 0, sizeof(int) * 8);
+		m_pIndicies->sync(true, 0, sizeof(int) * 8, false);
 	}
 
 	a_pCmd->begin(true);
@@ -723,7 +723,7 @@ assignRaytraceInfoEnd:
 void LightmapAsset::moveCacheData()
 {
 	m_pHarmonics = m_pHarmonicsCache;
-	m_pHarmonics->sync(false);
+	m_pHarmonics->sync(false, false);
 	m_MaxBoxLevel = 0;
 
 	unsigned int l_NumBox = m_pBoxCache->getNumSlot();
@@ -743,7 +743,7 @@ void LightmapAsset::moveCacheData()
 		m_MaxBoxLevel = std::max<unsigned int>(l_pDst->m_Level + 1, m_MaxBoxLevel);
 		memcpy(l_pDst->m_SHResult, l_pSrc->m_SHResult, sizeof(int) * 64);
 	}
-	m_pBoxes->sync(true);
+	m_pBoxes->sync(true, false);
 }
 #pragma endregion
 

@@ -273,7 +273,6 @@ EngineCore::EngineCore()
 	: m_bValid(false)
 	, m_bShutdown(false)
 	, m_Delta(0.0)
-	, m_WhiteTexture(nullptr), m_BlueTexture(nullptr), m_DarkgrayTexture(nullptr)
 	, m_pQuadMesh(nullptr)
 	, m_pInput(new InputMediator())
 	, m_pRefMain(nullptr)
@@ -345,9 +344,7 @@ void EngineCore::shutDown()
 	
 	SDL_Quit();
 
-	m_WhiteTexture = nullptr;
-	m_BlueTexture = nullptr;
-	m_DarkgrayTexture = nullptr;
+	m_RuntimeTexture.clear();
 	m_pQuadMesh = nullptr;
 
 	ImageManager::singleton().finalize();
@@ -392,24 +389,22 @@ bool EngineCore::init()
 	}
 
 	unsigned int l_Color[64];
-	memset(l_Color, 0xffffffff, sizeof(unsigned int) * 64);
-	m_WhiteTexture = AssetManager::singleton().createAsset(WHITE_TEXTURE_ASSET_NAME);
-	m_WhiteTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
-	m_WhiteTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
-	m_WhiteTexture->setRuntimeOnly(true);
+	const std::pair<unsigned int, wxString> c_RuntimeTextures[] = {
+		std::make_pair(0xffffffff, WHITE_TEXTURE_ASSET_NAME),
+		std::make_pair(0x00000000, BLACK_TEXTURE_ASSET_NAME),
+		std::make_pair(0x0000ffff, BLUE_TEXTURE_ASSET_NAME),
+		std::make_pair(0x404040ff, DARK_GRAY_TEXTURE_ASSET_NAME)};
+	const unsigned int c_NumRuntimeTexture = sizeof(c_RuntimeTextures) / sizeof(const std::pair<unsigned int, wxString>);
+	for( unsigned int i=0 ; i<c_NumRuntimeTexture ; ++i )
+	{
+		memset(l_Color, c_RuntimeTextures[i].first, sizeof(unsigned int) * 64);
+		std::shared_ptr<Asset> l_Texture = AssetManager::singleton().createAsset(c_RuntimeTextures[i].second);
+		l_Texture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
+		l_Texture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
+		l_Texture->setRuntimeOnly(true);
+		m_RuntimeTexture.push_back(l_Texture);
+	}
 	
-	memset(l_Color, 0x0000ffff, sizeof(unsigned int) * 64);
-	m_BlueTexture = AssetManager::singleton().createAsset(BLUE_TEXTURE_ASSET_NAME);
-	m_BlueTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
-	m_BlueTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
-	m_BlueTexture->setRuntimeOnly(true);
-
-	memset(l_Color, 0x404040ff, sizeof(unsigned int) * 64);
-	m_DarkgrayTexture = AssetManager::singleton().createAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
-	m_DarkgrayTexture->getComponent<TextureAsset>()->initTexture(glm::ivec2(8, 8), PixelFormat::rgba8_unorm, 1, false, l_Color);
-	m_DarkgrayTexture->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMipmap2D));
-	m_DarkgrayTexture->setRuntimeOnly(true);
-
 	m_pQuadMesh = AssetManager::singleton().createAsset(QUAD_MESH_ASSET_NAME);
 	m_pQuadMesh->setRuntimeOnly(true);
 	const glm::vec3 c_QuadVtx[] = {

@@ -43,6 +43,7 @@ class AssetManager;
 #define DEFAULT_SHADOWMAP_MAT_ASSET_NAME wxT("RuntimeShadowMap%d.Material")
 
 #define WHITE_TEXTURE_ASSET_NAME wxT("White.Image")
+#define BLACK_TEXTURE_ASSET_NAME wxT("Black.Image")
 #define BLUE_TEXTURE_ASSET_NAME wxT("Blue.Image")
 #define DARK_GRAY_TEXTURE_ASSET_NAME wxT("Darkgray.Image")
 #define QUAD_MESH_ASSET_NAME wxT("Quad.Mesh")

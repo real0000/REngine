@@ -112,10 +112,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 	a_pMiscCmd->compute(m_pShadowMap->getMaxSize().x / 8, m_pShadowMap->getMaxSize().y / 8, m_pShadowMap->getArraySize());
 	a_pMiscCmd->end();
 
-	getScene()->getDirLightContainer()->flush();
-	getScene()->getOmniLightContainer()->flush();
-	getScene()->getSpotLightContainer()->flush();
-
 	// add required command execute thread
 	while( m_ShadowCommands.size() <= m_pShadowMap->getArraySize() ) m_ShadowCommands.push_back(GDEVICE()->commanderFactory());
 

@@ -58,7 +58,7 @@ void Light::hiddenFlagChanged()
 	}
 }
 
-void Light::transformListener(glm::mat4x4 &a_NewTransform)
+void Light::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->update(shared_from_base<Light>());
 }
@@ -103,7 +103,7 @@ void DirLight::end()
 	getScene()->getDirLightContainer()->recycle(shared_from_base<DirLight>());
 }
 
-void DirLight::transformListener(glm::mat4x4 &a_NewTransform)
+void DirLight::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	m_pRefParam->m_Direction = glm::normalize(glm::vec3(a_NewTransform[0][0], a_NewTransform[1][0], a_NewTransform[2][0]));
 	getScene()->getDirLightContainer()->setDirty();
@@ -252,7 +252,7 @@ void OmniLight::end()
 	getScene()->getOmniLightContainer()->recycle(shared_from_base<OmniLight>());
 }
 
-void OmniLight::transformListener(glm::mat4x4 &a_NewTransform)
+void OmniLight::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	glm::vec3 l_Scale;
 	glm::quat l_Rot;
@@ -441,7 +441,7 @@ void SpotLight::end()
 	getScene()->getSpotLightContainer()->recycle(shared_from_base<SpotLight>());
 }
 
-void SpotLight::transformListener(glm::mat4x4 &a_NewTransform)
+void SpotLight::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	glm::vec3 l_Scale;
 	glm::quat l_Rot;

@@ -254,8 +254,8 @@ public:
 	virtual void resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a_ElementCount);
 	virtual char* getUavBufferContainer(int a_ID);
 	virtual void* getUavBufferResource(int a_ID);
-	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList);
-	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList);
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList, bool a_bAsync);
+	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList, bool a_bAsync);
 	virtual void freeUavBuffer(int a_ID);
 
 	// misc

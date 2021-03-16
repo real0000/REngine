@@ -272,7 +272,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	glm::vec2 l_ViewPortSize(m_pGBuffer[0]->getComponent<TextureAsset>()->getDimension().x, m_pGBuffer[0]->getComponent<TextureAsset>()->getDimension().y);
 	{
 		glm::vec4 l_CameraParam(a_pCamera->getViewParam());
-		glm::mat4x4 l_Dummy;
+		glm::mat4x4 l_Dummy(1.0f);
 		switch( a_pCamera->getCameraType() )
 		{
 			case Camera::ORTHO:
@@ -288,8 +288,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	EngineCore::singleton().join();
 
 	// shadow map render
-	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
-	l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
+	//ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
+	//l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
 	
 	{// graphic step, divide by stage
 		//bind gbuffer
@@ -359,7 +359,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->end();
 		}
 
-		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), true);
+		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), false);
 
 		m_pCmdInit->begin(true);
 		
@@ -465,6 +465,7 @@ void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
 	
 	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", 0, glm::vec2(1.0f / a_Size.x, 1.0f / a_Size.y));
+	m_pLightIndexMatInst->setParam<glm::ivec2>("c_TileCount", 0, m_TileDim);
 }
 
 void DeferredRenderer::drawFlagChanged(unsigned int a_Flag)
@@ -529,7 +530,7 @@ void DeferredRenderer::setupIndexUav()
 		l_pTarget->m_Index = l_pLight->getID();
 		l_pTarget->m_Type = l_pLight->typeID();
 	}
-	m_LightIdx->sync(true);
+	m_LightIdx->sync(true, false);
 }
 #pragma endregion
 

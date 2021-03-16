@@ -369,7 +369,7 @@ unsigned int GraphicDevice::getParamAlignmentSize(ShaderParamType::Key a_Key)
 	return 0;
 }
 
-void GraphicDevice::syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...)
+void GraphicDevice::syncUavBuffer(bool a_bAsync, bool a_bToGpu, unsigned int a_NumBuff, ...)
 {
 	std::vector<unsigned int> l_UavHandleList;
 	l_UavHandleList.resize(a_NumBuff);
@@ -379,7 +379,7 @@ void GraphicDevice::syncUavBuffer(bool a_bToGpu, unsigned int a_NumBuff, ...)
 		for( unsigned int i=0 ; i<a_NumBuff ; ++i ) l_UavHandleList[i] = va_arg(l_Arglist, int);
 		va_end(l_Arglist);
 	}
-	syncUavBuffer(a_bToGpu, l_UavHandleList);
+	syncUavBuffer(a_bToGpu, l_UavHandleList, a_bAsync);
 }
 #pragma endregion
 

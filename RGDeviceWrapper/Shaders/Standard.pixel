@@ -6,7 +6,7 @@ PS_CommonOutput main(PS_CommonInput a_Input)
 	PS_CommonOutput l_Output = (PS_CommonOutput)0;
 
 	float4 l_SurfaceNormal = Normal.Sample(NormalSampler, a_Input.m_Texcoord01.xy) * 2.0 - 1.0;
-	l_SurfaceNormal.xyz = normalize(l_SurfaceNormal.x * a_Input.m_Tangent + l_SurfaceNormal.y * a_Input.m_Binormal + l_SurfaceNormal.z * a_Input.m_Normal);
+	l_SurfaceNormal.xyz = a_Input.m_Normal;//normalize(l_SurfaceNormal.x * a_Input.m_Tangent + l_SurfaceNormal.y * a_Input.m_Binormal + l_SurfaceNormal.z * a_Input.m_Normal);
 
 	l_Output.m_Target2 = BaseColor.Sample(BaseColorSampler, a_Input.m_Texcoord01.xy);
 	clip(l_Output.m_Target2.w < 0.1 ? -1 : 1);

@@ -81,7 +81,7 @@ void Camera::saveComponent(boost::property_tree::ptree &a_Dst)
 {
 }
 
-void Camera::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 &a_Transform)
+void Camera::setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Width, a_Height, a_Near, a_Far);
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
@@ -90,7 +90,7 @@ void Camera::setOrthoView(float a_Width, float a_Height, float a_Near, float a_F
 	calProjection(a_Transform);
 }
     
-void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 &a_Transform)
+void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 a_Transform)
 {
 	m_ViewParam = glm::vec4(a_Fovy, a_Aspect, a_Near, m_ViewParam.w);
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
@@ -98,13 +98,13 @@ void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm:
 	calProjection(a_Transform);
 }
 
-void Camera::setTetrahedonView(glm::mat4x4 &a_Transform)
+void Camera::setTetrahedonView(glm::mat4x4 a_Transform)
 {
 	m_Type = TETRAHEDRON;
 	calViewProjection(a_Transform);
 }
 
-void Camera::setCubeView(glm::mat4x4 &a_Transform)
+void Camera::setCubeView(glm::mat4x4 a_Transform)
 {
 	m_Type = CUBE;
 	calViewProjection(a_Transform);

@@ -219,7 +219,7 @@ void SceneBatcher::renderBegin()
 		auto l_pWorldBlock = getWorldMatrixBlock();
 		int l_BlockSize = l_pWorldBlock->getBlockSize();
 		int l_SizeInByte = (m_UpdateRange.y - m_UpdateRange.x) * l_BlockSize;
-		l_pWorldBlock->sync(true, l_BlockSize * m_UpdateRange.x, l_SizeInByte);
+		l_pWorldBlock->sync(true, l_BlockSize * m_UpdateRange.x, l_SizeInByte, false);
 
 		m_UpdateRange.x = 0x7fffffff;
 		m_UpdateRange.y = -1;
@@ -788,21 +788,15 @@ void Scene::processInput(InputData &a_Data)
 void Scene::update(float a_Delta)
 {
 	for( auto it = m_UpdateCallback.begin() ; it != m_UpdateCallback.end() ; ++it ) (*it)->updateListener(a_Delta);
-
-	// flush uav resources
-	//m_pMembers->m_pDirLights->flush(); flush after shadow map info updated
-	//m_pMembers->m_pOmniLights->flush();
-	//m_pMembers->m_pSpotLights->flush();
-	//m_pMembers->m_pBatcher->flush();
 }
 
 void Scene::render(GraphicCanvas *a_pCanvas)
 {
 	if( nullptr == m_pCurrCamera ) return;
 
-	//
-	// to do : update shadow map, enviroment map ... etc
-	//
+	m_pDirLights->flush();
+	m_pOmniLights->flush();
+	m_pSpotLights->flush();
 
 	m_pBatcher->renderBegin();
 	m_pRenderer->render(m_pCurrCamera, a_pCanvas);

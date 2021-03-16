@@ -36,8 +36,8 @@ public:
 
 	// uav only
 	void extend(unsigned int a_Size);
-	void sync(bool a_bToGpu);
-	void sync(bool a_bToGpu, unsigned int a_Offset, unsigned int a_SizeInByte);
+	void sync(bool a_bToGpu, bool a_bAsync);
+	void sync(bool a_bToGpu, unsigned int a_Offset, unsigned int a_SizeInByte, bool a_bAsync);
 
 	template<typename T>
 	void setParam(std::string a_Name, unsigned int a_Slot, T& a_Param)

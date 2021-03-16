@@ -28,7 +28,7 @@ public:
 	virtual void start();
 	virtual void end();
 	virtual void hiddenFlagChanged();
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void setStatic(bool a_bStatic);
 	virtual bool isStatic(){ return m_bStatic; }
 
@@ -109,7 +109,7 @@ public:
 	void flush()
 	{
 		if( !m_bDirty ) return;
-		m_pLightData->sync(true);
+		m_pLightData->sync(true, false);
 		m_bDirty = false;
 	}
 
@@ -148,7 +148,7 @@ public:
 	virtual ~DirLight();
 	
 	virtual void end();
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
@@ -193,7 +193,7 @@ public:
 	virtual ~OmniLight();
 	
 	virtual void end();
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	
@@ -244,7 +244,7 @@ public:
 	virtual ~SpotLight();
 	
 	virtual void end();
-	virtual void transformListener(glm::mat4x4 &a_NewTransform);
+	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	

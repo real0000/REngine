@@ -1940,7 +1940,7 @@ void D3D12Device::resizeUavBuffer(int a_ID, char* &a_pOutputBuff, unsigned int a
 	m_pShaderResourceHeap->recycle(l_pTargetBinder->m_HeapID);
 	l_pTargetBinder->m_HeapID = m_pShaderResourceHeap->newHeap(l_pTargetBinder->m_pResource, l_pTargetBinder->m_pCounterResource, &l_UAVDesc, l_bExtended);
 
-	GraphicDevice::syncUavBuffer(true, 1u, a_ID);
+	GraphicDevice::syncUavBuffer(false, true, 1u, a_ID);
 }
 
 char* D3D12Device::getUavBufferContainer(int a_ID)
@@ -1953,7 +1953,7 @@ void* D3D12Device::getUavBufferResource(int a_ID)
 	return m_ManagedUavBuffer[a_ID]->m_pResource;
 }
 
-void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList)
+void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList, bool a_bAsync)
 {
 	std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > l_BuffIDListWithOffset(a_BuffIDList.size());
 	for( unsigned int i=0 ; i<a_BuffIDList.size() ; ++i )
@@ -1963,13 +1963,15 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_Buff
 		std::get<1>(l_BuffIDListWithOffset[i]) = 0;
 		std::get<2>(l_BuffIDListWithOffset[i]) = l_pTargetBinder->m_CurrSize;
 	}
-	syncUavBuffer(a_bToGpu, l_BuffIDListWithOffset);
+	syncUavBuffer(a_bToGpu, l_BuffIDListWithOffset, a_bAsync);
 }
 
-void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> &a_BuffIDList)
+void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> &a_BuffIDList, bool a_bAsync)
 {
 	assert(!a_BuffIDList.empty());
-
+		
+	unsigned int l_Worker = 0;
+	uint64 l_CPUSignal = 0;
 	if( a_bToGpu )
 	{
 		D3D12_RESOURCE_BARRIER l_BaseBarrier;
@@ -2011,6 +2013,12 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 	
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), l_TransBackSetting.data());
 			++m_NumCommand[m_IdleResThread];
+
+			if( !a_bAsync )
+			{
+				l_Worker = m_IdleResThread;
+				l_CPUSignal = m_ResCpuFence.signal(l_Worker);
+			}
 		}
 	}
 	else
@@ -2050,8 +2058,16 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 
 			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSettings.size(), &(l_TransBackSettings[0]));
 			++m_NumCommand[m_IdleResThread];
+			
+			if( !a_bAsync )
+			{
+				l_Worker = m_IdleResThread;
+				l_CPUSignal = m_ResCpuFence.signal(l_Worker);
+			}
 		}
 	}
+
+	if( !a_bAsync ) m_ResCpuFence.wait(l_Worker, l_CPUSignal);
 }
 
 void D3D12Device::freeUavBuffer(int a_ID)
