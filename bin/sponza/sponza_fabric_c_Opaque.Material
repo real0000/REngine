@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root refProgram="Standard.xml" topology="triangle_list">
+    <ConstBlocks/>
+    <Textures>
+        <Texture asset="./sponza/textures_pbr/Sponza_Curtain_Red_diffuse.Image" slot="0"/>
+        <Texture asset="./sponza/textures_pbr/Sponza_Curtain_metallic.Image" slot="1"/>
+        <Texture asset="./sponza/textures_pbr/Sponza_Curtain_Red_normal.Image" slot="2"/>
+        <Texture asset="./sponza/textures_pbr/Sponza_Curtain_roughness.Image" slot="3"/>
+    </Textures>
+</root>

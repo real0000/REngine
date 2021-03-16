@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root refProgram="Standard.xml" topology="triangle_list">
+    <ConstBlocks/>
+    <Textures>
+        <Texture asset="./White.Image" slot="0"/>
+        <Texture asset="./White.Image" slot="1"/>
+        <Texture asset="./Blue.Image" slot="2"/>
+        <Texture asset="./Darkgray.Image" slot="3"/>
+    </Textures>
+</root>
