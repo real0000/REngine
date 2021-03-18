@@ -35,11 +35,12 @@ bool BasicApp::OnInit()
 	std::shared_ptr<R::DirLight> l_pDirLight = l_pDirLightNode->addComponent<R::DirLight>();
 	l_pDirLight->setColor(glm::vec3(1.0f, 1.0f, 0.7f));
 	l_pDirLight->setIntensity(5.0f);
-	l_pDirLightNode->setRotate(glm::eulerAngleZ(0.25f * glm::pi<float>()));
+	l_pDirLight->setShadowed(true);
+	l_pDirLightNode->setRotate(glm::eulerAngleYZ(-0.25f * glm::pi<float>(), -0.25f * glm::pi<float>()));
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();
-	l_pCameraCtrl->setMaxSpeed(0.005f);
+	l_pCameraCtrl->setMaxSpeed(50.0f);
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 	R::EngineCore::singleton().run(this);

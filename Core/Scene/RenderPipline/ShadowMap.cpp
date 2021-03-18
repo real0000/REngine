@@ -95,7 +95,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				unsigned int l_Size = calculateShadowMapRegion(l_pLight->getShadowCamera(), l_pLight);
 				requestShadowMapRegion(l_Size, l_pLight);
 			});
-			switch( l_pLight->getID() )
+			switch( l_pLight->typeID() )
 			{
 				case COMPONENT_DirLight:	l_DirLights.push_back(a_Lights[i]->shared_from_base<DirLight>());	break;
 				case COMPONENT_OmniLight:	l_OmniLights.push_back(a_Lights[i]->shared_from_base<OmniLight>());	break;

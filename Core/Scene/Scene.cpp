@@ -110,7 +110,7 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 	, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_ThreadIdx, unsigned int a_NumThread, unsigned int a_MatSlot
 	, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc)
 {
-	unsigned int l_Unit = std::max<unsigned int>(a_SortedMesh.size() / a_NumThread, 1);
+	unsigned int l_Unit = std::max<unsigned int>(a_SortedMesh.size() / a_NumThread + (0 == (a_SortedMesh.size() % a_NumThread) ? 0 : 1), 1);
 	unsigned int l_Start = a_ThreadIdx*l_Unit;
 	unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedMesh.size());
 	if( l_Start >= a_SortedMesh.size() ) return;

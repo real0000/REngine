@@ -133,7 +133,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 			case LIGHT_TYPE_SPOT:{
 				SpotLight l_Light = SpotLights[l_LightIdx];
 
-				l_LightDir = l_Light.m_Direction;
+				l_LightDir = -l_Light.m_Direction;
 				float3 l_Dir = normalize(l_Light.m_Position - l_WorldPos.xyz);
 
 				float l_Falloff = 0.5 * l_Light.m_Angle;
@@ -164,7 +164,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 			default:{
 				DirLight l_Light = DirLights[l_LightIdx];
 				
-				l_LightDir = l_Light.m_Direction;
+				l_LightDir = -l_Light.m_Direction;
 				l_Radiance = l_Light.m_Color * l_Light.m_Intensity;
 				}break;
 		}

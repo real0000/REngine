@@ -96,9 +96,9 @@ void CameraController::updateListener(float a_Delta)
 	m_MovingSpeed += (m_MaxSpeed / CAMERA_SPEEDUP_DURATION) * a_Delta;
 	if( m_MovingSpeed > m_MaxSpeed ) m_MovingSpeed = m_MaxSpeed;
 
-	l_Eye += float(m_MovingFlag.x) * l_Left * m_MovingSpeed;
-	l_Eye += float(m_MovingFlag.y) * l_Up * m_MovingSpeed;
-	l_Eye += float(m_MovingFlag.z) * l_Dir * m_MovingSpeed;
+	l_Eye += float(m_MovingFlag.x) * l_Left * m_MovingSpeed * a_Delta;
+	l_Eye += float(m_MovingFlag.y) * l_Up * m_MovingSpeed * a_Delta;
+	l_Eye += float(m_MovingFlag.z) * l_Dir * m_MovingSpeed * a_Delta;
 
 	glm::vec4 l_LocalCast(l_Eye.x, l_Eye.y, l_Eye.z, 1.0f);
 	l_LocalCast = glm::inverse(getOwner()->getParent()->getTransform()) * l_LocalCast;

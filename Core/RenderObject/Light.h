@@ -153,7 +153,7 @@ public:
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 
 	virtual void setShadowed(bool a_bShadow);
-	virtual bool getShadowed();
+	virtual bool getShadowed() override;
 
 	void setColor(glm::vec3 a_Color);
 	glm::vec3 getColor();
