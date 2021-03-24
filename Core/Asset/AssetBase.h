@@ -38,7 +38,6 @@ class AssetManager;
 #define DEFFERRED_LIGHTING_ASSET_NAME wxT("TiledDefferredLighting_%d.Material")
 
 #define COPY_ASSET_NAME wxT("Copy.Material")
-#define SHADOWMAP_ASSET_NAME wxT("DefferredRenderTextureAtlasDepth.Image")
 #define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
 #define DEFAULT_SHADOWMAP_MAT_ASSET_NAME wxT("RuntimeShadowMap%d.Material")
 

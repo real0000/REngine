@@ -798,6 +798,7 @@ void D3D12Device::init()
 			assert(S_OK == l_pInfoQueue->PushStorageFilter(&l_Filter));
 
 			l_pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_OBJECT_DELETED_WHILE_STILL_IN_USE, true);
+			//l_pInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_COMMAND_ALLOCATOR_SYNC, true);
 			l_pInfoQueue->Release();
 		}
 	}
@@ -1358,35 +1359,7 @@ void D3D12Device::getTexturePixel(int a_ID, std::vector<std::vector<char>> &a_Ou
 		l_SlicePitch = l_RowPitch * l_pSrcTexture->m_Size.y;
 	}
 
-	ID3D12Resource *l_pReader = nullptr;
-	{
-		D3D12_HEAP_PROPERTIES l_HeapProp;
-		l_HeapProp.Type = D3D12_HEAP_TYPE_READBACK;
-		l_HeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		l_HeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		l_HeapProp.CreationNodeMask = 0;
-		l_HeapProp.VisibleNodeMask = 0;
-
-		D3D12_RESOURCE_DESC l_TexResDesc;
-		l_TexResDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		l_TexResDesc.Alignment = 0;
-		l_TexResDesc.Width = l_pSrcTexture->m_Type == TEXTYPE_SIMPLE_3D ? l_SlicePitch * l_pSrcTexture->m_Size.z : l_RowPitch * l_pSrcTexture->m_Size.y;
-		l_TexResDesc.Height = 1;
-		l_TexResDesc.DepthOrArraySize = 1;
-		l_TexResDesc.MipLevels = 1;
-		l_TexResDesc.Format = DXGI_FORMAT_UNKNOWN;
-		l_TexResDesc.SampleDesc = m_MsaaSetting;
-		l_TexResDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		l_TexResDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-		l_Res = m_pDevice->CreateCommittedResource(&l_HeapProp, D3D12_HEAP_FLAG_NONE, &l_TexResDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&l_pReader));
-		if( S_OK != l_Res )
-		{
-			wxMessageBox(wxT("CreateCommittedResource failed"), wxT("D3D12Device::getTexturePixel"));
-			return;
-		}
-	}
-
+	ID3D12Resource *l_pReader = initSizedResource(l_SlicePitch * l_pSrcTexture->m_Size.z, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
 	D3D12_RESOURCE_STATES l_OriginState;
 	switch( l_pSrcTexture->m_Type )
 	{
@@ -1414,7 +1387,8 @@ void D3D12Device::getTexturePixel(int a_ID, std::vector<std::vector<char>> &a_Ou
 		{
 			case TEXTYPE_SIMPLE_2D:
 			case TEXTYPE_DEPTH_STENCIL_VIEW:
-			case TEXTYPE_RENDER_TARGET_VIEW:{
+			case TEXTYPE_RENDER_TARGET_VIEW:
+			case TEXTYPE_SIMPLE_3D:{
 				D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
 				l_Src.pResource = l_pSrcTexture->m_pTexture;
 				l_Src.SubresourceIndex = 0;
@@ -1422,7 +1396,7 @@ void D3D12Device::getTexturePixel(int a_ID, std::vector<std::vector<char>> &a_Ou
 				l_Dst.PlacedFootprint.Offset = 0;
 				l_Dst.PlacedFootprint.Footprint.Width = l_pSrcTexture->m_Size.x;
 				l_Dst.PlacedFootprint.Footprint.Height = l_pSrcTexture->m_Size.y;
-				l_Dst.PlacedFootprint.Footprint.Depth = 1;
+				l_Dst.PlacedFootprint.Footprint.Depth = l_pSrcTexture->m_Size.z;
 				l_Dst.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
 				l_Dst.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pSrcTexture->m_Format);
 				l_Dst.pResource = l_pReader;
@@ -1434,9 +1408,23 @@ void D3D12Device::getTexturePixel(int a_ID, std::vector<std::vector<char>> &a_Ou
 			case TEXTYPE_SIMPLE_2D_ARRAY:
 			case TEXTYPE_SIMPLE_CUBE:
 			case TEXTYPE_SIMPLE_CUBE_ARRAY:{
-				}break;
-
-			case TEXTYPE_SIMPLE_3D:{
+				for( int i=0 ; i<l_pSrcTexture->m_Size.z ; ++i )
+				{
+					D3D12_TEXTURE_COPY_LOCATION l_Src = {}, l_Dst = {};
+					l_Src.pResource = l_pSrcTexture->m_pTexture;
+					l_Src.SubresourceIndex = i * l_pSrcTexture->m_MipmapLevels;
+					l_Src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+					l_Dst.PlacedFootprint.Offset = i * l_SlicePitch;
+					l_Dst.PlacedFootprint.Footprint.Width = l_pSrcTexture->m_Size.x;
+					l_Dst.PlacedFootprint.Footprint.Height = l_pSrcTexture->m_Size.y;
+					l_Dst.PlacedFootprint.Footprint.Depth = 1;
+					l_Dst.PlacedFootprint.Footprint.RowPitch = l_RowPitch;
+					l_Dst.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)getPixelFormat(l_pSrcTexture->m_Format);
+					l_Dst.pResource = l_pReader;
+					l_Dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	
+					m_ResThread[m_IdleResThread].second->CopyTextureRegion(&l_Dst, 0, 0, 0, &l_Src, nullptr);
+				}
 				}break;
 
 			default:break;
@@ -2030,33 +2018,39 @@ void D3D12Device::syncUavBuffer(bool a_bToGpu, std::vector<std::tuple<unsigned i
 		l_BaseTransSetting.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		l_BaseTransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 		l_BaseTransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-		std::vector<D3D12_RESOURCE_BARRIER> l_TransToSettings(a_BuffIDList.size(), l_BaseTransSetting);
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransToSetting(a_BuffIDList.size(), l_BaseTransSetting);
 		
 		l_BaseTransSetting.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
 		l_BaseTransSetting.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		std::vector<D3D12_RESOURCE_BARRIER> l_TransBackSettings(a_BuffIDList.size(), l_BaseTransSetting);
+		std::vector<D3D12_RESOURCE_BARRIER> l_TransBackSetting(a_BuffIDList.size(), l_BaseTransSetting);
+
+		for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
+		{
+			std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
+			l_TransToSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
+			l_TransBackSetting[i].Transition.pResource = l_pTargetBinder->m_pResource;
+		}
 
 		{
 			std::lock_guard<std::mutex> l_Guard(m_ResourceMutex);
-
-			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSettings.size(), &(l_TransToSettings[0]));
+			
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransToSetting.size(), &(l_TransToSetting[0]));
 			
 			for( int i=0 ; i<(int)a_BuffIDList.size() ; ++i )
 			{
 				std::shared_ptr<UnorderAccessBufferBinder> l_pTargetBinder = m_ManagedUavBuffer[std::get<0>(a_BuffIDList[i])];
 
-				ReadBackBuffer l_ReadBackData;
-				l_ReadBackData.m_pTempResource = initSizedResource(std::get<2>(a_BuffIDList[i]), D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
-				l_ReadBackData.m_pTargetBuffer = reinterpret_cast<unsigned char *>(l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]));
-				l_ReadBackData.m_Size = std::get<2>(a_BuffIDList[i]);
-				m_ReadBackContainer[m_IdleResThread].push_back(l_ReadBackData);
-				m_TempResources[m_IdleResThread].push_back(l_ReadBackData.m_pTempResource);
+				m_ReadBackContainer[m_IdleResThread].push_back(ReadBackBuffer());
+				m_ReadBackContainer[m_IdleResThread].back().m_pTempResource = initSizedResource(std::get<2>(a_BuffIDList[i]), D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
+				m_ReadBackContainer[m_IdleResThread].back().m_pTargetBuffer = reinterpret_cast<unsigned char *>(l_pTargetBinder->m_pCurrBuff + std::get<1>(a_BuffIDList[i]));
+				m_ReadBackContainer[m_IdleResThread].back().m_Size = std::get<2>(a_BuffIDList[i]);
+				m_TempResources[m_IdleResThread].push_back(m_ReadBackContainer[m_IdleResThread].back().m_pTempResource);
 		
-				m_ResThread[m_IdleResThread].second->CopyBufferRegion(l_ReadBackData.m_pTempResource, 0
+				m_ResThread[m_IdleResThread].second->CopyBufferRegion(m_ReadBackContainer[m_IdleResThread].back().m_pTempResource, 0
 					, l_pTargetBinder->m_pResource, std::get<1>(a_BuffIDList[i]), std::get<2>(a_BuffIDList[i]));
 			}
 
-			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSettings.size(), &(l_TransBackSettings[0]));
+			m_ResThread[m_IdleResThread].second->ResourceBarrier(l_TransBackSetting.size(), &(l_TransBackSetting[0]));
 			++m_NumCommand[m_IdleResThread];
 			
 			if( !a_bAsync )
@@ -2173,10 +2167,10 @@ void D3D12Device::resourceThread()
 		m_ResThread[l_Original].second->Reset(m_ResThread[l_Original].first, nullptr);
 		m_NumCommand[l_Original] = 0;
 		
+		m_ResCpuFence.complete(l_Original);
+
 		for( int i=0 ; i<(int)m_ReadBackContainer[l_Original].size() ; ++i ) m_ReadBackContainer[l_Original][i].readback();
 		m_ReadBackContainer[l_Original].clear();
-
-		m_ResCpuFence.complete(l_Original);
 
 		for( unsigned int i=0 ; i<m_TempResources[l_Original].size() ; ++i ) m_TempResources[l_Original][i]->Release();
 		m_TempResources[l_Original].clear();

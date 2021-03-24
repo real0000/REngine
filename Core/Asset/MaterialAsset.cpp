@@ -435,7 +435,7 @@ void MaterialAsset::bindTexture(GraphicCommander *a_pBinder)
 	{
 		if( nullptr == m_RWTexture[i] ) continue;
 		
-		TextureAsset *l_pTextureComp = m_Textures[i]->getComponent<TextureAsset>();
+		TextureAsset *l_pTextureComp = m_RWTexture[i]->getComponent<TextureAsset>();
 		a_pBinder->bindTexture(l_pTextureComp->getTextureID(), i, GraphicCommander::BIND_UAV_TEXTURE);
 	}
 }

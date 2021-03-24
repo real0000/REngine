@@ -385,6 +385,7 @@ private:
 			l_MapRange.End = m_Size;
 
 			unsigned char* l_pDataBegin = nullptr;
+			auto l_Desc = m_pTempResource->GetDesc();
 			m_pTempResource->Map(0, &l_MapRange, reinterpret_cast<void**>(&l_pDataBegin));
 			memcpy(m_pTargetBuffer, l_pDataBegin, m_Size);
 			m_pTempResource->Unmap(0, nullptr);
