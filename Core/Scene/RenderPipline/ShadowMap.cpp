@@ -109,7 +109,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 	a_pMiscCmd->begin(true);
 	a_pMiscCmd->useProgram(m_pClearMatInst->getProgram());
 	m_pClearMatInst->bindAll(a_pMiscCmd);
-	a_pMiscCmd->compute(m_pShadowMap->getMaxSize().x / 8, m_pShadowMap->getMaxSize().y / 8, m_pShadowMap->getArraySize());
+	a_pMiscCmd->compute((m_pShadowMap->getMaxSize().x + 7) / 8, (m_pShadowMap->getMaxSize().y + 7) / 8, m_pShadowMap->getArraySize());
 	a_pMiscCmd->end();
 
 	// add required command execute thread

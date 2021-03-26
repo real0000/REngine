@@ -106,7 +106,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 	int2 l_Tile = floor(a_UV.xy * c_TileCount.xy);
 	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
-	int l_NumLight = TileLights[l_IdxOffset/2].m_Params.x;
+	int l_NumLight = TileLights[l_IdxOffset/2].m_Params[(l_IdxOffset%2) * 2];
 
 	float4 l_Res = float4(0.0, 0.0, 0.0, 1.0);
 	for( int i=0 ; i<l_NumLight ; ++i )
@@ -160,13 +160,14 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 				if( l_ShadowCoord.z > l_Depth ) continue;*/
 				}break;
 
-			//case LIGHT_TYPE_DIR:
-			default:{
+			case LIGHT_TYPE_DIR:{
 				DirLight l_Light = DirLights[l_LightIdx];
 				
 				l_LightDir = -l_Light.m_Direction;
 				l_Radiance = l_Light.m_Color * l_Light.m_Intensity;
 				}break;
+
+			default:break;
 		}
 
 		if( !l_bLightValid ) continue;

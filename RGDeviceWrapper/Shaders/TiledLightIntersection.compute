@@ -36,8 +36,8 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 	{
 		int l_SrcIdx = g_SrcLights[i/2].m_Params[(i%2)*2];
 		int l_SrcType = g_SrcLights[i/2].m_Params[(i%2)*2 + 1];
-		int l_DstIdx = (l_TileLight + l_IdxOffset) / 2;
-		int l_DstTypeIdx = ((l_TileLight + l_IdxOffset) % 2) * 2;
+		int l_DstIdx = (l_IdxOffset + l_TileLight) / 2;
+		int l_DstTypeIdx = ((l_IdxOffset + l_TileLight) % 2) * 2;
 		switch( l_SrcType )
 		{
 			case LIGHT_TYPE_OMNI:{
@@ -72,5 +72,5 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 				}break;
 		}
 	}
-	g_DstLights[l_IdxOffset/2].m_Params.x = l_TileLight - 1;
+	g_DstLights[l_IdxOffset / 2].m_Params[(l_IdxOffset % 2) * 2] = l_TileLight - 1;
 }

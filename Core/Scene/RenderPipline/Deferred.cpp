@@ -367,7 +367,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pLightIndexMatInst->setBlock("Camera", a_pCamera->getMaterialBlock());
 		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
 		m_pLightIndexMatInst->bindAll(m_pCmdInit);
-		m_pCmdInit->compute(std::max(m_TileDim.x / 8, 1), std::max(m_TileDim.y / 8, 1));
+		m_pCmdInit->compute(std::max((m_TileDim.x + 7) / 8, 1), std::max((m_TileDim.y + 7) / 8, 1));
 
 		m_pCmdInit->end();
 
