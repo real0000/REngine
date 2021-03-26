@@ -438,15 +438,17 @@ void EngineCore::mainLoop(wxIdleEvent &a_Event)
 	static auto l_PrevTick = std::chrono::high_resolution_clock::now();
 	auto l_Now = std::chrono::high_resolution_clock::now();
 	m_Delta = std::chrono::duration<double, std::milli>(l_Now - l_PrevTick).count() / 1000.0f;
+	m_FrameDelta += m_Delta;
+	l_PrevTick = l_Now;
 	
 	SceneManager::singleton().update(m_Delta);
 	m_pInput->pollEvent();
-	if( m_Delta >= 1.0f/EngineSetting::singleton().m_FPS )
+	if( m_FrameDelta >= 1.0/EngineSetting::singleton().m_FPS )
 	{
 		BEGIN_TIME_RECORD()
 		SceneManager::singleton().render();
-		l_PrevTick = l_Now;
 		END_TIME_RECORD("render time")
+		m_FrameDelta = 0.0;
 	}
 		
 	a_Event.RequestMore();

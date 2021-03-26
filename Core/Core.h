@@ -215,7 +215,7 @@ private:
 	bool m_bValid;
 	bool m_bShutdown;
 	std::mutex m_LoopGuard;
-	double m_Delta;
+	double m_Delta, m_FrameDelta;
 
 	// prevent asset gc
 	std::vector<std::shared_ptr<Asset>> m_RuntimeTexture;

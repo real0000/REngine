@@ -40,7 +40,7 @@ bool BasicApp::OnInit()
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();
-	l_pCameraCtrl->setMaxSpeed(50.0f);
+	l_pCameraCtrl->setMaxSpeed(250.0f);
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);
 	R::EngineCore::singleton().run(this);
