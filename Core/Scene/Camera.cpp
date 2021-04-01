@@ -32,8 +32,15 @@ Camera::Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_
 	m_pCameraBlock = MaterialBlock::create(ShaderRegType::ConstBuffer, *l_BlockDescIt);
 	
 	m_Matrices[PROJECTION] = glm::tweakedInfinitePerspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z);
+	
 	m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
-	if( nullptr != a_pOwner ) calView(a_pOwner->getTransform());
+	if( nullptr != a_pOwner )
+	{
+		calView(a_pOwner->getTransform());
+		m_Matrices[WORLD] = a_pOwner->getTransform();
+	}
+	else m_Matrices[WORLD] = glm::identity<glm::mat4x4>();
+	m_pCameraBlock->setParam("m_CamWorld", 0, m_Matrices[WORLD]);
 }
 
 Camera::~Camera()
@@ -129,7 +136,12 @@ void Camera::transformListener(const glm::mat4x4 &a_NewTransform)
 	{
 		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
 		if( TETRAHEDRON == m_Type || CUBE == m_Type ) boundingBox().m_Size = glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w);
-		else boundingBox().m_Size = glm::one<glm::vec3>();
+		else
+		{
+			boundingBox().m_Size = glm::one<glm::vec3>();
+			m_Matrices[WORLD] = getOwner()->getTransform();
+			m_pCameraBlock->setParam("m_CamWorld", 0, m_Matrices[WORLD]);
+		}
 		getScene()->getSceneGraph(GRAPH_CAMERA)->update(l_pThis);
 	}
 }

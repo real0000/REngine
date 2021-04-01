@@ -20,7 +20,8 @@ class Camera : public RenderableComponent
 public:
 	enum
 	{
-		VIEW = 0,
+		WORLD = 0,
+		VIEW,
 		PROJECTION,
 		VIEWPROJECTION,
 		INVERTVIEW,

@@ -1,5 +1,6 @@
 <root>
   <ConstBuffer name="CameraBuffer">
+    <Param name="m_CamWorld" desc="" type="float4x4"/>
     <Param name="m_View" desc="" type="float4x4"/>
     <Param name="m_Projection" desc="" type="float4x4"/>
     <Param name="m_ViewProjection" desc="" type="float4x4"/>

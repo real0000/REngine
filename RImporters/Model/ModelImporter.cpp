@@ -307,13 +307,13 @@ void ModelData::init(wxString a_Filepath)
             l_TargetVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
         }
         
-        std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
         setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetNormals(), l_pDstMesh, l_SetNormalFunc);
 
-        std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
         setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetTangents(), l_pDstMesh, l_SetTangentFunc);
 
-        std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = glm::vec3(a_Src[0], a_Src[1], a_Src[2]); };
+        std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
         setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetBinormals(), l_pDstMesh, l_SetBinormalFunc);
 
 		int l_LayerCount = std::min(4, l_pSrcMesh->GetLayerCount());

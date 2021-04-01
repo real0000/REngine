@@ -45,7 +45,7 @@ void IndexBuffer::init()
 	assert(nullptr != m_pInitVal);
 	m_ID = GDEVICE()->requestIndexBuffer(m_pInitVal->m_pRefIndicies, m_b32Bit ? PixelFormat::r32_uint : PixelFormat::r16_uint, m_NumIndicies, m_pInitVal->m_Name);
 	if( -1 == m_ID ) return ;
-
+	
 	SAFE_DELETE(m_pInitVal);
 }
 
