@@ -85,6 +85,7 @@ public:
 	wxString getKey(){ return m_Key; }
 	int getSerialKey(){ return m_SerialKey; }
 	
+	bool dirty(){ return m_pComponent->dirty(); }
 	bool getRuntimeOnly(){ return m_pComponent->getRuntimeOnly(); }
 	void setRuntimeOnly(bool a_bRuntimeOnly){ m_pComponent->setRuntimeOnly(a_bRuntimeOnly); }
 

@@ -82,7 +82,12 @@ AssetManager::~AssetManager()
 std::shared_ptr<Asset> AssetManager::createAsset(wxString a_Path)
 {
 	std::pair<int, std::shared_ptr<Asset>> l_Res = getData(a_Path);
-	if(-1 != l_Res.first) return l_Res.second;
+	if(-1 != l_Res.first)
+	{
+		l_Res.second->m_Key = a_Path;
+		l_Res.second->m_SerialKey = l_Res.first;
+		return l_Res.second;
+	}
 
 	wxString l_Ext(getFileExt(a_Path).MakeLower());
 	auto l_LoaderIt = m_LoaderMap.find(l_Ext);

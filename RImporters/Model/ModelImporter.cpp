@@ -9,6 +9,38 @@
 namespace R
 {
 
+template<typename T>
+int compareVec(const T &a_Left, const T &a_Right)
+{
+	for( int i=0 ; i<a_Left.length() ; ++i )
+	{
+		if( a_Left[i] < a_Right[i] ) return -1;
+		else if( a_Left[i] == a_Right[i] ) continue;
+		return 1;
+	}
+	return 0;
+}
+
+bool operator<(const ModelData::Vertex &a_Left, const ModelData::Vertex &a_Right)
+{
+	int l_Res = 0;
+#define KEY_COMPARE(param) \
+	l_Res = compareVec(a_Left.##param, a_Right.##param);\
+	if( l_Res < 0 ) return true;			\
+	else if( l_Res > 0 ) return false;
+
+	KEY_COMPARE(m_Position)
+	for( unsigned int i=0 ; i<4 ; ++i )
+	{
+		KEY_COMPARE(m_Texcoord[i])
+	}
+	KEY_COMPARE(m_Normal)
+	KEY_COMPARE(m_Tangent)
+	KEY_COMPARE(m_Binormal)
+#undef KEY_COMPARE
+	return false;
+}
+
 #pragma region ModelNode
 //
 // ModelNode
@@ -47,23 +79,23 @@ glm::mat4x4 ModelNode::getAbsoluteTransform()
 // fbx sdk help function
 //
 template<typename SrcType, typename TVec>
-static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData::Meshes *a_pTargetMesh, std::function<void(ModelData::Vertex&, TVec)> a_Lambda)
+static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, unsigned int a_CtrlIdx, unsigned int a_VtxCounter, ModelData::Vertex &a_Target, std::function<void(ModelData::Vertex&, TVec)> a_Lambda)
 {
     if( nullptr == a_pSrcData ) return;
 
+    auto &l_DirectArray = a_pSrcData->GetDirectArray();
+    auto &l_IndexArray = a_pSrcData->GetIndexArray();
     switch( a_pSrcData->GetMappingMode() )
     {
         case FbxLayerElement::eByControlPoint:{
-            auto &l_DirectArray = a_pSrcData->GetDirectArray();
             switch( a_pSrcData->GetReferenceMode() )
             {
                 case FbxLayerElement::eDirect:{
-                    for( int i=0 ; i<a_pSrcMesh->GetControlPointsCount() ; ++i ) a_Lambda(a_pTargetMesh->m_Vertex[i], l_DirectArray[i]);
+                    a_Lambda(a_Target, l_DirectArray[a_CtrlIdx]);
                     }break;
 
                 case FbxLayerElement::eIndexToDirect:{
-                    auto &l_IndexArray = a_pSrcData->GetIndexArray();
-                    for( int i=0 ; i<l_IndexArray.GetCount() ; ++i ) a_Lambda(a_pTargetMesh->m_Vertex[i], l_DirectArray[l_IndexArray[i]]);
+                    a_Lambda(a_Target, l_DirectArray[l_IndexArray[a_CtrlIdx]]);
                     }break;
 
                 default:break;
@@ -71,30 +103,14 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, ModelData:
             }break;
 
         case FbxLayerElement::eByPolygonVertex:{
-            auto &l_DirectArray = a_pSrcData->GetDirectArray();
             switch( a_pSrcData->GetReferenceMode() )
             {
                 case FbxLayerElement::eDirect:{
-                    for( int i=0 ; i<a_pSrcMesh->GetPolygonCount() ; ++i )
-                    {
-                        for( unsigned int j=0 ; j<3 ; ++j )
-                        {
-                            unsigned int l_PtIdx = a_pSrcMesh->GetPolygonVertex(i, j);
-                            a_Lambda(a_pTargetMesh->m_Vertex[l_PtIdx], l_DirectArray[i*3 + j]);
-                        }
-                    }
+                    a_Lambda(a_Target, l_DirectArray[a_VtxCounter]);
                     }break;
 
                 case FbxLayerElement::eIndexToDirect:{
-                    auto &l_IndexArray = a_pSrcData->GetIndexArray();
-                    for( int i=0 ; i<a_pSrcMesh->GetPolygonCount() ; ++i )
-                    {
-                        for( unsigned int j=0 ; j<3 ; ++j )
-                        {
-                            unsigned int l_PtIdx = a_pSrcMesh->GetPolygonVertex(i, j);
-                            a_Lambda(a_pTargetMesh->m_Vertex[l_PtIdx], l_DirectArray[l_IndexArray[i*3 + j]]);
-                        }
-                    }
+                    a_Lambda(a_Target, l_DirectArray[l_IndexArray[a_VtxCounter]]);
                     }break;
             }
             }break;
@@ -264,6 +280,9 @@ void ModelData::init(wxString a_Filepath)
 	std::function<glm::vec3(float, float, float)> l_PosAssignFunc = ModelManager::singleton().getFlipYZ() ?
 		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Z, a_Y); } :
 		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Y, a_Z); };
+	std::map<Vertex, unsigned int> l_VtxSet;
+	std::map<int, std::vector<unsigned int>> l_CtrlMap;
+	unsigned int l_VtxCounter = 0;
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
         FbxMesh *l_pSrcMesh = it->first;
@@ -295,35 +314,73 @@ void ModelData::init(wxString a_Filepath)
 		l_pRefNode = it->first->GetNode();
 		if( l_pDstMesh->m_Name.empty() ) l_pDstMesh->m_Name = l_pRefNode->GetName();
 
-        unsigned int l_NumVtx = l_pSrcMesh->GetControlPointsCount();
-        l_pDstMesh->m_Vertex.resize(l_NumVtx);
-		l_BoneRecord.resize(l_NumVtx);
-		memset(l_BoneRecord.data(), 0, sizeof(int) * l_NumVtx);
-
-        for( unsigned int i=0 ; i<l_NumVtx ; ++i )
+		l_VtxSet.clear();
+		l_CtrlMap.clear();
+		l_BoneRecord.clear();
+		l_BoneRecord.reserve(l_pSrcMesh->GetControlPointsCount());
+        unsigned int l_NumTriangle = l_pSrcMesh->GetPolygonCount();
+		auto l_pSrcVtxArray = l_pSrcMesh->GetControlPoints();
+		l_VtxCounter = 0;
+		for( unsigned int i=0 ; i<l_NumTriangle ; ++i )
         {
-            FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[i];
-            Vertex &l_TargetVtx = l_pDstMesh->m_Vertex[i];
-            l_TargetVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
-        }
+			for( unsigned int j=0 ; j<3 ; ++j )
+			{
+				int l_CtrlPtIdx = l_pSrcMesh->GetPolygonVertex(i, j); 
+
+				Vertex l_ThisVtx = {};
+
+				FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[l_CtrlPtIdx];
+				l_ThisVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
+
+				std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementNormal(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetNormalFunc);
+				
+				std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementTangent(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetTangentFunc);
+				
+				std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementBinormal(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetBinormalFunc);
+
+				int l_LayerCount = std::min(4, l_pSrcMesh->GetLayerCount());
+				for( int i=0 ; i<l_LayerCount ; ++i )
+				{
+					std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
+					std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
+
+					setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
+				}
+
+				unsigned int l_VtxIdx = 0;
+				{
+					auto l_VtxIt = l_VtxSet.find(l_ThisVtx);
+					if( l_VtxSet.end() == l_VtxIt )
+					{
+						l_VtxIdx = l_VtxSet.size();
+						l_VtxSet.insert(std::make_pair(l_ThisVtx, l_VtxIdx));
+					}
+					else l_VtxIdx = l_VtxIt->second;
+				}
+
+				{// setup ctrl : vtx map
+					auto l_CtrlIt = l_CtrlMap.find(l_CtrlPtIdx);
+					if( l_CtrlMap.end() == l_CtrlIt )
+					{
+						std::vector<unsigned int> l_NewVec(1, l_VtxIdx);
+						l_CtrlMap.insert(std::make_pair(l_CtrlPtIdx, l_NewVec));
+					}
+					else l_CtrlIt->second.push_back(l_VtxIdx);
+				}
+				l_pDstMesh->m_Indicies.push_back(l_VtxIdx);
+				
+				++l_VtxCounter;
+			}
+		}
         
-        std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetNormals(), l_pDstMesh, l_SetNormalFunc);
-
-        std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetTangents(), l_pDstMesh, l_SetTangentFunc);
-
-        std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-        setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(0)->GetBinormals(), l_pDstMesh, l_SetBinormalFunc);
-
-		int l_LayerCount = std::min(4, l_pSrcMesh->GetLayerCount());
-		for( int i=0 ; i<l_LayerCount ; ++i )
+		l_pDstMesh->m_Vertex.resize(l_VtxSet.size());
+		for( auto l_VtxIt=l_VtxSet.begin() ; l_VtxIt!=l_VtxSet.end() ; ++l_VtxIt )
 		{
-			std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
-			std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
-
-			setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_pDstMesh, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
-        }
+			memcpy(&(l_pDstMesh->m_Vertex[l_VtxIt->second]), &(l_VtxIt->first), sizeof(Vertex));
+		}
 			
         FbxAMatrix l_VtxTrans;
 		for( int i=0 ; i<l_pSrcMesh->GetDeformerCount() ; ++i )
@@ -346,25 +403,23 @@ void ModelData::init(wxString a_Filepath)
 				m_Bones.push_back(l_DstBonsMat);
 				for( int k=0 ; k<l_pCluster->GetControlPointIndicesCount() ; ++k )
 				{
-					Vertex &l_Vtx = l_pDstMesh->m_Vertex[l_pCluster->GetControlPointIndices()[k]];
-					int &l_WeightIdx = l_BoneRecord[l_pCluster->GetControlPointIndices()[k]];
+					int l_CtrlIdx = l_pCluster->GetControlPointIndices()[k];
+					std::vector<unsigned int> &l_VtxIndicies = l_CtrlMap[l_CtrlIdx];
+					int &l_WeightIdx = l_BoneRecord[l_CtrlIdx];
 					assert(l_WeightIdx < 4);
-					l_Vtx.m_BoneId[l_WeightIdx] = l_BondIndex;
-					l_Vtx.m_Weight[l_WeightIdx] = l_pCluster->GetControlPointWeights()[k];
+					float l_Weight = l_pCluster->GetControlPointWeights()[k];
 					++l_WeightIdx;
+
+					for( unsigned int l=0 ; l<l_VtxIndicies.size() ; ++l )
+					{
+						Vertex &l_Vtx = l_pDstMesh->m_Vertex[l_VtxIndicies[l]];
+						l_Vtx.m_BoneId[l_WeightIdx] = l_BondIndex;
+						l_Vtx.m_Weight[l_WeightIdx] = l_Weight;
+					}
 				}
 			}
 		}
 
-        for( int i=0 ; i<l_pSrcMesh->GetPolygonCount() ; ++i )
-        {
-            for( unsigned int j=0 ; j<3 ; ++j )
-            {
-                unsigned int l_PtIdx = l_pSrcMesh->GetPolygonVertex(i, j);
-                l_pDstMesh->m_Indicies.push_back(l_PtIdx);        
-            }
-        }
-		
 		l_pDstMesh->m_RefMaterial = DEFAULT_EMPTY_MAT_NAME;
 		FbxLayerElementArrayTemplate<int> *l_pMaterialIndicies = nullptr;
 		if( l_pSrcMesh->GetMaterialIndices(&l_pMaterialIndicies) )
