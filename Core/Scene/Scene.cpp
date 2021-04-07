@@ -693,7 +693,7 @@ void Scene::initEmpty()
 	clear();
 	
 	boost::property_tree::ptree l_Empty;
-	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = NoPartition::create(l_Empty);//OctreePartition();
+	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = NoPartition::create(l_Empty);//OctreePartition::create(l_Empty);
 
 	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
 	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName);

@@ -188,7 +188,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 		l_Res.xyz += (l_Diffuse * l_BaseColor.xyz / MATH_PI + l_Specular) * l_Radiance * l_NdotL;
 	}
 
-	/*int l_BoxIdx = 0;
+	int l_BoxIdx = 0;
 	const float c_Sub[4] = {-0.375, -0.125, 0.125, 0.375};
 	for( int i=0 ; i<c_BoxLevel ; ++i )
 	{
@@ -227,7 +227,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 		}
 
 		break;
-	}*/
+	}
 
 	return l_Res;
 }

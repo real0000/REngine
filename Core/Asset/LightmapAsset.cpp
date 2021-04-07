@@ -137,6 +137,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes, l_Lights;
 	a_pScene->getSceneGraph(GRAPH_MESH)->getAllComponent(l_Meshes);
 	a_pScene->getSceneGraph(GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
+	if( l_Lights.empty() || l_Meshes.empty() ) return;
 
 	std::vector<unsigned int> l_TempTriangleData;
 	std::vector<LightMapVtxSrc> l_TempVertexData;
@@ -212,6 +213,9 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 		l_Bounding.m_Size.z = std::pow(2.0, std::ceil(std::log(l_Bounding.m_Size.z * 0.5))) * 2.0;
 	}
 
+	// no static mesh
+	if( l_TempVertexData.empty() ) return;
+
 	// init material cache
 	{
 		m_LightMapMaterialCache.resize(l_TempMatSet.size());
@@ -263,7 +267,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 		l_TempData.y = l_pLightObj->getID();
 		for( unsigned int j=0 ; j<l_IntersectBox.size() ; ++j )
 		{
-			while( l_Lights.size() <= l_IntersectBox[j] ) l_LightInBox.push_back(std::vector<glm::ivec2>());
+			while( l_LightInBox.size() <= l_IntersectBox[j] ) l_LightInBox.push_back(std::vector<glm::ivec2>());
 			l_LightInBox[l_IntersectBox[j]].push_back(l_TempData);
 		}
 	}

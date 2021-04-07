@@ -160,8 +160,14 @@ public:
 	{
 		auto it = m_Components.find(T::staticTypeID());
 		if( m_Components.end() == it || it->second.empty() ) return;
-		a_Output.reserve(it->second.size());
+		a_Output.reserve(a_Output.size() + it->second.size());
 		for( auto it2=it->second.begin() ; it2!=it->second.end() ; ++it2 ) a_Output.push_back((*it2)->shared_from_base<T>());
+	}
+	template<typename T>
+	void getComponentsInChildren(std::vector<std::shared_ptr<T>> &a_Output)
+	{
+		getComponents<T>(a_Output);
+		for( auto it=m_Children.begin() ; it!=m_Children.end() ; ++it ) (*it)->getComponentsInChildren<T>(a_Output);
 	}
 	const std::map<unsigned int, std::set<std::shared_ptr<EngineComponent>>>& getComponents(){ return m_Components; }
 	
