@@ -31,8 +31,8 @@ namespace R
 //
 LightmapAsset::LightmapAsset()
 	: m_bBaking(false)
-	, m_pRayIntersectMat(AssetManager::singleton().createAsset(LIGHTMAP_INTERSECT_ASSET_NAME))
-	, m_pRayScatterMat(AssetManager::singleton().createAsset(LIGHTMAP_SCATTER_ASSET_NAME))
+	, m_pRayIntersectMat(AssetManager::singleton().createRuntimeAsset<MaterialAsset>())
+	, m_pRayScatterMat(AssetManager::singleton().createRuntimeAsset<MaterialAsset>())
 	, m_pRayIntersectMatInst(nullptr), m_pRayScatterMatInst(nullptr)
 	, m_pIndicies(nullptr), m_pHarmonicsCache(nullptr), m_pBoxCache(nullptr), m_pVertex(nullptr), m_pResult(nullptr)
 	, m_MaxBoxLevel(1)

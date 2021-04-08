@@ -33,7 +33,7 @@ private:
 
 		GBUFFER_DEPTH,
 
-		GBUFFER_COUNT, 
+		GBUFFER_COUNT,
 	};
 public:
 	static DeferredRenderer* create(boost::property_tree::ptree &a_Src, std::shared_ptr<Scene> a_pScene);
@@ -74,12 +74,11 @@ private:
 		DebugTexture();
 		~DebugTexture();
 
-		void init(std::shared_ptr<SceneNode> a_pNode, wxString a_MaterialName, std::shared_ptr<Asset> a_pTexture, glm::vec4 a_DockParam);
+		void init(std::shared_ptr<SceneNode> a_pNode, std::shared_ptr<Asset> a_pTexture, glm::vec4 a_DockParam);
 		void uninit();
 
 		std::shared_ptr<RenderableMesh> m_pComponent;
 		std::shared_ptr<Asset> m_pMat;
-		wxString m_MaterialName;
 	};
 	DebugTexture m_DebugTextures[GBUFFER_COUNT];
 
@@ -87,10 +86,6 @@ private:
 	const static unsigned int cm_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
 	std::vector<std::shared_ptr<RenderableComponent>> m_VisibleLights, m_VisibleMeshes;
 	std::vector<RenderableMesh*> m_SortedMesh[cm_NumMatSlot];
-
-	// for runtime asset
-	unsigned int m_Serial;
-	static unsigned int sm_Seiral;
 };
 
 }

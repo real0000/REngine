@@ -29,10 +29,8 @@ public:
 
 private:
 	ImageAtlas m_Atlas;
-	wxString m_AssetName;
 	std::shared_ptr<Asset> m_pTexture;
 	bool m_bCube;
-	static unsigned int m_Serial;
 };
 
 }

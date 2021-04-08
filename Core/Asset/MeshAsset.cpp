@@ -19,7 +19,6 @@ namespace R
 //
 // MeshAsset
 // 
-unsigned int MeshAsset::sm_RuntimeShadowMapSerial = 0;
 MeshAsset::MeshAsset()
 	: m_VtxSlots(0)
 	, m_Position(0)
@@ -141,7 +140,7 @@ void MeshAsset::importFile(wxString a_File)
 			l_pDst->m_StartIndex = m_Indicies.size();
 			l_pDst->m_Materials.insert(std::make_pair(MATSLOT_OPAQUE, l_MaterialMap[l_pSrc->m_RefMaterial]));
 
-			assignDefaultShadowMapMaterial(l_pDst);
+			assignDefaultRuntimeMaterial(l_pDst);
 
 			for( unsigned int j=0 ; j<l_pSrc->m_Vertex.size() ; ++j )
 			{
@@ -235,7 +234,7 @@ void MeshAsset::loadFile(boost::property_tree::ptree &a_Src)
 			l_pDst->m_Materials.insert(std::make_pair(l_Slot, AssetManager::singleton().getAsset(it2->second.data())));
 		}
 
-		assignDefaultShadowMapMaterial(l_pDst);
+		assignDefaultRuntimeMaterial(l_pDst);
 	}
 	
 	boost::property_tree::ptree l_Relations = l_Root.get_child("Relations");
@@ -651,7 +650,7 @@ void MeshAsset::initBuffers()
 	m_IndexBuffer->init();
 }
 
-void MeshAsset::assignDefaultShadowMapMaterial(Instance *a_pInst)
+void MeshAsset::assignDefaultRuntimeMaterial(Instance *a_pInst)
 {
 	std::shared_ptr<Asset> l_pBaseColor = nullptr;
 	{
@@ -675,8 +674,7 @@ void MeshAsset::assignDefaultShadowMapMaterial(Instance *a_pInst)
 		unsigned int l_MatSlot = c_ShadowSlots[j].second;
 		if( a_pInst->m_Materials.end() != a_pInst->m_Materials.find(l_MatSlot) ) continue;
 
-		wxString l_MatFile(wxString::Format(DEFAULT_SHADOWMAP_MAT_ASSET_NAME, sm_RuntimeShadowMapSerial++));
-		std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
+		std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
 		MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 		l_pMatInst->setRuntimeOnly(true);
 		l_pMatInst->init(ProgramManager::singleton().getData(c_ShadowSlots[j].first));

@@ -66,6 +66,7 @@ AssetManager& AssetManager::singleton()
 
 AssetManager::AssetManager()
 	: SearchPathSystem(std::bind(&AssetManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&defaultNewFunc<Asset>))
+	, m_TempAssetSerial(0)
 {
 	registAssetComponent<LightmapAsset>();
 	registAssetComponent<MaterialAsset>();
@@ -101,6 +102,11 @@ std::shared_ptr<Asset> AssetManager::createAsset(wxString a_Path)
 	sg_LeftAsset.insert(l_Res.second->m_Key);
 #endif
 	return l_Res.second;
+}
+
+void AssetManager::removeAsset(std::shared_ptr<Asset> a_pInst)
+{
+	removeData(a_pInst->getKey());
 }
 
 std::shared_ptr<Asset> AssetManager::getAsset(wxString a_Path)

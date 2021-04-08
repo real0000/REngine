@@ -82,7 +82,7 @@ public:
 
 private:
 	void initBuffers();
-	void assignDefaultShadowMapMaterial(Instance *a_pInst);
+	void assignDefaultRuntimeMaterial(Instance *a_pInst);
 
 	unsigned int m_VtxSlots;// for manual mesh
     std::vector<glm::vec3> m_Position;
@@ -101,7 +101,6 @@ private:
     std::vector<Instance*> m_Meshes;
 	std::vector<Relation*> m_Relation;
 	std::vector<glm::mat4x4> m_Bones;
-	static unsigned int sm_RuntimeShadowMapSerial;
 };
 
 }
