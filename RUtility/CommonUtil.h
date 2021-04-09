@@ -207,7 +207,7 @@ private:
 	std::function<void(unsigned int)> m_RecFunc;
 	std::function<std::shared_ptr<T>()> m_NewFunc;
 
-	std::vector< std::shared_ptr<T> > m_ObjectPool;
+	std::vector<std::shared_ptr<T>> m_ObjectPool;
 	std::list<unsigned int> m_FreeSlot;
 };
 
