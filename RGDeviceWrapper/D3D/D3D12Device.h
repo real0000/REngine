@@ -137,6 +137,11 @@ public:
 	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, GraphicCanvas *a_pCanvas);
 	virtual void setViewPort(int a_NumViewport, ...);// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...);// glm::ivec4
+	
+	virtual void bindPredication(int a_ID);
+	virtual void beginQuery(int a_ID, unsigned int a_Idx = 0);
+	virtual void endQuery(int a_ID, unsigned int a_Idx = 0);
+	virtual void resolveQuery(int a_ID, unsigned int a_Count, unsigned int a_Idx = 0);
 
 private:
 	D3D12Device *m_pRefDevice;
@@ -257,6 +262,11 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList, bool a_bAsync);
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList, bool a_bAsync);
 	virtual void freeUavBuffer(int a_ID);
+	
+	// query
+	virtual int requestQueryBuffer(int a_Size);
+	virtual void syncQueryBuffer(int a_SrcUavID, int a_DstQueryID);
+	virtual void freeQueryBuffer(int a_ID);
 
 	// misc
 	virtual int requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int a_Size);
@@ -282,6 +292,8 @@ public:
 	ID3D12DescriptorHeap* getShaderBindingHeap(){ return m_pShaderResourceHeap->getHeapInst(); }
 	ID3D12DescriptorHeap* getSamplerBindingHeap(){ return m_pSamplerHeap->getHeapInst(); }
 	ID3D12CommandQueue* getDrawCommandQueue(){ return m_pDrawCmdQueue; }// for swap chain create
+	ID3D12QueryHeap* getQueryHeap(int a_ID);
+	ID3D12Resource* getQueryResult(int a_ID);
 
 	// thread part
 	D3D12GpuThread requestThread();
@@ -403,6 +415,11 @@ private:
 		ID3D12Resource *m_pResource;
 		char *m_pTargetBuffer;
 	};
+	struct QueryBinder
+	{
+		ID3D12QueryHeap *m_pHeap;
+		ID3D12Resource *m_pResult;
+	};
 
 	D3D12GpuThread newThread();
 
@@ -416,6 +433,7 @@ private:
 	SerializedObjectPool<ConstBufferBinder> m_ManagedConstBuffer;
 	SerializedObjectPool<UnorderAccessBufferBinder> m_ManagedUavBuffer;
 	SerializedObjectPool<IndirectCommandBinder> m_ManagedIndirectCommandBuffer;
+	SerializedObjectPool<QueryBinder> m_ManagedQueryBuffer;
 
 	IDXGIFactory6 *m_pGraphicInterface;
 	ID3D12Device *m_pDevice;

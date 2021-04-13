@@ -49,6 +49,7 @@ public:
 		: m_bDirty(false)
 		, m_pLightData(nullptr)
 		, m_FreeCount(a_InitSize), m_ExtendSize(a_ExtendSize)
+		, m_MaxID(0)
 		, m_Lights(true)
 	{
 		m_Lights.setNewFunc(std::bind(&LightContainer<T>::newLight, this));
@@ -88,8 +89,10 @@ public:
 		unsigned int l_ID = m_Lights.retain(&l_pTarget);
 		l_pTarget->m_ID = l_ID;
 		l_pTarget->m_pRefParam = reinterpret_cast<T::Data *>(m_pLightData->getBlockPtr(l_ID));
+		l_pTarget->m_pRefParam->m_bCastShadow = 1;
 		l_pTarget->setHidden(false);
 		l_pTarget->addTransformListener();
+		m_MaxID = std::max(l_pTarget->m_ID, m_MaxID);
 		return l_pTarget;
 	}
 
@@ -98,6 +101,7 @@ public:
 	void recycle(std::shared_ptr<T> a_pLight)
 	{
 		std::lock_guard<std::mutex> l_Guard(m_Locker);
+		a_pLight->m_pRefParam->m_bCastShadow = 0;
 		m_Lights.release(a_pLight->m_ID);
 	}
 
@@ -112,6 +116,9 @@ public:
 		m_pLightData->sync(true, false);
 		m_bDirty = false;
 	}
+
+	std::shared_ptr<T> get(unsigned int a_ID){ return m_Lights[a_ID]; }
+	unsigned int getMaxID(){ return m_MaxID; }
 
 private:
 	std::shared_ptr<T> newLight()
@@ -136,6 +143,7 @@ private:
 	std::shared_ptr<MaterialBlock> m_pLightData;
 	unsigned int m_FreeCount;
 	unsigned int m_ExtendSize;
+	unsigned int m_MaxID;
 	SerializedObjectPool<T> m_Lights;
 	std::mutex m_Locker;
 };

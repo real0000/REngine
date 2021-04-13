@@ -794,6 +794,60 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 {
 	if( nullptr == m_pCurrCamera ) return;
 
+	// calculate frustum world position
+	glm::vec3 l_FrustumPt[4][5];
+	{
+		glm::mat4x4 l_InvVP(*m_pCurrCamera->getMatrix(Camera::INVERTVIEWPROJECTION));
+		glm::vec3 l_Eye, l_Dir, l_Up;
+		m_pCurrCamera->getCameraParam(l_Eye, l_Dir, l_Up);
+		glm::vec4 l_CameraParam(m_pCurrCamera->getViewParam());
+
+		const float c_Dist[5] = {l_CameraParam.z, 100.0f, 500.0f, 2500.0f, 10000.0f};
+		const glm::vec4 c_CornerPt[4] = {
+			glm::vec4(-1.0f, -1.0f, 0.0f, 1.0f),
+			glm::vec4(-1.0f, 1.0f, 0.0f, 1.0f),
+			glm::vec4(1.0f, -1.0f, 0.0f, 1.0f),
+			glm::vec4(1.0f, 1.0f, 0.0f, 1.0f)};
+		float l_RayLength[5];
+		{
+			double l_Base = 0.0;
+			double l_YDist = atan(0.5 * l_CameraParam.x) * l_CameraParam.z;
+			double l_XDist = l_YDist * l_CameraParam.y;
+			l_Base = sqrt(l_YDist * l_YDist + l_CameraParam.z * l_CameraParam.z + l_XDist * l_XDist);
+			for( unsigned int i=0 ; i<5 ; ++i ) l_RayLength[i] = float(l_Base * c_Dist[i] / l_CameraParam.z);
+		}
+		for( unsigned int i=0 ; i<4 ; ++i )
+		{
+			glm::vec4 l_Temp(l_InvVP * c_CornerPt[i]);
+			l_Temp /= l_Temp.w;
+			glm::vec3 l_CornerVec(glm::normalize(glm::vec3(l_Temp.x, l_Temp.y, l_Temp.z) - l_Eye));
+			for( unsigned int j=0 ; j<5 ; ++j ) l_FrustumPt[i][j] = l_Eye + l_CornerVec * l_RayLength[j];
+		}
+	}
+
+	// update cascaded shadow map camera
+	/*unsigned int l_NumThread = EngineSetting::singleton().m_NumRenderCommandList;
+	for( unsigned int i=0 ; i<l_NumThread ; ++i )
+	{
+		EngineCore::singleton().addJob([=]() -> void
+		{
+			unsigned int l_MaxID = m_pDirLights->getMaxID() + 1;
+			unsigned int l_Unit = std::max<unsigned int>(l_MaxID / l_NumThread + (0 == (l_MaxID % l_NumThread) ? 0 : 1), 1);
+			unsigned int l_Start = i*l_Unit;
+			unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, l_MaxID);
+			if( l_Start >= l_MaxID ) return;
+
+			for( unsigned int j=l_Start ; j<l_End ; ++j )
+			{
+				std::shared_ptr<DirLight> l_pLight = m_pDirLights->get(j);
+				if( !l_pLight->getShadowed() ) continue;
+
+				
+			}
+		});
+	}
+	EngineCore::singleton().join();*/
+
 	m_pDirLights->flush();
 	m_pOmniLights->flush();
 	m_pSpotLights->flush();

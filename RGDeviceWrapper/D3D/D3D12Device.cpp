@@ -484,6 +484,41 @@ void D3D12Commander::setScissor(int a_NumScissor, ...)
 	}
 	m_CurrThread.second->RSSetScissorRects(a_NumScissor, reinterpret_cast<const D3D12_RECT *>(&(l_Scissors.front())));
 }
+
+void D3D12Commander::bindPredication(int a_ID)
+{
+	if( 0 > a_ID )
+	{
+		m_CurrThread.second->SetPredication(nullptr, 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
+		return;
+	}
+
+	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
+	m_CurrThread.second->SetPredication(l_pDevice->getQueryResult(a_ID), 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
+}
+
+void D3D12Commander::beginQuery(int a_ID, unsigned int a_Idx)
+{
+	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
+	m_CurrThread.second->BeginQuery(l_pDevice->getQueryHeap(a_ID), D3D12_QUERY_TYPE_BINARY_OCCLUSION, a_Idx);
+}
+
+void D3D12Commander::endQuery(int a_ID, unsigned int a_Idx)
+{
+	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
+	m_CurrThread.second->EndQuery(l_pDevice->getQueryHeap(a_ID), D3D12_QUERY_TYPE_BINARY_OCCLUSION, a_Idx);
+}
+
+void D3D12Commander::resolveQuery(int a_ID, unsigned int a_Count, unsigned int a_Idx)
+{
+	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
+	ID3D12QueryHeap *l_pHeap = l_pDevice->getQueryHeap(a_ID);
+	ID3D12Resource *l_pResult = l_pDevice->getQueryResult(a_ID);
+
+	resourceTransition(m_CurrThread.second, l_pResult, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST);
+	m_CurrThread.second->ResolveQueryData(l_pHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, a_Idx, a_Count, l_pResult, 0);
+	resourceTransition(m_CurrThread.second, l_pResult, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION);
+}
 #pragma endregion
 
 #pragma region D3D12Canvas
@@ -604,7 +639,7 @@ void D3D12Canvas::resizeBackBuffer()
 //
 D3D12Device::D3D12Device()
 	: m_pShaderResourceHeap(nullptr), m_pSamplerHeap(nullptr), m_pRenderTargetHeap(nullptr), m_pDepthHeap(nullptr)
-	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer(), m_ManagedIndirectCommandBuffer()
+	, m_ManagedTexture(), m_ManagedSampler(), m_ManagedRenderTarget(), m_ManagedVertexBuffer(), m_ManagedIndexBuffer(), m_ManagedConstBuffer(), m_ManagedUavBuffer(), m_ManagedIndirectCommandBuffer(), m_ManagedQueryBuffer()
 	, m_pGraphicInterface(nullptr)
 	, m_pDevice(nullptr)
 	, m_pSimpleIndirectFmt(nullptr)
@@ -626,6 +661,7 @@ D3D12Device::D3D12Device()
 	BIND_DEFAULT_ALLOCATOR(ConstBufferBinder, m_ManagedConstBuffer);
 	BIND_DEFAULT_ALLOCATOR(UnorderAccessBufferBinder, m_ManagedUavBuffer);
 	BIND_DEFAULT_ALLOCATOR(IndirectCommandBinder, m_ManagedIndirectCommandBuffer);
+	BIND_DEFAULT_ALLOCATOR(QueryBinder, m_ManagedQueryBuffer);
 
 	for( unsigned int i=0 ; i<D3D12_NUM_COPY_THREAD ; ++i ) m_ResThread[i] = std::make_pair(nullptr, nullptr);
 }
@@ -653,6 +689,7 @@ D3D12Device::~D3D12Device()
 	m_ManagedConstBuffer.clear();
 	m_ManagedUavBuffer.clear();
 	m_ManagedIndirectCommandBuffer.clear();
+	m_ManagedQueryBuffer.clear();
 
 	SAFE_RELEASE(m_pSimpleIndirectFmt)
 	SAFE_RELEASE(m_pGraphicInterface)
@@ -1809,6 +1846,16 @@ ID3D12Resource* D3D12Device::getIndirectCommandBuffer(int a_ID)
 	return m_ManagedIndirectCommandBuffer[a_ID]->m_pResource;
 }
 
+ID3D12QueryHeap* D3D12Device::getQueryHeap(int a_ID)
+{
+	return m_ManagedQueryBuffer[a_ID]->m_pHeap;
+}
+
+ID3D12Resource* D3D12Device::getQueryResult(int a_ID)
+{
+	return m_ManagedQueryBuffer[a_ID]->m_pResult;
+}
+
 // cbv part
 int D3D12Device::requestConstBuffer(char* &a_pOutputBuff, unsigned int a_Size)
 {
@@ -2073,6 +2120,41 @@ void D3D12Device::freeUavBuffer(int a_ID)
 	SAFE_DELETE_ARRAY(l_pTargetBinder->m_pCurrBuff)
 
 	m_ManagedUavBuffer.release(a_ID);
+}
+
+// query part
+int D3D12Device::requestQueryBuffer(int a_Size)
+{
+	std::shared_ptr<QueryBinder> l_pTargetBinder = nullptr;
+	unsigned int l_BuffID = m_ManagedQueryBuffer.retain(&l_pTargetBinder);
+
+    D3D12_QUERY_HEAP_DESC l_Desc = {};
+    l_Desc.Count = a_Size;
+    l_Desc.Type = D3D12_QUERY_HEAP_TYPE_OCCLUSION;
+    HRESULT l_Res = m_pDevice->CreateQueryHeap(&l_Desc, IID_PPV_ARGS(&(l_pTargetBinder->m_pHeap)));
+	if( S_OK != l_Res )
+	{
+		m_ManagedQueryBuffer.release(l_BuffID);
+		wxMessageBox(wxT("failed to create query heap"), wxT("D3D12Device::requestQueryBuffer"));
+		return -1;
+	}
+
+	l_pTargetBinder->m_pResult = initSizedResource(sizeof(uint64) * a_Size, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_PREDICATION);
+
+	return l_BuffID;
+}
+
+void D3D12Device::syncQueryBuffer(int a_SrcUavID, int a_DstQueryID)
+{
+	
+}
+
+void D3D12Device::freeQueryBuffer(int a_ID)
+{
+	std::shared_ptr<QueryBinder> l_pTargetBinder = m_ManagedQueryBuffer[a_ID];
+	SAFE_RELEASE(l_pTargetBinder->m_pHeap)
+	SAFE_RELEASE(l_pTargetBinder->m_pResult)
+	m_ManagedQueryBuffer.release(a_ID);
 }
 
 // misc part

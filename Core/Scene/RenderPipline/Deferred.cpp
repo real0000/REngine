@@ -292,8 +292,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	EngineCore::singleton().join();
 
 	// shadow map render
-	ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
-	l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
+	//ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
+	//l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
 	
 	{// graphic step, divide by stage
 		//bind gbuffer

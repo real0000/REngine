@@ -57,6 +57,11 @@ public:
 	virtual void setRenderTargetWithBackBuffer(int a_DSVHandle, GraphicCanvas *a_pCanvas) = 0;
 	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
+
+	virtual void bindPredication(int a_ID) = 0;
+	virtual void beginQuery(int a_ID, unsigned int a_Idx = 0) = 0;
+	virtual void endQuery(int a_ID, unsigned int a_Idx = 0) = 0;
+	virtual void resolveQuery(int a_ID, unsigned int a_Count, unsigned int a_Idx = 0) = 0;
 };
 
 class GraphicCanvas : public wxWindow
@@ -181,6 +186,11 @@ public:
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector<unsigned int> &a_BuffIDList, bool a_bAsync) = 0;
 	virtual void syncUavBuffer(bool a_bToGpu, std::vector< std::tuple<unsigned int, unsigned int, unsigned int> > &a_BuffIDList, bool a_bAsync) = 0;// uav id, start, end
 	virtual void freeUavBuffer(int a_BuffID) = 0;
+
+	// query
+	virtual int requestQueryBuffer(int a_Size) = 0;
+	virtual void syncQueryBuffer(int a_SrcUavID, int a_DstQueryID) = 0;
+	virtual void freeQueryBuffer(int a_ID) = 0;
 
 	// misc
 	virtual int requestIndrectCommandBuffer(char* &a_pOutputBuff, unsigned int a_Size) = 0;
