@@ -34,10 +34,7 @@ public:
 
 	virtual unsigned int getID() = 0;
 
-	std::shared_ptr<Camera> getShadowCamera(){ return m_pShadowCamera; }
-
 private:
-	std::shared_ptr<Camera> m_pShadowCamera;
 	bool m_bStatic;
 };
 

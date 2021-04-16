@@ -41,7 +41,7 @@ bool BasicApp::OnInit()
 	l_pDirLight->setIntensity(5.0f);
 	l_pDirLight->setShadowed(true);
 	//l_pDirLight->setStatic(true);
-	l_pDirLightNode->setRotate(glm::eulerAngleYZ(-0.25f * glm::pi<float>(), 0.25f * glm::pi<float>()));
+	l_pDirLightNode->setRotate(glm::eulerAngleYZ(-0.25f * glm::pi<float>(), -0.25f * glm::pi<float>()));
 
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();

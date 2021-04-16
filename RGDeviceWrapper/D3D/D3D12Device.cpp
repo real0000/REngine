@@ -485,7 +485,7 @@ void D3D12Commander::setScissor(int a_NumScissor, ...)
 	m_CurrThread.second->RSSetScissorRects(a_NumScissor, reinterpret_cast<const D3D12_RECT *>(&(l_Scissors.front())));
 }
 
-void D3D12Commander::bindPredication(int a_ID)
+void D3D12Commander::bindPredication(int a_ID, uint64 a_Offset)
 {
 	if( 0 > a_ID )
 	{
@@ -494,7 +494,7 @@ void D3D12Commander::bindPredication(int a_ID)
 	}
 
 	D3D12Device *l_pDevice = TYPED_GDEVICE(D3D12Device);
-	m_CurrThread.second->SetPredication(l_pDevice->getQueryResult(a_ID), 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
+	m_CurrThread.second->SetPredication(l_pDevice->getQueryResult(a_ID), a_Offset * sizeof(uint64), D3D12_PREDICATION_OP_EQUAL_ZERO);
 }
 
 void D3D12Commander::beginQuery(int a_ID, unsigned int a_Idx)
@@ -516,7 +516,7 @@ void D3D12Commander::resolveQuery(int a_ID, unsigned int a_Count, unsigned int a
 	ID3D12Resource *l_pResult = l_pDevice->getQueryResult(a_ID);
 
 	resourceTransition(m_CurrThread.second, l_pResult, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST);
-	m_CurrThread.second->ResolveQueryData(l_pHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, a_Idx, a_Count, l_pResult, 0);
+	m_CurrThread.second->ResolveQueryData(l_pHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, a_Idx, a_Count, l_pResult, a_Idx * sizeof(uint64));
 	resourceTransition(m_CurrThread.second, l_pResult, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION);
 }
 #pragma endregion

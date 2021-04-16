@@ -89,11 +89,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 		auto l_pLight = a_Lights[i]->shared_from_base<Light>();
 		if( l_pLight->getShadowed() )
 		{
-			EngineCore::singleton().addJob([=, &l_pLight]()
-			{
-				unsigned int l_Size = calculateShadowMapRegion(l_pLight->getShadowCamera(), l_pLight);
-				requestShadowMapRegion(l_Size, l_pLight);
-			});
 			switch( l_pLight->typeID() )
 			{
 				case COMPONENT_DirLight:	l_DirLights.push_back(a_Lights[i]->shared_from_base<DirLight>());	break;
@@ -103,8 +98,6 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 			}
 		}
 	}
-		
-	EngineCore::singleton().join();
 
 	a_pMiscCmd->begin(true);
 	a_pMiscCmd->useProgram(m_pClearMatInst->getProgram());
@@ -133,7 +126,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 			
 			//dir
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedDir, i, l_NumCommand, MATSLOT_DIR_SHADOWMAP
+				, a_SortedDir, i, l_NumCommand
+				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+				{
+					return a_pMesh->getMaterial(MATSLOT_DIR_SHADOWMAP)->getComponent<MaterialAsset>();
+				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
@@ -157,7 +154,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				
 			//omni
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedOmni, i, l_NumCommand, MATSLOT_OMNI_SHADOWMAP
+				, a_SortedOmni, i, l_NumCommand
+				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+				{
+					return a_pMesh->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
+				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
@@ -169,7 +170,8 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 					for( unsigned int k=0 ; k<l_OmniLights.size() ; ++k )
 					{
 						bool l_Temp = false;
-						if( !reinterpret_cast<OmniLight *>(l_OmniLights[k].get())->getShadowCamera()->getFrustum().intersect(a_SortedOmni[a_Idx]->boundingBox(), l_Temp) ) continue;
+						// to do : use physx intersection update cast state
+						//if( !reinterpret_cast<OmniLight *>(l_OmniLights[k].get())->getShadowCamera()->getFrustum().intersect(a_SortedOmni[a_Idx]->boundingBox(), l_Temp) ) continue;
 
 						glm::ivec4 l_NewInst;
 						l_NewInst.x = a_SortedOmni[a_Idx]->getWorldOffset();
@@ -182,7 +184,11 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 
 			//spot
 			getScene()->getRenderBatcher()->drawSortedMeshes(a_DrawCommand[i]
-				, a_SortedSpot, i, l_NumCommand, MATSLOT_SPOT_SHADOWMAP
+				, a_SortedSpot, i, l_NumCommand
+				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+				{
+					return a_pMesh->getMaterial(MATSLOT_SPOT_SHADOWMAP)->getComponent<MaterialAsset>();
+				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{
 					a_pMat->bindTexture(a_DrawCommand[i], "ShadowMap", m_pShadowMap->getTexture());
@@ -194,7 +200,8 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 					for( unsigned int k=0 ; k<l_SpotLights.size() ; ++k )
 					{
 						bool l_Temp = false;
-						if( !reinterpret_cast<SpotLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(a_SortedSpot[a_Idx]->boundingBox(), l_Temp) ) continue;
+						// to do : use physx intersection update cast state
+						//if( !reinterpret_cast<SpotLight *>(l_SpotLights[k].get())->getShadowCamera()->getFrustum().intersect(a_SortedSpot[a_Idx]->boundingBox(), l_Temp) ) continue;
 
 						glm::ivec4 l_NewInst;
 						l_NewInst.x = a_SortedSpot[a_Idx]->getWorldOffset();

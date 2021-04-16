@@ -9,22 +9,28 @@
 namespace R
 {
 
+#pragma region PhysicalModule
 //
 // PhysicalModule
 //
 PhysicalModule::PhysicalModule()
+	: m_pCollisionConfiguration(nullptr)
 {
-
 }
 
 PhysicalModule::~PhysicalModule()
 {
 }
 
-bool PhysicalModule::init()
+void PhysicalModule::init()
 {
-
-	return true;
+	m_pCollisionConfiguration = new btDefaultCollisionConfiguration();
 }
+
+void PhysicalModule::uini()
+{
+	SAFE_DELETE(m_pCollisionConfiguration)
+}
+#pragma endregion
 
 }

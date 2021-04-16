@@ -218,7 +218,7 @@ private:
 	double m_Delta, m_FrameDelta;
 
 	// prevent asset gc
-	std::vector<std::shared_ptr<Asset>> m_RuntimeTexture;
+	std::vector<std::shared_ptr<Asset>> m_RuntimeTexture, m_DefaultShadowmap;
 	std::shared_ptr<Asset> m_pQuadMesh;
 
 	InputMediator *m_pInput;

@@ -652,54 +652,50 @@ void MeshAsset::initBuffers()
 
 void MeshAsset::assignDefaultRuntimeMaterial(Instance *a_pInst)
 {
-	std::shared_ptr<Asset> l_pBaseColor = nullptr;
-	std::shared_ptr<Asset> l_pNormal = nullptr;
-	std::shared_ptr<Asset> l_pMetal = nullptr;
-	std::shared_ptr<Asset> l_pRoughness = nullptr;
-	std::shared_ptr<Asset> l_pRefraction = nullptr;
-	{
-		auto it = a_pInst->m_Materials.find(MATSLOT_OPAQUE);
-		MaterialAsset *l_pSrcMatInst = nullptr;
-		if( a_pInst->m_Materials.end() != it ) l_pSrcMatInst = it->second->getComponent<MaterialAsset>();
-		else
-		{
-			it = a_pInst->m_Materials.find(MATSLOT_TRANSPARENT);
-			if( a_pInst->m_Materials.end() != it ) l_pSrcMatInst = it->second->getComponent<MaterialAsset>();
-		}
-
-		l_pBaseColor = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_BASECOLOR);
-		if( nullptr == l_pBaseColor ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-
-		l_pNormal = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_NORMAL);
-		if( nullptr == l_pNormal ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
-
-		l_pMetal = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_METAL);
-		if( nullptr == l_pMetal ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
-
-		l_pRoughness = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_ROUGHNESS);
-		if( nullptr == l_pRoughness ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
-
-		l_pRefraction = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
-	}
-
-	const std::pair<int, int> c_ShadowSlots[] = {
-		std::make_pair(DefaultPrograms::DirShadowMap, MATSLOT_DIR_SHADOWMAP),
-		std::make_pair(DefaultPrograms::SpotShadowMap, MATSLOT_SPOT_SHADOWMAP),
-		std::make_pair(DefaultPrograms::OmniShadowMap, MATSLOT_OMNI_SHADOWMAP)};
+	const std::pair<wxString, int> c_ShadowSlots[] = {
+		std::make_pair(DEFAULT_DIR_SHADOWMAP_MAT_ASSET_NAME, MATSLOT_DIR_SHADOWMAP),
+		std::make_pair(DEFAULT_SPOT_SHADOWMAP_MAT_ASSET_NAME, MATSLOT_SPOT_SHADOWMAP),
+		std::make_pair(DEFAULT_OMNI_SHADOWMAP_MAT_ASSET_NAME, MATSLOT_OMNI_SHADOWMAP)};
 	for( unsigned int j=0 ; j<3 ; ++j )
 	{
 		unsigned int l_MatSlot = c_ShadowSlots[j].second;
 		if( a_pInst->m_Materials.end() != a_pInst->m_Materials.find(l_MatSlot) ) continue;
 
-		std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
-		MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
-		l_pMatInst->init(ProgramManager::singleton().getData(c_ShadowSlots[j].first));
-		l_pMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, l_pBaseColor);
-		a_pInst->m_Materials.insert(std::make_pair(l_MatSlot, l_pMat));
+		a_pInst->m_Materials.insert(std::make_pair(l_MatSlot, AssetManager::singleton().getAsset(c_ShadowSlots[j].first)));
 	}
 
 	if( a_pInst->m_Materials.end() == a_pInst->m_Materials.find(MATSLOT_LIGHTMAP) )
-	{	
+	{
+		std::shared_ptr<Asset> l_pBaseColor = nullptr;
+		std::shared_ptr<Asset> l_pNormal = nullptr;
+		std::shared_ptr<Asset> l_pMetal = nullptr;
+		std::shared_ptr<Asset> l_pRoughness = nullptr;
+		std::shared_ptr<Asset> l_pRefraction = nullptr;
+		{
+			auto it = a_pInst->m_Materials.find(MATSLOT_OPAQUE);
+			MaterialAsset *l_pSrcMatInst = nullptr;
+			if( a_pInst->m_Materials.end() != it ) l_pSrcMatInst = it->second->getComponent<MaterialAsset>();
+			else
+			{
+				it = a_pInst->m_Materials.find(MATSLOT_TRANSPARENT);
+				if( a_pInst->m_Materials.end() != it ) l_pSrcMatInst = it->second->getComponent<MaterialAsset>();
+			}
+
+			l_pBaseColor = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_BASECOLOR);
+			if( nullptr == l_pBaseColor ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
+
+			l_pNormal = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_NORMAL);
+			if( nullptr == l_pNormal ) l_pNormal = AssetManager::singleton().getAsset(BLUE_TEXTURE_ASSET_NAME);
+
+			l_pMetal = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_METAL);
+			if( nullptr == l_pMetal ) l_pMetal = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
+
+			l_pRoughness = l_pSrcMatInst->getTexture(STANDARD_TEXTURE_ROUGHNESS);
+			if( nullptr == l_pRoughness ) l_pRoughness = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
+
+			l_pRefraction = AssetManager::singleton().getAsset(DARK_GRAY_TEXTURE_ASSET_NAME);
+		}
+
 		std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
 		MaterialAsset *l_pMatInst = l_pMat->getComponent<MaterialAsset>();
 		l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::RayScatter));

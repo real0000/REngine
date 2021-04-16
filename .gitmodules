@@ -1,3 +1,6 @@
 [submodule "third/tinyexr"]
 	path = third/tinyexr
 	url = https://github.com/syoyo/tinyexr.git
+[submodule "third/bullet3"]
+	path = third/bullet3
+	url = https://github.com/bulletphysics/bullet3.git

@@ -58,7 +58,7 @@ public:
 	virtual void setViewPort(int a_NumViewport, ...) = 0;// glm::Viewport
 	virtual void setScissor(int a_NumScissor, ...) = 0;// glm::ivec4
 
-	virtual void bindPredication(int a_ID) = 0;
+	virtual void bindPredication(int a_ID, uint64 a_Offset = 0) = 0;
 	virtual void beginQuery(int a_ID, unsigned int a_Idx = 0) = 0;
 	virtual void endQuery(int a_ID, unsigned int a_Idx = 0) = 0;
 	virtual void resolveQuery(int a_ID, unsigned int a_Count, unsigned int a_Idx = 0) = 0;

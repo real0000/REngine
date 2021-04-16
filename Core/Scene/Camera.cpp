@@ -209,7 +209,7 @@ void Camera::calViewProjection(const glm::mat4x4 &a_NewTransform)
 			decomposeTRS(a_NewTransform, l_Eye, l_Scale, l_Rot);
 
 			m_ViewParam = glm::vec4(120.0f, 1.0f, 0.01f, std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z));
-			(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
+			//(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
 			glm::mat4x4 l_Projection(glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w));
 
 			//

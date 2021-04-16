@@ -9,6 +9,7 @@
 #include "Core.h"
 #include "Input/InputMediator.h"
 
+#include "PhysicalModule.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 #include "Scene/Camera.h"
@@ -342,9 +343,11 @@ void EngineCore::shutDown()
 	m_bValid = false;
 	m_pRefMain->Unbind(wxEVT_IDLE, &EngineCore::mainLoop, this);
 	
+	PhysicalModule::singleton().uini();
 	SDL_Quit();
 
 	m_RuntimeTexture.clear();
+	m_DefaultShadowmap.clear();
 	m_pQuadMesh = nullptr;
 
 	ImageManager::singleton().finalize();
@@ -424,7 +427,19 @@ bool EngineCore::init()
 	memcpy(l_pQuadVtxBuff, c_QuadVtx, sizeof(c_QuadVtx));
 	memcpy(l_pQuadIdxDstBuff, c_QuadIdx, sizeof(c_QuadIdx));
 	m_pQuadMesh->getComponent<MeshAsset>()->updateMeshData(glm::ivec2(0, 4), glm::ivec2(0, 6));
+	
+	const std::pair<int, wxString> c_ShadowSlots[] = {
+		std::make_pair(DefaultPrograms::DirShadowMap, DEFAULT_DIR_SHADOWMAP_MAT_ASSET_NAME),
+		std::make_pair(DefaultPrograms::SpotShadowMap, DEFAULT_SPOT_SHADOWMAP_MAT_ASSET_NAME),
+		std::make_pair(DefaultPrograms::OmniShadowMap, DEFAULT_OMNI_SHADOWMAP_MAT_ASSET_NAME)};
+	for( unsigned int i=0 ; i<3 ; ++i )
+	{
+		std::shared_ptr<Asset> l_pMaterial = AssetManager::singleton().createAsset(c_ShadowSlots[i].second);
+		l_pMaterial->getComponent<MaterialAsset>()->init(ProgramManager::singleton().getData(c_ShadowSlots[i].first));
+		m_DefaultShadowmap.push_back(l_pMaterial);
+	}
 
+	PhysicalModule::singleton().init();
 	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 	
 	return m_bValid;

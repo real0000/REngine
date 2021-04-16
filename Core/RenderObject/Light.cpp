@@ -22,7 +22,6 @@ namespace R
 //
 Light::Light(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pRefScene, a_pOwner)
-	, m_pShadowCamera(EngineComponent::create<Camera>(a_pRefScene, nullptr))
 	, m_bStatic(false)
 {
 }
@@ -38,7 +37,6 @@ void Light::start()
 
 void Light::end()
 {
-	m_pShadowCamera = nullptr;
 	if( isHidden() ) return;
 
 	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->remove(shared_from_base<Light>());
@@ -105,7 +103,7 @@ void DirLight::end()
 
 void DirLight::transformListener(const glm::mat4x4 &a_NewTransform)
 {
-	m_pRefParam->m_Direction = glm::normalize(glm::vec3(a_NewTransform[0][0], a_NewTransform[1][0], a_NewTransform[2][0]));
+	m_pRefParam->m_Direction = glm::normalize(glm::vec3(a_NewTransform[0][0], a_NewTransform[0][1], a_NewTransform[0][2]));
 	getScene()->getDirLightContainer()->setDirty();
 
 	Light::transformListener(a_NewTransform);
@@ -267,8 +265,6 @@ void OmniLight::transformListener(const glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Center = m_pRefParam->m_Position;
 	boundingBox().m_Size = glm::vec3(m_pRefParam->m_Range, m_pRefParam->m_Range, m_pRefParam->m_Range);
 	getScene()->getOmniLightContainer()->setDirty();
-
-	getShadowCamera()->setCubeView(a_NewTransform);
 
 	Light::transformListener(a_NewTransform);
 }
@@ -461,8 +457,6 @@ void SpotLight::transformListener(const glm::mat4x4 &a_NewTransform)
 	boundingBox().m_Center = m_pRefParam->m_Position + m_pRefParam->m_Direction * 0.5f * m_pRefParam->m_Range;
 	getScene()->getSpotLightContainer()->setDirty();
 	
-	getShadowCamera()->setPerspectiveView(m_pRefParam->m_Angle, 1.0f, 0.01f, a_NewTransform);
-
 	Light::transformListener(a_NewTransform);
 }
 

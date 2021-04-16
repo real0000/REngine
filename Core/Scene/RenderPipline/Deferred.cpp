@@ -24,15 +24,6 @@
 namespace R
 {
 
-const PixelFormat::Key c_GBufferDef[] = {
-	PixelFormat::rgba8_snorm,
-	PixelFormat::rgba8_unorm,
-	PixelFormat::rgba8_unorm,
-	PixelFormat::rgba8_unorm,
-	PixelFormat::rgba8_unorm,
-	PixelFormat::rg16_float,
-	PixelFormat::d24_unorm_s8_uint};
-
 #pragma region DeferredRenderer
 #pragma region DebugTexture
 //
@@ -101,6 +92,10 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pDeferredLightMat(nullptr)
 	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME))
 	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
+	, m_pQueryBuffer()
+	, m_pPredMat(AssetManager::singleton().createRuntimeAsset<MaterialAsset>())
+	, m_pPredMatInst(nullptr)
+	, m_QueryID(-1), m_QuerySize(1024)
 {
 	m_pLightIndexMat = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
 	m_pDeferredLightMat = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
@@ -109,11 +104,27 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
 	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
 	m_pCopyMatInst = m_pCopyMat->getComponent<MaterialAsset>();
+	m_pPredMatInst = m_pPredMat->getComponent<MaterialAsset>();
 
 	m_pLightIndexMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection));
 	m_pDeferredLightMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting));
 	m_pCopyMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Copy));
+	m_pPredMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Predication));
 
+	m_QueryID = GDEVICE()->requestQueryBuffer(m_QuerySize);
+	m_pQueryBuffer[0] = AssetManager::singleton().createRuntimeAsset<TextureAsset>();
+	m_pQueryBuffer[0]->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize / 4, PixelFormat::d32_float);
+	m_pQueryBuffer[1] = AssetManager::singleton().createRuntimeAsset<TextureAsset>();
+	m_pQueryBuffer[1]->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize / 4, PixelFormat::rgba8_unorm);
+	
+	const PixelFormat::Key c_GBufferDef[] = {
+		PixelFormat::rgba8_snorm,
+		PixelFormat::rgba8_unorm,
+		PixelFormat::rgba8_unorm,
+		PixelFormat::rgba8_unorm,
+		PixelFormat::rgba8_unorm,
+		PixelFormat::rg16_float,
+		PixelFormat::d24_unorm_s8_uint};
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
 		m_pGBuffer[i] = AssetManager::singleton().createRuntimeAsset<TextureAsset>();
@@ -169,6 +180,16 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 
 DeferredRenderer::~DeferredRenderer()
 {
+	GDEVICE()->freeQueryBuffer(m_QueryID);
+	m_QueryID = -1;
+	AssetManager::singleton().removeAsset(m_pPredMat);
+	m_pPredMat = nullptr;
+	for( unsigned int i=0 ; i<2 ; ++i )
+	{
+		AssetManager::singleton().removeAsset(m_pQueryBuffer[i]);
+		m_pQueryBuffer[i] = nullptr;
+	}
+
 	m_pQuadMeshInst = nullptr;
 	m_pQuadMesh = nullptr;
 
@@ -295,8 +316,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	//ShadowMapRenderer *l_pShadowMap = reinterpret_cast<ShadowMapRenderer *>(getScene()->getShadowMapBaker());
 	//l_pShadowMap->bake(m_VisibleLights, m_SortedMesh[MATSLOT_DIR_SHADOWMAP], m_SortedMesh[MATSLOT_OMNI_SHADOWMAP], m_SortedMesh[MATSLOT_SPOT_SHADOWMAP], m_pCmdInit, m_DrawCommand);
 	
-	{// graphic step, divide by stage
-		//bind gbuffer
+	{// graphic step
 		m_pCmdInit->begin(false);
 
 		for( unsigned int i=0 ; i<GBUFFER_COUNT - 1 ; ++i )
@@ -304,6 +324,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 		}
 		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
+		//m_pCmdInit->clearRenderTarget(m_pQueryBuffer[1]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+		//m_pCmdInit->clearDepthTarget(m_pQueryBuffer[0]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
 		m_pCmdInit->end();
 
@@ -315,6 +337,33 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			{
 				m_DrawCommand[i]->begin(false);
 				
+				std::pair<unsigned int, unsigned int> l_Range = calculateSegment(m_SortedMesh[MATSLOT_OPAQUE].size(), l_NumCommand, i);
+
+				/*glm::viewport l_Viewport(0.0f, 0.0f, l_ViewPortSize.x / 4.0f, l_ViewPortSize.y / 4.0f, 0.0f, 1.0f);
+				m_DrawCommand[i]->setViewPort(1, l_Viewport);
+				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, l_ViewPortSize.x, l_ViewPortSize.y));
+				m_DrawCommand[i]->setRenderTarget(m_pQueryBuffer[0]->getComponent<TextureAsset>()->getTextureID(), 1,
+												m_pQueryBuffer[1]->getComponent<TextureAsset>()->getTextureID());
+
+				m_DrawCommand[i]->beginQuery(m_QueryID, l_Range.first);
+				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_OPAQUE]
+					, l_Range.first, l_Range.second
+					, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+					{
+						return m_pPredMatInst;
+					}
+					, [=](MaterialAsset *a_pMat) -> void
+					{
+						a_pMat->bindBlock(m_DrawCommand[i], "Camera", a_pCamera->getMaterialBlock());
+					}
+					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
+					{
+						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
+						return 1;
+					});
+				m_DrawCommand[i]->endQuery(m_QueryID, l_Range.first);
+				m_DrawCommand[i]->resolveQuery(m_QueryID, l_Range.second - l_Range.first, l_Range.first);*/
+
 				glm::viewport l_Viewport(0.0f, 0.0f, l_ViewPortSize.x, l_ViewPortSize.y, 0.0f, 1.0f);
 				m_DrawCommand[i]->setViewPort(1, l_Viewport);
 				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, l_ViewPortSize.x, l_ViewPortSize.y));
@@ -326,8 +375,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 												m_pGBuffer[GBUFFER_FACTOR]->getComponent<TextureAsset>()->getTextureID(),
 												m_pGBuffer[GBUFFER_MOTIONBLUR]->getComponent<TextureAsset>()->getTextureID());
 
+				//m_DrawCommand[i]->bindPredication(m_QueryID, l_Range.first);
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_OPAQUE]
-					, i, l_NumCommand, MATSLOT_OPAQUE
+					, l_Range.first, l_Range.second
+					, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+					{
+						return a_pMesh->getMaterial(MATSLOT_OPAQUE)->getComponent<MaterialAsset>();
+					}
 					, [=](MaterialAsset *a_pMat) -> void
 					{
 						a_pMat->bindBlock(m_DrawCommand[i], "Camera", a_pCamera->getMaterialBlock());
@@ -337,6 +391,8 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
 						return 1;
 					});
+				//m_DrawCommand[i]->bindPredication(-1);
+
 				m_DrawCommand[i]->end();
 			});
 		}
@@ -407,9 +463,15 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 				m_DrawCommand[i]->setViewPort(1, l_Viewport);
 				m_DrawCommand[i]->setScissor(1, glm::ivec4(0, 0, l_ViewPortSize.x, l_ViewPortSize.y));
 				m_DrawCommand[i]->setRenderTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 1, m_pFrameBuffer->getComponent<TextureAsset>()->getTextureID());
+				
+				std::pair<unsigned int, unsigned int> l_Range = calculateSegment(m_SortedMesh[MATSLOT_TRANSPARENT].size(), l_NumCommand, i);
 
 				getScene()->getRenderBatcher()->drawSortedMeshes(m_DrawCommand[i], m_SortedMesh[MATSLOT_TRANSPARENT]
-					, i, l_NumCommand, MATSLOT_TRANSPARENT
+					, l_Range.first, l_Range.second
+					, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
+					{
+						return a_pMesh->getMaterial(MATSLOT_TRANSPARENT)->getComponent<MaterialAsset>();
+					}
 					, [=](MaterialAsset *a_pMat) -> void
 					{
 						a_pMat->bindBlock(m_DrawCommand[i], "Camera", a_pCamera->getMaterialBlock());
@@ -455,6 +517,10 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 
 void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
 {
+	for( unsigned int i=0 ; i<2 ; ++i )
+	{
+		m_pQueryBuffer[i]->getComponent<TextureAsset>()->resizeRenderTarget(a_Size / 4);
+	}
 	for( unsigned int i=0 ; i<GBUFFER_COUNT ; ++i )
 	{
 		m_pGBuffer[i]->getComponent<TextureAsset>()->resizeRenderTarget(a_Size);
@@ -498,6 +564,14 @@ bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)
 {
 	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, m_VisibleMeshes);
 	if( m_VisibleMeshes.empty() ) return false;
+
+	if( m_VisibleMeshes.size() >= m_QuerySize )
+	{
+		GDEVICE()->freeQueryBuffer(m_QueryID);
+		if( 0 == m_VisibleMeshes.size() % m_ExtendSize ) m_QuerySize = (int)m_VisibleMeshes.size();
+		else m_QuerySize = ((int)m_VisibleMeshes.size() + m_ExtendSize) / m_ExtendSize * m_ExtendSize;
+		m_QueryID = GDEVICE()->requestQueryBuffer(m_QuerySize);
+	}
 
 	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, m_VisibleLights);
 

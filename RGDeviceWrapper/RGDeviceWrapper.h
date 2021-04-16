@@ -244,6 +244,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	GenerateMinmaxDepth,
 
 	// draw
+	Predication,
 	Grid,
 	Copy,
 	CopyDepth,

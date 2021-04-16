@@ -107,31 +107,30 @@ void SceneBatcher::recycleInstanceVtxBuffer(int a_BufferID)
 }
 
 void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
-	, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_ThreadIdx, unsigned int a_NumThread, unsigned int a_MatSlot
-	, std::function<void(MaterialAsset*)> a_BindingFunc, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc)
+	, std::vector<RenderableMesh*> &a_SortedMesh, unsigned int a_Start, unsigned int a_End
+	, std::function<MaterialAsset*(RenderableMesh*)> a_MaterialFunc
+	, std::function<void(MaterialAsset*)> a_BindingFunc
+	, std::function<unsigned int(std::vector<glm::ivec4>&, unsigned int)> a_InstanceFunc)
 {
-	unsigned int l_Unit = std::max<unsigned int>(a_SortedMesh.size() / a_NumThread + (0 == (a_SortedMesh.size() % a_NumThread) ? 0 : 1), 1);
-	unsigned int l_Start = a_ThreadIdx*l_Unit;
-	unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, a_SortedMesh.size());
-	if( l_Start >= a_SortedMesh.size() ) return;
+	if( a_Start >= a_SortedMesh.size() ) return;
 
 	IndirectDrawData l_TempData;
 	std::vector<glm::ivec4> l_Instance;
 	
-	MeshAsset::Instance *l_pInst = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>()->getMeshes()[a_SortedMesh[l_Start]->getMeshIdx()];
+	MeshAsset::Instance *l_pInst = a_SortedMesh[a_Start]->getMesh()->getComponent<MeshAsset>()->getMeshes()[a_SortedMesh[a_Start]->getMeshIdx()];
 	l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
 	l_TempData.m_StartIndex = l_pInst->m_StartIndex;
 	l_TempData.m_IndexCount = l_pInst->m_IndexCount;
 	l_TempData.m_StartInstance = 0;
 	l_TempData.m_InstanceCount = 0;
 
-	MaterialAsset *l_pMatCache = a_SortedMesh[l_Start]->getMaterial(a_MatSlot)->getComponent<MaterialAsset>();
-	MeshAsset *l_pMeshCache = a_SortedMesh[l_Start]->getMesh()->getComponent<MeshAsset>();
-	unsigned int l_SubIdxCahce = a_SortedMesh[l_Start]->getMeshIdx();
+	MaterialAsset *l_pMatCache = a_MaterialFunc(a_SortedMesh[a_Start]);
+	MeshAsset *l_pMeshCache = a_SortedMesh[a_Start]->getMesh()->getComponent<MeshAsset>();
+	unsigned int l_SubIdxCahce = a_SortedMesh[a_Start]->getMeshIdx();
 	IndirectDrawBuffer *l_pIndirectBuffer = requestIndirectBuffer();
-	for( unsigned int j=l_Start ; j<l_End ; ++j )
+	for( unsigned int j=a_Start ; j<a_End ; ++j )
 	{
-		MaterialAsset *l_pMat = a_SortedMesh[j]->getMaterial(a_MatSlot)->getComponent<MaterialAsset>();
+		MaterialAsset *l_pMat = a_MaterialFunc(a_SortedMesh[j]);
 		MeshAsset *l_pMesh = a_SortedMesh[j]->getMesh()->getComponent<MeshAsset>();
 		unsigned int l_SubIdx = a_SortedMesh[j]->getMeshIdx();
 
@@ -795,7 +794,7 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 	if( nullptr == m_pCurrCamera ) return;
 
 	// calculate frustum world position
-	glm::vec3 l_FrustumPt[4][5];
+	glm::vec4 l_FrustumPt[4][5];
 	{
 		glm::mat4x4 l_InvVP(*m_pCurrCamera->getMatrix(Camera::INVERTVIEWPROJECTION));
 		glm::vec3 l_Eye, l_Dir, l_Up;
@@ -821,28 +820,50 @@ void Scene::render(GraphicCanvas *a_pCanvas)
 			glm::vec4 l_Temp(l_InvVP * c_CornerPt[i]);
 			l_Temp /= l_Temp.w;
 			glm::vec3 l_CornerVec(glm::normalize(glm::vec3(l_Temp.x, l_Temp.y, l_Temp.z) - l_Eye));
-			for( unsigned int j=0 ; j<5 ; ++j ) l_FrustumPt[i][j] = l_Eye + l_CornerVec * l_RayLength[j];
+			for( unsigned int j=0 ; j<5 ; ++j ) l_FrustumPt[i][j] = glm::vec4(l_Eye + l_CornerVec * l_RayLength[j], 1.0f);
 		}
 	}
 
 	// update cascaded shadow map camera
 	/*unsigned int l_NumThread = EngineSetting::singleton().m_NumRenderCommandList;
+	glm::mat4x4 l_Dummy;
 	for( unsigned int i=0 ; i<l_NumThread ; ++i )
 	{
 		EngineCore::singleton().addJob([=]() -> void
 		{
-			unsigned int l_MaxID = m_pDirLights->getMaxID() + 1;
-			unsigned int l_Unit = std::max<unsigned int>(l_MaxID / l_NumThread + (0 == (l_MaxID % l_NumThread) ? 0 : 1), 1);
-			unsigned int l_Start = i*l_Unit;
-			unsigned int l_End = std::min<unsigned int>(l_Start + l_Unit, l_MaxID);
-			if( l_Start >= l_MaxID ) return;
+			std::pair<unsigned int, unsigned int> l_Range = calculateSegment(m_pDirLights->getMaxID() + 1, l_NumThread, i);
+			if( l_Range.first > m_pDirLights->getMaxID() ) return;
 
-			for( unsigned int j=l_Start ; j<l_End ; ++j )
+			for( unsigned int j=l_Range.first ; j<l_Range.second ; ++j )
 			{
 				std::shared_ptr<DirLight> l_pLight = m_pDirLights->get(j);
 				if( !l_pLight->getShadowed() ) continue;
 
-				
+				glm::mat4x4 &l_ViewMat = *l_pLight->getShadowCamera()->getMatrix(Camera::VIEW);
+
+				const glm::mat4x4 l_LightNodeTrans(l_pLight->getOwner()->getTransform());
+				glm::vec3 l_Up(glm::normalize(glm::vec3(l_LightNodeTrans[1][0], l_LightNodeTrans[1][1], l_LightNodeTrans[1][2])));
+				glm::vec3 l_Min(FLT_MAX, FLT_MAX, FLT_MAX), l_Max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+				for( unsigned int vol=0 ; vol<4 ; ++vol ) 
+				{
+					for( unsigned int ray=0 ; ray<4 ; ++ray )
+					{
+						glm::vec3 l_Pt(l_ViewMat * l_FrustumPt[ray][vol]);
+						l_Min = glm::min(l_Pt, l_Min);
+						l_Max = glm::max(l_Pt, l_Max);
+
+						l_Pt = glm::vec3(l_ViewMat * l_FrustumPt[ray][vol+1]);
+						l_Min = glm::min(l_Pt, l_Min);
+						l_Max = glm::max(l_Pt, l_Max);
+					}
+
+					float l_Width = l_Max.x - l_Min.x;
+					float l_Height = l_Max.y - l_Min.y;
+					glm::vec3 l_CameraEye((l_FrustumPt[0][vol+1] + l_FrustumPt[3][vol]) * 0.5f);
+					glm::mat4x4 l_LightView(glm::lookAt(l_CameraEye, l_CameraEye + l_pLight->getDirection(), l_Up));
+					glm::mat4x4 l_LightProj(glm::ortho(-0.5f * l_Width, 0.5f * l_Width, -0.5f * l_Height, 0.5f * l_Height));
+					l_pLight->setShadowMapProjection(vol, l_LightProj * l_LightView);
+				}
 			}
 		});
 	}

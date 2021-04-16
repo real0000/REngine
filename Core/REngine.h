@@ -6,8 +6,6 @@
 #ifndef _RENGINE_H_
 #define _RENGINE_H_
 
-//#include "PxPhysicsAPI.h"
-
 #include "CommonUtil.h"
 #include "RImporters.h"
 #include "RGDeviceWrapper.h"

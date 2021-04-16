@@ -14,6 +14,9 @@ class AssetManager;
 // default assets
 #define COPY_ASSET_NAME wxT("Copy.Material")
 #define CLEAR_MAT_ASSET_NAME wxT("ShadowMapClear.Material")
+#define DEFAULT_DIR_SHADOWMAP_MAT_ASSET_NAME wxT("DefaultDirShadowMap.Material")
+#define DEFAULT_OMNI_SHADOWMAP_MAT_ASSET_NAME wxT("DefaultOmniShadowMap.Material")
+#define DEFAULT_SPOT_SHADOWMAP_MAT_ASSET_NAME wxT("DefaultSpotShadowMap.Material")
 
 #define WHITE_TEXTURE_ASSET_NAME wxT("White.Image")
 #define BLACK_TEXTURE_ASSET_NAME wxT("Black.Image")

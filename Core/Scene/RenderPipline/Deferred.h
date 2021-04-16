@@ -68,6 +68,13 @@ private:
 	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
 	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
 
+	// query
+	std::shared_ptr<Asset> m_pQueryBuffer[2];// depth, color
+	std::shared_ptr<Asset> m_pPredMat;
+	MaterialAsset *m_pPredMatInst;
+	int m_QueryID;
+	unsigned int m_QuerySize;
+
 	// debug texture
 	struct DebugTexture
 	{

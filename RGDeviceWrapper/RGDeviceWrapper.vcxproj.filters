@@ -143,6 +143,9 @@
     <None Include="Shaders\Grid.pixel">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Predication.pixel">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="Shaders\Lightmap\RayIntersection.xml">
@@ -167,6 +170,9 @@
       <Filter>Shaders\Shadowmap</Filter>
     </Xml>
     <Xml Include="Shaders\Grid.xml">
+      <Filter>Shaders</Filter>
+    </Xml>
+    <Xml Include="Shaders\Predication.xml">
       <Filter>Shaders</Filter>
     </Xml>
   </ItemGroup>

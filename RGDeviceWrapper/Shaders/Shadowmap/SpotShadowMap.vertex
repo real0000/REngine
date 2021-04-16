@@ -3,8 +3,7 @@
 
 struct VS_Output
 {
-	float2 m_UV: TEXCOORD0;
-	float4 m_TargetData : TEXCOORD1;
+	float4 m_TargetData : TEXCOORD0;
 	float4 m_Position : SV_Position;
 };
 
@@ -13,7 +12,6 @@ VS_Output main(VS_CommonInput l_Input)
 	VS_Output l_Output = (VS_Output)0;
 
 	TransformInfo l_Transform = NormalTransition[l_Input.m_InstanceID.x];
-	l_Output.m_UV = l_Input.m_Texcoord01.xy;
 	
 	float4x4 l_WorldTransform;
 	if( 0 != (l_Transform.m_VtxFlag & USE_SKIN) )

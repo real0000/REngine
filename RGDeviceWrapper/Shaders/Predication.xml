@@ -1,27 +1,15 @@
 <root isCompute="false" isIndexed="true">
   <ParamList>
+    <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
     <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
     <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
-    <UavBuffer name="Lights" preDef="SpotLight" write="false"/>
-    <Constant name="ShadowMapSize" type="int2" reserved="false"/>
-    <Srv2DArray name="ShadowMap" type="int1" write="true"/>
   </ParamList>
   <Shaders>
     <Model_5_1>
-      <Vertex file="Shadowmap/SpotShadowMap.vertex">
-        SkinTransition, NormalTransition, Lights, ShadowMapSize
+      <Vertex file="VertexTransfer.vertex">
+        Camera, SkinTransition, NormalTransition
       </Vertex>
-      <!--TessCtrl file="">  
-      </TessCtrl>
-      <TessEval file="">
-      </TessEval-->
-      <!--Geometry file="">
-      </Geometry-->
-      <!--Compute>
-      </Compute>-->
-      <Fragment file="Shadowmap/ShadowMap.pixel">
-        ShadowMap
-      </Fragment>
+      <Fragment file="Predication.pixel"/>
     </Model_5_1>
   </Shaders>
   <ShaderSetting sampleMask="ffffffff" topology="triangle_list" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
@@ -34,6 +22,8 @@
         <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
       </Stencil>
     </DepthStencil>
-    <RenderTarget depthStencil="unknown"/>
+    <RenderTarget depthStencil="d32_float">
+      <rgba8_unorm/>
+    </RenderTarget>
   </ShaderSetting>
 </root>

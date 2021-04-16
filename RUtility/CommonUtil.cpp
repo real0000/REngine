@@ -197,6 +197,14 @@ void base642Binary(std::string &a_Src, std::vector<char> &a_Output)
 	boost::iostreams::close(l_Decompress);
 }
 
+std::pair<unsigned int, unsigned int> calculateSegment(unsigned int a_Count, unsigned int a_NumDevide, unsigned int a_SegmentIdx)
+{
+	std::pair<unsigned int, unsigned int> l_Res;
+	unsigned int l_Unit = std::max<unsigned int>(a_Count / a_NumDevide + (0 == (a_Count % a_NumDevide) ? 0 : 1), 1);
+	l_Res.first = a_SegmentIdx*l_Unit;
+	l_Res.second = std::min<unsigned int>(l_Res.first + l_Unit, a_Count);
+	return l_Res;
+}
 /*void showOpenGLErrorCode(wxString a_StepInfo)
 {
 #ifdef _DEBUG

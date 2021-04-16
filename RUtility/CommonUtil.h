@@ -78,6 +78,7 @@ void regularFilePath(wxString &a_Path);
 wxString concatFilePath(wxString a_Left, wxString a_Right);
 void binary2Base64(void *a_pSrc, unsigned int a_Size, std::string &a_Output);
 void base642Binary(std::string &a_Src, std::vector<char> &a_Output);
+std::pair<unsigned int, unsigned int> calculateSegment(unsigned int a_Count, unsigned int a_NumDevide, unsigned int a_SegmentIdx);
 //void showOpenGLErrorCode(wxString a_StepInfo);
 
 void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_ScaleOut, glm::quat &a_RotOut);
