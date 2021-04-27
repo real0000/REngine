@@ -11,8 +11,9 @@
 #include "Asset/AssetBase.h"
 #include "Asset/MeshAsset.h"
 #include "Asset/MaterialAsset.h"
+#include "Physical/IntersectHelper.h"
+#include "Physical/PhysicalModule.h"
 #include "Scene/Scene.h"
-#include "Scene/Graph/ScenePartition.h"
 
 #include "Mesh.h"
 
@@ -31,6 +32,8 @@ RenderableMesh::RenderableMesh(std::shared_ptr<Scene> a_pRefScene, std::shared_p
 	, m_bShadowed(true)
 	, m_SkinOffset(-1)
 	, m_WorldOffset(-1)
+	, m_BoundingBox()
+	, m_pHelper(nullptr)
 {
 }
 
@@ -38,21 +41,38 @@ RenderableMesh::~RenderableMesh()
 {
 }
 
-void RenderableMesh::start()
+void RenderableMesh::postInit()
 {
-	addTransformListener();
-	getScene()->getSceneGraph(GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
+	RenderableComponent::postInit();
+	m_pHelper = new IntersectHelper(shared_from_base<EngineComponent>(), 
+		[=](PhysicalListener *a_pListener) -> int
+		{
+			glm::obb l_Box;
+			l_Box.m_Size = m_BoundingBox.m_Size;
+			l_Box.m_Transition = getOwner()->getTransform();
+			return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Box, TRIGGER_MESH, TRIGGER_LIGHT | TRIGGER_CAMERA);
+		},
+		[=]() -> glm::mat4x4
+		{
+			return getOwner()->getTransform();
+		}, 0);
+		
+	if( !isHidden() )
+	{
+		addTransformListener();
+		m_pHelper->setupTrigger(true);
+	}
 	m_WorldOffset = getScene()->getRenderBatcher()->requestWorldSlot(shared_from_base<RenderableMesh>());
 }
 
-void RenderableMesh::end()
+void RenderableMesh::preEnd()
 {
+	SAFE_DELETE(m_pHelper)
 	std::shared_ptr<RenderableMesh> l_pThis = shared_from_base<RenderableMesh>();
 	
 	std::shared_ptr<Scene> l_pScene = getScene();
 	if( nullptr != l_pScene )
 	{
-		if( !isHidden() ) l_pScene->getSceneGraph(GRAPH_MESH)->remove(l_pThis);
 		l_pScene->getRenderBatcher()->recycleWorldSlot(l_pThis);
 		if( -1 != m_SkinOffset ) l_pScene->getRenderBatcher()->recycleSkinSlot(m_pMesh);
 	}
@@ -69,12 +89,12 @@ void RenderableMesh::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getScene()->getSceneGraph(GRAPH_MESH)->remove(shared_from_base<RenderableMesh>());
+		m_pHelper->removeTrigger();
 		removeTransformListener();
 	}
 	else
 	{
-		getScene()->getSceneGraph(GRAPH_MESH)->add(shared_from_base<RenderableMesh>());
+		m_pHelper->setupTrigger(true);
 		addTransformListener();
 	}
 }
@@ -92,14 +112,9 @@ void RenderableMesh::transformListener(const glm::mat4x4 &a_NewTransform)
 	if( nullptr != m_pMesh )
 	{
 		MeshAsset::Instance *l_pMeshInst = m_pMesh->getComponent<MeshAsset>()->getMeshes()[m_MeshIdx];
-
-		glm::aabb &l_Box = l_pMeshInst->m_VisibleBoundingBox;
-		boundingBox().m_Center = l_Trans + l_Box.m_Center;
-		boundingBox().m_Size = l_Scale * l_Box.m_Size;
-	
 		getScene()->getRenderBatcher()->updateWorldSlot(m_WorldOffset, getOwner()->getTransform(), l_pMeshInst->m_VtxFlag, m_SkinOffset);
 	}
-	getScene()->getSceneGraph(GRAPH_MESH)->update(shared_from_base<RenderableMesh>());
+	m_pHelper->setupTrigger(false);
 }
 
 void RenderableMesh::loadComponent(boost::property_tree::ptree &a_Src)
@@ -137,13 +152,12 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	for( auto it=l_pMeshInst->m_Materials.begin() ; it!=l_pMeshInst->m_Materials.end() ; ++it ) setMaterial(it->first, it->second);
 	getScene()->getRenderBatcher()->updateWorldSlot(m_WorldOffset, getOwner()->getTransform(), l_pMeshInst->m_VtxFlag, m_SkinOffset);
 	syncKeyMap();
+	m_BoundingBox = l_pMeshInst->m_VisibleBoundingBox;
 
 	glm::vec3 l_Trans, l_Scale;
 	glm::quat l_Rot;
 	glm::aabb &l_Box = l_pMeshInst->m_VisibleBoundingBox;
 	decomposeTRS(getOwner()->getTransform(), l_Trans, l_Scale, l_Rot);
-	boundingBox().m_Center = l_Trans + l_Box.m_Center;
-	boundingBox().m_Size = l_Scale * l_Box.m_Size;
 }
 
 void RenderableMesh::removeMaterial(unsigned int a_Slot)

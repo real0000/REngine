@@ -11,12 +11,12 @@
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
 #include "Asset/TextureAsset.h"
+#include "Physical/IntersectHelper.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/TextureAtlas.h"
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
-#include "Scene/Graph/ScenePartition.h"
 #include "Scene/RenderPipline/ShadowMap.h"
 
 #include "Deferred.h"
@@ -232,8 +232,16 @@ void DeferredRenderer::saveSetting(boost::property_tree::ptree &a_Dst)
 
 void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *a_pCanvas)
 {
-	m_VisibleMeshes.clear();
-	m_VisibleLights.clear();
+	m_DynamicLights.clear();
+	{
+		auto &l_Lights = a_pCamera->getHelper()->getLights();
+		for( auto it=l_Lights.begin() ; it!=l_Lights.end() ; ++it )
+		{
+			if( (*it)->isStatic() ) continue;
+			m_DynamicLights.push_back(*it);
+		}
+	}
+	CONSOLE_LOG(wxT("draw count info : mesh(%d), light(%d)"), int(a_pCamera->getHelper()->getMeshes().size()), int(m_DynamicLights.size()));
 
 	{// setup light map
 		std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();
@@ -273,16 +281,17 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 	EngineCore::singleton().addJob([=](){ this->setupIndexUav();});
 	
 	// sort meshes
+	auto &l_Meshes = a_pCamera->getHelper()->getMeshes();
 	{
 		for( unsigned int i=0 ; i<cm_NumMatSlot ; ++i )
 		{
 			EngineCore::singleton().addJob([=]() -> void
 			{
 				m_SortedMesh[i].clear();
-				m_SortedMesh[i].reserve(m_VisibleMeshes.size());
-				for( unsigned int j=0 ; j<m_VisibleMeshes.size() ; ++j )
+				m_SortedMesh[i].reserve(l_Meshes.size());
+				for( auto it=l_Meshes.begin() ; it!=l_Meshes.end() ; ++it )
 				{
-					RenderableMesh *l_pMesh = reinterpret_cast<RenderableMesh*>(m_VisibleMeshes[j].get());
+					RenderableMesh *l_pMesh = (*it).get();
 					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) m_SortedMesh[i].push_back(l_pMesh);
 				}
 				std::sort(m_SortedMesh[i].begin(), m_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
@@ -425,7 +434,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);
 		m_pLightIndexMatInst->setBlock("Camera", a_pCamera->getMaterialBlock());
-		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
+		m_pLightIndexMatInst->setParam<int>("c_NumLight", 0, (int)m_DynamicLights.size());
 		m_pLightIndexMatInst->bindAll(m_pCmdInit);
 		m_pCmdInit->compute(std::max((m_TileDim.x + 7) / 8, 1), std::max((m_TileDim.y + 7) / 8, 1));
 
@@ -443,7 +452,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		m_pCmdInit->setViewPort(1, l_FrameView);
 		m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_FrameSize.x, l_FrameSize.y));
 		m_pCmdInit->bindVertex(m_pQuadMeshInst->getVertexBuffer().get());
-		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)m_VisibleLights.size());
+		m_pDeferredLightMatInst->setParam<int>("c_NumLight", 0, (int)m_DynamicLights.size());
 		m_pDeferredLightMatInst->bindTexture(m_pCmdInit, "ShadowMap", reinterpret_cast<ShadowMapRenderer*>(getScene()->getShadowMapBaker())->getShadowMap());
 		m_pDeferredLightMatInst->bindBlock(m_pCmdInit, "Camera", a_pCamera->getMaterialBlock());
 		m_pDeferredLightMatInst->bindAll(m_pCmdInit);
@@ -562,23 +571,21 @@ void DeferredRenderer::drawFlagChanged(unsigned int a_Flag)
 
 bool DeferredRenderer::setupVisibleList(std::shared_ptr<Camera> a_pCamera)
 {
-	getScene()->getSceneGraph(GRAPH_MESH)->getVisibleList(a_pCamera, m_VisibleMeshes);
-	if( m_VisibleMeshes.empty() ) return false;
+	auto &l_Meshes = a_pCamera->getHelper()->getMeshes();
+	if( l_Meshes.empty() ) return false;
 
-	if( m_VisibleMeshes.size() >= m_QuerySize )
+	if( l_Meshes.size() >= m_QuerySize )
 	{
 		GDEVICE()->freeQueryBuffer(m_QueryID);
-		if( 0 == m_VisibleMeshes.size() % m_ExtendSize ) m_QuerySize = (int)m_VisibleMeshes.size();
-		else m_QuerySize = ((int)m_VisibleMeshes.size() + m_ExtendSize) / m_ExtendSize * m_ExtendSize;
+		if( 0 == l_Meshes.size() % m_ExtendSize ) m_QuerySize = (int)l_Meshes.size();
+		else m_QuerySize = ((int)l_Meshes.size() + m_ExtendSize) / m_ExtendSize * m_ExtendSize;
 		m_QueryID = GDEVICE()->requestQueryBuffer(m_QuerySize);
 	}
 
-	getScene()->getSceneGraph(GRAPH_LIGHT)->getVisibleList(a_pCamera, m_VisibleLights);
-
-	if( (int)m_VisibleLights.size() >= m_LightIdx->getNumSlot() / 2 )
+	if( (int)m_DynamicLights.size() >= m_LightIdx->getNumSlot() / 2 )
 	{
 		int l_Unit = m_ExtendSize / 2;
-		int l_Extend = (int)m_VisibleLights.size() / 2 - m_LightIdx->getNumSlot();
+		int l_Extend = (int)m_DynamicLights.size() / 2 - m_LightIdx->getNumSlot();
 		l_Extend = (l_Extend + l_Unit - 1) / l_Unit * l_Unit;
 
 		m_LightIdx->extend(l_Extend);
@@ -597,10 +604,10 @@ void DeferredRenderer::setupIndexUav()
 	};
 
 	char *l_pBuff = m_LightIdx->getBlockPtr(0);
-	for( unsigned int i=0 ; i<m_VisibleLights.size() ; ++i )
+	for( unsigned int i=0 ; i<m_DynamicLights.size() ; ++i )
 	{
 		LightInfo *l_pTarget = reinterpret_cast<LightInfo*>(l_pBuff + sizeof(LightInfo) * i);
-		Light *l_pLight = reinterpret_cast<Light*>(m_VisibleLights[i].get());
+		Light *l_pLight = m_DynamicLights[i].get();
 		l_pTarget->m_Index = l_pLight->getID();
 		l_pTarget->m_Type = l_pLight->typeID();
 	}

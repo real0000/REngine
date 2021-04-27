@@ -12,8 +12,6 @@
 #include "MeshAsset.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
-#include "Scene/Graph/Octree.h"
-#include "Scene/Graph/ScenePartition.h"
 #include "Scene/Scene.h"
 #include "LightmapAsset.h"
 
@@ -24,6 +22,7 @@ namespace R
 #define NP 0
 #define ZP 1
 #define PP 2
+#define DEFAULT_OCTREE_EDGE 32.0
 
 #pragma region WorldAsset
 //
@@ -134,9 +133,41 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 
 	unsigned int l_LightCount = 0;
 
-	std::vector<std::shared_ptr<RenderableComponent>> l_Meshes, l_Lights;
-	a_pScene->getSceneGraph(GRAPH_MESH)->getAllComponent(l_Meshes);
-	a_pScene->getSceneGraph(GRAPH_STATIC_LIGHT)->getAllComponent(l_Lights);
+	std::vector<std::shared_ptr<RenderableMesh>> l_Meshes;
+	std::vector<std::shared_ptr<Light>> l_Lights;
+	{
+		std::vector<std::shared_ptr<RenderableMesh>> l_AllMesh;
+		a_pScene->getRootNode()->getComponentsInChildren<RenderableMesh>(l_AllMesh);
+		for( unsigned int i=0 ; i<l_AllMesh.size() ; ++i )
+		{
+			if( l_AllMesh[i]->isHidden() || !l_AllMesh[i]->isStatic() ) continue;
+			l_Meshes.push_back(l_AllMesh[i]);
+		}
+
+		std::vector<std::shared_ptr<DirLight>> l_DirLights;
+		a_pScene->getRootNode()->getComponentsInChildren<DirLight>(l_DirLights);
+		for( unsigned int i=0 ; i<l_DirLights.size() ; ++i )
+		{
+			if( l_DirLights[i]->isHidden() || !l_DirLights[i]->isStatic() ) continue;
+			l_Lights.push_back(l_DirLights[i]->shared_from_base<Light>());
+		}
+
+		std::vector<std::shared_ptr<SpotLight>> l_SpotLights;
+		a_pScene->getRootNode()->getComponentsInChildren<SpotLight>(l_SpotLights);
+		for( unsigned int i=0 ; i<l_SpotLights.size() ; ++i )
+		{
+			if( l_SpotLights[i]->isHidden() || !l_SpotLights[i]->isStatic() ) continue;
+			l_Lights.push_back(l_SpotLights[i]->shared_from_base<Light>());
+		}
+
+		std::vector<std::shared_ptr<OmniLight>> l_OmniLights;
+		a_pScene->getRootNode()->getComponentsInChildren<OmniLight>(l_OmniLights);
+		for( unsigned int i=0 ; i<l_OmniLights.size() ; ++i )
+		{
+			if( l_OmniLights[i]->isHidden() || !l_OmniLights[i]->isStatic() ) continue;
+			l_Lights.push_back(l_OmniLights[i]->shared_from_base<Light>());
+		}
+	}
 	if( l_Lights.empty() || l_Meshes.empty() ) return;
 
 	std::vector<unsigned int> l_TempTriangleData;
@@ -148,10 +179,7 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	{
 		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
 		{
-			if( l_Meshes[i]->isHidden() ) continue;
-			RenderableMesh *l_pMeshObj = reinterpret_cast<RenderableMesh*>(l_Meshes[i].get());
-			if( !l_pMeshObj->isStatic() ) continue;
-
+			std::shared_ptr<RenderableMesh> l_pMeshObj = l_Meshes[i];
 			std::shared_ptr<Asset> l_pMatAsset = l_pMeshObj->getMaterial(MaterialSlot::MATSLOT_LIGHTMAP);
 			auto it = l_TempMatSet.find(l_pMatAsset);
 			unsigned int l_MatID = 0;
@@ -255,12 +283,10 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 	// assign lights
 	for( unsigned int i=0 ; i<l_Lights.size() ; ++i )
 	{
-		if( l_Lights[i]->isHidden() ) continue;
-
-		Light *l_pLightObj = reinterpret_cast<Light*>(l_Lights[i].get());
+		std::shared_ptr<Light> l_pLightObj = l_Lights[i];
 		
 		std::vector<int> l_IntersectBox;
-		assignLight(l_pLightObj, 0, l_IntersectBox);
+		assignLight(l_pLightObj.get(), 0, l_IntersectBox);
 
 		glm::ivec2 l_TempData;
 		l_TempData.x = l_pLightObj->typeID();

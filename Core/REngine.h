@@ -12,7 +12,6 @@
 
 #include "Core.h"
 
-#include "PhysicalModule.h"
 #include "StateMachine.h"
 
 #include "Asset/AssetBase.h"
@@ -27,6 +26,9 @@
 #include "Input/KeyboardInput.h"
 #include "Input/MouseInput.h"
 
+#include "Physical/PhysicalModule.h"
+#include "Physical/IntersectHelper.h"
+
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 #include "RenderObject/RenderObject.h"
@@ -34,8 +36,6 @@
 
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
-#include "Scene/Graph/NoPartition.h"
-#include "Scene/Graph/Octree.h"
 #include "Scene/RenderPipline/Deferred.h"
 #include "Scene/RenderPipline/RenderPipline.h"
 #include "Scene/RenderPipline/ShadowMap.h"

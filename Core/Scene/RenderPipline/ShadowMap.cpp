@@ -223,40 +223,6 @@ std::shared_ptr<Asset> ShadowMapRenderer::getShadowMap()
 	return m_pShadowMap->getTexture();
 }
 
-unsigned int ShadowMapRenderer::calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light)
-{
-	if( COMPONENT_DirLight == a_Light->typeID() ) return 1024;
-	assert(a_pCamera->getCameraType() == Camera::ORTHO || a_pCamera->getCameraType() == Camera::PERSPECTIVE);
-
-	glm::sphere l_Sphere(glm::vec3(a_Light->boundingBox().m_Center), glm::length(a_Light->boundingBox().m_Size) * 0.5);
-	if( l_Sphere.m_Range <= glm::epsilon<float>() ) return 32;
-
-	float l_SliceLength = 0.0f;
-	if( a_pCamera->getCameraType() == Camera::ORTHO ) l_SliceLength = std::min(a_pCamera->getViewParam().x, a_pCamera->getViewParam().y);
-	else
-	{
-		glm::vec3 l_Eye, l_Dir, l_Up;
-		a_pCamera->getCameraParam(l_Eye, l_Dir, l_Up);
-		l_SliceLength = glm::dot(l_Sphere.m_Center - l_Eye, l_Dir) * tan(a_pCamera->getViewParam().x * 0.5f);
-		if( a_pCamera->getViewParam().y < 1.0f ) l_SliceLength *= a_pCamera->getViewParam().y;
-		l_SliceLength *= 2.0f;
-	}
-
-	unsigned int l_Res = EngineSetting::singleton().m_ShadowMapSize;
-	while( l_Sphere.m_Range < l_SliceLength * 0.5f )
-	{
-		l_Res = l_Res << 1;
-		l_SliceLength *= 0.5f;
-		if( l_Res <= 32 )
-		{
-			l_Res = 32;
-			break;
-		}
-	}
-
-	return l_Res;
-}
-
 void ShadowMapRenderer::requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light)
 {
 	glm::vec2 l_TexutureSize(m_pShadowMap->getMaxSize());

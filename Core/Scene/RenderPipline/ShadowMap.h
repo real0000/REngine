@@ -41,7 +41,6 @@ public:
 private:
 	ShadowMapRenderer(std::shared_ptr<Scene> a_pScene);
 	
-	unsigned int calculateShadowMapRegion(std::shared_ptr<Camera> a_pCamera, std::shared_ptr<Light> &a_Light);
 	void requestShadowMapRegion(unsigned int a_Size, std::shared_ptr<Light> &a_Light);
 	void drawLightShadow(GraphicCommander *a_pCmd
 		, MaterialAsset *a_pMat, std::shared_ptr<MaterialBlock> a_pLightBlock

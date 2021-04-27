@@ -6,8 +6,13 @@
 #ifndef _RENDER_OBJECT_H_
 #define _RENDER_OBJECT_H_
 
+#include "Core.h"
+
 namespace R
 {
+
+class Scene;
+class SceneNode;
 
 class RenderableComponent : public EngineComponent
 {
@@ -18,10 +23,6 @@ public:
 	
 	virtual void setShadowed(bool a_bShadow) = 0;
 	virtual bool getShadowed() = 0;
-	glm::daabb& boundingBox(){ return m_BoundingBox; }
-	
-private:
-	glm::daabb m_BoundingBox;
 };
 
 }

@@ -9,8 +9,9 @@
 #include "Camera.h"
 
 #include "Asset/MaterialAsset.h"
+#include "Physical/IntersectHelper.h"
+#include "Physical/PhysicalModule.h"
 #include "Scene/Scene.h"
-#include "Scene/Graph/ScenePartition.h"
 #include "Scene/RenderPipline/RenderPipline.h"
 
 namespace R
@@ -24,6 +25,7 @@ Camera::Camera(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_
 	: RenderableComponent(a_pRefScene, a_pOwner)
 	, m_ViewParam(glm::pi<float>() / 3.0f, 16.0f / 9.0f, 0.1f, 10000.0f), m_Type(PERSPECTIVE)
 	, m_pCameraBlock(nullptr)
+	, m_pHelper(nullptr)
 {
 	std::shared_ptr<ShaderProgram> l_pProgram = ProgramManager::singleton().getData(DefaultPrograms::Standard);
 
@@ -51,33 +53,56 @@ Camera::~Camera()
 void Camera::postInit()
 {
 	RenderableComponent::postInit();
-	addTransformListener();
+	m_pHelper = new IntersectHelper(shared_from_base<EngineComponent>(), 
+		[=](PhysicalListener *a_pListener) -> int
+		{
+			glm::mat4x4 l_World(getOwner()->getTransform());
+			l_World = l_World * glm::rotate(glm::identity<glm::mat4x4>(), glm::pi<float>(), glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
+			switch( m_Type )
+			{
+				case PERSPECTIVE:{
+					float l_Radius = m_ViewParam.x;
+					if( m_ViewParam.y > 1.0f ) l_Radius *= m_ViewParam.y;
+					l_Radius = tan(0.5f * l_Radius) * m_ViewParam.w * 2.0f;
+					return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Radius, m_ViewParam.w, l_World, TRIGGER_CAMERA, TRIGGER_LIGHT | TRIGGER_MESH);
+					}
+
+				case ORTHO:{
+					glm::obb l_Box;
+					l_Box.m_Size = glm::vec3(m_ViewParam.x, m_ViewParam.y, m_ViewParam.w);
+					l_Box.m_Transition = l_World;
+					return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Box, TRIGGER_CAMERA, TRIGGER_LIGHT | TRIGGER_MESH);
+					}
+
+				default:
+					assert(false && "invalid camera type");
+					break;
+			}
+			return -1;
+		},
+		[=]() -> glm::mat4x4
+		{
+			glm::mat4x4 l_World(getOwner()->getTransform());
+			l_World = l_World * glm::rotate(glm::identity<glm::mat4x4>(), glm::pi<float>(), glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
+			return l_World;
+		}, TRIGGER_LIGHT | TRIGGER_MESH);
+	
+	if( !isHidden() )
+	{
+		m_pHelper->setupTrigger(true);
+		addTransformListener();
+	}
 }
 
-void Camera::start()
+void Camera::preEnd()
 {
-	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_CAMERA)->add(l_pThis);
-}
-
-void Camera::end()
-{
-	auto l_pThis = shared_from_base<Camera>();
-	if( !isHidden() ) getScene()->getSceneGraph(GRAPH_CAMERA)->remove(l_pThis);
+	SAFE_DELETE(m_pHelper)
 }
 
 void Camera::hiddenFlagChanged()
 {
-	if( isHidden() )
-	{
-		getScene()->getSceneGraph(GRAPH_CAMERA)->remove(shared_from_base<Camera>());
-		removeTransformListener();
-	}
-	else
-	{
-		getScene()->getSceneGraph(GRAPH_CAMERA)->add(shared_from_base<Camera>());
-		addTransformListener();
-	}
+	if( isHidden() ) m_pHelper->removeTrigger();
+	else m_pHelper->setupTrigger(true);
 }
 
 void Camera::loadComponent(boost::property_tree::ptree &a_Src)
@@ -95,6 +120,8 @@ void Camera::setOrthoView(float a_Width, float a_Height, float a_Near, float a_F
 
     m_Type = ORTHO;
 	calProjection(a_Transform);
+	
+	m_pHelper->setupTrigger(true);
 }
     
 void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 a_Transform)
@@ -103,18 +130,8 @@ void Camera::setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm:
 	m_pCameraBlock->setParam("m_CameraParam", 0, m_ViewParam);
     m_Type = PERSPECTIVE;
 	calProjection(a_Transform);
-}
-
-void Camera::setTetrahedonView(glm::mat4x4 a_Transform)
-{
-	m_Type = TETRAHEDRON;
-	calViewProjection(a_Transform);
-}
-
-void Camera::setCubeView(glm::mat4x4 a_Transform)
-{
-	m_Type = CUBE;
-	calViewProjection(a_Transform);
+	
+	m_pHelper->setupTrigger(true);
 }
 
 void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
@@ -130,19 +147,12 @@ void Camera::getCameraParam(glm::vec3 &a_Eye, glm::vec3 &a_Dir, glm::vec3 &a_Up)
 void Camera::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	calView(a_NewTransform);
-	
-	auto l_pThis = shared_from_base<Camera>();
 	if( !isHidden() )
 	{
-		boundingBox().m_Center = glm::vec3(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
-		if( TETRAHEDRON == m_Type || CUBE == m_Type ) boundingBox().m_Size = glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w);
-		else
-		{
-			boundingBox().m_Size = glm::one<glm::vec3>();
-			m_Matrices[WORLD] = getOwner()->getTransform();
-			m_pCameraBlock->setParam("m_CamWorld", 0, m_Matrices[WORLD]);
-		}
-		getScene()->getSceneGraph(GRAPH_CAMERA)->update(l_pThis);
+		m_Matrices[WORLD] = getOwner()->getTransform();
+		m_pCameraBlock->setParam("m_CamWorld", 0, m_Matrices[WORLD]);
+		
+		m_pHelper->setupTrigger(false);
 	}
 }
 
@@ -161,8 +171,6 @@ void Camera::calView(const glm::mat4x4 &a_NewTransform)
 			m_pCameraBlock->setParam("m_InvView", 0, m_Matrices[INVERTVIEW]);
 			}break;
 
-		//case TETRAHEDRON:
-		//case CUBE:
 		default:break;
 	}
 	calViewProjection(a_NewTransform);
@@ -182,8 +190,6 @@ void Camera::calProjection(const glm::mat4x4 &a_NewTransform)
 			m_pCameraBlock->setParam("m_Projection", 0, m_Matrices[PROJECTION]);
 			break;
 
-		//case TETRAHEDRON:
-		//case CUBE:
 		default:break;
 	}
 	calViewProjection(a_NewTransform);
@@ -191,56 +197,12 @@ void Camera::calProjection(const glm::mat4x4 &a_NewTransform)
 
 void Camera::calViewProjection(const glm::mat4x4 &a_NewTransform)
 {
-	switch( m_Type )
-	{
-		case ORTHO:
-		case PERSPECTIVE:{
-			m_Matrices[VIEWPROJECTION] = m_Matrices[PROJECTION] * m_Matrices[VIEW];
-			m_Matrices[INVERTVIEWPROJECTION] = glm::inverse(m_Matrices[VIEWPROJECTION]);
-			m_Frustum.fromViewProjection(m_Matrices[VIEWPROJECTION]);
+	m_Matrices[VIEWPROJECTION] = m_Matrices[PROJECTION] * m_Matrices[VIEW];
+	m_Matrices[INVERTVIEWPROJECTION] = glm::inverse(m_Matrices[VIEWPROJECTION]);
+	m_Frustum.fromViewProjection(m_Matrices[VIEWPROJECTION]);
 
-			m_pCameraBlock->setParam("m_ViewProjection", 0, m_Matrices[VIEWPROJECTION]);
-			m_pCameraBlock->setParam("m_InvViewProjection", 0, m_Matrices[INVERTVIEWPROJECTION]);
-			}break;
-
-		case TETRAHEDRON:{
-			glm::vec3 l_Eye, l_Scale;
-			glm::quat l_Rot;
-			decomposeTRS(a_NewTransform, l_Eye, l_Scale, l_Rot);
-
-			m_ViewParam = glm::vec4(120.0f, 1.0f, 0.01f, std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z));
-			//(a_NewTransform[0][3], a_NewTransform[1][3], a_NewTransform[2][3]);
-			glm::mat4x4 l_Projection(glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w));
-
-			//
-			// to do : implement view projection calculate
-			//
-			
-			glm::aabb l_Box(l_Eye, glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w) * 2.0f);
-			m_Frustum.fromAABB(l_Box);
-			}break;
-
-		case CUBE:{
-			glm::vec3 l_Eye, l_Scale;
-			glm::quat l_Rot;
-			decomposeTRS(a_NewTransform, l_Eye, l_Scale, l_Rot);
-			
-			m_ViewParam = glm::vec4(90.0f, 1.0f, 0.01f, std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z));
-			glm::mat4x4 l_Projection(glm::perspective(m_ViewParam.x, m_ViewParam.y, m_ViewParam.z, m_ViewParam.w));
-			
-			m_Matrices[CUBEMAP_POSITIVE_X] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x + m_ViewParam.w, l_Eye.y, l_Eye.z), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_X] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x - m_ViewParam.w, l_Eye.y, l_Eye.z), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_POSITIVE_Y] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y + m_ViewParam.w, l_Eye.z), glm::vec3(0.0f, 0.0f, -1.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_Y] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y - m_ViewParam.w, l_Eye.z), glm::vec3(0.0f, 0.0f, 1.0f));
-			m_Matrices[CUBEMAP_POSITIVE_Z] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y, l_Eye.z + m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
-			m_Matrices[CUBEMAP_NEGATIVE_Z] = l_Projection * glm::lookAt(l_Eye, glm::vec3(l_Eye.x, l_Eye.y, l_Eye.z - m_ViewParam.w), glm::vec3(0.0f, 1.0f, 0.0f));
-			
-			glm::aabb l_Box(l_Eye, glm::vec3(m_ViewParam.w, m_ViewParam.w, m_ViewParam.w) * 2.0f);
-			m_Frustum.fromAABB(l_Box);
-			}break;
-
-		default:break;
-	}
+	m_pCameraBlock->setParam("m_ViewProjection", 0, m_Matrices[VIEWPROJECTION]);
+	m_pCameraBlock->setParam("m_InvViewProjection", 0, m_Matrices[INVERTVIEWPROJECTION]);
 }
 #pragma endregion
 

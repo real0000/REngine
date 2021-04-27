@@ -9,12 +9,10 @@
 #include "Core.h"
 #include "Input/InputMediator.h"
 
-#include "PhysicalModule.h"
+#include "Physical/PhysicalModule.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 #include "Scene/Camera.h"
-#include "Scene/Graph/NoPartition.h"
-#include "Scene/Graph/Octree.h"
 #include "Scene/RenderPipline/Deferred.h"
 #include "Scene/RenderPipline/ShadowMap.h"
 #include "Scene/Scene.h"
@@ -85,6 +83,7 @@ void EngineComponent::setOwner(std::shared_ptr<SceneNode> a_pOwner)
 
 void EngineComponent::remove()
 {
+	preEnd();
 	end();
 	m_pOwner->remove(shared_from_this());
 	removeAllListener();
@@ -95,6 +94,7 @@ void EngineComponent::remove()
 
 void EngineComponent::detach()
 {
+	preEnd();
 	end();
 	removeAllListener();
 
@@ -285,9 +285,6 @@ EngineCore::EngineCore()
 	SceneNode::registComponentReflector<SpotLight>();
 	SceneNode::registComponentReflector<DirLight>();
 
-	Scene::registSceneGraphReflector<NoPartition>();
-	Scene::registSceneGraphReflector<OctreePartition>();
-
 	Scene::registRenderPipelineReflector<DeferredRenderer>();
 	Scene::registRenderPipelineReflector<ShadowMapRenderer>();
 }
@@ -457,6 +454,7 @@ void EngineCore::mainLoop(wxIdleEvent &a_Event)
 	l_PrevTick = l_Now;
 	
 	SceneManager::singleton().update(m_Delta);
+	PhysicalModule::singleton().update(m_Delta);
 	m_pInput->pollEvent();
 	if( m_FrameDelta >= 1.0/EngineSetting::singleton().m_FPS )
 	{

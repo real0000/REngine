@@ -91,7 +91,7 @@ private:
 
 	// temp containers
 	const static unsigned int cm_NumMatSlot = MATSLOT_PIPELINE_END - MATSLOT_PIPELINE_START + 1;
-	std::vector<std::shared_ptr<RenderableComponent>> m_VisibleLights, m_VisibleMeshes;
+	std::vector<std::shared_ptr<Light>> m_DynamicLights;
 	std::vector<RenderableMesh*> m_SortedMesh[cm_NumMatSlot];
 };
 

@@ -7,9 +7,6 @@
     <Filter Include="Input">
       <UniqueIdentifier>{551b1256-8aaf-4461-b805-6c1363192142}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Scene\Graph">
-      <UniqueIdentifier>{6b28c606-305f-4b03-ad4c-3af592f5964c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Scene\RenderPipeline">
       <UniqueIdentifier>{cbc5e677-6b1c-4513-a489-ffe155f94270}</UniqueIdentifier>
     </Filter>
@@ -18,6 +15,9 @@
     </Filter>
     <Filter Include="Asset">
       <UniqueIdentifier>{6db482ec-474a-4bde-9159-42bd88d951cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physical">
+      <UniqueIdentifier>{b0868193-233e-45c4-9029-c648ca7324ad}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -29,7 +29,6 @@
     <ClInclude Include="Scene\Scene.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="PhysicalModule.h" />
     <ClInclude Include="StateMachine.h" />
     <ClInclude Include="Input\InputMediator.h">
       <Filter>Input</Filter>
@@ -40,23 +39,14 @@
     <ClInclude Include="Input\MouseInput.h">
       <Filter>Input</Filter>
     </ClInclude>
-    <ClInclude Include="Scene\Graph\Octree.h">
-      <Filter>Scene\Graph</Filter>
-    </ClInclude>
     <ClInclude Include="Scene\RenderPipline\RenderPipline.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
     <ClInclude Include="Scene\RenderPipline\Deferred.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
-    <ClInclude Include="Scene\Graph\ScenePartition.h">
-      <Filter>Scene\Graph</Filter>
-    </ClInclude>
     <ClInclude Include="RenderObject\RenderObject.h">
       <Filter>RenderObject</Filter>
-    </ClInclude>
-    <ClInclude Include="Scene\Graph\NoPartition.h">
-      <Filter>Scene\Graph</Filter>
     </ClInclude>
     <ClInclude Include="RenderObject\Light.h">
       <Filter>RenderObject</Filter>
@@ -91,6 +81,12 @@
     <ClInclude Include="Scene\RenderPipline\ShadowMap.h">
       <Filter>Scene\RenderPipeline</Filter>
     </ClInclude>
+    <ClInclude Include="Physical\PhysicalModule.h">
+      <Filter>Physical</Filter>
+    </ClInclude>
+    <ClInclude Include="Physical\IntersectHelper.h">
+      <Filter>Physical</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="REngine.cpp" />
@@ -100,7 +96,6 @@
     <ClCompile Include="Scene\Scene.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="PhysicalModule.cpp" />
     <ClCompile Include="StateMachine.cpp" />
     <ClCompile Include="Input\InputMediator.cpp">
       <Filter>Input</Filter>
@@ -111,23 +106,14 @@
     <ClCompile Include="Input\MouseInput.cpp">
       <Filter>Input</Filter>
     </ClCompile>
-    <ClCompile Include="Scene\Graph\Octree.cpp">
-      <Filter>Scene\Graph</Filter>
-    </ClCompile>
     <ClCompile Include="Scene\RenderPipline\RenderPipline.cpp">
       <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
     <ClCompile Include="Scene\RenderPipline\Deferred.cpp">
       <Filter>Scene\RenderPipeline</Filter>
     </ClCompile>
-    <ClCompile Include="Scene\Graph\ScenePartition.cpp">
-      <Filter>Scene\Graph</Filter>
-    </ClCompile>
     <ClCompile Include="RenderObject\RenderObject.cpp">
       <Filter>RenderObject</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene\Graph\NoPartition.cpp">
-      <Filter>Scene\Graph</Filter>
     </ClCompile>
     <ClCompile Include="RenderObject\Light.cpp">
       <Filter>RenderObject</Filter>
@@ -161,6 +147,12 @@
     </ClCompile>
     <ClCompile Include="Scene\RenderPipline\ShadowMap.cpp">
       <Filter>Scene\RenderPipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="Physical\PhysicalModule.cpp">
+      <Filter>Physical</Filter>
+    </ClCompile>
+    <ClCompile Include="Physical\IntersectHelper.cpp">
+      <Filter>Physical</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

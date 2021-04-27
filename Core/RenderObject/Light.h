@@ -13,8 +13,10 @@ namespace R
 	
 class Camera;
 class DirLight;
+class IntersectHelper;
 class MaterialBlock;
 class OmniLight;
+class PhysicalListener;
 class SceneNode;
 class SpotLight;
 
@@ -25,17 +27,23 @@ public:
 	Light(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner);
 	virtual ~Light();
 	
-	virtual void start();
-	virtual void end();
+	virtual void postInit();
+	virtual void preEnd();
 	virtual void hiddenFlagChanged();
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void setStatic(bool a_bStatic);
 	virtual bool isStatic(){ return m_bStatic; }
+	IntersectHelper* getHelper(){ return m_pHelper; }
 
 	virtual unsigned int getID() = 0;
 
+protected:
+	virtual int createTrigger(PhysicalListener *a_pListener) = 0;
+	virtual glm::mat4x4 updateTrigger() = 0;
+
 private:
 	bool m_bStatic;
+	IntersectHelper *m_pHelper;
 };
 
 template<typename T>
@@ -152,7 +160,7 @@ class DirLight : public Light
 public:
 	virtual ~DirLight();
 	
-	virtual void end();
+	virtual void preEnd();
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
@@ -172,6 +180,10 @@ public:
 	glm::mat4x4 getShadowMapProjection(unsigned int a_Slot);
 
 	virtual unsigned int getID();
+	
+protected:
+	virtual int createTrigger(PhysicalListener *a_pListener);
+	virtual glm::mat4x4 updateTrigger();
 
 private:
 	struct Data
@@ -197,7 +209,7 @@ class OmniLight : public Light
 public:
 	virtual ~OmniLight();
 	
-	virtual void end();
+	virtual void preEnd();
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
@@ -220,6 +232,10 @@ public:
 	glm::mat4x4 getShadowMapProjection(unsigned int a_Index);
 
 	virtual unsigned int getID();
+	
+protected:
+	virtual int createTrigger(PhysicalListener *a_pListener);
+	virtual glm::mat4x4 updateTrigger();
 
 private:
 	struct Data
@@ -248,7 +264,7 @@ class SpotLight : public Light
 public:
 	virtual ~SpotLight();
 	
-	virtual void end();
+	virtual void preEnd();
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
 	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
@@ -273,6 +289,10 @@ public:
 	glm::mat4x4 getShadowMapProjection();
 
 	virtual unsigned int getID();
+	
+protected:
+	virtual int createTrigger(PhysicalListener *a_pListener);
+	virtual glm::mat4x4 updateTrigger();
 
 private:
 	struct Data

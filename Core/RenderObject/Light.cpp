@@ -5,9 +5,12 @@
 
 #include "CommonUtil.h"
 #include "Core.h"
+
+#include "Physical/IntersectHelper.h"
+#include "Physical/PhysicalModule.h"
+#include "RenderObject/Mesh.h"
 #include "Scene/Camera.h"
 #include "Scene/Scene.h"
-#include "Scene/Graph/ScenePartition.h"
 
 #include "Light.h"
 
@@ -23,6 +26,7 @@ namespace R
 Light::Light(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode> a_pOwner)
 	: RenderableComponent(a_pRefScene, a_pOwner)
 	, m_bStatic(false)
+	, m_pHelper(nullptr)
 {
 }
 
@@ -30,50 +34,53 @@ Light::~Light()
 {
 }
 
-void Light::start()
+void Light::postInit()
 {
-	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->add(shared_from_base<Light>());
+	RenderableComponent::postInit();
+	m_pHelper = new IntersectHelper(shared_from_base<EngineComponent>(), 
+		[=](PhysicalListener *a_pListener) -> int
+		{
+			return createTrigger(a_pListener);
+		},
+		[=]() -> glm::mat4x4
+		{
+			return updateTrigger();
+		}, TRIGGER_MESH);
+	if( !isHidden() )
+	{
+		m_pHelper->setupTrigger(true);
+		// addTransformListener(); add by LightContainer::create later
+	}
 }
 
-void Light::end()
+void Light::preEnd()
 {
-	if( isHidden() ) return;
-
-	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->remove(shared_from_base<Light>());
+	SAFE_DELETE(m_pHelper)
+	if( !isHidden() ) removeTransformListener();
 }
 
 void Light::hiddenFlagChanged()
 {
 	if( isHidden() )
 	{
-		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->remove(shared_from_base<Light>());
+		m_pHelper->removeTrigger();
 		removeTransformListener();
 	}
 	else
 	{
-		getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->add(shared_from_base<Light>());
+		m_pHelper->setupTrigger(true);
 		addTransformListener();
 	}
 }
 
 void Light::transformListener(const glm::mat4x4 &a_NewTransform)
 {
-	getScene()->getSceneGraph(m_bStatic ? GRAPH_STATIC_LIGHT : GRAPH_LIGHT)->update(shared_from_base<Light>());
+	if( !isHidden() ) m_pHelper->setupTrigger(false);
 }
 
 void Light::setStatic(bool a_bStatic)
 {
 	if( m_bStatic == a_bStatic ) return;
-	if( m_bStatic )
-	{
-		getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->remove(shared_from_base<Light>());
-		getScene()->getSceneGraph(GRAPH_LIGHT)->add(shared_from_base<Light>());
-	}
-	else
-	{
-		getScene()->getSceneGraph(GRAPH_LIGHT)->remove(shared_from_base<Light>());
-		getScene()->getSceneGraph(GRAPH_STATIC_LIGHT)->add(shared_from_base<Light>());
-	}
 	m_bStatic = a_bStatic;
 }
 #pragma endregion
@@ -87,17 +94,15 @@ DirLight::DirLight(std::shared_ptr<Scene> a_pRefScene, std::shared_ptr<SceneNode
 	, m_pRefParam(nullptr)
 	, m_ID(0)
 {
-	boundingBox().m_Size = glm::vec3(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-	boundingBox().m_Center = glm::zero<glm::vec3>();
 }
 
 DirLight::~DirLight()
 {
 }
 	
-void DirLight::end()
+void DirLight::preEnd()
 {
-	Light::end();
+	Light::preEnd();
 	getScene()->getDirLightContainer()->recycle(shared_from_base<DirLight>());
 }
 
@@ -227,6 +232,19 @@ unsigned int DirLight::getID()
 {
 	return m_ID;
 }
+
+int DirLight::createTrigger(PhysicalListener *a_pListener)
+{
+	glm::obb l_Box;
+	l_Box.m_Size.x = l_Box.m_Size.y = l_Box.m_Size.z = std::numeric_limits<float>::max();
+	l_Box.m_Transition = glm::identity<glm::mat4x4>();
+	return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Box, TRIGGER_LIGHT, TRIGGER_CAMERA | TRIGGER_MESH);
+}
+
+glm::mat4x4 DirLight::updateTrigger()
+{
+	return glm::identity<glm::mat4x4>();
+}
 #pragma endregion
 
 #pragma region OmniLight
@@ -244,9 +262,9 @@ OmniLight::~OmniLight()
 {
 }
 
-void OmniLight::end()
+void OmniLight::preEnd()
 {
-	Light::end();
+	Light::preEnd();
 	getScene()->getOmniLightContainer()->recycle(shared_from_base<OmniLight>());
 }
 
@@ -262,8 +280,6 @@ void OmniLight::transformListener(const glm::mat4x4 &a_NewTransform)
 		m_pRefParam->m_PhysicRange = std::max(0.0f, m_pRefParam->m_Range - MIN_PHYSIC_DIST);
 	}
 	
-	boundingBox().m_Center = m_pRefParam->m_Position;
-	boundingBox().m_Size = glm::vec3(m_pRefParam->m_Range, m_pRefParam->m_Range, m_pRefParam->m_Range);
 	getScene()->getOmniLightContainer()->setDirty();
 
 	Light::transformListener(a_NewTransform);
@@ -414,6 +430,19 @@ unsigned int OmniLight::getID()
 {
 	return m_ID;
 }
+
+int OmniLight::createTrigger(PhysicalListener *a_pListener)
+{
+	glm::sphere l_Sphere;
+	l_Sphere.m_Center = m_pRefParam->m_Position;
+	l_Sphere.m_Range = m_pRefParam->m_Range;
+	return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Sphere, TRIGGER_LIGHT, TRIGGER_CAMERA | TRIGGER_MESH);
+}
+
+glm::mat4x4 OmniLight::updateTrigger()
+{
+	return getOwner()->getTransform();
+}
 #pragma endregion
 
 #pragma region SpotLight
@@ -431,9 +460,9 @@ SpotLight::~SpotLight()
 {
 }
 
-void SpotLight::end()
+void SpotLight::preEnd()
 {
-	Light::end();
+	Light::preEnd();
 	getScene()->getSpotLightContainer()->recycle(shared_from_base<SpotLight>());
 }
 
@@ -453,8 +482,6 @@ void SpotLight::transformListener(const glm::mat4x4 &a_NewTransform)
 	float l_Size = std::max(l_Scale.y, l_Scale.z);
 	m_pRefParam->m_Angle = std::atan2(l_Size, l_Scale.x);
 
-	boundingBox().m_Size = glm::vec3(l_Size, l_Size, l_Size);
-	boundingBox().m_Center = m_pRefParam->m_Position + m_pRefParam->m_Direction * 0.5f * m_pRefParam->m_Range;
 	getScene()->getSpotLightContainer()->setDirty();
 	
 	Light::transformListener(a_NewTransform);
@@ -614,6 +641,18 @@ glm::mat4x4 SpotLight::getShadowMapProjection()
 unsigned int SpotLight::getID()
 {
 	return m_ID;
+}
+
+int SpotLight::createTrigger(PhysicalListener *a_pListener)
+{
+	glm::mat4x4 l_World(updateTrigger());
+	return getScene()->getPhysicalWorld()->createTrigger(a_pListener, 0.5f * m_pRefParam->m_Angle, m_pRefParam->m_Range, l_World, TRIGGER_CAMERA, TRIGGER_LIGHT | TRIGGER_MESH);
+}
+
+glm::mat4x4 SpotLight::updateTrigger()
+{
+	glm::mat4x4 l_World(getOwner()->getTransform());
+	return l_World * glm::rotate(glm::identity<glm::mat4x4>(), glm::pi<float>(), glm::vec3(l_World[2][0], l_World[2][1], l_World[2][2]));
 }
 #pragma endregion
 

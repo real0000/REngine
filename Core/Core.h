@@ -15,7 +15,6 @@ namespace R
 #define CONIFG_FILE "Config.ini"
 
 #define BATCHDRAW_UNIT 1024
-#define DEFAULT_LIGHT_MAP "DefaultLightmap%d.Lightmap"
 
 STRING_ENUM_CLASS(GraphicApi,
 	d3d11,
@@ -59,6 +58,13 @@ enum MaterialSlot
 	MATSLOT_LIGHTMAP,
 };
 
+enum TriggerGroup
+{
+	TRIGGER_CAMERA = 0x01,
+	TRIGGER_MESH = 0x02,
+	TRIGGER_LIGHT = 0x04,
+};
+
 struct InputData;
 class Asset;
 class InputMediator;
@@ -90,6 +96,7 @@ public:
 	
 	virtual void postInit();
 	virtual void start(){}
+	virtual void preEnd(){}
 	virtual void end(){}
 	virtual void hiddenFlagChanged(){}
 
@@ -198,8 +205,6 @@ public:
 	// utility
 	template<typename T>
 	void registComponentReflector(){ SceneNode::registComponentReflector<T>(); }
-	template<typename T>
-	void registSceneGraphReflector(){ Scene::registSceneGraphReflector<T>(); }
 	template<typename T>
 	void registRenderPipelineReflector(){ Scene::registRenderPipelineReflector<T>(); }
 	void addJob(std::function<void()> a_Job);

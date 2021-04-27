@@ -11,7 +11,6 @@
 #include "Mesh.h"
 
 #include "Scene/Scene.h"
-#include "Scene/Graph/ScenePartition.h"
 
 namespace R
 {

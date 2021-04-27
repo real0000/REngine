@@ -20,6 +20,7 @@ class IndirectDrawBuffer;
 class MaterialAsset;
 class MaterialBlock;
 class OmniLight;
+class PhysicalWorld;
 class RenderableMesh;
 class RenderPipeline;
 class Scene;
@@ -226,25 +227,15 @@ public:
 	void clearInputListener();
 
 	// misc
-	void saveSceneGraphSetting(boost::property_tree::ptree &a_Dst);
 	void saveRenderSetting(boost::property_tree::ptree &a_Dst, boost::property_tree::ptree &a_ShadowDst);
 	RenderPipeline* getRenderPipeline(){ return m_pRenderer; }
 	RenderPipeline* getShadowMapBaker(){ return m_pShadowMapBaker; }
 	std::shared_ptr<Asset> getLightmap(){ return m_pLightmap; }
+	PhysicalWorld* getPhysicalWorld(){ return m_pPhyscalWorld; }
 	LightContainer<DirLight>* getDirLightContainer(){ return m_pDirLights; }
 	LightContainer<OmniLight>* getOmniLightContainer(){ return m_pOmniLights; }
 	LightContainer<SpotLight>* getSpotLightContainer(){ return m_pSpotLights; }
 	
-	template<typename T>
-	static void registSceneGraphReflector()
-	{
-		std::string l_TypeName(T::typeName());
-		assert(m_SceneGraphReflectors.end() == m_SceneGraphReflectors.find(l_TypeName));
-		m_SceneGraphReflectors.insert(std::make_pair(l_TypeName, [=](boost::property_tree::ptree &a_Src) -> ScenePartition*
-		{
-			return T::create(a_Src);
-		}));
-	}
 	template<typename T>
 	static void registRenderPipelineReflector()
 	{
@@ -255,7 +246,6 @@ public:
 			return T::create(a_Src, a_pScene);
 		}));
 	}
-	ScenePartition* getSceneGraph(SceneGraphType a_Slot){ return m_pGraphs[a_Slot]; }
 	SceneBatcher* getRenderBatcher(){ return m_pBatcher; }
 
 	std::shared_ptr<SceneNode> getRootNode();
@@ -270,13 +260,13 @@ private:
 	// reference render data
 	RenderPipeline *m_pRenderer, *m_pShadowMapBaker;
 	std::shared_ptr<SceneNode> m_pRootNode;
-	ScenePartition *m_pGraphs[NUM_GRAPH_TYPE];
 	SceneBatcher *m_pBatcher;
 	LightContainer<DirLight> *m_pDirLights;
 	LightContainer<OmniLight> *m_pOmniLights;
 	LightContainer<SpotLight> *m_pSpotLights;
 	std::shared_ptr<Camera> m_pCurrCamera;
 	std::shared_ptr<Asset> m_pLightmap;
+	PhysicalWorld *m_pPhyscalWorld;
 
 	std::mutex m_InputLocker;
 	std::list<std::shared_ptr<EngineComponent>> m_InputListener, m_ReadyInputListener;
@@ -286,7 +276,6 @@ private:
 	
 	static unsigned int m_LightmapSerial;
 	static std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> m_RenderPipeLineReflectors;
-	static std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> m_SceneGraphReflectors;
 };
 
 class SceneManager

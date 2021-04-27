@@ -11,8 +11,10 @@
 namespace R
 {
 
+class IntersectHelper;
 class MaterialBlock;
 class TextureAsset;
+class Light;
 
 class Camera : public RenderableComponent
 {
@@ -27,32 +29,17 @@ public:
 		INVERTVIEW,
 		INVERTVIEWPROJECTION,
 
-		TETRAHEDRON_0 = 0,
-		TETRAHEDRON_1,
-		TETRAHEDRON_2,
-		TETRAHEDRON_3,
-
-		CUBEMAP_POSITIVE_X = 0,
-		CUBEMAP_NEGATIVE_X,
-		CUBEMAP_POSITIVE_Y,
-		CUBEMAP_NEGATIVE_Y,
-		CUBEMAP_POSITIVE_Z,
-		CUBEMAP_NEGATIVE_Z,
-
 		NUM_MATRIX
 	};
 	enum CameraType
 	{
 		ORTHO = 0,
 		PERSPECTIVE,
-		TETRAHEDRON,
-		CUBE,
 	};
 	virtual ~Camera();// don't call this method directly
 	
 	virtual void postInit();
-	virtual void start();
-	virtual void end();
+	virtual void preEnd();
 	virtual void hiddenFlagChanged();
 
 	virtual void setShadowed(bool a_bShadow){}
@@ -63,8 +50,6 @@ public:
 
 	void setOrthoView(float a_Width, float a_Height, float a_Near, float a_Far, glm::mat4x4 a_Transform);
     void setPerspectiveView(float a_Fovy, float a_Aspect, float a_Near, glm::mat4x4 a_Transform);
-	void setTetrahedonView(glm::mat4x4 a_Transform);// implement later...
-	void setCubeView(glm::mat4x4 a_Transform);
 	glm::vec4 getViewParam(){ return m_ViewParam; }
 	CameraType getCameraType(){ return m_Type; }
 	
@@ -73,6 +58,7 @@ public:
 	glm::mat4x4* getMatrix(){ return m_Matrices; }
 	std::shared_ptr<MaterialBlock> getMaterialBlock(){ return m_pCameraBlock; }
 	glm::frustumface& getFrustum(){ return m_Frustum; }
+	IntersectHelper* getHelper(){ return m_pHelper; }
 
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform) override;
 
@@ -89,6 +75,7 @@ private:
 	
 	glm::frustumface m_Frustum;
 	std::shared_ptr<MaterialBlock> m_pCameraBlock;
+	IntersectHelper *m_pHelper;
 };
 
 }

@@ -8,16 +8,16 @@
 #include "Core.h"
 #include "Scene.h"
 
+#include "Physical/PhysicalModule.h"
 #include "RenderObject/Light.h"
 #include "RenderObject/Mesh.h"
 
 #include "Asset/AssetBase.h"
+#include "Asset/LightmapAsset.h"
 #include "Asset/MaterialAsset.h"
 #include "Asset/MeshAsset.h"
 #include "Asset/SceneAsset.h"
 #include "Scene/Camera.h"
-#include "Scene/Graph/NoPartition.h"
-#include "Scene/Graph/Octree.h"
 #include "Scene/RenderPipline/Deferred.h"
 #include "Scene/RenderPipline/ShadowMap.h"
 
@@ -655,17 +655,16 @@ void SceneNode::removeTranformListener(std::shared_ptr<EngineComponent> a_pCompo
 //
 unsigned int Scene::m_LightmapSerial = 0;
 std::map<std::string, std::function<RenderPipeline*(boost::property_tree::ptree&, std::shared_ptr<Scene>)>> Scene::m_RenderPipeLineReflectors;
-std::map<std::string, std::function<ScenePartition*(boost::property_tree::ptree&)>> Scene::m_SceneGraphReflectors;
 Scene::Scene()
 	: m_pRenderer(nullptr), m_pShadowMapBaker(nullptr)
 	, m_pRootNode(nullptr)
-	, m_pGraphs{nullptr, nullptr, nullptr, nullptr}
 	, m_pBatcher(nullptr)
 	, m_pDirLights(nullptr)
 	, m_pOmniLights(nullptr)
 	, m_pSpotLights(nullptr)
 	, m_pCurrCamera(nullptr)
 	, m_pLightmap(nullptr)
+	, m_pPhyscalWorld(nullptr)
 	, m_bActivate(true)
 {
 	m_pBatcher = new SceneBatcher();
@@ -692,10 +691,9 @@ void Scene::initEmpty()
 	clear();
 	
 	boost::property_tree::ptree l_Empty;
-	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = NoPartition::create(l_Empty);//OctreePartition::create(l_Empty);
 
-	wxString l_AssetName(wxString::Format(wxT(DEFAULT_LIGHT_MAP), m_LightmapSerial++));
-	m_pLightmap = AssetManager::singleton().createAsset(l_AssetName);
+	m_pLightmap = AssetManager::singleton().createRuntimeAsset<LightmapAsset>();
+	m_pPhyscalWorld = PhysicalModule::singleton().createWorld();
 
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pDirLights = new LightContainer<DirLight>("DirLight");
@@ -737,19 +735,7 @@ void Scene::setup(std::shared_ptr<Asset> a_pSceneAsset)
 		auto it = m_RenderPipeLineReflectors.find(l_Typename);
 		if( m_RenderPipeLineReflectors.end() == it ) m_pRenderer = DeferredRenderer::create(l_PipelineSetting, shared_from_this());
 		else m_pRenderer = it->second(l_PipelineSetting, shared_from_this());
-	}	
-
-	std::function<ScenePartition*(boost::property_tree::ptree)> l_CreateFunc = nullptr;
-	boost::property_tree::ptree &l_SceneGraphSetting = l_pAssetInst->getSceneGraphSetting();
-	l_Typename = l_SceneGraphSetting.get("<xmlattr>.type", "");
-	if( l_Typename.empty() ) l_CreateFunc = &NoPartition::create;
-	else
-	{
-		auto it = m_SceneGraphReflectors.find(l_Typename);
-		if( m_SceneGraphReflectors.end() == it ) l_CreateFunc = &NoPartition::create;
-		else l_CreateFunc = it->second;
 	}
-	for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i ) m_pGraphs[i] = l_CreateFunc(l_SceneGraphSetting);
 	
 	m_pRootNode = SceneNode::create(shared_from_this(), nullptr, wxT("Root"));
 	m_pRootNode->addChild(l_pAssetInst->getNodeTree());
@@ -927,11 +913,6 @@ void Scene::clearInputListener()
 	m_DroppedInputListener.clear();
 }
 
-void Scene::saveSceneGraphSetting(boost::property_tree::ptree &a_Dst)
-{
-	m_pGraphs[0]->saveSetting(a_Dst);
-}
-
 void Scene::saveRenderSetting(boost::property_tree::ptree &a_RenderDst, boost::property_tree::ptree &a_ShadowDst)
 {
 	m_pRenderer->saveSetting(a_RenderDst);
@@ -947,15 +928,10 @@ void Scene::clear()
 {
 	if( nullptr != m_pRootNode ) m_pRootNode->destroy();
 	m_pRootNode = nullptr;
-	if( nullptr != m_pGraphs[0] )
-	{
-		for( unsigned int i=0 ; i<NUM_GRAPH_TYPE ; ++i )
-		{
-			m_pGraphs[i]->clear();
-			delete m_pGraphs[i];
-		}
-		memset(m_pGraphs, NULL, sizeof(ScenePartition *) * NUM_GRAPH_TYPE);
-	}
+
+	if( nullptr != m_pPhyscalWorld ) PhysicalModule::singleton().removeWorld(m_pPhyscalWorld);
+	m_pPhyscalWorld = nullptr;
+
 	SAFE_DELETE(m_pRenderer)
 	SAFE_DELETE(m_pShadowMapBaker)
 	if( nullptr != m_pDirLights ) m_pDirLights->clear();

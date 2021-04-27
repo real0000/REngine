@@ -12,6 +12,7 @@ namespace R
 {
 
 class Asset;
+class IntersectHelper;
 
 class RenderableMesh : public RenderableComponent
 {
@@ -33,8 +34,8 @@ public:
 public:
 	virtual ~RenderableMesh();
 	
-	virtual void start();
-	virtual void end();
+	virtual void postInit();
+	virtual void preEnd();
 	virtual void hiddenFlagChanged();
 	virtual void updateListener(float a_Delta);
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform);
@@ -55,6 +56,7 @@ public:
 	SortKey getSortKey(unsigned int a_Slot);
 	unsigned int getMeshIdx(){ return m_MeshIdx; }
 	int getWorldOffset(){ return m_WorldOffset; }
+	IntersectHelper* getHelper(){ return m_pHelper; }
 
 	template<typename T>
 	void setMaterialParam(unsigned int a_Slot, std::string a_Name, T a_Param)
@@ -80,6 +82,9 @@ private:
 	bool m_bAlphaTestShadow;
 	int m_SkinOffset;
 	int m_WorldOffset;
+	glm::aabb m_BoundingBox;
+	
+	IntersectHelper *m_pHelper;
 };
 
 }

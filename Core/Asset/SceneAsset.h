@@ -41,14 +41,12 @@ public:
 	boost::property_tree::ptree& getNodeTree(){ return m_NodeTree; }
 	boost::property_tree::ptree& getPipelineSetting(){ return m_PipelineSetting; }
 	boost::property_tree::ptree& getShadowSetting(){ return m_ShadowSetting; }
-	boost::property_tree::ptree& getSceneGraphSetting(){ return m_SceneGraghSetting; }
 	wxString getLightmapAssetPath(){ return m_LightmapAssetPath; }
 
 private:
 	boost::property_tree::ptree m_NodeTree;
 	boost::property_tree::ptree m_PipelineSetting;
 	boost::property_tree::ptree m_ShadowSetting;
-	boost::property_tree::ptree m_SceneGraghSetting;
 	wxString m_LightmapAssetPath;
 };
 
