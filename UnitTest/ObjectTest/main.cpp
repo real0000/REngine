@@ -47,6 +47,7 @@ bool BasicApp::OnInit()
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();
 	l_pCameraCtrl->setMaxSpeed(500.0f);
 
+	R::DebugLineHelper::singleton().addDebugLine(l_pScene->getRootNode());
 	//l_pScene->getLightmap()->getComponent<R::LightmapAsset>()->bake(l_pScene);
 
 	GetTopWindow()->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(BasicApp::onClose), nullptr, this);

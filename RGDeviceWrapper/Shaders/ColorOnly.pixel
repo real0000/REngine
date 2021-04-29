@@ -1,0 +1,7 @@
+#include <StdInclude.h>
+#include "autoBinder.h"
+
+float4 main(PS_CommonInput a_Input) : SV_Target0
+{
+	return InstanceInfo[a_Input.m_InstanceID.y].m_Params;
+}

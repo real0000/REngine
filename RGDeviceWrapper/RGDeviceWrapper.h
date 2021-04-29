@@ -246,6 +246,7 @@ STRING_ENUM_CLASS(DefaultPrograms,
 	// draw
 	Predication,
 	Grid,
+	Line,
 	Copy,
 	CopyDepth,
 	CopyFrame,

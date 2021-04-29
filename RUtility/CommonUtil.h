@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <stdarg.h>
 #include <algorithm>
 #include <stack>
@@ -85,7 +86,7 @@ void decomposeTRS(const glm::mat4 &a_Mat, glm::vec3 &a_TransOut, glm::vec3 &a_Sc
 void composeTRS(const glm::vec3 &a_Trans, const glm::vec3 &a_Scale, const glm::quat &a_Rot, glm::mat4 &a_MatOut);
 
 template<typename T>
-std::shared_ptr<T> defaultNewFunc()
+inline std::shared_ptr<T> defaultNewFunc()
 {
 	return std::shared_ptr<T>(new T());
 }
@@ -99,6 +100,7 @@ class SerializedObjectPool
 public:
 	SerializedObjectPool(bool a_bPool = false)
 		: m_NewFunc(nullptr)
+		, m_BeforeDelFunc(nullptr)
 	{
 		if( a_bPool )
 		{
@@ -120,6 +122,11 @@ public:
 	void setNewFunc(std::function<std::shared_ptr<T>()> a_NewFunc)
 	{
 		m_NewFunc = a_NewFunc;
+	}
+
+	void setBeforeDelFunc(std::function<void(std::shared_ptr<T>&)> a_DelFunc)
+	{
+		m_BeforeDelFunc = a_DelFunc;
 	}
 
 	unsigned int count()
@@ -175,6 +182,7 @@ private:
 	void deleteItem(unsigned int a_ID)
 	{
 		assert(nullptr != m_ObjectPool[a_ID]);
+		if( nullptr != m_BeforeDelFunc ) m_BeforeDelFunc(m_ObjectPool[a_ID]);
 		m_ObjectPool[a_ID] = nullptr;
 		m_FreeSlot.push_back(a_ID);
 	}
@@ -207,6 +215,7 @@ private:
 	std::function<unsigned int()> m_ReqFunc;
 	std::function<void(unsigned int)> m_RecFunc;
 	std::function<std::shared_ptr<T>()> m_NewFunc;
+	std::function<void(std::shared_ptr<T>&)> m_BeforeDelFunc;
 
 	std::vector<std::shared_ptr<T>> m_ObjectPool;
 	std::list<unsigned int> m_FreeSlot;
@@ -258,6 +267,7 @@ public:
 	int malloc(int a_Size);//return offset
 	void free(int a_Offset);
 	void purge();
+	int getAllocateSize(int a_Offset);
 
 	void init(int a_Size);
 	void extend(int a_Size);

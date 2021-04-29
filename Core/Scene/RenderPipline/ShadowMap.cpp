@@ -129,7 +129,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				, a_SortedDir, i, l_NumCommand
 				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
 				{
-					return a_pMesh->getMaterial(MATSLOT_DIR_SHADOWMAP)->getComponent<MaterialAsset>();
+					return a_pMesh->getMaterial(MATSLOT_DIR_SHADOWMAP).second->getComponent<MaterialAsset>();
 				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{
@@ -157,7 +157,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				, a_SortedOmni, i, l_NumCommand
 				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
 				{
-					return a_pMesh->getMaterial(MATSLOT_OMNI_SHADOWMAP)->getComponent<MaterialAsset>();
+					return a_pMesh->getMaterial(MATSLOT_OMNI_SHADOWMAP).second->getComponent<MaterialAsset>();
 				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{
@@ -187,7 +187,7 @@ void ShadowMapRenderer::bake(std::vector<std::shared_ptr<RenderableComponent>> &
 				, a_SortedSpot, i, l_NumCommand
 				, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
 				{
-					return a_pMesh->getMaterial(MATSLOT_SPOT_SHADOWMAP)->getComponent<MaterialAsset>();
+					return a_pMesh->getMaterial(MATSLOT_SPOT_SHADOWMAP).second->getComponent<MaterialAsset>();
 				}
 				, [=](MaterialAsset *a_pMat) -> void
 				{

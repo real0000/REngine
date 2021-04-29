@@ -25,5 +25,6 @@ void registEditorComponents();
 
 #include "Components/CameraController.h"
 #include "Components/GridLine.h"
+#include "Helper/DebugLineHelper.h"
 
 #endif

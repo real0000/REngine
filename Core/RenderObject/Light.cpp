@@ -49,7 +49,7 @@ void Light::postInit()
 	if( !isHidden() )
 	{
 		m_pHelper->setupTrigger(true);
-		// addTransformListener(); add by LightContainer::create later
+		//addTransformListener(); add by LightContainer::create later
 	}
 }
 

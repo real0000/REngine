@@ -17,9 +17,9 @@ class IntersectHelper;
 class RenderableMesh : public RenderableComponent
 {
 	friend class MeshBatcher;
-	typedef std::pair<int, std::shared_ptr<Asset>> MaterialData;
 	COMPONENT_HEADER(RenderableMesh)
 public:
+	typedef std::pair<int, std::shared_ptr<Asset>> MaterialData;
 	union SortKey
 	{
 		uint64 m_Key;
@@ -37,7 +37,6 @@ public:
 	virtual void postInit();
 	virtual void preEnd();
 	virtual void hiddenFlagChanged();
-	virtual void updateListener(float a_Delta);
 	virtual void transformListener(const glm::mat4x4 &a_NewTransform);
 
 	virtual void loadComponent(boost::property_tree::ptree &a_Src);
@@ -52,7 +51,7 @@ public:
 	std::shared_ptr<Asset> getMesh(){ return m_pMesh; }
 	void removeMaterial(unsigned int a_Slot);
 	void setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_pAsset);// must be material asset
-	std::shared_ptr<Asset> getMaterial(unsigned int a_Slot);
+	MaterialData getMaterial(unsigned int a_Slot);
 	SortKey getSortKey(unsigned int a_Slot);
 	unsigned int getMeshIdx(){ return m_MeshIdx; }
 	int getWorldOffset(){ return m_WorldOffset; }
@@ -74,7 +73,7 @@ private:
 
 	std::shared_ptr<Asset> m_pMesh;
 	unsigned int m_MeshIdx;
-	std::map<int, MaterialData> m_Materials;
+	std::unordered_map<int, MaterialData> m_Materials;
 	std::map<int, SortKey> m_KeyMap;
 
 	bool m_bStatic;

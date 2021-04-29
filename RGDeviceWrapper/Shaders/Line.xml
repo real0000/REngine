@@ -1,0 +1,32 @@
+<root isCompute="false" isIndexed="true">
+  <ParamList>
+    <ConstBuffer name="Camera" preDef="CameraBuffer" reserved="true"/>
+    <UavBuffer name="NormalTransition" preDef="TransformInfo" write="false"/>
+    <UavBuffer name="SkinTransition" preDef="SkinMatrix" write="false"/>
+    <UavBuffer name="InstanceInfo" preDef="PackedFloat" reserved="true"/>
+  </ParamList>
+  <Shaders>
+    <Model_5_1>
+      <Vertex file="VertexTransfer.vertex">
+        Camera, SkinTransition, NormalTransition
+      </Vertex>
+      <Fragment file="ColorOnly.pixel">
+        InstanceInfo
+      </Fragment>
+    </Model_5_1>
+  </Shaders>
+  <ShaderSetting sampleMask="ffffffff" topology="line_list" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
+    <BlendState/>
+    <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="false" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
+    <DepthStencil>
+      <Depth enable="true" write="false" func="less"/>
+      <Stencil enable="false" readMask="ff" writeMask="ff">
+        <Front func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+        <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
+      </Stencil>
+    </DepthStencil>
+    <RenderTarget depthStencil="d24_unorm_s8_uint">
+      <rgba16_float/>
+    </RenderTarget>
+  </ShaderSetting>
+</root>

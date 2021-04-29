@@ -8,14 +8,14 @@
 #include "RGDeviceWrapper.h"
 #include "Core.h"
 
+#include "Mesh.h"
+
 #include "Asset/AssetBase.h"
 #include "Asset/MeshAsset.h"
 #include "Asset/MaterialAsset.h"
 #include "Physical/IntersectHelper.h"
 #include "Physical/PhysicalModule.h"
 #include "Scene/Scene.h"
-
-#include "Mesh.h"
 
 namespace R
 {
@@ -99,10 +99,6 @@ void RenderableMesh::hiddenFlagChanged()
 	}
 }
 
-void RenderableMesh::updateListener(float a_Delta)
-{
-}
-
 void RenderableMesh::transformListener(const glm::mat4x4 &a_NewTransform)
 {
 	glm::vec3 l_Trans, l_Scale;
@@ -154,10 +150,7 @@ void RenderableMesh::setMesh(std::shared_ptr<Asset> a_pAsset, unsigned int a_Mes
 	syncKeyMap();
 	m_BoundingBox = l_pMeshInst->m_VisibleBoundingBox;
 
-	glm::vec3 l_Trans, l_Scale;
-	glm::quat l_Rot;
-	glm::aabb &l_Box = l_pMeshInst->m_VisibleBoundingBox;
-	decomposeTRS(getOwner()->getTransform(), l_Trans, l_Scale, l_Rot);
+	m_pHelper->setupTrigger(true);
 }
 
 void RenderableMesh::removeMaterial(unsigned int a_Slot)
@@ -184,10 +177,10 @@ void RenderableMesh::setMaterial(unsigned int a_Slot, std::shared_ptr<Asset> a_p
 	syncKeyMap();
 }
 
-std::shared_ptr<Asset> RenderableMesh::getMaterial(unsigned int a_Slot)
+RenderableMesh::MaterialData RenderableMesh::getMaterial(unsigned int a_Slot)
 {
 	auto it = m_Materials.find(a_Slot);
-	return m_Materials.end() == it ? nullptr : it->second.second;
+	return m_Materials.end() == it ? std::make_pair(-1, nullptr) : it->second;
 }
 
 RenderableMesh::SortKey RenderableMesh::getSortKey(unsigned int a_Slot)

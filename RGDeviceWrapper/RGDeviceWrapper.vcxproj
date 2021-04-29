@@ -177,6 +177,7 @@
     <ClInclude Include="DrawBuffer.h" />
     <ClInclude Include="RGDeviceWrapper.h" />
     <ClInclude Include="ShaderBase.h" />
+    <None Include="Shaders\ColorOnly.pixel" />
     <None Include="Shaders\Grid.pixel" />
     <None Include="Shaders\Lightmap\Lightmap.h" />
     <None Include="Shaders\CopyDepth.pixel">
@@ -328,6 +329,7 @@
     <Xml Include="Shaders\Lightmap\RayScatter.xml">
       <SubType>Designer</SubType>
     </Xml>
+    <Xml Include="Shaders\Line.xml" />
     <Xml Include="Shaders\Predication.xml" />
     <Xml Include="Shaders\Shadowmap\ClearShadowMap.xml" />
     <Xml Include="Shaders\Shadowmap\DirShadowMap.xml" />

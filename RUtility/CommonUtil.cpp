@@ -464,6 +464,13 @@ void VirtualMemoryPool::purge()
 	m_FreeSpaceList.insert(std::make_pair(0, m_CurrSize));
 }
 
+int VirtualMemoryPool::getAllocateSize(int a_Offset)
+{
+	auto it = m_AllocateMap.find(a_Offset);
+	assert(m_AllocateMap.end() != it);
+	return it->second;
+}
+
 void VirtualMemoryPool::init(int a_Size)
 {
 	assert(0 == m_CurrSize);

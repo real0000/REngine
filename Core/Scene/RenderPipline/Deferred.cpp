@@ -389,7 +389,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					, l_Range.first, l_Range.second
 					, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
 					{
-						return a_pMesh->getMaterial(MATSLOT_OPAQUE)->getComponent<MaterialAsset>();
+						return a_pMesh->getMaterial(MATSLOT_OPAQUE).second->getComponent<MaterialAsset>();
 					}
 					, [=](MaterialAsset *a_pMat) -> void
 					{
@@ -397,7 +397,10 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset(), 0, 0, 0));
+						glm::ivec4 l_Instance(0, 0, 0, 0);
+						l_Instance.x = m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getWorldOffset();
+						l_Instance.y = m_SortedMesh[MATSLOT_OPAQUE][a_Idx]->getMaterial(MATSLOT_OPAQUE).first;
+						a_Instance.push_back(l_Instance);
 						return 1;
 					});
 				//m_DrawCommand[i]->bindPredication(-1);
@@ -479,7 +482,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					, l_Range.first, l_Range.second
 					, [=](RenderableMesh *a_pMesh) -> MaterialAsset*
 					{
-						return a_pMesh->getMaterial(MATSLOT_TRANSPARENT)->getComponent<MaterialAsset>();
+						return a_pMesh->getMaterial(MATSLOT_TRANSPARENT).second->getComponent<MaterialAsset>();
 					}
 					, [=](MaterialAsset *a_pMat) -> void
 					{
@@ -487,7 +490,10 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					}
 					, [=](std::vector<glm::ivec4> &a_Instance, unsigned int a_Idx) -> unsigned int
 					{
-						a_Instance.push_back(glm::ivec4(m_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getWorldOffset(), 0, 0, 0));
+						glm::ivec4 l_Instance(0, 0, 0, 0);
+						l_Instance.x = m_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getWorldOffset();
+						l_Instance.y = m_SortedMesh[MATSLOT_TRANSPARENT][a_Idx]->getMaterial(MATSLOT_TRANSPARENT).first;
+						a_Instance.push_back(l_Instance);
 						return 1;
 					});
 

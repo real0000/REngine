@@ -19,8 +19,6 @@ public:
 	
 	virtual void start();
 
-	virtual void loadComponent(boost::property_tree::ptree &a_Src);
-	virtual void saveComponent(boost::property_tree::ptree &a_Dst);
 	virtual bool inputListener(InputData &a_Input);
 	virtual void updateListener(float a_Delta);
 	virtual bool runtimeOnly(){ return true; }

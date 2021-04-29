@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -21,11 +21,13 @@
   <ItemGroup>
     <ClCompile Include="Components\CameraController.cpp" />
     <ClCompile Include="Components\GridLine.cpp" />
+    <ClCompile Include="Helper\DebugLineHelper.cpp" />
     <ClCompile Include="REditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\CameraController.h" />
     <ClInclude Include="Components\GridLine.h" />
+    <ClInclude Include="Helper\DebugLineHelper.h" />
     <ClInclude Include="REditor.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

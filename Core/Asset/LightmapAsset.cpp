@@ -180,13 +180,13 @@ void LightmapAsset::bake(std::shared_ptr<Scene> a_pScene)
 		for( unsigned int i=0 ; i<l_Meshes.size() ; ++i )
 		{
 			std::shared_ptr<RenderableMesh> l_pMeshObj = l_Meshes[i];
-			std::shared_ptr<Asset> l_pMatAsset = l_pMeshObj->getMaterial(MaterialSlot::MATSLOT_LIGHTMAP);
-			auto it = l_TempMatSet.find(l_pMatAsset);
+			RenderableMesh::MaterialData l_MatData = l_pMeshObj->getMaterial(MaterialSlot::MATSLOT_LIGHTMAP);
+			auto it = l_TempMatSet.find(l_MatData.second);
 			unsigned int l_MatID = 0;
 			if( l_TempMatSet.end() == it )
 			{
 				l_MatID = l_TempMatSet.size();
-				l_TempMatSet.insert(std::make_pair(l_pMatAsset, l_MatID));
+				l_TempMatSet.insert(std::make_pair(l_MatData.second, l_MatID));
 			}
 			else l_MatID = it->second;
 		

@@ -4,6 +4,9 @@
     <Filter Include="Components">
       <UniqueIdentifier>{9e8c5b74-43b6-4a1d-be71-cb1f3a4e4114}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Helper">
+      <UniqueIdentifier>{228f176b-1f81-40eb-abd3-a470277358e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\CameraController.cpp">
@@ -13,6 +16,9 @@
     <ClCompile Include="Components\GridLine.cpp">
       <Filter>Components</Filter>
     </ClCompile>
+    <ClCompile Include="Helper\DebugLineHelper.cpp">
+      <Filter>Helper</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\CameraController.h">
@@ -21,6 +27,9 @@
     <ClInclude Include="REditor.h" />
     <ClInclude Include="Components\GridLine.h">
       <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Helper\DebugLineHelper.h">
+      <Filter>Helper</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -33,14 +33,6 @@ void CameraController::start()
 	addUpdateListener();
 }
 
-void CameraController::loadComponent(boost::property_tree::ptree &a_Src)
-{
-}
-
-void CameraController::saveComponent(boost::property_tree::ptree &a_Dst)
-{
-}
-
 bool CameraController::inputListener(InputData &a_Input)
 {
 	if( KEYBOARD_DEVICE == a_Input.m_DeviceName )
