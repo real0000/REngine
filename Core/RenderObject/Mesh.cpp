@@ -49,12 +49,21 @@ void RenderableMesh::postInit()
 		{
 			glm::obb l_Box;
 			l_Box.m_Size = m_BoundingBox.m_Size;
-			l_Box.m_Transition = getOwner()->getTransform();
+			l_Box.m_Transition = glm::identity<glm::mat4x4>();
+			l_Box.m_Transition[3][0] = m_BoundingBox.m_Center.x;
+			l_Box.m_Transition[3][1] = m_BoundingBox.m_Center.y;
+			l_Box.m_Transition[3][2] = m_BoundingBox.m_Center.z;
+			l_Box.m_Transition *= getOwner()->getTransform();
 			return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Box, TRIGGER_MESH, TRIGGER_LIGHT | TRIGGER_CAMERA);
 		},
 		[=]() -> glm::mat4x4
 		{
-			return getOwner()->getTransform();
+			glm::mat4x4 l_Transform(glm::identity<glm::mat4x4>());
+			l_Transform[3][0] = m_BoundingBox.m_Center.x;
+			l_Transform[3][1] = m_BoundingBox.m_Center.y;
+			l_Transform[3][2] = m_BoundingBox.m_Center.z;
+			l_Transform *= getOwner()->getTransform();
+			return l_Transform;
 		}, 0);
 		
 	if( !isHidden() )

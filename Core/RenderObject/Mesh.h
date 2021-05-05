@@ -56,6 +56,7 @@ public:
 	unsigned int getMeshIdx(){ return m_MeshIdx; }
 	int getWorldOffset(){ return m_WorldOffset; }
 	IntersectHelper* getHelper(){ return m_pHelper; }
+	glm::aabb getBoundingBox(){ return m_BoundingBox; }
 
 	template<typename T>
 	void setMaterialParam(unsigned int a_Slot, std::string a_Name, T a_Param)

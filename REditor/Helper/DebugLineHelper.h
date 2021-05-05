@@ -31,7 +31,7 @@ public:
 	static DebugLineHelper& singleton();
 
 	// draw bounding lines
-	void addDebugLine(std::shared_ptr<SceneNode> a_pNode);// all camera | mesh | light under node
+	void addDebugLine(std::shared_ptr<SceneNode> a_pNode);// all (camera | mesh | light) under node(include children)
 	void addDebugLine(std::shared_ptr<Camera> a_pCamera);
 	void addDebugLine(std::shared_ptr<RenderableMesh> a_pMesh);
 	void addDebugLine(std::shared_ptr<OmniLight> a_pOmniLight);
@@ -42,6 +42,7 @@ private:
 	virtual ~DebugLineHelper();
 
 	wxString m_Name;
+	std::shared_ptr<MaterialBlock> m_pTempBlock;
 };
 
 }

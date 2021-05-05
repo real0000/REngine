@@ -433,6 +433,7 @@ bool EngineCore::init()
 	{
 		std::shared_ptr<Asset> l_pMaterial = AssetManager::singleton().createAsset(c_ShadowSlots[i].second);
 		l_pMaterial->getComponent<MaterialAsset>()->init(ProgramManager::singleton().getData(c_ShadowSlots[i].first));
+		l_pMaterial->setRuntimeOnly(true);
 		m_DefaultShadowmap.push_back(l_pMaterial);
 	}
 

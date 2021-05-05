@@ -23,8 +23,15 @@ DebugLineHelper::DebugLineHelper()
 	: m_Name(wxT(""))
 {
 	std::shared_ptr<Asset> l_pRuntimeMesh = AssetManager::singleton().createRuntimeAsset<MeshAsset>();
-	l_pRuntimeMesh->getComponent<MeshAsset>()->init(VTXFLAG_POSITION | VTXFLAG_COLOR);
+	l_pRuntimeMesh->getComponent<MeshAsset>()->init(VTXFLAG_POSITION);
 	m_Name = l_pRuntimeMesh->getKey();
+
+	std::shared_ptr<Asset> l_pRuntimeMaterial = AssetManager::singleton().createRuntimeAsset<MaterialAsset>();
+	MaterialAsset *l_pMatInst = l_pRuntimeMaterial->getComponent<MaterialAsset>();
+	l_pMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Line));
+	m_pTempBlock = l_pMatInst->createExternalBlock(ShaderRegType::UavBuffer, "InstanceInfo", 1024);
+	l_pMatInst->setBlock("InstanceInfo", m_pTempBlock);
+	l_pMatInst->setTopology(Topology::line_list);
 
 	MeshAsset *l_pAssetInst = l_pRuntimeMesh->getComponent<MeshAsset>();
 	{ // Box
@@ -65,6 +72,7 @@ DebugLineHelper::DebugLineHelper()
 		l_pInst->m_VtxFlag = VTXFLAG_POSITION | VTXFLAG_USE_WORLD_MAT;
 		l_pInst->m_VisibleBoundingBox = glm::aabb(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 		l_pInst->m_PhysicsBoundingBox.push_back(l_pInst->m_VisibleBoundingBox);
+		l_pInst->m_Materials.insert(std::make_pair(MATSLOT_TRANSPARENT, l_pRuntimeMaterial));
 	}
 
 	{ // Cone - 36 edge
@@ -92,6 +100,7 @@ DebugLineHelper::DebugLineHelper()
 		l_pInst->m_VtxFlag = VTXFLAG_POSITION | VTXFLAG_USE_WORLD_MAT;
 		l_pInst->m_VisibleBoundingBox = glm::aabb(glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 		l_pInst->m_PhysicsBoundingBox.push_back(l_pInst->m_VisibleBoundingBox);
+		l_pInst->m_Materials.insert(std::make_pair(MATSLOT_TRANSPARENT, l_pRuntimeMaterial));
 	}
 
 	{ // sphere
@@ -120,6 +129,7 @@ DebugLineHelper::DebugLineHelper()
 		l_pInst->m_VtxFlag = VTXFLAG_POSITION | VTXFLAG_USE_WORLD_MAT;
 		l_pInst->m_VisibleBoundingBox = glm::aabb(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 		l_pInst->m_PhysicsBoundingBox.push_back(l_pInst->m_VisibleBoundingBox);
+		l_pInst->m_Materials.insert(std::make_pair(MATSLOT_TRANSPARENT, l_pRuntimeMaterial));
 	}
 }
 
@@ -145,6 +155,7 @@ void DebugLineHelper::addDebugLine(std::shared_ptr<SceneNode> a_pNode)
 	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i ) addDebugLine(l_Meshes[i]);
 	for( unsigned int i=0 ; i<l_OmniLights.size() ; ++i ) addDebugLine(l_OmniLights[i]);
 	for( unsigned int i=0 ; i<l_SpotLights.size() ; ++i ) addDebugLine(l_SpotLights[i]);
+	m_pTempBlock->sync(true, false);
 }
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<Camera> a_pCamera)
@@ -166,7 +177,18 @@ void DebugLineHelper::addDebugLine(std::shared_ptr<Camera> a_pCamera)
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<RenderableMesh> a_pMesh)
 {
-	
+	MeshAsset *l_pMesh = a_pMesh->getMesh()->getComponent<MeshAsset>();
+	MeshAsset::Instance *l_pInst = l_pMesh->getMeshes()[a_pMesh->getMeshIdx()];
+
+	std::shared_ptr<SceneNode> l_pChild = a_pMesh->getOwner()->addChild();
+	l_pChild->setPosition(l_pInst->m_VisibleBoundingBox.m_Center);
+	l_pChild->setScale(l_pInst->m_VisibleBoundingBox.m_Size);
+
+	std::shared_ptr<RenderableMesh> l_pLine = l_pChild->addComponent<RenderableMesh>();
+	l_pLine->setMesh(AssetManager::singleton().getAsset(m_Name), BOX);
+	RenderableMesh::MaterialData l_Pair = l_pLine->getMaterial(MATSLOT_TRANSPARENT);
+	MaterialAsset *l_pMatInst = l_Pair.second->getComponent<MaterialAsset>();
+	l_pMatInst->setParam("InstanceInfo", l_Pair.first, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<OmniLight> a_pOmniLight)

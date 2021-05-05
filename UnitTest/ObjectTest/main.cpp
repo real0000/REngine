@@ -29,6 +29,7 @@ bool BasicApp::OnInit()
 
 	R::ModelManager::singleton().setFlipYZ(true);
 	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset("sponza/sponza.Mesh");
+	//R::AssetManager::singleton().saveAsset(l_pMeshAsset);
 	auto l_pMeshNode = l_pScene->getRootNode()->addChild(l_pMeshAsset);
 
 	std::vector<std::shared_ptr<R::RenderableMesh>> l_Meshes;

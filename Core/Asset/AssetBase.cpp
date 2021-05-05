@@ -187,6 +187,7 @@ void AssetManager::loadFile(std::shared_ptr<Asset> a_pInst, wxString a_Path)
 
 void AssetManager::waitAssetClear()
 {
+	// bad
 	while( 0 != sm_AssetCounter ) Sleep(100);
 }
 #pragma endregion

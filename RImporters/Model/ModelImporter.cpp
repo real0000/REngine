@@ -79,7 +79,7 @@ glm::mat4x4 ModelNode::getAbsoluteTransform()
 // fbx sdk help function
 //
 template<typename SrcType, typename TVec>
-static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, unsigned int a_CtrlIdx, unsigned int a_VtxCounter, ModelData::Vertex &a_Target, std::function<void(ModelData::Vertex&, TVec)> a_Lambda)
+static void setupVertexData(fbxsdk::FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, unsigned int a_CtrlIdx, unsigned int a_VtxCounter, ModelData::Vertex &a_Target, std::function<void(ModelData::Vertex&, TVec)> a_Lambda)
 {
     if( nullptr == a_pSrcData ) return;
 
@@ -121,7 +121,7 @@ static void setupVertexData(FbxMesh *a_pSrcMesh, SrcType *a_pSrcData, unsigned i
 
 static wxString getTextureName(fbxsdk::FbxSurfaceMaterial *a_pMat, const char *a_pName)
 {
-	fbxsdk::FbxProperty l_TextureProperty = a_pMat->FindProperty(a_pName);
+	fbxsdk::FbxProperty l_TextureProperty = a_pMat->FindPropertyHierarchical(a_pName);
 	if( !l_TextureProperty.IsValid() ) return wxT("");
 
 	fbxsdk::FbxLayeredTexture *l_pLayeredTexture = nullptr;
@@ -174,12 +174,21 @@ void ModelData::init(wxString a_Filepath)
     bool l_bSuccess = l_pImporter->Initialize(a_Filepath.c_str(), -1, l_pIOCfg);
     assert(l_bSuccess);
 
-    FbxScene* l_pScene = FbxScene::Create(l_pSdkManager, "SourceScene");
+    fbxsdk::FbxScene* l_pScene = fbxsdk::FbxScene::Create(l_pSdkManager, "SourceScene");
     l_pImporter->Import(l_pScene);
     l_pImporter->Destroy();
 
-    std::map<FbxNode *, ModelNode *> l_NodeMap;
-    std::map<FbxMesh *, unsigned int> l_MeshMap;
+	{// scene converter
+		FbxMaterialConverter l_MatConverter(*l_pSdkManager);
+		l_MatConverter.ConnectTexturesToMaterials(*l_pScene);
+
+		FbxGeometryConverter l_GeoConverter(l_pSdkManager);
+		l_GeoConverter.Triangulate(l_pScene, true);
+		l_GeoConverter.SplitMeshesPerMaterial(l_pScene, true);
+	}
+
+    std::map<fbxsdk::FbxNode *, ModelNode *> l_NodeMap;
+    std::map<fbxsdk::FbxMesh *, unsigned int> l_MeshMap;
 	std::vector<ModelNode *> l_NodeVec(l_pScene->GetNodeCount(), nullptr);
     {
         for( unsigned int i=0 ; i<l_NodeVec.size() ; ++i )
@@ -202,28 +211,31 @@ void ModelData::init(wxString a_Filepath)
                 l_NodeVec[i]->m_Transform[j] = glm::vec4(l_Data[0], l_Data[1], l_Data[2], l_Data[3]);
             }
 
-            FbxNodeAttribute *l_pNodeAttr = l_pCurrNode->GetNodeAttribute();
-            if( nullptr != l_pNodeAttr )
-            {
-                switch( l_pNodeAttr->GetAttributeType() )
-                {
-                    case FbxNodeAttribute::eMesh:{
-                        FbxMesh *l_pMesh = static_cast<FbxMesh *>(l_pNodeAttr);
+			for( int j=0 ; j<l_pCurrNode->GetNodeAttributeCount() ; ++j )
+			{
+				FbxNodeAttribute *l_pNodeAttr = l_pCurrNode->GetNodeAttributeByIndex(j);
+				if( nullptr != l_pNodeAttr )
+				{
+					switch( l_pNodeAttr->GetAttributeType() )
+					{
+						case FbxNodeAttribute::eMesh:{
+							fbxsdk::FbxMesh *l_pMesh = static_cast<fbxsdk::FbxMesh *>(l_pNodeAttr);
 
-                        unsigned int l_MeshIdx = 0;
-                        auto l_MeshIt = l_MeshMap.find(l_pMesh);
-                        if( l_MeshIt == l_MeshMap.end() )
-                        {
-                            l_MeshIdx = l_MeshMap.size();
-                            l_MeshMap.insert(std::make_pair(l_pMesh, l_MeshIdx));
-                        }
-                        else l_MeshIdx = l_MeshIt->second;
-                        l_NodeVec[i]->m_RefMesh.push_back(l_MeshIdx);
-                        }break;
+							unsigned int l_MeshIdx = 0;
+							auto l_MeshIt = l_MeshMap.find(l_pMesh);
+							if( l_MeshIt == l_MeshMap.end() )
+							{
+								l_MeshIdx = l_MeshMap.size();
+								l_MeshMap.insert(std::make_pair(l_pMesh, l_MeshIdx));
+							}
+							else l_MeshIdx = l_MeshIt->second;
+							l_NodeVec[i]->m_RefMesh.push_back(l_MeshIdx);
+							}break;
 
-                    default:break;
-                }
-            }
+						default:break;
+					}
+				}
+			}
         }
 
 		std::vector<ModelNode *> l_TempRootNodes;
@@ -255,28 +267,38 @@ void ModelData::init(wxString a_Filepath)
 			}
 		}
     }
-
-    m_Meshes.resize(l_MeshMap.size(), nullptr);
-	std::vector<int> l_BoneRecord;
-	union MaterialPack
-	{
-		uint64 m_Key;
-		struct PackParam
-		{
-			uint64 m_BaseColorIdx : 16;
-			uint64 m_MetalicIdx : 12;
-			uint64 m_RoughnessIdx : 12;
-			uint64 m_NormalIdx : 12;
-			uint64 m_HeightIdx : 12;
-		} m_PackParam;
-	};
-	const char * c_TextureSlots[TEXUSAGE_TYPECOUNT] = {
+	
+	const char *c_TextureSlots[TEXUSAGE_TYPECOUNT] = {
 		fbxsdk::FbxSurfaceMaterial::sDiffuse,
 		fbxsdk::FbxSurfaceMaterial::sReflection,
 		fbxsdk::FbxSurfaceMaterial::sSpecular,
 		fbxsdk::FbxSurfaceMaterial::sNormalMap,
 		fbxsdk::FbxSurfaceMaterial::sDisplacementColor};
 	m_Materials.insert(std::make_pair(DEFAULT_EMPTY_MAT_NAME, Material()));
+	for( int i=0 ; i<l_pScene->GetMaterialCount() ; ++i )
+	{
+		fbxsdk::FbxSurfaceMaterial *l_pMat = l_pScene->GetMaterial(i);
+		wxString l_MatName(l_pMat->GetName());
+		if( m_Materials.end() == m_Materials.find(l_MatName) )
+		{
+			bool l_bEmpty = true;
+			Material l_NewMat = Material();
+			for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
+			{
+				wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
+				if( l_TextureName.IsEmpty() ) continue;
+
+				l_bEmpty = false;
+				regularFilePath(l_TextureName);
+				l_NewMat.insert(std::make_pair((DefaultTextureUsageType)j, l_TextureName));
+			}
+
+			if( !l_bEmpty ) m_Materials.insert(std::make_pair(l_MatName, l_NewMat));
+		}
+	}
+
+    m_Meshes.resize(l_MeshMap.size(), nullptr);
+	std::vector<int> l_BoneRecord;
 	std::function<glm::vec3(float, float, float)> l_PosAssignFunc = ModelManager::singleton().getFlipYZ() ?
 		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Z, a_Y); } :
 		(std::function<glm::vec3(float, float, float)>)[](float a_X, float a_Y, float a_Z) -> glm::vec3{ return glm::vec3(a_X, a_Y, a_Z); };
@@ -285,7 +307,7 @@ void ModelData::init(wxString a_Filepath)
 	unsigned int l_VtxCounter = 0;
     for( auto it = l_MeshMap.begin() ; it != l_MeshMap.end() ; ++it )
     {
-        FbxMesh *l_pSrcMesh = it->first;
+        fbxsdk::FbxMesh *l_pSrcMesh = it->first;
         unsigned int l_Idx = it->second;
         Meshes *l_pDstMesh = m_Meshes[l_Idx] = new Meshes();
         l_pDstMesh->m_Name = it->first->GetName();
@@ -297,19 +319,7 @@ void ModelData::init(wxString a_Filepath)
 		{
 			l_pRefNode = it->first->GetNode(i);
 			l_pDstMesh->m_RefNode.push_back(l_NodeMap[l_pRefNode]);
-
-			FbxVector4 l_FbxBoxMax, l_FbxBoxMin, l_FbxBoxCenter;
-			l_pRefNode->EvaluateGlobalBoundingBoxMinMaxCenter(l_FbxBoxMin, l_FbxBoxMax, l_FbxBoxCenter);
-			FbxVector4 l_Size((l_FbxBoxMax - l_FbxBoxMin));
-			FbxVector4 l_Offset(l_FbxBoxCenter - (l_FbxBoxMax + l_FbxBoxMin) * 0.5f);
-			l_pDstMesh->m_BoundingBox.m_Size.x = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.x, l_Size[0]);
-			l_pDstMesh->m_BoundingBox.m_Size.y = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.y, l_Size[1]);
-			l_pDstMesh->m_BoundingBox.m_Size.z = std::max<float>(l_pDstMesh->m_BoundingBox.m_Size.z, l_Size[2]);
-			l_pDstMesh->m_BoundingBox.m_Center.x += l_Offset[0];
-			l_pDstMesh->m_BoundingBox.m_Center.y += l_Offset[1];
-			l_pDstMesh->m_BoundingBox.m_Center.z += l_Offset[2];
 		}
-		if( !l_pDstMesh->m_RefNode.empty() ) l_pDstMesh->m_BoundingBox.m_Center /= l_pDstMesh->m_RefNode.size();
 
 		l_pRefNode = it->first->GetNode();
 		if( l_pDstMesh->m_Name.empty() ) l_pDstMesh->m_Name = l_pRefNode->GetName();
@@ -321,8 +331,9 @@ void ModelData::init(wxString a_Filepath)
         unsigned int l_NumTriangle = l_pSrcMesh->GetPolygonCount();
 		auto l_pSrcVtxArray = l_pSrcMesh->GetControlPoints();
 		l_VtxCounter = 0;
+		glm::vec3 l_BoxMax(-FLT_MAX, -FLT_MAX, -FLT_MAX), l_BoxMin(FLT_MAX, FLT_MAX, FLT_MAX);
 		for( unsigned int i=0 ; i<l_NumTriangle ; ++i )
-        {
+        {	
 			for( unsigned int j=0 ; j<3 ; ++j )
 			{
 				int l_CtrlPtIdx = l_pSrcMesh->GetPolygonVertex(i, j); 
@@ -331,6 +342,8 @@ void ModelData::init(wxString a_Filepath)
 
 				FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[l_CtrlPtIdx];
 				l_ThisVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
+				l_BoxMax = glm::max(l_ThisVtx.m_Position, l_BoxMax);
+				l_BoxMin = glm::min(l_ThisVtx.m_Position, l_BoxMin);
 
 				std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
 				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementNormal(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetNormalFunc);
@@ -376,6 +389,9 @@ void ModelData::init(wxString a_Filepath)
 			}
 		}
         
+		l_pDstMesh->m_BoundingBox.m_Size = l_BoxMax - l_BoxMin;
+		l_pDstMesh->m_BoundingBox.m_Center = (l_BoxMax + l_BoxMin) * 0.5f;// - transform pos ?
+
 		l_pDstMesh->m_Vertex.resize(l_VtxSet.size());
 		for( auto l_VtxIt=l_VtxSet.begin() ; l_VtxIt!=l_VtxSet.end() ; ++l_VtxIt )
 		{
@@ -424,28 +440,16 @@ void ModelData::init(wxString a_Filepath)
 		FbxLayerElementArrayTemplate<int> *l_pMaterialIndicies = nullptr;
 		if( l_pSrcMesh->GetMaterialIndices(&l_pMaterialIndicies) )
 		{
-			int l_MatIdx = l_pMaterialIndicies->GetAt(0);
-			fbxsdk::FbxSurfaceMaterial *l_pMat = l_pRefNode->GetMaterial(l_MatIdx);
-			wxString l_MatName(l_pMat->GetName());
-			if( m_Materials.end() != m_Materials.find(l_MatName) ) l_pDstMesh->m_RefMaterial = l_MatName;
-			else
+			int l_Count = l_pMaterialIndicies->GetCount();
+			for( int i=0 ; i<l_Count ; ++i )
 			{
-				bool l_bEmpty = true;
-				Material l_NewMat = Material();
-				for( int j=0 ; j<TEXUSAGE_TYPECOUNT ; ++j )
-				{
-					wxString l_TextureName(getTextureName(l_pMat, c_TextureSlots[j]));
-					if( l_TextureName.IsEmpty() ) continue;
-
-					l_bEmpty = false;
-					regularFilePath(l_TextureName);
-					l_NewMat.insert(std::make_pair((DefaultTextureUsageType)j, l_TextureName));
-				}
-
-				if( !l_bEmpty )
+				int l_MatIdx = l_pMaterialIndicies->GetAt(i);
+				fbxsdk::FbxSurfaceMaterial *l_pMat = l_pRefNode->GetMaterial(l_MatIdx);
+				wxString l_MatName(l_pMat->GetName());
+				if( m_Materials.end() != m_Materials.find(l_MatName) )
 				{
 					l_pDstMesh->m_RefMaterial = l_MatName;
-					m_Materials.insert(std::make_pair(l_MatName, l_NewMat));
+					break;
 				}
 			}
 		}

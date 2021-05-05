@@ -278,14 +278,15 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		return;
 	}
 	
-	EngineCore::singleton().addJob([=](){ this->setupIndexUav();});
+	EngineCore::singleton().addJob([=](){ this->setupIndexUav(); });
 	
 	// sort meshes
 	auto &l_Meshes = a_pCamera->getHelper()->getMeshes();
 	{
 		for( unsigned int i=0 ; i<cm_NumMatSlot ; ++i )
 		{
-			EngineCore::singleton().addJob([=]() -> void
+			// to do : fix unknown freeze on multi-thread
+			//EngineCore::singleton().addJob([=]() -> void
 			{
 				m_SortedMesh[i].clear();
 				m_SortedMesh[i].reserve(l_Meshes.size());
@@ -294,11 +295,14 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 					RenderableMesh *l_pMesh = (*it).get();
 					if( l_pMesh->getSortKey(i).m_Members.m_bValid ) m_SortedMesh[i].push_back(l_pMesh);
 				}
-				std::sort(m_SortedMesh[i].begin(), m_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+				if( !m_SortedMesh[i].empty() )
 				{
-					return a_pLeft->getSortKey(i).m_Key < a_pRight->getSortKey(i).m_Key;
-				});
-			});
+					std::sort(m_SortedMesh[i].begin(), m_SortedMesh[i].end(), [=](RenderableMesh *a_pLeft, RenderableMesh *a_pRight) -> bool
+					{
+						return a_pLeft->getSortKey(i).m_Key < a_pRight->getSortKey(i).m_Key;
+					});
+				}
+			}//);
 		}
 	}
 

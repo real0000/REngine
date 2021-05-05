@@ -323,7 +323,7 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 	for( unsigned int i=0 ; i<l_UavBlock.size() ; ++i ) l_NumSlot = std::max(l_NumSlot, l_UavBlock[i]->m_pRegInfo->m_Slot + 1);
 	if( -1 != l_NumSlot ) m_UavBlocks.resize(l_NumSlot, nullptr);
 
-	auto it = std::find_if(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return 0 == strcmp(a_pBlock->m_StructureName.c_str(), "InstanceInfo"); });
+	auto it = std::find_if(l_UavBlock.begin(), l_UavBlock.end(), [=](ProgramBlockDesc *a_pBlock) -> bool { return 0 == strcmp(a_pBlock->m_Name.c_str(), "InstanceInfo"); });
 	if( l_UavBlock.end() != it )
 	{
 		unsigned int l_Index = it - l_UavBlock.begin();
@@ -342,7 +342,6 @@ void MaterialAsset::init(std::shared_ptr<ShaderProgram> a_pRefProgram)
 		if( !it->second->m_bReserved || it->second->m_bWrite ) continue;
 		m_ReservedSRV.insert(it->second->m_pRegInfo->m_Slot);
 	}
-	setDirty();
 }
 
 void MaterialAsset::setTexture(std::string a_Name, std::shared_ptr<Asset> a_pTexture)

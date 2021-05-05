@@ -91,7 +91,7 @@ void MeshAsset::importFile(wxString a_File)
 			ModelData::Material &l_ThisMaterial = it->second;
 			wxString l_MatFile(wxString::Format(wxT("%s/%s_%s_Opaque.%s"), l_FilePath, l_ClearFileName, it->first, MaterialAsset::validAssetKey().mbc_str()));
 			std::shared_ptr<Asset> l_pMat = AssetManager::singleton().createAsset(l_MatFile);
-			if( l_pMat->dirty() )// new file
+			if( nullptr == l_pMat->getComponent<MaterialAsset>()->getProgram() )// new file
 			{
 				auto it2 = l_ThisMaterial.find(DefaultTextureUsageType::TEXUSAGE_BASECOLOR);
 				if( l_ThisMaterial.end() == it2 ) l_pBaseColor = AssetManager::singleton().getAsset(WHITE_TEXTURE_ASSET_NAME);
