@@ -28,7 +28,7 @@
   </Shaders>
   <ShaderSetting sampleMask="ffffffff" topology="triangle_list" sampleCount="1" sampleQuality="0" useIndirectDraw="true">
     <BlendState/>
-    <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="true" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
+    <RasterizerState filled="true" cull="back" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="true" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
     <DepthStencil>
       <Depth enable="true" write="true" func="less"/>
       <Stencil enable="false" readMask="ff" writeMask="ff">

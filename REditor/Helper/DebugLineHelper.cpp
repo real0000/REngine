@@ -35,12 +35,12 @@ DebugLineHelper::DebugLineHelper()
 
 	MeshAsset *l_pAssetInst = l_pRuntimeMesh->getComponent<MeshAsset>();
 	{ // Box
-		//      2______ 6
+		//      3______ 7
 		//      /     /|
-		//   3 /____7/ |
-		//     | 0   | /4
+		//    2/____6/ |
+		//     | 1   | /5
 		//     |_____|/
-		//    1       5
+		//    0       4
 		const glm::vec3 c_BoxPos[8] = {
 			glm::vec3(-0.5f, -0.5f, -0.5f),
 			glm::vec3(-0.5f, -0.5f, 0.5f),
@@ -68,6 +68,7 @@ DebugLineHelper::DebugLineHelper()
 		MeshAsset::Instance *l_pInst = l_pAssetInst->addSubMesh(8, 24, &l_pIdxBuffer, &l_pPosBuffer);
 		memcpy(l_pIdxBuffer, c_BoxIdx, sizeof(c_BoxIdx));
 		memcpy(l_pPosBuffer, c_BoxPos, sizeof(c_BoxPos));
+		l_pInst->m_IndexCount = 24;
 		l_pInst->m_Name = wxT("DebugBox");
 		l_pInst->m_VtxFlag = VTXFLAG_POSITION | VTXFLAG_USE_WORLD_MAT;
 		l_pInst->m_VisibleBoundingBox = glm::aabb(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
@@ -83,6 +84,7 @@ DebugLineHelper::DebugLineHelper()
 		unsigned int *l_pIdxBuffer = nullptr;
 		glm::vec3 *l_pPosBuffer = nullptr;
 		MeshAsset::Instance *l_pInst = l_pAssetInst->addSubMesh(37, 144, &l_pIdxBuffer, &l_pPosBuffer);
+		l_pInst->m_IndexCount = 144;
 		l_pPosBuffer[0] = glm::vec3(0.0f, 1.0f, 0.0f);
 		for( unsigned int i=0 ; i<36 ; ++i )
 		{
@@ -109,6 +111,7 @@ DebugLineHelper::DebugLineHelper()
 		unsigned int *l_pIdxBuffer = nullptr;
 		glm::vec3 *l_pPosBuffer = nullptr;
 		MeshAsset::Instance *l_pInst = l_pAssetInst->addSubMesh(36 * 3, 72 * 3, &l_pIdxBuffer, &l_pPosBuffer);
+		l_pInst->m_IndexCount = 72 * 3;
 		for( unsigned int i=0 ; i<36 ; ++i )
 		{
 			float l_Angle = glm::pi<float>() / 18.0f * i;
@@ -131,6 +134,7 @@ DebugLineHelper::DebugLineHelper()
 		l_pInst->m_PhysicsBoundingBox.push_back(l_pInst->m_VisibleBoundingBox);
 		l_pInst->m_Materials.insert(std::make_pair(MATSLOT_TRANSPARENT, l_pRuntimeMaterial));
 	}
+	l_pAssetInst->updateMeshData(glm::ivec2(0, 8 + 37 + 36 * 3), glm::ivec2(0, 24 + 144 + 72 * 3));
 }
 
 DebugLineHelper::~DebugLineHelper()
