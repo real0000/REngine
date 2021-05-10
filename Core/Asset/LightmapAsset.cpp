@@ -443,7 +443,7 @@ void LightmapAsset::stepBake(GraphicCommander *a_pCmd)
 		
 		a_pCmd->useProgram(m_pRayScatterMatInst->getProgram());
 
-		m_pRayIntersectMatInst->setParam("c_MatID", 0, i);
+		m_pRayIntersectMatInst->setParam("c_MatID", "", 0, i);
 		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_BASECOLOR, m_LightMapMaterialCache[i].m_pBaseColor);
 		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_NORMAL, m_LightMapMaterialCache[i].m_pNormal);
 		m_pRayIntersectMatInst->setTexture(STANDARD_TEXTURE_METAL, m_LightMapMaterialCache[i].m_pMetal);

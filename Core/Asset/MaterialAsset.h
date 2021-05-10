@@ -115,16 +115,17 @@ public:
 	Topology::Key getTopology(){ return m_Topology; }
 
 	template<typename T>
-	void setParam(std::string a_Name, unsigned int a_Slot, T a_Param)
+	void setParam(std::string a_BlockName, std::string a_ParamName, unsigned int a_Slot, T a_Param)
 	{
-		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_BlockName);
 		if( nullptr == l_pRegInfo ) return;
 
 		std::shared_ptr<MaterialBlock> l_pTargetBlock = nullptr;
 		switch( l_pRegInfo->m_Type )
 		{
-			case ShaderRegType::ConstBuffer:
 			case ShaderRegType::Constant:
+				a_ParamName = a_BlockName;
+			case ShaderRegType::ConstBuffer:
 				l_pTargetBlock = m_ConstBlocks[l_pRegInfo->m_Slot];
 				break;
 
@@ -136,21 +137,22 @@ public:
 		}
 		if( nullptr == l_pTargetBlock ) return;
 
-		l_pTargetBlock->setParam(a_Name, a_Slot, a_Param);
+		l_pTargetBlock->setParam(a_ParamName, a_Slot, a_Param);
 	}
 	template<typename T>
-	T getParam(std::string a_Name, unsigned int a_Slot)
+	T getParam(std::string a_BlockName, std::string a_ParamName, unsigned int a_Slot)
 	{
 		T l_Empty;
 
-		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_Name);
+		RegisterInfo *l_pRegInfo = m_pRefProgram->getRegisterInfo(a_BlockName);
 		if( nullptr == l_pRegInfo ) return l_Empty;
 
 		std::shared_ptr<MaterialBlock> l_pTargetBlock = nullptr;
 		switch( l_pRegInfo->m_Type )
 		{
-			case ShaderRegType::ConstBuffer:
 			case ShaderRegType::Constant:
+				a_ParamName = a_BlockName;
+			case ShaderRegType::ConstBuffer:
 				l_pTargetBlock = m_ConstBlocks[l_pRegInfo->m_Slot];
 				break;
 
@@ -161,7 +163,7 @@ public:
 			default:break;
 		}
 		if( nullptr == l_pTargetBlock ) return l_Empty;
-		return l_pTargetBlock->getParam(a_Name, a_Slot);
+		return l_pTargetBlock->getParam(a_ParamName, a_Slot);
 	}
 	
 	int requestInstanceSlot();

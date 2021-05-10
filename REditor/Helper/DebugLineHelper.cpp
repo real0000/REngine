@@ -192,7 +192,7 @@ void DebugLineHelper::addDebugLine(std::shared_ptr<RenderableMesh> a_pMesh)
 	l_pLine->setMesh(AssetManager::singleton().getAsset(m_Name), BOX);
 	RenderableMesh::MaterialData l_Pair = l_pLine->getMaterial(MATSLOT_TRANSPARENT);
 	MaterialAsset *l_pMatInst = l_Pair.second->getComponent<MaterialAsset>();
-	l_pMatInst->setParam("InstanceInfo", l_Pair.first, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+	l_pMatInst->setParam("InstanceInfo", "m_Params", l_Pair.first, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<OmniLight> a_pOmniLight)
