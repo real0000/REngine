@@ -241,7 +241,13 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_DynamicLights.push_back(*it);
 		}
 	}
+
 	CONSOLE_LOG(wxT("draw count info : mesh(%d), light(%d)"), int(a_pCamera->getHelper()->getMeshes().size()), int(m_DynamicLights.size()));
+	{
+		/*glm::vec3 l_Eye, l_Dir, l_Up;
+		a_pCamera->getCameraParam(l_Eye, l_Dir, l_Up);
+		CONSOLE_LOG(wxT("Camera position : (%f, %f, %f)"), l_Eye.x, l_Eye.y, l_Eye.z);*/
+	}
 
 	{// setup light map
 		std::shared_ptr<Asset> l_pLightmap = getScene()->getLightmap();

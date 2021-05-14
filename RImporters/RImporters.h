@@ -10,4 +10,8 @@
 #include "Model/ModelImporter.h"
 #include "Image/ImageImporter.h"
 
+#define FBXMAT_TO_GLMMAT(src, dst) \
+	for( unsigned int r=0 ; r<4 ; ++r ){ \
+		for( unsigned int c=0 ; c<4 ; ++c ) dst[r][c] = src[r][c];}
+
 #endif

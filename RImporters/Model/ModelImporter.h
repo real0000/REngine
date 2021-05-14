@@ -120,6 +120,8 @@ public:
 
 	void setFlipYZ(bool a_bFlip){ m_bFlipYZ = a_bFlip; }
 	bool getFlipYZ(){ return m_bFlipYZ; }
+	void setReverseFace(bool a_bReverse){ m_bReverseFace = true; }
+	bool getReverseFace(){ return m_bReverseFace; }
 
 private:
 	ModelManager();
@@ -129,6 +131,7 @@ private:
 
 private:
 	bool m_bFlipYZ;
+	bool m_bReverseFace;
 };
 
 }

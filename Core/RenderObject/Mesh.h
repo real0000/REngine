@@ -59,11 +59,11 @@ public:
 	glm::aabb getBoundingBox(){ return m_BoundingBox; }
 
 	template<typename T>
-	void setMaterialParam(unsigned int a_Slot, std::string a_Name, T a_Param)
+	void setMaterialParam(unsigned int a_Slot, std::string a_BlockName, std::string a_ParamName, T a_Param)
 	{
 		auto it = m_Materials.find(a_Slot);
 		if( m_Materials.end() == it ) return;
-		it->second.second->getComponent<MaterialAsset>()->setParam(a_Name, it->second.first, a_Param);
+		it->second.second->getComponent<MaterialAsset>()->setParam(a_BlockName, a_ParamName, it->second.first, a_Param);
 	}
 
 protected:

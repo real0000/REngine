@@ -194,31 +194,27 @@ void ModelData::init(wxString a_Filepath)
         for( unsigned int i=0 ; i<l_NodeVec.size() ; ++i )
         {
             l_NodeVec[i] = new ModelNode();
-            FbxNode *l_pCurrNode = l_pScene->GetNode(i);
+            fbxsdk::FbxNode *l_pCurrNode = l_pScene->GetNode(i);
             l_NodeMap[l_pCurrNode] = l_NodeVec[i];
 
             //FbxAMatrix &l_FbxMat = l_pCurrNode->EvaluateLocalTransform(FBXSDK_TIME_INFINITE, FbxNode::eSourcePivot, false, true);
-			FbxVector4 l_Trans = l_pCurrNode->GetGeometricTranslation(FbxNode::eSourcePivot);
-			FbxVector4 l_Scale = l_pCurrNode->GetGeometricScaling(FbxNode::eSourcePivot);
-			FbxVector4 l_Rot = l_pCurrNode->GetGeometricRotation(FbxNode::eSourcePivot);
+			FbxVector4 l_Trans = l_pCurrNode->LclTranslation.Get();
+			FbxVector4 l_Scale = l_pCurrNode->LclScaling.Get();
+			FbxVector4 l_Rot = l_pCurrNode->LclRotation.Get();
 			FbxAMatrix l_FbxMat;
 			l_FbxMat.SetTRS(l_Trans, l_Rot, l_Scale);
 
             l_NodeVec[i]->m_NodeName = l_pCurrNode->GetName();
-            for( unsigned int j=0 ; j<4 ; ++j )
-            {
-                FbxVector4 l_Data = l_FbxMat.GetColumn(j);
-                l_NodeVec[i]->m_Transform[j] = glm::vec4(l_Data[0], l_Data[1], l_Data[2], l_Data[3]);
-            }
+			FBXMAT_TO_GLMMAT(l_FbxMat, l_NodeVec[i]->m_Transform)
 
 			for( int j=0 ; j<l_pCurrNode->GetNodeAttributeCount() ; ++j )
 			{
-				FbxNodeAttribute *l_pNodeAttr = l_pCurrNode->GetNodeAttributeByIndex(j);
+				fbxsdk::FbxNodeAttribute *l_pNodeAttr = l_pCurrNode->GetNodeAttributeByIndex(j);
 				if( nullptr != l_pNodeAttr )
 				{
 					switch( l_pNodeAttr->GetAttributeType() )
 					{
-						case FbxNodeAttribute::eMesh:{
+						case fbxsdk::FbxNodeAttribute::eMesh:{
 							fbxsdk::FbxMesh *l_pMesh = static_cast<fbxsdk::FbxMesh *>(l_pNodeAttr);
 
 							unsigned int l_MeshIdx = 0;
@@ -241,7 +237,7 @@ void ModelData::init(wxString a_Filepath)
 		std::vector<ModelNode *> l_TempRootNodes;
         for( unsigned int i=0 ; i<l_NodeVec.size() ; ++i )
         {
-            FbxNode *l_pCurrNode = l_pScene->GetNode(i);
+            fbxsdk::FbxNode *l_pCurrNode = l_pScene->GetNode(i);
             if( nullptr != l_pCurrNode->GetParent() ) l_NodeVec[i]->m_pParent = l_NodeMap[l_pCurrNode->GetParent()];
 			else l_TempRootNodes.push_back(l_NodeVec[i]);
 
@@ -313,7 +309,7 @@ void ModelData::init(wxString a_Filepath)
         l_pDstMesh->m_Name = it->first->GetName();
         l_pDstMesh->m_Index = l_Idx;
 
-		FbxNode *l_pRefNode = nullptr;
+		fbxsdk::FbxNode *l_pRefNode = nullptr;
 		glm::vec3 l_BoxCenter(0.0f, 0.0f, 0.0f);
 		for( int i=0 ; i<it->first->GetNodeCount() ; ++i )
 		{
@@ -331,36 +327,70 @@ void ModelData::init(wxString a_Filepath)
         unsigned int l_NumTriangle = l_pSrcMesh->GetPolygonCount();
 		auto l_pSrcVtxArray = l_pSrcMesh->GetControlPoints();
 		l_VtxCounter = 0;
+
+		fbxsdk::FbxAMatrix l_GeoTrans, l_GeoNormalTrans;
+		{
+			l_GeoTrans.SetIdentity();
+			l_GeoNormalTrans.SetIdentity();
+			if( l_pRefNode->GetNodeAttribute() )
+			{
+				l_GeoTrans.SetTRS(l_pRefNode->GetGeometricTranslation(fbxsdk::FbxNode::eSourcePivot)
+								, l_pRefNode->GetGeometricRotation(fbxsdk::FbxNode::eSourcePivot)
+								, l_pRefNode->GetGeometricScaling(fbxsdk::FbxNode::eSourcePivot));
+			}
+			FbxAMatrix l_FbxMat;
+			l_FbxMat.SetTRS(l_pRefNode->LclTranslation.Get(), l_pRefNode->LclRotation.Get(), l_pRefNode->LclScaling.Get());
+			l_GeoTrans = l_FbxMat.Inverse() * l_pRefNode->EvaluateLocalTransform() * l_GeoTrans;
+
+			l_GeoNormalTrans = l_GeoTrans;
+			l_GeoNormalTrans.SetT(fbxsdk::FbxVector4(0.0f, 0.0f, 0.0f, 0.0f));
+		}
+
 		glm::vec3 l_BoxMax(-FLT_MAX, -FLT_MAX, -FLT_MAX), l_BoxMin(FLT_MAX, FLT_MAX, FLT_MAX);
+		const int c_ReverseFaceIdxAdjust[] = {2, 0, -2};
 		for( unsigned int i=0 ; i<l_NumTriangle ; ++i )
         {	
 			for( unsigned int j=0 ; j<3 ; ++j )
 			{
-				int l_CtrlPtIdx = l_pSrcMesh->GetPolygonVertex(i, j); 
+				int l_TrianglePos = ModelManager::singleton().getReverseFace() ? (2 - j) : j;
+				unsigned int l_AdjustVtxCounter = ModelManager::singleton().getReverseFace() ? (l_VtxCounter + c_ReverseFaceIdxAdjust[j]) : j;
+				int l_CtrlPtIdx = l_pSrcMesh->GetPolygonVertex(i, l_TrianglePos);
 
 				Vertex l_ThisVtx = {};
-
-				FbxVector4 l_SrcVtx = l_pSrcMesh->GetControlPoints()[l_CtrlPtIdx];
+				
+				FbxVector4 l_SrcVtx = l_GeoTrans.MultT(l_pSrcMesh->GetControlPoints()[l_CtrlPtIdx]);
 				l_ThisVtx.m_Position = l_PosAssignFunc(l_SrcVtx[0], l_SrcVtx[1], l_SrcVtx[2]);
 				l_BoxMax = glm::max(l_ThisVtx.m_Position, l_BoxMax);
 				l_BoxMin = glm::min(l_ThisVtx.m_Position, l_BoxMin);
 
-				std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementNormal(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetNormalFunc);
+				std::function<void(Vertex&, FbxVector4)> l_SetNormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src)
+				{
+					a_Src = l_GeoNormalTrans.MultT(a_Src);
+					a_Vtx.m_Normal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]);
+				};
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementNormal(), l_CtrlPtIdx, l_AdjustVtxCounter, l_ThisVtx, l_SetNormalFunc);
 				
-				std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Tangent = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementTangent(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetTangentFunc);
+				std::function<void(Vertex&, FbxVector4)> l_SetTangentFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src)
+				{
+					a_Src = l_GeoNormalTrans.MultT(a_Src);
+					a_Vtx.m_Tangent = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]);
+				};
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementTangent(), l_CtrlPtIdx, l_AdjustVtxCounter, l_ThisVtx, l_SetTangentFunc);
 				
-				std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src){ a_Vtx.m_Binormal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]); };
-				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementBinormal(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, l_SetBinormalFunc);
+				std::function<void(Vertex&, FbxVector4)> l_SetBinormalFunc = [=](Vertex &a_Vtx, FbxVector4 a_Src)
+				{
+					a_Src = l_GeoNormalTrans.MultT(a_Src);
+					a_Vtx.m_Binormal = l_PosAssignFunc(a_Src[0], a_Src[1], a_Src[2]);
+				};
+				setupVertexData(l_pSrcMesh, l_pSrcMesh->GetElementBinormal(), l_CtrlPtIdx, l_AdjustVtxCounter, l_ThisVtx, l_SetBinormalFunc);
 
 				int l_LayerCount = std::min(4, l_pSrcMesh->GetLayerCount());
-				for( int i=0 ; i<l_LayerCount ; ++i )
+				for( int k=0 ; k<l_LayerCount ; ++k )
 				{
-					std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].x = a_Src[0]; a_Vtx.m_Texcoord[i/2].y = a_Src[1]; };
-					std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&i](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[i/2].z = a_Src[0]; a_Vtx.m_Texcoord[i/2].w = a_Src[1]; };
+					std::function<void(Vertex&, FbxVector2)> l_SetUVFunc = [&k](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[k/2].x = a_Src[0]; a_Vtx.m_Texcoord[k/2].y = a_Src[1]; };
+					std::function<void(Vertex&, FbxVector2)> l_SetUV2Func = [&k](Vertex &a_Vtx, FbxVector2 a_Src){ a_Vtx.m_Texcoord[k/2].z = a_Src[0]; a_Vtx.m_Texcoord[k/2].w = a_Src[1]; };
 
-					setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(i)->GetUVs(), l_CtrlPtIdx, l_VtxCounter, l_ThisVtx, i % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
+					setupVertexData(l_pSrcMesh, l_pSrcMesh->GetLayer(k)->GetUVs(), l_CtrlPtIdx, l_AdjustVtxCounter, l_ThisVtx, k % 2 == 0 ? l_SetUVFunc : l_SetUV2Func);
 				}
 
 				unsigned int l_VtxIdx = 0;
@@ -390,7 +420,7 @@ void ModelData::init(wxString a_Filepath)
 		}
         
 		l_pDstMesh->m_BoundingBox.m_Size = l_BoxMax - l_BoxMin;
-		l_pDstMesh->m_BoundingBox.m_Center = (l_BoxMax + l_BoxMin) * 0.5f;// - transform pos ?
+		l_pDstMesh->m_BoundingBox.m_Center = (l_BoxMax + l_BoxMin) * 0.5f;
 
 		l_pDstMesh->m_Vertex.resize(l_VtxSet.size());
 		for( auto l_VtxIt=l_VtxSet.begin() ; l_VtxIt!=l_VtxSet.end() ; ++l_VtxIt )
@@ -479,6 +509,8 @@ ModelManager& ModelManager::singleton()
 
 ModelManager::ModelManager()
 	: SearchPathSystem(std::bind(&ModelManager::loadFile, this, std::placeholders::_1, std::placeholders::_2), std::bind(&defaultNewFunc<ModelData>))
+	, m_bFlipYZ(false)
+	, m_bReverseFace(false)
 {
 }
 

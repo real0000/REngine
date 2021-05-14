@@ -28,17 +28,17 @@ VS_CommonOutput main(VS_CommonInput a_Input)
 									,0.0, 0.0, 0.0, 1.0);
 	if( 0 != (l_Transform.m_VtxFlag & USE_WORLD_MAT) )
 	{
-		l_WorldTransform = mul(l_WorldTransform, l_Transform.m_World);
+		l_WorldTransform = mul(l_Transform.m_World, l_WorldTransform);
 	}
-	l_Output.m_Position = mul(float4(a_Input.m_Position, 1.0), l_WorldTransform);
+	l_Output.m_Position = mul(l_WorldTransform, float4(a_Input.m_Position, 1.0));
 
 	if( 0 != (l_Transform.m_VtxFlag & VTXFLAG_NORMAL) )
 	{
-		l_Output.m_Normal = mul(float4(a_Input.m_Normal, 0.0), l_WorldTransform).xyz;
+		l_Output.m_Normal = mul(l_WorldTransform, float4(a_Input.m_Normal, 0.0)).xyz;
 		if( 0 != (l_Transform.m_VtxFlag & USE_NORMAL_TEXTURE ) )
 		{
-			l_Output.m_Tangent = mul(float4(a_Input.m_Tangent, 0.0), l_WorldTransform).xyz;
-			l_Output.m_Binormal = mul(float4(a_Input.m_Binormal, 0.0), l_WorldTransform).xyz;
+			l_Output.m_Tangent = mul(l_WorldTransform, float4(a_Input.m_Tangent, 0.0)).xyz;
+			l_Output.m_Binormal = mul(l_WorldTransform, float4(a_Input.m_Binormal, 0.0)).xyz;
 		}
 	}
 

@@ -27,7 +27,8 @@ bool BasicApp::OnInit()
 	
 	R::SceneManager::singleton().setMainScene(m_pCanvas, l_pScene);
 
-	R::ModelManager::singleton().setFlipYZ(true);
+	//R::ModelManager::singleton().setFlipYZ(true);
+	R::ModelManager::singleton().setReverseFace(true);
 	std::shared_ptr<R::Asset> l_pMeshAsset = R::AssetManager::singleton().getAsset("sponza/sponza.Mesh");
 	//R::AssetManager::singleton().saveAsset(l_pMeshAsset);
 	auto l_pMeshNode = l_pScene->getRootNode()->addChild(l_pMeshAsset);
