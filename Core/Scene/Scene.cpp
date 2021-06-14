@@ -136,27 +136,24 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 
 		if( l_pMatCache != l_pMat || l_pMeshCache != l_pMesh )
 		{
-			if( !l_Instance.empty() )
-			{
-				if( 0 != l_TempData.m_InstanceCount ) l_pIndirectBuffer->assign(l_TempData);
+			l_pIndirectBuffer->assign(l_TempData);
 
-				a_pCmd->useProgram(l_pMatCache->getProgram());
-				int l_InstanceBuffer = requestInstanceVtxBuffer();
-				GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_Instance.data(), sizeof(glm::ivec4) * l_Instance.size());
+			a_pCmd->useProgram(l_pMatCache->getProgram());
+			int l_InstanceBuffer = requestInstanceVtxBuffer();
+			GDEVICE()->updateVertexBuffer(l_InstanceBuffer, l_Instance.data(), sizeof(glm::ivec4) * l_Instance.size());
 	
-				a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
-				a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
-				a_pCmd->setTopology(l_pMatCache->getTopology());
-				a_BindingFunc(l_pMatCache);
-				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
-				l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
-				l_pMatCache->bindAll(a_pCmd);
-				a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
-				recycleInstanceVtxBuffer(l_InstanceBuffer);
+			a_pCmd->bindVertex(l_pMeshCache->getVertexBuffer().get(), l_InstanceBuffer);
+			a_pCmd->bindIndex(l_pMeshCache->getIndexBuffer().get());
+			a_pCmd->setTopology(l_pMatCache->getTopology());
+			a_BindingFunc(l_pMatCache);
+			l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_NORMAL, m_pSingletonBatchData->m_WorldBlock);
+			l_pMatCache->bindBlock(a_pCmd, STANDARD_TRANSFORM_SKIN, m_pSingletonBatchData->m_SkinBlock);
+			l_pMatCache->bindAll(a_pCmd);
+			a_pCmd->drawIndirect(l_pIndirectBuffer->getCurrCount(), l_pIndirectBuffer->getID());
+			recycleInstanceVtxBuffer(l_InstanceBuffer);
 
-				l_Instance.clear();
-				l_pIndirectBuffer = requestIndirectBuffer();
-			}
+			l_Instance.clear();
+			l_pIndirectBuffer = requestIndirectBuffer();
 
 			l_pMatCache = l_pMat;
 			l_pMeshCache = l_pMesh;
@@ -169,28 +166,25 @@ void SceneBatcher::drawSortedMeshes(GraphicCommander *a_pCmd
 			l_TempData.m_StartInstance = 0;
 			l_TempData.m_InstanceCount = 0;
 		}
-		else
+		else if( l_SubIdxCahce != l_SubIdx )
 		{
-			if( l_SubIdxCahce != l_SubIdx && 0 != l_TempData.m_InstanceCount )
-			{
-				l_pIndirectBuffer->assign(l_TempData);
+			l_pIndirectBuffer->assign(l_TempData);
 				
-				MeshAsset::Instance *l_pInst = l_pMesh->getMeshes()[l_SubIdx];
-				l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
-				l_TempData.m_StartIndex = l_pInst->m_StartIndex;
-				l_TempData.m_IndexCount = l_pInst->m_IndexCount;
-				l_TempData.m_StartInstance = l_TempData.m_InstanceCount;
-				l_TempData.m_InstanceCount = 0;
+			MeshAsset::Instance *l_pInst = l_pMesh->getMeshes()[l_SubIdx];
+			l_TempData.m_BaseVertex = l_pInst->m_BaseVertex;
+			l_TempData.m_StartIndex = l_pInst->m_StartIndex;
+			l_TempData.m_IndexCount = l_pInst->m_IndexCount;
+			l_TempData.m_StartInstance += l_TempData.m_InstanceCount;
+			l_TempData.m_InstanceCount = 0;
 
-				l_SubIdxCahce = l_SubIdx;
-			}
+			l_SubIdxCahce = l_SubIdx;
 		}
 
 		l_TempData.m_InstanceCount += a_InstanceFunc(l_Instance, j);
 	}
 	if( !l_Instance.empty() )
 	{
-		if( 0 != l_TempData.m_InstanceCount ) l_pIndirectBuffer->assign(l_TempData);
+		l_pIndirectBuffer->assign(l_TempData);
 
 		a_pCmd->useProgram(l_pMatCache->getProgram());
 		int l_InstanceBuffer = requestInstanceVtxBuffer();

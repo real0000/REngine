@@ -242,7 +242,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		}
 	}
 
-	CONSOLE_LOG(wxT("draw count info : mesh(%d), light(%d)"), int(a_pCamera->getHelper()->getMeshes().size()), int(m_DynamicLights.size()));
+	//CONSOLE_LOG(wxT("draw count info : mesh(%d), light(%d)"), int(a_pCamera->getHelper()->getMeshes().size()), int(m_DynamicLights.size()));
 	{
 		/*glm::vec3 l_Eye, l_Dir, l_Up;
 		a_pCamera->getCameraParam(l_Eye, l_Dir, l_Up);

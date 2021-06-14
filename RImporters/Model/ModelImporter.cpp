@@ -353,7 +353,7 @@ void ModelData::init(wxString a_Filepath)
 			for( unsigned int j=0 ; j<3 ; ++j )
 			{
 				int l_TrianglePos = ModelManager::singleton().getReverseFace() ? (2 - j) : j;
-				unsigned int l_AdjustVtxCounter = ModelManager::singleton().getReverseFace() ? (l_VtxCounter + c_ReverseFaceIdxAdjust[j]) : j;
+				unsigned int l_AdjustVtxCounter = ModelManager::singleton().getReverseFace() ? (l_VtxCounter + c_ReverseFaceIdxAdjust[j]) : l_VtxCounter;
 				int l_CtrlPtIdx = l_pSrcMesh->GetPolygonVertex(i, l_TrianglePos);
 
 				Vertex l_ThisVtx = {};

@@ -26,9 +26,9 @@ public:
 		struct
 		{
 			uint64 m_bValid : 1;
-			uint64 m_MaterialID : 27;
+			uint64 m_MaterialID : 26;
 			uint64 m_MeshID : 27;
-			uint64 m_SubMeshIdx : 9;
+			uint64 m_SubMeshIdx : 10;
 		} m_Members;
 	};
 public:
