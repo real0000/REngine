@@ -37,14 +37,26 @@ bool BasicApp::OnInit()
 	l_pMeshNode->getComponentsInChildren<R::RenderableMesh>(l_Meshes);
 	for( unsigned int i=0 ; i<l_Meshes.size() ; ++i ) l_Meshes[i]->setStatic(true);
 	
-	std::shared_ptr<R::SceneNode> l_pDirLightNode = l_pScene->getRootNode()->addChild(); 
-	std::shared_ptr<R::DirLight> l_pDirLight = l_pDirLightNode->addComponent<R::DirLight>();
-	l_pDirLight->setColor(glm::vec3(1.0f, 1.0f, 0.7f));
-	l_pDirLight->setIntensity(5.0f);
-	l_pDirLight->setShadowed(true);
-	//l_pDirLight->setStatic(true);
-	l_pDirLightNode->setRotate(glm::eulerAngleYZ(-0.25f * glm::pi<float>(), -0.25f * glm::pi<float>()));
+	{// add dir light
+		std::shared_ptr<R::SceneNode> l_pDirLightNode = l_pScene->getRootNode()->addChild(); 
+		std::shared_ptr<R::DirLight> l_pDirLight = l_pDirLightNode->addComponent<R::DirLight>();
+		l_pDirLight->setColor(glm::vec3(1.0f, 1.0f, 0.7f));
+		l_pDirLight->setIntensity(5.0f);
+		l_pDirLight->setShadowed(true);
+		//l_pDirLight->setStatic(true);
+		l_pDirLightNode->setRotate(glm::eulerAngleYZ(-0.25f * glm::pi<float>(), -0.25f * glm::pi<float>()));
+	}
 
+	{// add omni light
+		std::shared_ptr<R::SceneNode> l_pLightNode = l_pScene->getRootNode()->addChild(); 
+		std::shared_ptr<R::OmniLight> l_pOmniLight = l_pLightNode->addComponent<R::OmniLight>();
+		l_pOmniLight->setColor(glm::vec3(1.0f, 1.0f, 1.0f));
+		l_pOmniLight->setIntensity(50000.0f);
+		l_pLightNode->setScale(glm::vec3(100.0f, 100.0f, 100.0f));
+		l_pLightNode->setPosition(glm::vec3(0.0f, 5.0f, 0.0f));
+		l_pOmniLight->setShadowed(true);
+	}
+	
 	std::shared_ptr<R::SceneNode> l_pCameraNode = l_pScene->getRootNode()->find(wxT("Default Camera"));
 	std::shared_ptr<R::CameraController> l_pCameraCtrl = l_pCameraNode->addComponent<R::CameraController>();
 	l_pCameraCtrl->setMaxSpeed(500.0f);

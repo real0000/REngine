@@ -274,7 +274,7 @@ void OmniLight::transformListener(const glm::mat4x4 &a_NewTransform)
 	glm::quat l_Rot;
 	decomposeTRS(a_NewTransform, m_pRefParam->m_Position, l_Scale, l_Rot);
 
-	m_pRefParam->m_Range = std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z);
+	m_pRefParam->m_Range = std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z) * 0.5f;
 	if( m_pRefParam->m_PhysicRange + MIN_PHYSIC_DIST >= m_pRefParam->m_Range )
 	{
 		m_pRefParam->m_PhysicRange = std::max(0.0f, m_pRefParam->m_Range - MIN_PHYSIC_DIST);
@@ -434,8 +434,18 @@ unsigned int OmniLight::getID()
 int OmniLight::createTrigger(PhysicalListener *a_pListener)
 {
 	glm::sphere l_Sphere;
-	l_Sphere.m_Center = m_pRefParam->m_Position;
-	l_Sphere.m_Range = m_pRefParam->m_Range;
+	if( nullptr == m_pRefParam )
+	{
+		glm::vec3 l_Scale;
+		glm::quat l_Rot;
+		decomposeTRS(getOwner()->getTransform(), l_Sphere.m_Center, l_Scale, l_Rot);
+		l_Sphere.m_Range = std::max(std::max(l_Scale.x, l_Scale.y), l_Scale.z) * 0.5f;
+	}
+	else
+	{
+		l_Sphere.m_Center = m_pRefParam->m_Position;
+		l_Sphere.m_Range = m_pRefParam->m_Range;
+	}
 	return getScene()->getPhysicalWorld()->createTrigger(a_pListener, l_Sphere, TRIGGER_LIGHT, TRIGGER_CAMERA | TRIGGER_MESH);
 }
 

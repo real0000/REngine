@@ -107,7 +107,7 @@ DebugLineHelper::DebugLineHelper()
 
 	{ // sphere
 		// x - y - z aligned circle
-		// per circle 36 segment
+		// 36 segment per circle
 		unsigned int *l_pIdxBuffer = nullptr;
 		glm::vec3 *l_pPosBuffer = nullptr;
 		MeshAsset::Instance *l_pInst = l_pAssetInst->addSubMesh(36 * 3, 72 * 3, &l_pIdxBuffer, &l_pPosBuffer);
@@ -197,6 +197,15 @@ void DebugLineHelper::addDebugLine(std::shared_ptr<RenderableMesh> a_pMesh)
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<OmniLight> a_pOmniLight)
 {
+	std::shared_ptr<SceneNode> l_pChild = a_pOmniLight->getOwner()->addChild();
+	l_pChild->setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+	l_pChild->setScale(glm::vec3(1.0f));
+
+	std::shared_ptr<RenderableMesh> l_pLine = l_pChild->addComponent<RenderableMesh>();
+	l_pLine->setMesh(AssetManager::singleton().getAsset(m_Name), SPHERE);
+	RenderableMesh::MaterialData l_Pair = l_pLine->getMaterial(MATSLOT_TRANSPARENT);
+	MaterialAsset *l_pMatInst = l_Pair.second->getComponent<MaterialAsset>();
+	l_pMatInst->setParam("InstanceInfo", "m_Params", l_Pair.first, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
 void DebugLineHelper::addDebugLine(std::shared_ptr<SpotLight> a_pLight)

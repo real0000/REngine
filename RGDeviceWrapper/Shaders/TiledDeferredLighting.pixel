@@ -98,7 +98,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 	float3 l_F0 = float3(0.04, 0.04, 0.04); 
     l_F0 = lerp(l_F0, l_BaseColor.xyz, l_Surface.xxx);
 
-	float4 l_WorldPos = float4(a_UV * float2(2.0, -2.0) + float2(-1.0, 1.0), GBuff6.Sample(GBuff6Sampler, a_UV.xy).x * 2.0 - 1.0, 1.0);
+	float4 l_WorldPos = float4(a_UV * float2(2.0, -2.0) + float2(-1.0, 1.0), GBuff6.Sample(GBuff6Sampler, a_UV.xy).x, 1.0);
 	l_WorldPos = mul(m_InvViewProjection, l_WorldPos);
 	l_WorldPos /= l_WorldPos.w;
 
@@ -125,9 +125,15 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 				l_LightDir = normalize(l_Light.m_Position - l_WorldPos.xyz);
 				float l_Length = distance(l_Light.m_Position, l_WorldPos.xyz);
-				float l_Att = 1.0 / (l_Length * l_Length);
-
-				l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
+				if( l_Length >= l_Light.m_Range )
+				{
+					l_bLightValid = false;
+				}
+				else
+				{
+					float l_Att = 1.0 / (l_Length * l_Length);
+					l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
+				}
 				}break;
 
 			case LIGHT_TYPE_SPOT:{
