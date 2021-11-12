@@ -146,6 +146,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	
 	m_pDepthMinmax = AssetManager::singleton().createRuntimeAsset<TextureAsset>();
 	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
+	m_pDepthMinmax->getComponent<TextureAsset>()->setSamplerFilter(Filter::min_mag_mip_point);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
 
@@ -442,7 +443,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		}
 
 		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), false);
-
+		
 		m_pCmdInit->begin(true);
 		
 		m_pCmdInit->useProgram(DefaultPrograms::TiledLightIntersection);

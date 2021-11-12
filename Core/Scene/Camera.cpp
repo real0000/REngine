@@ -165,10 +165,7 @@ void Camera::calView(const glm::mat4x4 &a_NewTransform)
 			glm::vec3 l_Eye, l_Dir, l_Up;
 			getCameraParam(l_Eye, l_Dir, l_Up);
 			m_Matrices[VIEW] = glm::lookAt(l_Eye, l_Eye + l_Dir * 10.0f, l_Up);
-			m_Matrices[INVERTVIEW] = glm::inverse(m_Matrices[VIEW]);
-
 			m_pCameraBlock->setParam("m_View", 0, m_Matrices[VIEW]);
-			m_pCameraBlock->setParam("m_InvView", 0, m_Matrices[INVERTVIEW]);
 			}break;
 
 		default:break;
@@ -192,6 +189,8 @@ void Camera::calProjection(const glm::mat4x4 &a_NewTransform)
 
 		default:break;
 	}
+	m_Matrices[INVERTPROJECTION] = glm::inverse(m_Matrices[PROJECTION]);
+	m_pCameraBlock->setParam("m_InvProjection", 0, m_Matrices[INVERTPROJECTION]);
 	calViewProjection(a_NewTransform);
 }
 

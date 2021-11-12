@@ -50,10 +50,10 @@ bool BasicApp::OnInit()
 	{// add omni light
 		std::shared_ptr<R::SceneNode> l_pLightNode = l_pScene->getRootNode()->addChild(); 
 		std::shared_ptr<R::OmniLight> l_pOmniLight = l_pLightNode->addComponent<R::OmniLight>();
-		l_pOmniLight->setColor(glm::vec3(1.0f, 1.0f, 1.0f));
-		l_pOmniLight->setIntensity(50000.0f);
-		l_pLightNode->setScale(glm::vec3(100.0f, 100.0f, 100.0f));
-		l_pLightNode->setPosition(glm::vec3(0.0f, 5.0f, 0.0f));
+		l_pOmniLight->setColor(glm::vec3(0.5f, 1.0f, 1.0f));
+		l_pOmniLight->setIntensity(5000000.0f);
+		l_pLightNode->setScale(glm::vec3(250.0f, 250.0f, 250.0f));
+		l_pLightNode->setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 		l_pOmniLight->setShadowed(true);
 	}
 	

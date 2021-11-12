@@ -1,10 +1,10 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt, float2 a_MinMax)
+void calculateMinmax(inout float3 a_Min, inout float3 a_Max, float2 a_ScreenPt, float2 a_MinMax)
 {
-	float4 l_Near = mul(float4(a_ScreenPt.x, a_ScreenPt.y, a_MinMax.x, 1.0), m_InvViewProjection);
-	float4 l_Far = mul(float4(a_ScreenPt.x, a_ScreenPt.y, a_MinMax.y, 1.0), m_InvViewProjection);
+	float4 l_Near = mul(m_InvProjection, float4(a_ScreenPt, a_MinMax.x, 1.0));
+	float4 l_Far = mul(m_InvProjection, float4(a_ScreenPt, a_MinMax.y, 1.0));
 	l_Near = l_Near / l_Near.w;
 	l_Far = l_Far / l_Far.w;
 	a_Max = max(a_Max, l_Near.xyz);
@@ -16,22 +16,13 @@ void calculateMinmax(inout float3 a_Min, inout float3 a_Max,  float2 a_ScreenPt,
 [numthreads(8, 8, 1)]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
-	float2 l_Texcoord = c_PixelSize * a_ThreadID.xy;
+	float2 l_Texcoord = (a_ThreadID.xy + float2(0.5, 0.5)) / float2(c_TileCount);
 	float2 l_MinMax = g_MinMapTexture.SampleLevel(g_MinMapTextureSampler, l_Texcoord, c_MipmapLevel).xy;
-	float2 l_Center = a_ThreadID.xy / c_TileCount * float2(2.0, -2.0) + float2(-1.0, 1.0);
+	float2 l_Center = l_Texcoord * float2(2.0, -2.0) + float2(-1.0, 1.0);
 	float2 l_Offset = 0.5 / c_TileCount;
-
-	float3 l_BoxMin = float3(FLT_MAX * 0.5, FLT_MAX * 0.5, FLT_MAX * 0.5);
-	float3 l_BoxMax = -l_BoxMin;
-	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x + l_Offset.x, l_Center.y + l_Offset.y), l_MinMax);
-	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x - l_Offset.x, l_Center.y + l_Offset.y), l_MinMax);
-	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x - l_Offset.x, l_Center.y - l_Offset.y), l_MinMax);
-	calculateMinmax(l_BoxMin, l_BoxMax, float2(l_Center.x + l_Offset.x, l_Center.y - l_Offset.y), l_MinMax);
 
 	int l_IdxOffset = (c_NumLight + 1) * (a_ThreadID.y * c_TileCount.x + a_ThreadID.x);
 	int l_TileLight = 1;
-	float3 l_BoxCenter = float3(0.0, 0.0, 0.0);
-	float3 l_BoxSize = float3(FLT_MAX, FLT_MAX, FLT_MAX);
 	for( int i=0 ; i<c_NumLight ; ++i )
 	{
 		int l_SrcIdx = g_SrcLights[i/2].m_Params[(i%2)*2];
@@ -42,8 +33,11 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 		{
 			case LIGHT_TYPE_OMNI:{
 				OmniLight l_Light = g_OmniLights[l_SrcIdx];
-				float3 l_Dist = abs(l_Light.m_Position - l_BoxCenter);
-				if( l_Dist.x < l_Light.m_Range + l_BoxSize.x && l_Dist.y < l_Light.m_Range + l_BoxSize.y && l_Dist.z < l_Light.m_Range + l_BoxSize.z )
+				float4 l_LightViewPos = mul(m_ViewProjection, float4(l_Light.m_Position, 1.0));
+				l_LightViewPos /= l_LightViewPos.w;
+				float l_ClipRange = abs(l_Light.m_Range * m_Projection[1][1] / distance(m_CamWorld._m03_m13_m23, l_Light.m_Position));
+				float l_Dist = distance(l_Center, l_LightViewPos.xy);
+				if( l_Dist <= l_Offset.x + l_ClipRange && l_Dist <= l_Offset.y + l_ClipRange )// && l_Dist.z < l_Light.m_Range + l_BoxSize.z )
 				{
 					++l_TileLight;
 					g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
@@ -52,7 +46,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 				}break;
 
 			case LIGHT_TYPE_SPOT:{
-				SpotLight l_Light = g_SpotLights[l_SrcIdx];
+				/*SpotLight l_Light = g_SpotLights[l_SrcIdx];
 				//float3 l_SpotCenter = l_Light.m_Position + 0.5 * l_Light.m_Range * l_Light.m_Direction;
 				// to do : write own corn-aabb intersection
 				float3 l_Dist = abs(l_Light.m_Position - l_BoxCenter);
@@ -61,7 +55,7 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 					++l_TileLight;
 					g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
 					g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
-				}
+				}*/
 				}break;
 
 			//case LIGHT_TYPE_DIR:

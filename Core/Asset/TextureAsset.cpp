@@ -156,6 +156,68 @@ void TextureAsset::updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, 
 	setDirty();
 }
 
+void TextureAsset::setSamplerFilter(Filter::Key a_Filter)
+{
+	assert(-1 != m_TextureID);
+	if( a_Filter == m_Filter ) return;
+	m_Filter = a_Filter;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerAddressMode(AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode)
+{
+	assert(-1 != m_TextureID);
+	if( a_UMode == m_AddressMode[0] && a_VMode == m_AddressMode[1] && a_WMode == m_AddressMode[2] ) return;
+	m_AddressMode[0] = a_UMode;
+	m_AddressMode[1] = a_VMode;
+	m_AddressMode[2] = a_WMode;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerMipLodBias(float a_MipLodBias)
+{
+	assert(-1 != m_TextureID);
+	if( a_MipLodBias == m_MipLodBias ) return;
+	m_MipLodBias = a_MipLodBias;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerMaxAnisotropy(unsigned int a_MaxAnisotropy)
+{
+	assert(-1 != m_TextureID);
+	if( a_MaxAnisotropy == m_MaxAnisotropy ) return;
+	m_MaxAnisotropy = a_MaxAnisotropy;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerComparisonFunc(CompareFunc::Key a_Func)
+{
+	assert(-1 != m_TextureID);
+	if( a_Func == m_Func ) return;
+	m_Func = a_Func;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerLodClamp(float a_MinLod, float a_MaxLod)
+{
+	assert(-1 != m_TextureID);
+	if( a_MinLod == m_MinLod && a_MaxLod == m_MaxLod ) return;
+	m_MinLod = a_MinLod;
+	m_MaxLod = a_MaxLod;
+	m_bSamplerDirty = true;
+}
+
+void TextureAsset::setSamplerBorder(float a_Border0, float a_Border1, float a_Border2, float a_Border3)
+{
+	assert(-1 != m_TextureID);
+	if( a_Border0 == m_Border[0] && a_Border1 == m_Border[1] && a_Border2 == m_Border[2] && a_Border3 == m_Border[3] ) return;
+	m_Border[0] = a_Border0;
+	m_Border[1] = a_Border1;
+	m_Border[2] = a_Border2;
+	m_Border[3] = a_Border3;
+	m_bSamplerDirty = true;
+}
+
 void TextureAsset::importFile(wxString a_File)
 {
 	assert(-1 == m_TextureID);

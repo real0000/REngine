@@ -34,6 +34,13 @@ public:
 	void resizeRenderTarget(glm::ivec3 a_Size);
 	void updateTexture(unsigned int a_MipmapLevel, glm::ivec2 a_Size, glm::ivec2 a_Offset, unsigned int a_Idx, void *a_pSrcData);
 	void updateTexture(unsigned int a_MipmapLevel, glm::ivec3 a_Size, glm::ivec3 a_Offset, void *a_pSrcData);
+	void setSamplerFilter(Filter::Key a_Filter);
+	void setSamplerAddressMode(AddressMode::Key a_UMode, AddressMode::Key a_VMode, AddressMode::Key a_WMode);
+	void setSamplerMipLodBias(float a_MipLodBias);
+	void setSamplerMaxAnisotropy(unsigned int a_MaxAnisotropy);
+	void setSamplerComparisonFunc(CompareFunc::Key a_Func);
+	void setSamplerLodClamp(float a_MinLod, float a_MaxLod);
+	void setSamplerBorder(float a_Border0, float a_Border1, float a_Border2, float a_Border3);
 
 	int getSamplerID();
 	int getTextureID(){ return m_TextureID; }

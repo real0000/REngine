@@ -4,7 +4,7 @@
     <Param name="m_View" desc="" type="float4x4"/>
     <Param name="m_Projection" desc="" type="float4x4"/>
     <Param name="m_ViewProjection" desc="" type="float4x4"/>
-    <Param name="m_InvView" desc="" type="float4x4"/>
+    <Param name="m_InvProjection" desc="" type="float4x4"/>
     <Param name="m_InvViewProjection" desc="" type="float4x4"/>
     <Param name="m_CameraParam" desc="" type="float4"/>
   </ConstBuffer>

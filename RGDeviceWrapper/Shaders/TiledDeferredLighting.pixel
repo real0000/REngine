@@ -125,13 +125,14 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 				l_LightDir = normalize(l_Light.m_Position - l_WorldPos.xyz);
 				float l_Length = distance(l_Light.m_Position, l_WorldPos.xyz);
-				if( l_Length >= l_Light.m_Range )
+				/*if( l_Length >= l_Light.m_Range )
 				{
 					l_bLightValid = false;
 				}
-				else
+				else*/
 				{
 					float l_Att = 1.0 / (l_Length * l_Length);
+					//l_Att *= max(0.0, 1.0 - l_Length / l_Light.m_Range);
 					l_Radiance = l_Light.m_Color * l_Light.m_Intensity * l_Att;
 				}
 				}break;
