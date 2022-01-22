@@ -7,7 +7,7 @@
   <Shaders>
     <Model_5_1>
       <Compute file="GenerateMinmaxDepth.compute">
-        c_PixelSize, c_Level, g_DstTexture, g_SrcTexture
+        c_PixelSize, g_DstTexture, g_SrcTexture
       </Compute>
     </Model_5_1>
   </Shaders>

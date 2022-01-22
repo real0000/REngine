@@ -91,7 +91,8 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	, m_pLightIndexMat(nullptr)
 	, m_pDeferredLightMat(nullptr)
 	, m_pCopyMat(AssetManager::singleton().createAsset(COPY_ASSET_NAME))
-	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr)
+	, m_pCopyDepthMat(AssetManager::singleton().createAsset(COPYDEPTH_ASSET_NAME))
+	, m_pLightIndexMatInst(nullptr), m_pDeferredLightMatInst(nullptr), m_pCopyMatInst(nullptr), m_pCopyDepthMatInst(nullptr)
 	, m_pQueryBuffer()
 	, m_pPredMat(AssetManager::singleton().createRuntimeAsset<MaterialAsset>())
 	, m_pPredMatInst(nullptr)
@@ -104,11 +105,13 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pLightIndexMatInst = m_pLightIndexMat->getComponent<MaterialAsset>();
 	m_pDeferredLightMatInst = m_pDeferredLightMat->getComponent<MaterialAsset>();
 	m_pCopyMatInst = m_pCopyMat->getComponent<MaterialAsset>();
+	m_pCopyDepthMatInst = m_pCopyDepthMat->getComponent<MaterialAsset>();
 	m_pPredMatInst = m_pPredMat->getComponent<MaterialAsset>();
 
 	m_pLightIndexMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledLightIntersection));
 	m_pDeferredLightMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::TiledDeferredLighting));
 	m_pCopyMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Copy));
+	m_pCopyDepthMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::CopyDepth));
 	m_pPredMatInst->init(ProgramManager::singleton().getData(DefaultPrograms::Predication));
 
 	m_QueryID = GDEVICE()->requestQueryBuffer(m_QuerySize);
@@ -145,7 +148,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_TileDim.y = std::ceil(EngineSetting::singleton().m_DefaultSize.y / EngineSetting::singleton().m_TileSize);
 	
 	m_pDepthMinmax = AssetManager::singleton().createRuntimeAsset<TextureAsset>();
-	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg16_float);
+	m_pDepthMinmax->getComponent<TextureAsset>()->initRenderTarget(EngineSetting::singleton().m_DefaultSize, PixelFormat::rg32_float);
 	m_pDepthMinmax->getComponent<TextureAsset>()->setSamplerFilter(Filter::min_mag_mip_point);
 	m_MinmaxStepCount = std::ceill(log2f(EngineSetting::singleton().m_TileSize));
 	m_TiledValidLightIdx = m_pLightIndexMatInst->createExternalBlock(ShaderRegType::UavBuffer, "g_DstLights", m_TileDim.x * m_TileDim.y * (INIT_LIGHT_SIZE / 2 + 1)); // {index, type}
@@ -174,6 +177,7 @@ DeferredRenderer::DeferredRenderer(std::shared_ptr<Scene> a_pScene)
 	m_pDeferredLightMatInst->setParam<glm::vec2>("c_ShadowMapSize", "", 0, l_ShadowMapSize);
 
 	m_pCopyMatInst->setTexture("m_SrcTex", m_pFrameBuffer);
+	m_pCopyDepthMatInst->setTexture("m_SrcTex", m_pGBuffer[GBUFFER_DEPTH]);
 
 	m_DrawCommand.resize(EngineSetting::singleton().m_NumRenderCommandList);
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) m_DrawCommand[i] = GDEVICE()->commanderFactory();
@@ -208,16 +212,22 @@ DeferredRenderer::~DeferredRenderer()
 	for( unsigned int i=0 ; i<m_DrawCommand.size() ; ++i ) SAFE_DELETE(m_DrawCommand[i])
 	m_DrawCommand.clear();
 	// add memset ?
-
+	
+	AssetManager::singleton().removeAsset(m_pLightIndexMat);
+	m_pLightIndexMat = nullptr;
 	m_pLightIndexMatInst = nullptr;
-	m_pDeferredLightMatInst = nullptr;
-	m_pCopyMatInst = nullptr;
 
 	AssetManager::singleton().removeAsset(m_pDeferredLightMat);
 	m_pDeferredLightMat = nullptr;
+	m_pDeferredLightMatInst = nullptr;
+	
+	AssetManager::singleton().removeAsset(m_pCopyMat);
+	m_pCopyMatInst = nullptr;
+	m_pCopyMat = nullptr;
 
-	AssetManager::singleton().removeAsset(m_pLightIndexMat);
-	m_pLightIndexMat = nullptr;
+	AssetManager::singleton().removeAsset(m_pCopyDepthMat);
+	m_pCopyDepthMat = nullptr;
+	m_pCopyDepthMatInst = nullptr;
 
 	m_LightIdx = nullptr;
 	m_TiledValidLightIdx = nullptr;
@@ -343,7 +353,7 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 		{
 			m_pCmdInit->clearRenderTarget(m_pGBuffer[i]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 		}
-		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
+		m_pCmdInit->clearDepthTarget(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, true, 0);
 		//m_pCmdInit->clearRenderTarget(m_pQueryBuffer[1]->getComponent<TextureAsset>()->getTextureID(), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 		//m_pCmdInit->clearDepthTarget(m_pQueryBuffer[0]->getComponent<TextureAsset>()->getTextureID(), true, 1.0f, false, 0);
 
@@ -434,15 +444,14 @@ void DeferredRenderer::render(std::shared_ptr<Camera> a_pCamera, GraphicCanvas *
 			m_pCmdInit->setScissor(1, glm::ivec4(0, 0, l_DepthSize.x, l_DepthSize.y));
 
 			m_pCmdInit->bindVertex(m_pQuadMeshInst->getVertexBuffer().get());
-			m_pCmdInit->bindTexture(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getTextureID(), 0, GraphicCommander::BIND_RENDER_TARGET);
-			m_pCmdInit->bindSampler(m_pGBuffer[GBUFFER_DEPTH]->getComponent<TextureAsset>()->getSamplerID(), 0);
+			m_pCopyDepthMatInst->bindAll(m_pCmdInit);
 			m_pCmdInit->setTopology(Topology::triangle_strip);
 			m_pCmdInit->drawVertex(4, 0);
 
 			m_pCmdInit->end();
 		}
 
-		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(m_MinmaxStepCount, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), false);
+		m_pDepthMinmax->getComponent<TextureAsset>()->generateMipmap(0, ProgramManager::singleton().getData(DefaultPrograms::GenerateMinmaxDepth), false);
 		
 		m_pCmdInit->begin(true);
 		
@@ -561,6 +570,7 @@ void DeferredRenderer::canvasResize(glm::ivec2 a_Size)
 	
 	m_pLightIndexMatInst->setParam<glm::vec2>("c_PixelSize", "", 0, glm::vec2(1.0f / a_Size.x, 1.0f / a_Size.y));
 	m_pLightIndexMatInst->setParam<glm::ivec2>("c_TileCount", "", 0, m_TileDim);
+	m_pDeferredLightMatInst->setParam<glm::ivec2>("c_TileCount", "", 0, m_TileDim);
 }
 
 void DeferredRenderer::drawFlagChanged(unsigned int a_Flag)

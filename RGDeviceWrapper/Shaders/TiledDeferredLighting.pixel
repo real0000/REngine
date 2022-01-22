@@ -104,7 +104,7 @@ float4 main(float2 a_UV : TEXCOORD0) : SV_TARGET0
 
 	float3 l_EyeDir = normalize(m_CamWorld._m03_m13_m23 - l_WorldPos.xyz);
 
-	int2 l_Tile = floor(a_UV.xy * c_TileCount.xy);
+	int2 l_Tile = round(a_UV.xy * c_TileCount.xy);
 	int l_IdxOffset = (c_NumLight + 1) * (l_Tile.y * c_TileCount.x + l_Tile.x);
 	int l_NumLight = TileLights[l_IdxOffset/2].m_Params[(l_IdxOffset%2) * 2];
 

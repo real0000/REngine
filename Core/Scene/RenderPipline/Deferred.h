@@ -65,8 +65,8 @@ private:
 	unsigned int m_MinmaxStepCount;
 	std::shared_ptr<MaterialBlock> m_TiledValidLightIdx;
 	std::vector<GraphicCommander *> m_DrawCommand;
-	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat;
-	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst;
+	std::shared_ptr<Asset> m_pLightIndexMat, m_pDeferredLightMat, m_pCopyMat, m_pCopyDepthMat;
+	MaterialAsset *m_pLightIndexMatInst, *m_pDeferredLightMatInst, *m_pCopyMatInst, *m_pCopyDepthMatInst;
 
 	// query
 	std::shared_ptr<Asset> m_pQueryBuffer[2];// depth, color

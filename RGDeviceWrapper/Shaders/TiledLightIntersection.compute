@@ -1,25 +1,19 @@
 #include <StdInclude.h>
 #include "autoBinder.h"
 
-void calculateMinmax(inout float3 a_Min, inout float3 a_Max, float2 a_ScreenPt, float2 a_MinMax)
-{
-	float4 l_Near = mul(m_InvProjection, float4(a_ScreenPt, a_MinMax.x, 1.0));
-	float4 l_Far = mul(m_InvProjection, float4(a_ScreenPt, a_MinMax.y, 1.0));
-	l_Near = l_Near / l_Near.w;
-	l_Far = l_Far / l_Far.w;
-	a_Max = max(a_Max, l_Near.xyz);
-	a_Max = max(a_Max, l_Far.xyz);
-	a_Min = min(a_Min, l_Near.xyz);
-	a_Min = min(a_Min, l_Far.xyz);
-}
-
 [numthreads(8, 8, 1)]
 void main(uint3 a_ThreadID : SV_DispatchThreadID)
 {
 	float2 l_Texcoord = (a_ThreadID.xy + float2(0.5, 0.5)) / float2(c_TileCount);
-	float2 l_MinMax = g_MinMapTexture.SampleLevel(g_MinMapTextureSampler, l_Texcoord, c_MipmapLevel).xy;
+	float2 l_MinMax = g_MinMapTexture.SampleLevel(g_MinMapTextureSampler, l_Texcoord, c_MipmapLevel - 1).xy;
 	float2 l_Center = l_Texcoord * float2(2.0, -2.0) + float2(-1.0, 1.0);
 	float2 l_Offset = 0.5 / c_TileCount;
+	{
+		/*float4 l_Temp = mul(m_InvProjection, float4(l_Center, l_MinMax.x, 1.0));
+		l_MinMax.x = l_Temp.z / l_Temp.w;
+		l_Temp = mul(m_InvProjection, float4(l_Center, l_MinMax.y, 1.0));
+		l_MinMax.y = l_Temp.z / l_Temp.w;*/
+	}
 
 	int l_IdxOffset = (c_NumLight + 1) * (a_ThreadID.y * c_TileCount.x + a_ThreadID.x);
 	int l_TileLight = 1;
@@ -35,13 +29,19 @@ void main(uint3 a_ThreadID : SV_DispatchThreadID)
 				OmniLight l_Light = g_OmniLights[l_SrcIdx];
 				float4 l_LightViewPos = mul(m_ViewProjection, float4(l_Light.m_Position, 1.0));
 				l_LightViewPos /= l_LightViewPos.w;
-				float l_ClipRange = abs(l_Light.m_Range * m_Projection[1][1] / distance(m_CamWorld._m03_m13_m23, l_Light.m_Position));
-				float l_Dist = distance(l_Center, l_LightViewPos.xy);
-				if( l_Dist <= l_Offset.x + l_ClipRange && l_Dist <= l_Offset.y + l_ClipRange )// && l_Dist.z < l_Light.m_Range + l_BoxSize.z )
+				float l_ViewZ = mul(m_View, float4(l_Light.m_Position, 1.0)).z;
+				float l_ClipRange = abs(l_Light.m_Range * m_Projection[1][1] / l_ViewZ);
+				float2 l_ClipDist = (l_Center - l_LightViewPos.xy) * float2(m_CameraParam.y, 1.0) * 0.9;
+				float l_Dist = sqrt(dot(l_ClipDist, l_ClipDist));
+				if( l_Dist <= l_Offset.x + l_ClipRange && l_Dist <= l_Offset.y + l_ClipRange )
 				{
-					++l_TileLight;
-					g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
-					g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
+					float2 l_OmniMinMax = float2(l_ViewZ - l_Light.m_Range, l_ViewZ + l_Light.m_Range);
+					if( l_MinMax.y != l_MinMax.x )//l_OmniMinMax.x <= l_MinMax.y && l_OmniMinMax.y >= l_MinMax.x )
+					{
+						++l_TileLight;
+						g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx] = l_SrcIdx;
+						g_DstLights[l_DstIdx].m_Params[l_DstTypeIdx + 1] = l_SrcType;
+					}
 				}
 				}break;
 

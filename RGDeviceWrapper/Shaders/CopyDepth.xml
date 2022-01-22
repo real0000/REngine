@@ -17,14 +17,14 @@
     <BlendState/>
     <RasterizerState filled="true" cull="none" ccFront="false" depthBias="0" slopeDepthBias="0.0" depthBiasClamp="0.0" useDepthClip="false" useMultiSample="false" lineaa="false" forceSampleCount="0" conservative="false"/>
     <DepthStencil>
-      <Depth enable="false" write="false" func="less"/>
+      <Depth enable="false" write="false" func="always"/>
       <Stencil enable="false" readMask="ff" writeMask="ff">
         <Front func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
         <Back func="always" depthFailOP="keep" passOP="keep" failOP="keep"/>
       </Stencil>
     </DepthStencil>
     <RenderTarget depthStencil="unknown">
-      <rg16_float/>
+      <rg32_float/>
     </RenderTarget>
   </ShaderSetting>
 </root>
